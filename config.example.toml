@@ -1,0 +1,19 @@
+# ShellSense configuration
+
+[ui]
+max_rows = 8
+width = 80
+descriptions = true
+border = "rounded" # "rounded", "square", or "none"
+icons = true
+foreground = "default"
+background = "default"
+selected_foreground = "#ffffff"
+selected_background = "#264f78"
+border_color = "#6688aa"
+description_color = "#8f9baa"
+match_color = "#ffcc66"
+
+[completion]
+max_results = 100
+auto_trigger = true

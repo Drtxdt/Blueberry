@@ -1,0 +1,138 @@
+{
+  "arch": "x86_64",
+  "executable": "C:\\Users\\dell\\.codex\\visualizations\\2026\\09\\10\\01a08c3e-7202-7b72-bd9a-33b2fa60a094\\shellsense-rs\\target\\release\\shellsense.exe",
+  "first_menu": {
+    "median": 82.7172,
+    "p95": 99.5131,
+    "samples": [
+      80.7093,
+      79.9676,
+      86.1994,
+      94.5786,
+      71.2748,
+      82.7172,
+      74.5122,
+      88.3983,
+      75.03890000000001,
+      99.5131
+    ],
+    "unit": "ms"
+  },
+  "fixtures": [
+    "ss-ben0-complete.cmd",
+    "ss-ben1-complete.cmd",
+    "ss-ben2-complete.cmd",
+    "ss-ben3-complete.cmd",
+    "ss-ben4-complete.cmd",
+    "ss-ben5-complete.cmd",
+    "ss-ben6-complete.cmd",
+    "ss-ben7-complete.cmd",
+    "ss-ben8-complete.cmd",
+    "ss-ben9-complete.cmd"
+  ],
+  "iterations": 10,
+  "method": {
+    "cache": "operating-system caches are not cleared",
+    "first_menu": "time from sending ss-ben0 until a distinct ss-ben0-complete candidate is visible",
+    "host": "fresh native host process through an outer ConPTY with PowerShell in the inner ConPTY",
+    "native_host_first_prompt": "time from Harness::start until visible 'PS '; includes native host, ConPTY, and PowerShell startup",
+    "warm_menu": "same host after Backspace + 1, until distinct ss-ben1-complete is visible",
+    "working_set": "native host process only, sampled with K32GetProcessMemoryInfo WorkingSetSize; pwsh is excluded"
+  },
+  "native_host_first_prompt": {
+    "median": 545.6971000000001,
+    "p95": 561.2695,
+    "samples": [
+      486.1045,
+      558.5278999999999,
+      516.2169,
+      512.0388,
+      551.8305,
+      549.8676,
+      521.4423,
+      561.2695,
+      545.6971000000001,
+      506.5651
+    ],
+    "unit": "ms"
+  },
+  "native_host_working_set": {
+    "api": "K32GetProcessMemoryInfo",
+    "first_menu": {
+      "available": true,
+      "median": 9904128,
+      "p95": 10100736,
+      "samples": [
+        9781248,
+        9891840,
+        9822208,
+        9932800,
+        9904128,
+        9793536,
+        9883648,
+        9932800,
+        9908224,
+        10100736
+      ],
+      "unit": "bytes"
+    },
+    "process": "native host only",
+    "startup": {
+      "available": true,
+      "median": 8310784,
+      "p95": 10203136,
+      "samples": [
+        7782400,
+        7991296,
+        10203136,
+        8310784,
+        9199616,
+        8290304,
+        8597504,
+        9240576,
+        7974912,
+        7970816
+      ],
+      "unit": "bytes"
+    },
+    "unit": "bytes",
+    "warm_menu": {
+      "available": true,
+      "median": 9904128,
+      "p95": 10100736,
+      "samples": [
+        9785344,
+        9891840,
+        9826304,
+        9932800,
+        9904128,
+        9793536,
+        9883648,
+        9940992,
+        9908224,
+        10100736
+      ],
+      "unit": "bytes"
+    }
+  },
+  "platform": "windows",
+  "schema": 1,
+  "shell": "pwsh.exe",
+  "warm_menu": {
+    "median": 25.1923,
+    "p95": 38.428700000000006,
+    "samples": [
+      20.9325,
+      25.1923,
+      31.044900000000002,
+      38.428700000000006,
+      28.0363,
+      25.1677,
+      16.6673,
+      25.3173,
+      12.9458,
+      16.988699999999998
+    ],
+    "unit": "ms"
+  }
+}
