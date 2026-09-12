@@ -47,6 +47,16 @@ pub fn host_probe_with_descriptions(
     iterations: u16,
     descriptions: bool,
 ) -> Result<Value> {
+    host_probe_traced(executable, shell, iterations, descriptions, None)
+}
+
+pub fn host_probe_traced(
+    executable: &Path,
+    shell: &Path,
+    iterations: u16,
+    descriptions: bool,
+    trace_dir: Option<&Path>,
+) -> Result<Value> {
     ensure!(
         (1..=MAX_ITERATIONS).contains(&iterations),
         "iterations must be between 1 and {MAX_ITERATIONS}"
@@ -72,11 +82,40 @@ pub fn host_probe_with_descriptions(
         fs::create_dir_all(&data_dir)?;
         for cache_hit in [false, true] {
             if cache_hit {
-                CommandIndex::load_with_env(&data_dir.join("commands.json"), &path, &pathext)
-                    .context("warm-cache sample requires a valid completed command index")?;
+                let cache_path = data_dir.join("commands.json");
+                let saved: Value = serde_json::from_slice(&fs::read(&cache_path)?)?;
+                let child_path = saved["context"]["path"]
+                    .as_str()
+                    .context("cached child PATH")?;
+                let child_pathext = saved["context"]["pathext"]
+                    .as_str()
+                    .context("cached child PATHEXT")?;
+                ensure!(
+                    env::split_paths(child_path).any(|p| p == fixture_dir),
+                    "fixture directory must remain on the child PATH"
+                );
+                CommandIndex::load_with_env(
+                    &cache_path,
+                    OsStr::new(child_path),
+                    OsStr::new(child_pathext),
+                )
+                .context("warm-cache sample requires a valid completed command index")?;
             }
+            let cache_modified = if cache_hit {
+                Some(fs::metadata(data_dir.join("commands.json"))?.modified()?)
+            } else {
+                None
+            };
             let measured = if cache_hit { &mut cached } else { &mut missing };
-            let args = host_args(&config_path, shell, &data_dir);
+            let mut args = host_args(&config_path, shell, &data_dir);
+            if let Some(directory) = trace_dir {
+                fs::create_dir_all(directory)?;
+                let trace_path = directory.join(format!(
+                    "{}-{iteration}.jsonl",
+                    if cache_hit { "hit" } else { "miss" }
+                ));
+                args.extend(["--trace".into(), trace_path.to_string_lossy().into_owned()]);
+            }
             let started = Instant::now();
             let mut harness = Harness::start(
                 executable,
@@ -102,6 +141,12 @@ pub fn host_probe_with_descriptions(
             }
             push_working_set(&mut measured.menu_memory, harness.process_id());
             harness.finish(Duration::from_secs(5))?;
+            if let Some(before) = cache_modified {
+                ensure!(
+                    fs::metadata(data_dir.join("commands.json"))?.modified()? == before,
+                    "cache-hit sample unexpectedly rewrote the command index"
+                );
+            }
         }
     }
     Ok(json!({
@@ -118,7 +163,7 @@ pub fn host_probe_with_descriptions(
             "cache":"new application data directory for miss; validated complete index and integration reused for hit; OS caches are not cleared",
             "memory":"own-process WorkingSetSize, excluding pwsh/ConHost/Windows Terminal",
             "statistics":"median averages the middle pair for even samples; p95 uses nearest-rank",
-            "trace":"disabled"
+            "trace":if trace_dir.is_some() {"enabled; diagnostic run, not an acceptance sample"} else {"disabled"}
         }
     }))
 }

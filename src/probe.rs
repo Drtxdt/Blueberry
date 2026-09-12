@@ -198,10 +198,30 @@ fn stats(values: &[f64]) -> Value {
 }
 
 pub fn run(shell: &Path, iterations: u16, no_profile: bool) -> Result<Value> {
+    run_with_adapter(shell, iterations, no_profile, None)
+}
+
+pub fn run_with_adapter(
+    shell: &Path,
+    iterations: u16,
+    no_profile: bool,
+    adapter_script: Option<&Path>,
+) -> Result<Value> {
     let directory = std::env::temp_dir().join(format!("shellsense-probe-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&directory)?;
     let temporary = Temporary(directory);
-    let integration = pty::ensure_integration(&temporary.0)?;
+    let integration = match adapter_script {
+        Some(path) => path.to_path_buf(),
+        None => pty::ensure_integration(&temporary.0)?,
+    };
+    let adapter_source = adapter_script
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "embedded".to_owned());
+    let profile_mode = if no_profile {
+        "no_profile"
+    } else {
+        "with_profile"
+    };
     let edit_path = temporary.0.join("edit.json");
     let cwd = std::env::current_dir()?;
     let token = uuid::Uuid::new_v4().to_string();
@@ -237,7 +257,13 @@ pub fn run(shell: &Path, iterations: u16, no_profile: bool) -> Result<Value> {
                 if no_profile {
                     args.push("-NoProfile".into());
                 }
-                args.extend(["-Command".into(),format!("[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; function global:prompt {{ [Console]::Write('{}'); 'PS> ' }}",frame.replace('\'',"''"))]);
+                args.extend([
+                    "-Command".into(),
+                    format!(
+                        "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; $global:__shellsense_original_prompt = $ExecutionContext.InvokeCommand.GetCommand('Prompt', [System.Management.Automation.CommandTypes]::Function); $global:__shellsense_original_prompt = if ($null -eq $global:__shellsense_original_prompt) {{ {{ 'PS> ' }} }} else {{ $global:__shellsense_original_prompt.ScriptBlock }}; function global:prompt {{ $promptState = & {{ param($savedLastExitCode) try {{ $originalOutput = @(& $global:__shellsense_original_prompt); [pscustomobject]@{{ output = $originalOutput; error = $null; lastExitCode = $savedLastExitCode }} }} catch {{ [pscustomobject]@{{ output = @(); error = $_; lastExitCode = $savedLastExitCode }} }} }} ($ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')); [Console]::Write('{}'); $global:LASTEXITCODE = $promptState.lastExitCode; if ($null -ne $promptState.error) {{ throw $promptState.error }}; return $promptState.output }}",
+                        frame.replace('\'', "''")
+                    ),
+                ]);
                 args
             };
             let started = Instant::now();
@@ -337,8 +363,9 @@ pub fn run(shell: &Path, iterations: u16, no_profile: bool) -> Result<Value> {
     Ok(json!({
         "schema":2,"build":if cfg!(debug_assertions) {"debug"} else {"release"},
         "platform":std::env::consts::OS,"arch":std::env::consts::ARCH,
-        "shell":shell,"no_profile":no_profile,"iterations":iterations,
-        "method":"Alternating fresh ConPTY pwsh processes; UTF-8 console and history saving disabled in both cases. Prompt marker timestamp, not first visible frame. OS caches are not cleared. Query timings include PSReadLine + OSC + ConPTY roundtrip. This does not measure outer-host rendering or RSS.",
+        "shell":shell,"adapter_source":adapter_source,"profile_mode":profile_mode,
+        "no_profile":no_profile,"iterations":iterations,
+        "method":"Alternating fresh ConPTY pwsh processes; UTF-8 console and history saving disabled in both cases. The baseline wraps the profile's existing prompt and emits a controlled marker after its output; the adapter source is reported above. Prompt marker timestamp, not first visible frame. OS caches are not cleared. Query timings include PSReadLine + OSC + ConPTY roundtrip. This does not measure outer-host rendering or RSS.",
         "baseline_prompt":stats(&baseline),"adapter_prompt":stats(&integrated),
         "baseline_first_input_echo":stats(&baseline_input),"adapter_first_input_echo":stats(&integrated_input),
         "paired_first_input_delta":stats(&input_deltas),

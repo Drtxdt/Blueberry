@@ -17,6 +17,44 @@ fn shell_command(name: &str, kind: &str, definition: &str) -> ShellCommand {
 }
 
 #[test]
+fn requested_contexts_work_through_the_real_line_lexer() {
+    let mut index = CommandIndex::default();
+    index.merge_shell_commands(vec![
+        shell_command("cargo", "Application", ""),
+        shell_command("git", "Application", ""),
+    ]);
+    for (line, wanted) in [
+        ("car", "cargo"),
+        ("cargo build --rel", "--release"),
+        ("git log --o", "--oneline"),
+        ("git -C \"含 空格目录\" log --o", "--oneline"),
+    ] {
+        let result = index.complete(line, line.len(), Path::new("."), 100);
+        assert!(
+            result
+                .candidates
+                .iter()
+                .any(|candidate| candidate.label == wanted),
+            "{line}: {result:?}"
+        );
+    }
+    for line in [
+        "git status --o",
+        "git log -- --o",
+        "git -C \"含 空格目录\" log -- --o",
+    ] {
+        let result = index.complete(line, line.len(), Path::new("."), 100);
+        assert!(
+            !result
+                .candidates
+                .iter()
+                .any(|candidate| candidate.label == "--oneline"),
+            "{line}: {result:?}"
+        );
+    }
+}
+
+#[test]
 fn short_commands_rank_before_longer_names_without_inventing_commands() {
     let mut index = CommandIndex::default();
     assert!(

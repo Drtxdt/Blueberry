@@ -25,7 +25,8 @@ events:
 | `prompt_end` | `cwd`, `path`, `pathext`, `pid` |
 | `execute` | none |
 | `buffer` | `line`, `cursor` (UTF-16 code-unit offset) |
-| `commands` | `commands`, each with `name`, `kind`, and `definition` (aliases include their target) |
+| `commands` | `snapshot` UUID, `complete` boolean, `commands` (up to 128 records), each with `name`, `kind`, and `definition` (aliases include their target) |
+| `trace` | Optional fixed `stage` and numeric `duration_ms`; enabled only by the host trace switch |
 | `error` | `code`, `message`, and sometimes `chord` |
 
 On hosts that load PSReadLine just before the first prompt, the initial
@@ -40,6 +41,19 @@ and removed after handling, so the same payload cannot be replayed. Its
 `start`/`length` are checked as UTF-16 code-unit ranges that cannot split a
 surrogate pair. Replacement text is passed directly to PSReadLine's
 `Replace` method and is never evaluated as PowerShell.
+
+Repeated `F12,c` calls continue the same immutable snapshot until
+`complete: true`; the next call starts a new snapshot. There is no 512-command
+limit. The host prioritizes buffer queries between snapshot pages. It keeps
+previous session commands until the last page, then replaces the old snapshot
+so removed aliases/functions disappear. Legacy unbatched frames are still
+accepted as complete.
+
+Serialization and edit parsing use PowerShell's existing `System.Text.Json`.
+The cached default encoder preserves ASCII OSC transport and Unicode surrogate
+pairs. Startup uses the session-variable and prompt APIs, and PSReadLine's
+direct key-handler API, without importing Utility solely for JSON. The adapter
+checks both reserved composite chords and an existing bare F12 binding.
 
 If a reserved chord is already bound, the existing binding is left unchanged
 and an `error` event with code `key_chord_collision` is sent. If PSReadLine is

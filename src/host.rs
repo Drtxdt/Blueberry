@@ -1,4 +1,5 @@
 use crate::{
+    cache_writer::CacheWriter,
     config::{self, Config},
     engine::{CommandIndex, Discovery},
     input::{self, Input},
@@ -6,6 +7,7 @@ use crate::{
     overlay::Overlay,
     protocol::{self, Decoder, Part},
     pty,
+    trace::Trace,
 };
 use anyhow::{Context, Result};
 use crossterm::{
@@ -23,6 +25,7 @@ use std::{
         mpsc::{self, SyncSender},
     },
     thread,
+    time::{Duration, Instant},
 };
 
 const QUERY: &[u8] = b"\x1b[24~s";
@@ -34,11 +37,12 @@ pub struct RunOptions {
     pub no_profile: bool,
     pub config_path: Option<PathBuf>,
     pub data_dir: PathBuf,
+    pub trace_path: Option<PathBuf>,
 }
 
 enum HostEvent {
     Output(Vec<u8>),
-    Input(Event),
+    Input(Vec<Event>),
     Eof,
     Exit(u32),
     Error(String),
@@ -67,10 +71,11 @@ struct Work {
 struct Worker(Arc<(Mutex<Work>, Condvar)>);
 
 impl Worker {
-    fn new(cache: PathBuf, output: SyncSender<HostEvent>) -> Self {
+    fn new(cache: PathBuf, output: SyncSender<HostEvent>, trace: Trace) -> Self {
         let shared = Arc::new((Mutex::new(Work::default()), Condvar::new()));
         let thread_shared = shared.clone();
         thread::spawn(move || {
+            let cache_writer = CacheWriter::new(cache.clone(), trace.clone());
             let mut index: Option<CommandIndex> = None;
             let mut discovery: Option<Discovery> = None;
             let mut environment: Option<(String, String)> = None;
@@ -107,7 +112,7 @@ impl Worker {
                 if let Some(query) = query {
                     latest_query = Some(query);
                 }
-                let mut changed = commands_changed || query_changed;
+                let mut changed = commands_changed;
                 if (index.is_none() && discovery.is_none()) || refresh {
                     let (path, pathext) = environment.clone().unwrap_or_else(|| {
                         (
@@ -116,12 +121,23 @@ impl Worker {
                                 .unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into()),
                         )
                     });
+                    let started = Instant::now();
                     let cached = if refresh {
                         None
                     } else {
                         CommandIndex::load_with_env(&cache, OsStr::new(&path), OsStr::new(&pathext))
                             .ok()
                     };
+                    trace.event(
+                        if cached.is_some() {
+                            "cache_hit"
+                        } else {
+                            "cache_miss"
+                        },
+                        None,
+                        Some(started.elapsed()),
+                        None,
+                    );
                     if let Some(cached) = cached {
                         index = Some(cached);
                     } else {
@@ -131,8 +147,15 @@ impl Worker {
                 }
                 let mut finished = false;
                 if let Some(scan) = discovery.as_mut() {
+                    let started = Instant::now();
                     finished = scan.step();
                     index = Some(scan.snapshot());
+                    trace.event(
+                        "index_batch",
+                        None,
+                        Some(started.elapsed()),
+                        Some(usize::from(finished)),
+                    );
                     changed = true;
                 }
                 if finished {
@@ -142,8 +165,15 @@ impl Worker {
                 if changed {
                     index.replace_shell_commands(shell_commands.clone());
                 }
-                if let Some(q) = latest_query.as_ref().filter(|_| changed) {
+                if let Some(q) = latest_query.as_ref().filter(|_| changed || query_changed) {
+                    let started = Instant::now();
                     let result = index.complete(&q.line, q.cursor, &q.cwd, q.limit);
+                    trace.event(
+                        "completion",
+                        Some(q.revision),
+                        Some(started.elapsed()),
+                        Some(result.candidates.len()),
+                    );
                     if output
                         .send(HostEvent::Completion(q.revision, result))
                         .is_err()
@@ -153,7 +183,12 @@ impl Worker {
                 }
                 // A partial index is never published as a complete cache.
                 if finished {
-                    let _ = index.save(&cache);
+                    cache_writer.submit(index.clone());
+                }
+                // Scanning is active work, not a timer loop. Yield at each
+                // bounded batch and check the latest request before continuing.
+                if discovery.is_some() {
+                    thread::yield_now();
                 }
             }
         });
@@ -297,6 +332,8 @@ struct State {
     commands_snapshot: CommandSnapshot,
     commands_pending: bool,
     commands_allowed: bool,
+    trace: Trace,
+    query_started: Option<Instant>,
 }
 
 impl State {
@@ -325,6 +362,7 @@ impl State {
                 self.dirty = false;
             }
             "prompt_end" => {
+                self.trace.event("prompt_end", None, None, None);
                 self.prompt = true;
                 self.commands_allowed = true;
                 if !self.ready && !self.adapter_diagnostic_shown {
@@ -370,6 +408,12 @@ impl State {
             }
             "buffer" => {
                 let revision = self.pending_query.take().unwrap_or(self.revision);
+                self.trace.event(
+                    "query_response",
+                    Some(revision),
+                    self.query_started.take().map(|s| s.elapsed()),
+                    None,
+                );
                 if revision != self.revision || !self.prompt {
                     return Ok(());
                 }
@@ -413,6 +457,26 @@ impl State {
                     _ => {}
                 }
             }
+            "trace" => {
+                let stage = match value["stage"].as_str() {
+                    Some("adapter_bootstrap") => "adapter_bootstrap",
+                    Some("readline_init") => "readline_init",
+                    Some("command_snapshot") => "command_snapshot",
+                    Some("serialize") => "serialize",
+                    _ => return Ok(()),
+                };
+                if let Some(ms) = value["duration_ms"]
+                    .as_f64()
+                    .filter(|v| v.is_finite() && *v >= 0.0 && *v < 86_400_000.0)
+                {
+                    self.trace.event(
+                        stage,
+                        None,
+                        Some(std::time::Duration::from_secs_f64(ms / 1000.0)),
+                        None,
+                    );
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -423,6 +487,11 @@ impl State {
             writer.write_all(QUERY)?;
             writer.flush()?;
             self.pending_query = Some(self.revision);
+            if self.trace.enabled() {
+                self.query_started = Some(Instant::now());
+            }
+            self.trace
+                .event("query_sent", Some(self.revision), None, None);
             self.dirty = false;
         } else if self.commands_pending
             && self.commands_allowed
@@ -468,6 +537,10 @@ impl State {
         master: &dyn portable_pty::MasterPty,
         worker: &Worker,
     ) -> Result<()> {
+        if matches!(&event, Event::Key(key) if key.kind == crossterm::event::KeyEventKind::Release)
+        {
+            return Ok(());
+        }
         // A custom PSReadLine key handler can end native selection/search.
         // Never query while those editing modes are active.
         let mut query_after = true;
@@ -609,6 +682,8 @@ impl State {
 }
 
 pub fn run(options: RunOptions) -> Result<u32> {
+    let trace = Trace::open(options.trace_path.as_deref())?;
+    trace.event("host_start", None, None, None);
     let config = config::load(options.config_path.as_deref())?;
     let integration = pty::ensure_integration(&options.data_dir)?;
     let session_directory = options
@@ -618,7 +693,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let _files = SessionFiles(session_directory.clone());
     let edit_path = session_directory.join("edit.json");
     let token = uuid::Uuid::new_v4().to_string();
-    let env = BTreeMap::from([
+    let mut env = BTreeMap::from([
         ("SHELLSENSE_TOKEN".into(), token.clone()),
         (
             "SHELLSENSE_EDIT_PATH".into(),
@@ -628,6 +703,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
         ("ISTERM".into(), "1".into()),
         ("TERM".into(), "xterm-256color".into()),
     ]);
+    env.insert(
+        "SHELLSENSE_TRACE".into(),
+        if trace.enabled() { "1" } else { "0" }.into(),
+    );
     let cwd = std::env::current_dir()?;
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let _raw = RawMode::enable()
@@ -650,6 +729,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         rows,
         cols,
     )?;
+    trace.event("pty_started", None, None, None);
     let _child_guard = ChildGuard(child.clone_killer());
     let (tx, rx) = mpsc::sync_channel(256);
     let read_tx = tx.clone();
@@ -681,7 +761,15 @@ pub fn run(options: RunOptions) -> Result<u32> {
         loop {
             match event::read() {
                 Ok(event) => {
-                    if input_tx.send(HostEvent::Input(event)).is_err() {
+                    let mut events = vec![event];
+                    // Drain only keys already available; never wait to fill a batch.
+                    while events.len() < 64 && event::poll(Duration::ZERO).unwrap_or(false) {
+                        match event::read() {
+                            Ok(event) => events.push(event),
+                            Err(_) => break,
+                        }
+                    }
+                    if input_tx.send(HostEvent::Input(events)).is_err() {
                         break;
                     }
                 }
@@ -697,7 +785,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         let code = child.wait().map(|s| s.exit_code()).unwrap_or(1);
         let _ = wait_tx.send(HostEvent::Exit(code));
     });
-    let worker = Worker::new(options.data_dir.join("commands.json"), tx);
+    let worker = Worker::new(options.data_dir.join("commands.json"), tx, trace.clone());
     let mut state = State {
         parser: vt100::Parser::new(rows, cols, 0),
         decoder: Decoder::new(token),
@@ -728,11 +816,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
         commands_snapshot: CommandSnapshot::default(),
         commands_pending: false,
         commands_allowed: false,
+        trace: trace.clone(),
+        query_started: None,
     };
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
     let mut exit_code = None;
+    let mut frame = Vec::with_capacity(32_768);
     loop {
+        frame.clear();
+        let mut ui_dirty = false;
         let mut eof = false;
         let event = if exit_code.is_some() {
             match rx.recv_timeout(std::time::Duration::from_millis(100)) {
@@ -745,7 +838,6 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 Err(_) => break,
             }
         };
-        state.overlay.erase(state.parser.screen(), &mut output)?;
         let mut batch = vec![event];
         batch.extend(rx.try_iter().take(63));
         for event in batch {
@@ -754,10 +846,17 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     for part in state.decoder.feed(&bytes) {
                         match part {
                             Part::Data(data) => {
+                                state.overlay.erase(state.parser.screen(), &mut frame)?;
                                 state.parser.process(&data);
-                                output.write_all(&data)?;
+                                frame.extend_from_slice(&data);
+                                ui_dirty = true;
                             }
-                            Part::Message(value) => state.message(value, &mut writer, &worker)?,
+                            Part::Message(value) => {
+                                let before = (state.revision, state.prompt, state.dismissed);
+                                state.message(value, &mut writer, &worker)?;
+                                ui_dirty |=
+                                    before != (state.revision, state.prompt, state.dismissed);
+                            }
                             Part::CursorQuery(private) => {
                                 let (row, col) = state.parser.screen().cursor_position();
                                 writer.write_all(
@@ -774,12 +873,21 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         }
                     }
                 }
-                HostEvent::Input(input) => {
-                    state.input(input, &mut writer, master.as_ref(), &worker)?
+                HostEvent::Input(inputs) => {
+                    for input in inputs {
+                        ui_dirty |= matches!(&input, Event::Resize(..) | Event::Paste(_))
+                            || matches!(&input, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release);
+                        // Restore the old coordinates before changing the model size.
+                        if matches!(&input, Event::Resize(..)) {
+                            state.overlay.erase(state.parser.screen(), &mut frame)?;
+                        }
+                        state.input(input, &mut writer, master.as_ref(), &worker)?;
+                    }
                 }
                 HostEvent::Completion(revision, completion)
                     if revision == state.revision && state.prompt && !state.dismissed =>
                 {
+                    ui_dirty |= state.completion != completion;
                     let selected_label = state
                         .completion
                         .candidates
@@ -796,7 +904,9 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         .unwrap_or(0);
                     state.completion = completion;
                 }
-                HostEvent::Completion(_, _) => {}
+                HostEvent::Completion(revision, _) => {
+                    trace.event("completion_discarded", Some(revision), None, None)
+                }
                 HostEvent::Exit(code) => exit_code = Some(code),
                 HostEvent::Eof => eof = true,
                 HostEvent::Error(error) => {
@@ -808,39 +918,68 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
         state.query(&mut writer)?;
         if std::mem::take(&mut state.repaint) {
-            output.write_all(b"\x1b[2J\x1b[H")?;
-            output.write_all(&state.parser.screen().state_formatted())?;
+            frame.extend_from_slice(b"\x1b[2J\x1b[H");
+            frame.extend_from_slice(&state.parser.screen().state_formatted());
+            ui_dirty = true;
         }
         if std::mem::take(&mut state.bell) {
-            output.write_all(b"\x07")?;
+            frame.push(7);
         }
         if let Some(message) = state.diagnostic.take() {
+            state.overlay.erase(state.parser.screen(), &mut frame)?;
             let bytes = format!("\r\nShellSense: {message}\r\n");
             state.parser.process(bytes.as_bytes());
-            output.write_all(bytes.as_bytes())?;
+            frame.extend_from_slice(bytes.as_bytes());
+            ui_dirty = true;
         }
-        if state.prompt && !state.dismissed {
+        let repaint_start = Instant::now();
+        let bytes_before = frame.len();
+        if ui_dirty && state.prompt && !state.dismissed {
             let query = state
                 .line
                 .get(state.completion.replace_start..state.cursor)
                 .unwrap_or("");
             state.overlay.draw(
                 state.parser.screen(),
-                &mut output,
+                &mut frame,
                 &state.completion.candidates,
                 state.selected,
                 query,
                 &state.config,
             )?;
+        } else if ui_dirty {
+            state.overlay.erase(state.parser.screen(), &mut frame)?;
         }
-        output.flush()?;
+        if frame.len() > bytes_before {
+            trace.event(
+                "redraw",
+                Some(state.revision),
+                Some(repaint_start.elapsed()),
+                Some(frame.len() - bytes_before),
+            );
+        }
+        if !frame.is_empty() {
+            let started = Instant::now();
+            output.write_all(&frame)?;
+            output.flush()?;
+            trace.event(
+                "output",
+                Some(state.revision),
+                Some(started.elapsed()),
+                Some(frame.len()),
+            );
+        }
         if eof {
             break;
         }
     }
-    state.overlay.erase(state.parser.screen(), &mut output)?;
-    output.write_all(&state.decoder.finish())?;
+    frame.clear();
+    state.overlay.erase(state.parser.screen(), &mut frame)?;
+    frame.extend_from_slice(&state.decoder.finish());
+    output.write_all(&frame)?;
     output.flush()?;
+    trace.event("host_exit", None, None, None);
+    trace.flush();
     Ok(exit_code.unwrap_or(0))
 }
 

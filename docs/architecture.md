@@ -46,13 +46,19 @@ The disk cache is an optimization. It is validated against the actual PATH/PATHE
 
 Child creation explicitly inherits the launching process environment instead of portable-pty's Windows registry refresh. The index uses the actual child PATH/PATHEXT from prompt events. Replacing a session snapshot also restores executable entries previously shadowed by aliases or functions.
 
-Index initialization begins after the shell prompt so it does not compete with pwsh startup. The first interactive lookup can still wait for a cold index or shell-command enumeration. This is measured separately from ready-to-type time.
+Index initialization begins after the shell prompt so it does not compete with pwsh startup. Directory discovery yields after 256 entries or 4 ms of active work, then continues in the background; the latest query is recomputed as snapshots grow. An individual filesystem call can still exceed that budget. Partial results carry `incomplete: true` and are never saved as a completed index. Local executable links are resolved with bounded depth; broken, directory and explicit remote targets are excluded. PATH order, PATHEXT order and session alias priority are preserved.
+
+Cache schema 2 invalidates old incomplete discovery results. A separate worker persists only the latest complete index; cache hits do not rewrite it. Loaded shell commands arrive in 128-record UUID snapshots. Partial snapshots augment the previous set, and a completed snapshot replaces it, including deletion of old aliases/functions. The remaining synchronous runspace snapshot cost is reported separately in performance results.
+
+Argument completion uses Rust command trees, option scopes and explicit value rules. Git global value options are consumed before subcommands, and `--` ends option completion. Unknown options remain ordinary input. No help command or downloaded specification runs during typing.
 
 ## Rendering
 
 Private OSC frames are stripped from output before display; unrelated OSC is preserved. A vt100 screen tracks the shell's output. The menu is an overlay, and its occupied rows are restored before processing subsequent shell output. Menu code returns bounded ANSI-styled lines, never cursor movement.
 
-One thread owns terminal output to prevent interleaving. The host suspends menus in the alternate screen and while a command runs. Terminal resize updates the ConPTY and parser dimensions. Tests compare the restored screen's contents, cursor and attributes.
+One thread owns terminal output to prevent interleaving. Each event batch assembles bytes into a buffer and writes them together. Protocol-only events do not erase an overlay; unchanged content, selection, coordinates and viewport reuse the existing frame. Already queued input events are drained without an extra delay. The host suspends menus in the alternate screen and while a command runs. Terminal resize updates the ConPTY and parser dimensions. Tests compare the restored screen's contents, cursor and attributes.
+
+`run --trace <new-file>` optionally records JSONL timing events. It is off by default. Records contain a fixed stage name, request revision, relative elapsed time, duration and counts as applicable; input text and candidate descriptions are excluded. Formal benchmarks run with tracing disabled.
 
 Windows console resize events are explicitly enabled, and the original console input mode is restored on exit. After resize, the shell screen is repainted to remove overlay cells reflowed by the outer terminal. Cursor-position requests from nested ConPTY are answered by the owning screen model in a single write.
 

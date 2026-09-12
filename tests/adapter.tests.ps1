@@ -142,6 +142,14 @@ $transportText = "中文$([char]0xD83D)$([char]0xDE00)"
 $transportJson = ConvertTo-ShellsenseJson -Payload @{ line = $transportText }
 Assert-ShellsenseTrue -Condition (-not ($transportJson.ToCharArray() | Where-Object { [int]$_ -gt 127 })) -Message 'JSON transport is ASCII under legacy console code pages'
 Assert-ShellsenseEqual -Actual ($transportJson | ConvertFrom-Json).line -Expected $transportText -Message 'ASCII JSON preserves non-BMP text'
+Assert-ShellsenseTrue -Condition ([object]::ReferenceEquals((Get-ShellsenseJsonOptions), (Get-ShellsenseJsonOptions))) -Message 'JSON serializer options are cached'
+
+$editJson = '{"expectedLine":"a\uD83D\uDE00b","expectedCursor":3,"start":1,"length":2,"text":"X"}'
+$decodedEditPayload = ConvertFrom-ShellsenseEditJson -Json $editJson
+$decodedEdit = $null
+Assert-ShellsenseTrue -Condition (Test-ShellsenseEditPayload -Payload $decodedEditPayload -CurrentLine $unicodeLine -CurrentCursor 3 -Edit ([ref]$decodedEdit)) -Message 'System.Text.Json edit payload preserves UTF-16 values'
+Assert-ShellsenseEqual -Actual $decodedEdit.text -Expected 'X' -Message 'decoded edit text'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsenseEditJson -Json '[1,2,3]')) -Message 'non-object edit payload is rejected'
 
 # Command snapshots are intentionally fed by a deterministic in-memory
 # provider. This exercises the >512 path without creating functions or
@@ -167,6 +175,130 @@ function Get-ShellsenseCapturedEvents {
     }
     return @($events.ToArray())
 }
+
+# Collision discovery uses PSReadLine's static APIs so initialization does
+# not need three cmdlet calls for the reserved chords. A child chord reserves
+# only itself; a bare F12 reserves all three children because it owns the
+# prefix. Exercise both cases and restore adapter state before the remaining
+# helper tests run.
+Import-Module PSReadLine -ErrorAction Stop
+$savedReadLineAvailable = [bool]$script:SHELLSENSE_PSREADLINE_AVAILABLE
+$savedReadLineWrapped = [bool]$script:SHELLSENSE_READLINE_WRAPPED
+$savedOriginalReadLine = $script:SHELLSENSE_ORIGINAL_READLINE
+$savedKeyHandlers = $script:SHELLSENSE_KEY_HANDLERS
+function Reset-ShellsenseReadLineTestState {
+    $script:SHELLSENSE_PSREADLINE_AVAILABLE = $false
+    $script:SHELLSENSE_READLINE_WRAPPED = $false
+    $script:SHELLSENSE_ORIGINAL_READLINE = $null
+    $script:SHELLSENSE_KEY_HANDLERS = [ordered]@{
+        buffer   = $false
+        apply    = $false
+        commands = $false
+    }
+}
+$collisionChords = @('F12', 'F12,s', 'F12,a', 'F12,c')
+$collisionHandler = { }
+try {
+    foreach ($chord in $collisionChords) {
+        [Microsoft.PowerShell.PSConsoleReadLine]::RemoveKeyHandler([string[]]@($chord))
+    }
+
+    [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+        [string[]]@('F12,a'),
+        $collisionHandler,
+        'existing apply',
+        'existing apply handler')
+    Reset-ShellsenseReadLineTestState
+    $collisionCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    [Console]::SetOut($collisionCapture)
+    try {
+        Initialize-ShellsenseReadLine
+    } finally {
+        [Console]::SetOut($consoleWriter)
+    }
+    Assert-ShellsenseTrue -Condition ([bool]$script:SHELLSENSE_KEY_HANDLERS.buffer) -Message 'existing child does not falsely reserve F12,s'
+    Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS.apply) -Expected $false -Message 'existing F12,a remains reserved'
+    Assert-ShellsenseTrue -Condition ([bool]$script:SHELLSENSE_KEY_HANDLERS.commands) -Message 'existing child does not falsely reserve F12,c'
+    $childCollisionEvents = @(
+        Get-ShellsenseCapturedEvents -Raw $collisionCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN) |
+            Where-Object { $_.event -eq 'error' -and $_.code -eq 'key_chord_collision' }
+    )
+    Assert-ShellsenseEqual -Actual $childCollisionEvents.Count -Expected 1 -Message 'one exact child collision is reported'
+    Assert-ShellsenseEqual -Actual ([string]$childCollisionEvents[0].chord) -Expected 'F12,a' -Message 'exact child collision identifies the reserved chord'
+    $existingApply = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('F12,a')))
+    Assert-ShellsenseEqual -Actual $existingApply.Count -Expected 1 -Message 'existing F12,a binding remains installed'
+    Assert-ShellsenseEqual -Actual ([string]$existingApply[0].Function) -Expected 'existing apply' -Message 'existing F12,a binding is not overwritten'
+
+    foreach ($chord in $collisionChords) {
+        [Microsoft.PowerShell.PSConsoleReadLine]::RemoveKeyHandler([string[]]@($chord))
+    }
+    [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+        [string[]]@('F12'),
+        $collisionHandler,
+        'existing parent',
+        'existing parent handler')
+    Reset-ShellsenseReadLineTestState
+    $parentCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    [Console]::SetOut($parentCapture)
+    try {
+        Initialize-ShellsenseReadLine
+    } finally {
+        [Console]::SetOut($consoleWriter)
+    }
+    foreach ($handlerName in @('buffer', 'apply', 'commands')) {
+        Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS[$handlerName]) -Expected $false -Message ('bare F12 preserves the parent binding for ' + $handlerName)
+    }
+    $parentCollisionEvents = @(
+        Get-ShellsenseCapturedEvents -Raw $parentCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN) |
+            Where-Object { $_.event -eq 'error' -and $_.code -eq 'key_chord_collision' }
+    )
+    Assert-ShellsenseEqual -Actual $parentCollisionEvents.Count -Expected 3 -Message 'bare F12 reports all reserved child collisions'
+    $existingParent = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('F12')))
+    Assert-ShellsenseEqual -Actual $existingParent.Count -Expected 1 -Message 'existing bare F12 binding remains installed'
+    Assert-ShellsenseEqual -Actual ([string]$existingParent[0].Function) -Expected 'existing parent' -Message 'existing bare F12 binding is not overwritten'
+} finally {
+    foreach ($chord in $collisionChords) {
+        try {
+            [Microsoft.PowerShell.PSConsoleReadLine]::RemoveKeyHandler([string[]]@($chord))
+        } catch {
+        }
+    }
+    $script:SHELLSENSE_PSREADLINE_AVAILABLE = $savedReadLineAvailable
+    $script:SHELLSENSE_READLINE_WRAPPED = $savedReadLineWrapped
+    $script:SHELLSENSE_ORIGINAL_READLINE = $savedOriginalReadLine
+    $script:SHELLSENSE_KEY_HANDLERS = $savedKeyHandlers
+}
+
+# Trace is opt-in and must emit one bounded numeric stage event without
+# recursively tracing the trace frame itself or copying user payload fields.
+$savedTraceEnabled = [bool]$script:SHELLSENSE_TRACE_ENABLED
+$savedTraceEmitting = [bool]$script:SHELLSENSE_TRACE_EMITTING
+$savedTraceToken = [string]$script:SHELLSENSE_TOKEN
+$traceToken = 'adapter-trace-token'
+$traceCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+[Console]::SetOut($traceCapture)
+try {
+    $script:SHELLSENSE_TRACE_ENABLED = $true
+    $script:SHELLSENSE_TRACE_EMITTING = $false
+    $script:SHELLSENSE_TOKEN = $traceToken
+    Send-ShellsenseEvent -Event 'buffer' -Data ([ordered]@{
+        line   = 'trace payload stays out of diagnostics'
+        cursor = 0
+    })
+} finally {
+    $script:SHELLSENSE_TOKEN = $savedTraceToken
+    $script:SHELLSENSE_TRACE_ENABLED = $savedTraceEnabled
+    $script:SHELLSENSE_TRACE_EMITTING = $savedTraceEmitting
+    [Console]::SetOut($consoleWriter)
+}
+$traceEvents = @(Get-ShellsenseCapturedEvents -Raw $traceCapture.ToString() -Token $traceToken)
+$traceStageEvents = @($traceEvents | Where-Object { $_.event -eq 'trace' })
+$traceBufferEvents = @($traceEvents | Where-Object { $_.event -eq 'buffer' })
+Assert-ShellsenseEqual -Actual $traceStageEvents.Count -Expected 1 -Message 'trace does not recurse on its own serialization'
+Assert-ShellsenseEqual -Actual $traceBufferEvents.Count -Expected 1 -Message 'trace leaves the original event intact'
+Assert-ShellsenseEqual -Actual ([string]$traceStageEvents[0].stage) -Expected 'serialize' -Message 'trace stage is whitelisted'
+Assert-ShellsenseTrue -Condition ([double]$traceStageEvents[0].duration_ms -ge 0) -Message 'trace duration is numeric'
+Assert-ShellsenseEqual -Actual (@($traceStageEvents[0].PSObject.Properties.Name).Count) -Expected 3 -Message 'trace contains only event stage and duration'
 
 $fixtureCommands = [System.Collections.Generic.List[object]]::new()
 for ($fixtureIndex = 0; $fixtureIndex -lt 600; $fixtureIndex++) {

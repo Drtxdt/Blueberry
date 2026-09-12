@@ -4,10 +4,21 @@ use std::io::{self, Write};
 #[derive(Default)]
 pub struct Overlay {
     rows: Option<(u16, u16)>,
+    painted: Option<Painted>,
+}
+
+#[derive(PartialEq, Eq)]
+struct Painted {
+    top: u16,
+    left: u16,
+    size: (u16, u16),
+    cursor: (u16, u16),
+    frame: menu::MenuFrame,
 }
 
 impl Overlay {
     pub fn erase(&mut self, screen: &vt100::Screen, output: &mut impl Write) -> io::Result<()> {
+        self.painted = None;
         if let Some((top, height)) = self.rows.take() {
             let (_, cols) = screen.size();
             write!(output, "\x1b[?25l")?;
@@ -35,18 +46,18 @@ impl Overlay {
         config: &Config,
     ) -> io::Result<()> {
         if candidates.is_empty() || screen.alternate_screen() {
-            return Ok(());
+            return self.erase(screen, output);
         }
         let (rows, cols) = screen.size();
         let (cursor_row, cursor_col) = screen.cursor_position();
         if rows < 4 || cols < 8 {
-            return Ok(());
+            return self.erase(screen, output);
         }
         let below = rows.saturating_sub(cursor_row + 1);
         let above = cursor_row;
         let available = below.max(above);
         if available < 3 {
-            return Ok(());
+            return self.erase(screen, output);
         }
         let mut config = config.clone();
         let border_rows = if config.ui.border == "none" { 0 } else { 2 };
@@ -58,7 +69,7 @@ impl Overlay {
         let frame = menu::render(candidates, selected, query, cols - 1, &config);
         let height = frame.lines.len() as u16;
         if height > available || height == 0 {
-            return Ok(());
+            return self.erase(screen, output);
         }
         let top = if below >= height {
             cursor_row + 1
@@ -66,8 +77,19 @@ impl Overlay {
             cursor_row - height
         };
         let left = cursor_col.min(cols.saturating_sub(frame.width + 1));
+        let painted = Painted {
+            top,
+            left,
+            size: (rows, cols),
+            cursor: (cursor_row, cursor_col),
+            frame,
+        };
+        if self.painted.as_ref() == Some(&painted) {
+            return Ok(());
+        }
+        self.erase(screen, output)?;
         write!(output, "\x1b[?25l")?;
-        for (i, row) in frame.lines.iter().enumerate() {
+        for (i, row) in painted.frame.lines.iter().enumerate() {
             write!(
                 output,
                 "\x1b[{};{}H\x1b[0m{}",
@@ -78,6 +100,7 @@ impl Overlay {
         }
         restore_cursor(screen, output)?;
         self.rows = Some((top, height));
+        self.painted = Some(painted);
         Ok(())
     }
 }
@@ -91,6 +114,74 @@ fn restore_cursor(screen: &vt100::Screen, output: &mut impl Write) -> io::Result
 mod tests {
     use super::*;
     use crate::model::CandidateKind;
+    #[test]
+    fn unchanged_menu_writes_nothing_but_selection_and_position_redraw() {
+        let mut shell = vt100::Parser::new(24, 80, 0);
+        shell.process(b"PS> gi");
+        let candidates: Vec<_> = ["git", "gitk"]
+            .into_iter()
+            .map(|name| Candidate {
+                label: name.into(),
+                insert_text: name.into(),
+                description: "source control".into(),
+                kind: CandidateKind::Command,
+            })
+            .collect();
+        let mut overlay = Overlay::default();
+        let mut bytes = Vec::new();
+        overlay
+            .draw(
+                shell.screen(),
+                &mut bytes,
+                &candidates,
+                0,
+                "gi",
+                &Config::default(),
+            )
+            .unwrap();
+        assert!(!bytes.is_empty());
+        bytes.clear();
+        overlay
+            .draw(
+                shell.screen(),
+                &mut bytes,
+                &candidates,
+                0,
+                "gi",
+                &Config::default(),
+            )
+            .unwrap();
+        assert!(bytes.is_empty());
+        overlay
+            .draw(
+                shell.screen(),
+                &mut bytes,
+                &candidates,
+                1,
+                "gi",
+                &Config::default(),
+            )
+            .unwrap();
+        assert!(!bytes.is_empty());
+        bytes.clear();
+        shell.process(b"\r\nPS> gi");
+        overlay
+            .draw(
+                shell.screen(),
+                &mut bytes,
+                &candidates,
+                1,
+                "gi",
+                &Config::default(),
+            )
+            .unwrap();
+        assert!(!bytes.is_empty());
+        bytes.clear();
+        overlay
+            .draw(shell.screen(), &mut bytes, &[], 0, "", &Config::default())
+            .unwrap();
+        assert!(!bytes.is_empty());
+    }
     #[test]
     fn erasing_overlay_restores_terminal_contents_cursor_and_colors() {
         let mut original = vt100::Parser::new(24, 80, 0);

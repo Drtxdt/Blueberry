@@ -1,3 +1,4 @@
+pub mod cache_writer;
 pub mod config;
 pub mod engine;
 pub mod host;
@@ -10,3 +11,4 @@ pub mod probe;
 pub mod protocol;
 pub mod pty;
 pub mod specs;
+pub mod trace;

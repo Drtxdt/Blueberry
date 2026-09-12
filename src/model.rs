@@ -14,7 +14,7 @@ pub enum CandidateKind {
     Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Candidate {
     pub label: String,
     pub insert_text: String,
@@ -22,7 +22,7 @@ pub struct Candidate {
     pub kind: CandidateKind,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Completion {
     /// UTF-8 byte offsets into the original command line; do not use display columns.
     pub replace_start: usize,

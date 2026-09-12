@@ -147,7 +147,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     let cwd = tempdir().context("create completion cwd")?;
     std::fs::write(
         cwd.path().join("git.cmd"),
-        b"@echo off\r\necho deterministic git placeholder\r\n",
+        b"@echo off\r\necho deterministic git placeholder\r\necho GIT_ARGS:%*\r\n",
     )
     .context("create deterministic git command")?;
     std::fs::write(cwd.path().join("中文文件.txt"), b"shellsense unicode test")
@@ -304,6 +304,18 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
             .any(|line| line.trim_end().ends_with("> git log --oneline"))
             && !contents.contains("− --oneline")
     })?;
+    let previous_prompt_count = prompt_count(&host.harness.contents());
+    host.harness.send(b"\r")?;
+    wait_for_line(
+        &mut host.harness,
+        "GIT_ARGS:log --oneline",
+        "actual accepted Git arguments",
+    )?;
+    wait_for_next_prompt(
+        &mut host.harness,
+        previous_prompt_count,
+        "prompt after Git arguments",
+    )?;
     run_and_wait_for_output(
         &mut host.harness,
         b"Write-Output SHELLSENSE_CONTEXT_OK\r",
@@ -366,6 +378,15 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         narrow_contents.lines().count() <= 24,
         "narrow resize produced too many screen rows; screen:\n{narrow_contents}"
     );
+    // A ConPTY resize is asynchronous. A changed query acknowledges the
+    // narrow child viewport before issuing the next resize, so an old frame
+    // reflowed by the outer PTY cannot masquerade as that acknowledgement.
+    host.harness.send(b"t")?;
+    wait_until(
+        &mut host.harness,
+        "editable menu in narrow viewport",
+        |contents| contents.contains("⌘ git ") && !contents.contains("≈ gi "),
+    )?;
     host.harness
         .resize(30, 120)
         .context("resize PTY back to 30x120")?;
@@ -377,8 +398,11 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
             contents.contains("git")
                 && contents.contains("⌘ git ")
                 && contents.lines().any(|line| {
-                    let line = line.trim();
-                    line.starts_with('╭') && line.ends_with('╮') && line.chars().count() == 80
+                    line.find('╭')
+                        .zip(line.rfind('╮'))
+                        .is_some_and(|(start, end)| {
+                            start <= end && line[start..end + '╮'.len_utf8()].chars().count() == 80
+                        })
                 })
         },
     )?;
@@ -433,6 +457,79 @@ fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()>
         "SNAPSHOT_ALIAS_OK",
         "alias from final snapshot batch",
     )?;
+    wait_until(&mut host.harness, "empty prompt after alias", |contents| {
+        contents.lines().last().is_some_and(|line| {
+            line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
+        })
+    })?;
+    run_and_wait_for_output(&mut host.harness,
+        b"Remove-Item Alias:ssfixture0700; Set-Alias ssfixture070x Write-Output; Write-Output SNAPSHOT_CHANGED\r",
+        "SNAPSHOT_CHANGED", "replace one session alias")?;
+    host.harness
+        .send(b"\x1b[67;46;3;1;10;1_\x1b[67;46;3;0;10;1_ssfixture070")?;
+    wait_until(
+        &mut host.harness,
+        "removed alias absent from completed snapshot",
+        |contents| contents.contains("≈ ssfixture070x") && !contents.contains("≈ ssfixture0700"),
+    )?;
+    host.harness.finish(Duration::from_secs(5))?;
+    Ok(())
+}
+
+#[test]
+fn host_preserves_psreadline_history_search() -> Result<()> {
+    let cwd = tempdir()?;
+    let mut host = start_host(cwd.path())?;
+    run_and_wait_for_output(
+        &mut host.harness,
+        b"Write-Output HISTORY_SEARCH_ONE\r",
+        "HISTORY_SEARCH_ONE",
+        "history fixture one",
+    )?;
+    run_and_wait_for_output(
+        &mut host.harness,
+        b"Write-Output HISTORY_SEARCH_TWO\r",
+        "HISTORY_SEARCH_TWO",
+        "history fixture two",
+    )?;
+    host.harness.send(b"\x12HISTORY_SEARCH_ONE")?;
+    wait_until(
+        &mut host.harness,
+        "PSReadLine reverse history search",
+        |contents| contents.contains("bck-i-search") && contents.contains("HISTORY_SEARCH_ONE"),
+    )?;
+    let previous_prompt_count = prompt_count(&host.harness.contents());
+    host.harness.send(b"\x1b")?;
+    wait_until(
+        &mut host.harness,
+        "history search ends with selected buffer",
+        |contents| {
+            !contents.contains("bck-i-search")
+                && contents
+                    .lines()
+                    .last()
+                    .is_some_and(|line| line.trim_end().ends_with("HISTORY_SEARCH_ONE"))
+        },
+    )?;
+    host.harness.send(b"\r")?;
+    wait_for_next_prompt(
+        &mut host.harness,
+        previous_prompt_count,
+        "prompt after selected history command",
+    )?;
+    ensure!(
+        host.harness
+            .contents()
+            .lines()
+            .filter(|line| line.trim() == "HISTORY_SEARCH_ONE")
+            .count()
+            == 2,
+        "history selected the requested command"
+    );
+    ensure!(
+        !host.harness.contents().contains("[24~"),
+        "private query keys leaked into history search"
+    );
     host.harness.finish(Duration::from_secs(5))?;
     Ok(())
 }

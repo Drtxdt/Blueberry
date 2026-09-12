@@ -25,6 +25,9 @@ enum Command {
         no_profile: bool,
         #[arg(long)]
         data_dir: Option<PathBuf>,
+        /// Write numeric performance events to a new JSONL file (no input text).
+        #[arg(long)]
+        trace: Option<PathBuf>,
     },
     /// Complete an input line without starting PowerShell (cursor is a UTF-8 byte offset).
     Complete {
@@ -60,6 +63,15 @@ enum Command {
         host: bool,
         #[arg(long, requires = "host")]
         no_descriptions: bool,
+        /// Measure a frozen host release with this probe harness.
+        #[arg(long, requires = "host")]
+        host_executable: Option<PathBuf>,
+        /// Diagnostic run only: enable host traces in this directory.
+        #[arg(long, requires = "host")]
+        trace_dir: Option<PathBuf>,
+        /// Compare a frozen adapter script using the current measurement harness.
+        #[arg(long, conflicts_with = "host")]
+        adapter_script: Option<PathBuf>,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -79,16 +91,19 @@ fn execute() -> Result<u32> {
         shell: "pwsh.exe".into(),
         no_profile: false,
         data_dir: None,
+        trace: None,
     }) {
         Command::Run {
             shell,
             no_profile,
             data_dir,
+            trace,
         } => host::run(host::RunOptions {
             shell,
             no_profile,
             config_path: cli.config,
             data_dir: data_dir.unwrap_or_else(config::cache_dir),
+            trace_path: trace,
         }),
         Command::Complete {
             line,
@@ -181,17 +196,26 @@ fn execute() -> Result<u32> {
             with_profile,
             host,
             no_descriptions,
+            host_executable,
+            trace_dir,
+            adapter_script,
             output,
         } => {
             let report = if host {
-                shellsense::metrics::host_probe_with_descriptions(
-                    &std::env::current_exe()?,
+                shellsense::metrics::host_probe_traced(
+                    &host_executable.unwrap_or(std::env::current_exe()?),
                     &shell,
                     iterations,
                     !no_descriptions,
+                    trace_dir.as_deref(),
                 )?
             } else {
-                probe::run(&shell, iterations, !with_profile)?
+                probe::run_with_adapter(
+                    &shell,
+                    iterations,
+                    !with_profile,
+                    adapter_script.as_deref(),
+                )?
             };
             let text = serde_json::to_string_pretty(&report)?;
             if let Some(path) = output {

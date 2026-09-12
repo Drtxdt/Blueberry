@@ -23,6 +23,9 @@ $shellsenseStateDefaults = [ordered]@{
     SHELLSENSE_COMMAND_SNAPSHOT_ID = $null
     SHELLSENSE_COMMAND_SNAPSHOT = $null
     SHELLSENSE_COMMAND_SNAPSHOT_OFFSET = 0
+    SHELLSENSE_JSON_OPTIONS        = $null
+    SHELLSENSE_TRACE_ENABLED       = $false
+    SHELLSENSE_TRACE_EMITTING      = $false
     SHELLSENSE_INITIALIZED         = $false
 }
 foreach ($shellsenseStateName in $shellsenseStateDefaults.Keys) {
@@ -34,6 +37,11 @@ foreach ($shellsenseStateName in $shellsenseStateDefaults.Keys) {
         $ExecutionContext.SessionState.PSVariable.Set($shellsenseStateName, $shellsenseStateDefaults[$shellsenseStateName])
     }
 }
+
+$script:SHELLSENSE_TRACE_ENABLED = [string]::Equals(
+    [Environment]::GetEnvironmentVariable('SHELLSENSE_TRACE', 'Process'),
+    '1',
+    [StringComparison]::Ordinal)
 
 $shellsenseTokenFromEnvironment = [Environment]::GetEnvironmentVariable('SHELLSENSE_TOKEN', 'Process')
 if ([string]::IsNullOrEmpty([string]$script:SHELLSENSE_TOKEN)) {
@@ -55,6 +63,56 @@ try {
     # during startup, and PowerShell reflects the direct environment change.
 }
 
+function Get-ShellsenseJsonOptions {
+    [CmdletBinding()]
+    param()
+
+    if ($null -eq $script:SHELLSENSE_JSON_OPTIONS) {
+        $options = [System.Text.Json.JsonSerializerOptions]::new()
+        # JavaScriptEncoder.Default escapes all non-ASCII code points and
+        # control characters. This keeps OSC transport ASCII, including a
+        # non-BMP surrogate pair, while leaving JSON's structural characters
+        # available in their compact form.
+        $options.Encoder = [System.Text.Encodings.Web.JavaScriptEncoder]::Default
+        $options.WriteIndented = $false
+        $script:SHELLSENSE_JSON_OPTIONS = $options
+    }
+    return $script:SHELLSENSE_JSON_OPTIONS
+}
+
+function Send-ShellsenseTrace {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Stage,
+
+        [Parameter(Mandatory = $true)]
+        [double]$DurationMs
+    )
+
+    if (-not $script:SHELLSENSE_TRACE_ENABLED -or
+        $script:SHELLSENSE_TRACE_EMITTING -or
+        [string]::IsNullOrEmpty([string]$script:SHELLSENSE_TOKEN)) {
+        return
+    }
+    if ($Stage -notin @('adapter_bootstrap', 'readline_init', 'command_snapshot', 'serialize')) {
+        return
+    }
+    if ([double]::IsNaN($DurationMs) -or [double]::IsInfinity($DurationMs)) {
+        return
+    }
+
+    $script:SHELLSENSE_TRACE_EMITTING = $true
+    try {
+        Send-ShellsenseEvent -Event 'trace' -Data ([ordered]@{
+            stage       = $Stage
+            duration_ms = [double]$DurationMs
+        })
+    } finally {
+        $script:SHELLSENSE_TRACE_EMITTING = $false
+    }
+}
+
 function ConvertTo-ShellsenseJson {
     [CmdletBinding()]
     param(
@@ -63,12 +121,25 @@ function ConvertTo-ShellsenseJson {
         [object]$Payload
     )
 
-    # ConvertTo-Json is the one place where user supplied strings enter the
-    # frame.  Its JSON escaping prevents newlines, BEL, and ESC in command
-    # text from becoming terminal control sequences.
-    # Keep the transport ASCII even under a legacy Windows console code page.
-    # Otherwise Console.Out can replace non-BMP characters with question marks.
-    return [string]($Payload | ConvertTo-Json -Compress -Depth 10 -EscapeHandling EscapeNonAscii -ErrorAction Stop)
+    $traceTimer = $null
+    if ($script:SHELLSENSE_TRACE_ENABLED) {
+        $traceTimer = [Diagnostics.Stopwatch]::StartNew()
+    }
+    try {
+        # The explicit object/type/options overload keeps PowerShell from
+        # selecting a generic overload that changes dictionary shape. The
+        # cached options keep the first call from repeatedly constructing an
+        # encoder and ensure the transport remains ASCII.
+        return [string][System.Text.Json.JsonSerializer]::Serialize(
+            [object]$Payload,
+            [object],
+            (Get-ShellsenseJsonOptions))
+    } finally {
+        if ($null -ne $traceTimer) {
+            $traceTimer.Stop()
+            Send-ShellsenseTrace -Stage 'serialize' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
+        }
+    }
 }
 
 function ConvertTo-ShellsenseFrame {
@@ -377,6 +448,79 @@ function Get-ShellsenseConsumedEditPath {
     return [IO.Path]::Combine($directory, ('.' + $leaf + '.consumed.' + [Guid]::NewGuid().ToString('N')))
 }
 
+function Convert-ShellsenseJsonElementValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Text.Json.JsonElement]$Element
+    )
+
+    switch ($Element.ValueKind) {
+        ([System.Text.Json.JsonValueKind]::String) {
+            return $Element.GetString()
+        }
+        ([System.Text.Json.JsonValueKind]::Number) {
+            $integer = [int64]0
+            if ($Element.TryGetInt64([ref]$integer)) {
+                return $integer
+            }
+            $decimal = [decimal]0
+            if ($Element.TryGetDecimal([ref]$decimal)) {
+                return $decimal
+            }
+            $double = [double]0
+            if ($Element.TryGetDouble([ref]$double)) {
+                return $double
+            }
+            return $Element.ToString()
+        }
+        ([System.Text.Json.JsonValueKind]::True) {
+            return $true
+        }
+        ([System.Text.Json.JsonValueKind]::False) {
+            return $false
+        }
+        ([System.Text.Json.JsonValueKind]::Null) {
+            return $null
+        }
+        default {
+            # Keep arrays/objects as JsonElement values. The edit validator
+            # rejects them for every scalar field instead of coercing nested
+            # data into executable or ambiguous text.
+            return $Element
+        }
+    }
+}
+
+function ConvertFrom-ShellsenseEditJson {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Json
+    )
+
+    # Deserialize to JsonElement first so a valid JSON array/null can be
+    # rejected by the normal edit-payload validator, while malformed JSON
+    # still follows Invoke-ShellsenseApplyEdit's existing failure path.
+    $rootValue = [System.Text.Json.JsonSerializer]::Deserialize(
+        $Json,
+        [object],
+        (Get-ShellsenseJsonOptions))
+    if ($null -eq $rootValue -or $rootValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+        return $null
+    }
+
+    $payload = [ordered]@{}
+    foreach ($propertyName in @('expectedLine', 'expectedCursor', 'start', 'length', 'text')) {
+        $property = [System.Text.Json.JsonElement]::new()
+        if ($rootValue.TryGetProperty($propertyName, [ref]$property)) {
+            $payload[$propertyName] = Convert-ShellsenseJsonElementValue -Element $property
+        }
+    }
+    return [pscustomobject]$payload
+}
+
 function Invoke-ShellsenseApplyEdit {
     [CmdletBinding()]
     param()
@@ -407,7 +551,7 @@ function Invoke-ShellsenseApplyEdit {
 
         $utf8Strict = [Text.UTF8Encoding]::new($false, $true)
         $json = [IO.File]::ReadAllText($consumedPath, $utf8Strict)
-        $payload = ConvertFrom-Json -InputObject $json -ErrorAction Stop
+        $payload = ConvertFrom-ShellsenseEditJson -Json $json
 
         $line = $null
         $cursor = 0
@@ -467,6 +611,10 @@ function Get-ShellsenseImportedCommands {
     )
 
     $batchSize = 128
+    $traceTimer = $null
+    if ($script:SHELLSENSE_TRACE_ENABLED) {
+        $traceTimer = [Diagnostics.Stopwatch]::StartNew()
+    }
     try {
         $snapshotId = [string]$script:SHELLSENSE_COMMAND_SNAPSHOT_ID
         if ([string]::IsNullOrEmpty($snapshotId)) {
@@ -499,47 +647,6 @@ function Get-ShellsenseImportedCommands {
                     definition = $definition
                 })
             }
-
-            # Keep a stable order without invoking Sort-Object (which can
-            # import Microsoft.PowerShell.Utility in a cold runspace). Equal
-            # names remain separate records so the root can apply Alias >
-            # Function > Cmdlet precedence itself.
-            $items.Sort([System.Comparison[object]]{
-                param($left, $right)
-
-                $comparison = [StringComparer]::OrdinalIgnoreCase.Compare(
-                    [string]$left.name,
-                    [string]$right.name)
-                if ($comparison -ne 0) {
-                    return $comparison
-                }
-                $comparison = [StringComparer]::Ordinal.Compare(
-                    [string]$left.name,
-                    [string]$right.name)
-                if ($comparison -ne 0) {
-                    return $comparison
-                }
-
-                $leftRank = switch ([string]$left.kind) {
-                    'alias' { 0 }
-                    'function' { 1 }
-                    'cmdlet' { 2 }
-                    default { 3 }
-                }
-                $rightRank = switch ([string]$right.kind) {
-                    'alias' { 0 }
-                    'function' { 1 }
-                    'cmdlet' { 2 }
-                    default { 3 }
-                }
-                $comparison = $leftRank.CompareTo($rightRank)
-                if ($comparison -ne 0) {
-                    return $comparison
-                }
-                return [StringComparer]::Ordinal.Compare(
-                    [string]$left.definition,
-                    [string]$right.definition)
-            })
 
             $script:SHELLSENSE_COMMAND_SNAPSHOT_ID = [Guid]::NewGuid().ToString()
             $script:SHELLSENSE_COMMAND_SNAPSHOT = [object[]]$items.ToArray()
@@ -583,6 +690,11 @@ function Get-ShellsenseImportedCommands {
             code    = 'commands_unavailable'
             message = 'Loaded command enumeration failed.'
         })
+    } finally {
+        if ($null -ne $traceTimer) {
+            $traceTimer.Stop()
+            Send-ShellsenseTrace -Stage 'command_snapshot' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
+        }
     }
 }
 
@@ -638,20 +750,13 @@ function Get-ShellsenseKeyBinding {
     try {
         # The public PSConsoleReadLine API returns the handlers for each key
         # in a chord without invoking the Get-PSReadLineKeyHandler cmdlet.
-        # The cmdlet fallback keeps this usable with older PSReadLine builds.
+        # The cmdlet fallback keeps this usable with older PSReadLine builds,
+        # but is used only when the static API itself is unavailable.
         # GetKeyHandlers expects an array of chord specifications. Passing
         # the comma-delimited chord as one element keeps `s` from being
         # mistaken for an independent SelfInsert binding.
         $keys = [string[]]@($Chord)
-        $handlers = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers($keys))
-        if ($handlers.Count -gt 0) {
-            return $handlers
-        }
-        # PSReadLine 2.4 does not expose custom multi-key sequences through
-        # the static overload even though the overload is public. Ask the
-        # cmdlet for the exact sequence when that happens; this preserves a
-        # user's reserved binding instead of silently overwriting it.
-        return @(Get-PSReadLineKeyHandler -Chord $Chord -ErrorAction SilentlyContinue)
+        return @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers($keys))
     } catch {
         try {
             return @(Get-PSReadLineKeyHandler -Chord $Chord -ErrorAction SilentlyContinue)
@@ -686,9 +791,11 @@ function Register-ShellsenseKeyHandler {
     }
 
     try {
-        Set-PSReadLineKeyHandler -Chord $Chord -ScriptBlock $ScriptBlock `
-            -BriefDescription ('Shellsense ' + $Name) `
-            -Description ('Report shellsense ' + $Name + ' state.') -ErrorAction Stop | Out-Null
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+            [string[]]@($Chord),
+            $ScriptBlock,
+            ('Shellsense ' + $Name),
+            ('Report shellsense ' + $Name + ' state.'))
         return $true
     } catch {
         Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
@@ -725,12 +832,17 @@ function Initialize-ShellsenseReadLine {
         [switch]$DeferImport
     )
 
-    $script:SHELLSENSE_PSREADLINE_AVAILABLE = $false
-    $script:SHELLSENSE_KEY_HANDLERS = [ordered]@{
-        buffer   = $false
-        apply    = $false
-        commands = $false
+    $traceTimer = $null
+    if ($script:SHELLSENSE_TRACE_ENABLED) {
+        $traceTimer = [Diagnostics.Stopwatch]::StartNew()
     }
+    try {
+        $script:SHELLSENSE_PSREADLINE_AVAILABLE = $false
+        $script:SHELLSENSE_KEY_HANDLERS = [ordered]@{
+            buffer   = $false
+            apply    = $false
+            commands = $false
+        }
 
     $interactive = Test-ShellsenseInteractiveHost
     $readLineModule = Get-Module -Name PSReadLine -ErrorAction SilentlyContinue
@@ -748,14 +860,11 @@ function Initialize-ShellsenseReadLine {
     }
 
     # InvokeCommand.GetCommand consults the current session without invoking
-    # the Get-Command cmdlet (which can cold-load Microsoft.PowerShell.Utility).
-    $setHandlerCommand = $ExecutionContext.InvokeCommand.GetCommand(
-        'Set-PSReadLineKeyHandler',
-        [System.Management.Automation.CommandTypes]::All)
+    # the Get-Command cmdlet and its startup dispatch work.
     $readLineCommand = $ExecutionContext.InvokeCommand.GetCommand(
         'PSConsoleHostReadLine',
         [System.Management.Automation.CommandTypes]::Function)
-    if ($null -eq $setHandlerCommand -or $null -eq $readLineCommand) {
+    if ($null -eq $readLineCommand) {
         return
     }
 
@@ -790,46 +899,80 @@ function Initialize-ShellsenseReadLine {
     $script:SHELLSENSE_READLINE_WRAPPED = $true
     }
 
-    # Query every reserved chord before registering any of them. PSReadLine's
-    # direct API reports the already-registered F12 prefix as a handler for
-    # later chords in the same prefix, so checking after the first Set would
-    # falsely report F12,a and F12,c as collisions with our own F12,s.
+    # Query all bound handlers once before registering any of the reserved
+    # chords. A user's exact chord and a bare F12 parent both reserve a
+    # shellsense chord. Sibling chords under F12 remain available when only a
+    # different child is already bound.
     $reservedChords = [ordered]@{
         buffer   = 'F12,s'
         apply    = 'F12,a'
         commands = 'F12,c'
     }
-    $existingByName = [ordered]@{}
-    foreach ($reservedName in $reservedChords.Keys) {
-        $existingByName[$reservedName] = @(Get-ShellsenseKeyBinding -Chord $reservedChords[$reservedName])
+    $existingByName = [ordered]@{
+        buffer   = $false
+        apply    = $false
+        commands = $false
+    }
+    $allKeyHandlers = $null
+    $keyHandlerEnumerationFailed = $false
+    try {
+        $allKeyHandlers = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers($true, $false))
+    } catch {
+        $keyHandlerEnumerationFailed = $true
+    }
+    if ($keyHandlerEnumerationFailed) {
+        # Older PSReadLine builds may not expose GetKeyHandlers(bool,bool).
+        # Preserve the compatibility path, but do not invoke it for a valid
+        # empty result from the static API.
+        foreach ($reservedName in $reservedChords.Keys) {
+            $existingByName[$reservedName] = @(Get-ShellsenseKeyBinding -Chord $reservedChords[$reservedName]).Count -gt 0
+        }
+    } else {
+        foreach ($handler in $allKeyHandlers) {
+            $boundKey = [string]$handler.Key
+            if ([string]::IsNullOrEmpty($boundKey)) {
+                continue
+            }
+            foreach ($reservedName in $reservedChords.Keys) {
+                if ([string]::Equals($boundKey, [string]$reservedChords[$reservedName], [StringComparison]::OrdinalIgnoreCase) -or
+                    [string]::Equals($boundKey, 'F12', [StringComparison]::OrdinalIgnoreCase)) {
+                    $existingByName[$reservedName] = $true
+                }
+            }
+        }
     }
 
-    foreach ($reservedName in $reservedChords.Keys) {
-        $existing = @($existingByName[$reservedName])
-        if ($existing.Count -gt 0) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
-                code    = 'key_chord_collision'
-                chord   = $reservedChords[$reservedName]
-                message = ('Reserved chord {0} is already bound; it was left unchanged.' -f $reservedChords[$reservedName])
-            })
-            continue
+        foreach ($reservedName in $reservedChords.Keys) {
+            if ([bool]$existingByName[$reservedName]) {
+                Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+                    code    = 'key_chord_collision'
+                    chord   = $reservedChords[$reservedName]
+                    message = ('Reserved chord {0} is already bound; it was left unchanged.' -f $reservedChords[$reservedName])
+                })
+                continue
+            }
+            switch ($reservedName) {
+                'buffer' {
+                    $script:SHELLSENSE_KEY_HANDLERS.buffer = Register-ShellsenseKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseBufferKeyHandler} `
+                        -Name 'buffer' -SkipCollisionCheck
+                }
+                'apply' {
+                    $script:SHELLSENSE_KEY_HANDLERS.apply = Register-ShellsenseKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseApplyKeyHandler} `
+                        -Name 'apply' -SkipCollisionCheck
+                }
+                'commands' {
+                    $script:SHELLSENSE_KEY_HANDLERS.commands = Register-ShellsenseKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseCommandsKeyHandler} `
+                        -Name 'commands' -SkipCollisionCheck
+                }
+            }
         }
-        switch ($reservedName) {
-            'buffer' {
-                $script:SHELLSENSE_KEY_HANDLERS.buffer = Register-ShellsenseKeyHandler `
-                    -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseBufferKeyHandler} `
-                    -Name 'buffer' -SkipCollisionCheck
-            }
-            'apply' {
-                $script:SHELLSENSE_KEY_HANDLERS.apply = Register-ShellsenseKeyHandler `
-                    -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseApplyKeyHandler} `
-                    -Name 'apply' -SkipCollisionCheck
-            }
-            'commands' {
-                $script:SHELLSENSE_KEY_HANDLERS.commands = Register-ShellsenseKeyHandler `
-                    -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseCommandsKeyHandler} `
-                    -Name 'commands' -SkipCollisionCheck
-            }
+    } finally {
+        if ($null -ne $traceTimer) {
+            $traceTimer.Stop()
+            Send-ShellsenseTrace -Stage 'readline_init' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
         }
     }
 }
@@ -838,7 +981,11 @@ function Initialize-ShellsensePrompt {
     [CmdletBinding()]
     param()
 
-    $promptCommand = Get-Command -Name Prompt -CommandType Function -ErrorAction SilentlyContinue
+    # InvokeCommand resolves the already-loaded function without invoking the
+    # Get-Command cmdlet and its startup dispatch work.
+    $promptCommand = $ExecutionContext.InvokeCommand.GetCommand(
+        'Prompt',
+        [System.Management.Automation.CommandTypes]::Function)
     if ($null -eq $promptCommand) {
         return
     }
@@ -925,6 +1072,17 @@ $script:SHELLSENSE_INITIALIZED = $true
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 [Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
 
-Initialize-ShellsensePrompt
-Initialize-ShellsenseReadLine -DeferImport
-Send-ShellsenseCapabilities
+$shellsenseBootstrapTraceTimer = $null
+if ($script:SHELLSENSE_TRACE_ENABLED) {
+    $shellsenseBootstrapTraceTimer = [Diagnostics.Stopwatch]::StartNew()
+}
+try {
+    Initialize-ShellsensePrompt
+    Initialize-ShellsenseReadLine -DeferImport
+    Send-ShellsenseCapabilities
+} finally {
+    if ($null -ne $shellsenseBootstrapTraceTimer) {
+        $shellsenseBootstrapTraceTimer.Stop()
+        Send-ShellsenseTrace -Stage 'adapter_bootstrap' -DurationMs $shellsenseBootstrapTraceTimer.Elapsed.TotalMilliseconds
+    }
+}
