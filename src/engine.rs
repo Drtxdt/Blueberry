@@ -1,42 +1,62 @@
-//! A small, deterministic completion engine for the native host.
+//! Command discovery and deterministic completion for the native host.
 //!
-//! The engine deliberately does not execute a shell while completing.  The
-//! command index comes from PATH (and from the command list supplied by the
-//! PowerShell adapter), while the few command specifications below are static
-//! data.  This keeps completion predictable and keeps the hot path bounded.
+//! Discovery is deliberately separate from completion. A [`Discovery`] owns
+//! the directory iterators and advances them in small, bounded batches, while
+//! [`CommandIndex`] is a cheap immutable snapshot that can be queried at any
+//! point. This means a large PATH never blocks the first completion query and
+//! a partially built index is still useful to the caller.
 
 use crate::model::{Candidate, CandidateKind, Completion, ShellCommand};
+use crate::specs;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env;
 use std::ffi::OsStr;
-use std::fs::{self, OpenOptions};
+use std::fs::{self, OpenOptions, ReadDir};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const CACHE_VERSION: u32 = 1;
+const CACHE_VERSION: u32 = 2;
 const DEFAULT_PATHEXT: &str = ".COM;.EXE;.BAT;.CMD";
 const MAX_RESULTS: usize = 1_000;
-const MAX_DIRECTORY_ENTRIES: usize = 8_192;
-const DIRECTORY_SCAN_BUDGET: Duration = Duration::from_millis(50);
+const DISCOVERY_BATCH_ENTRIES: usize = 256;
+const DISCOVERY_BATCH_BUDGET: Duration = Duration::from_millis(4);
+const MAX_ALIAS_DEPTH: usize = 8;
+const MAX_SYMLINK_DEPTH: usize = 64;
 
-/// An ordered command index.  Entries are kept in discovery order, so the
+/// An ordered command index. Entries are kept in discovery order, so the
 /// first matching PATH entry wins both indexing and display order.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct CommandIndex {
     entries: Vec<IndexedCommand>,
     by_name: HashMap<String, usize>,
     context: CacheContext,
     context_valid: bool,
-    /// Commands discovered from PATH.  Keeping this baseline lets a session
+    complete: bool,
+    /// Commands discovered from PATH. Keeping this baseline lets a session
     /// alias shadow an application temporarily and restores the application
     /// when the next complete session snapshot no longer contains that alias.
     base_entries: Vec<IndexedCommand>,
     session_commands: HashMap<String, IndexedCommand>,
     session_order: Vec<String>,
+}
+
+impl Default for CommandIndex {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+            by_name: HashMap::new(),
+            context: CacheContext::default(),
+            context_valid: false,
+            complete: true,
+            base_entries: Vec::new(),
+            session_commands: HashMap::new(),
+            session_order: Vec::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -62,17 +82,245 @@ struct CacheContext {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct DirectoryStamp {
     path: String,
-    /// Directory modification time in nanoseconds since the Unix epoch.  A
-    /// missing value means the directory could not be inspected; discovery
-    /// already ignores such directories.
+    /// Directory modification time in nanoseconds since the Unix epoch.
+    /// `None` is also used for a missing directory and for a deliberately
+    /// skipped remote PATH entry.
     modified: Option<u128>,
+    /// A failed metadata access is distinct from an empty directory. It is
+    /// retained in the context so a future cache validation cannot silently
+    /// turn an access failure into a successful scan.
+    #[serde(default = "default_accessible")]
+    accessible: bool,
+}
+
+fn default_accessible() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CacheFile {
     version: u32,
     context: CacheContext,
+    /// Only complete snapshots are persisted. The field is intentionally
+    /// required for v2 files so a hand-written or truncated cache is rejected.
+    complete: bool,
     commands: Vec<IndexedCommand>,
+}
+
+/// A resumable PATH discovery operation.
+///
+/// [`step`](Self::step) processes at most roughly 256 directory entries or
+/// four milliseconds of work, whichever comes first. It never sleeps: the
+/// host worker can wait on its condition variable between calls and can
+/// cancel the scan at a batch boundary.
+pub struct Discovery {
+    index: CommandIndex,
+    directories: Vec<PathBuf>,
+    extensions: Vec<String>,
+    directory_index: usize,
+    current: Option<DirectoryScan>,
+    access_error: bool,
+    done: bool,
+}
+
+struct DirectoryScan {
+    read_dir: ReadDir,
+    found: Vec<FoundCommand>,
+}
+
+struct FoundCommand {
+    extension_rank: usize,
+    lower_name: String,
+    stem: String,
+    executable_path: PathBuf,
+}
+
+enum EntryInspection {
+    Candidate(FoundCommand),
+    Ignore,
+    AccessError,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LinkStatus {
+    Local,
+    Remote,
+    Dangling,
+    Inaccessible,
+}
+
+impl Discovery {
+    /// Start discovery from an explicit PATH/PATHEXT snapshot.
+    pub fn new(path: &OsStr, pathext: &OsStr) -> Self {
+        // The cache context is deliberately captured before opening any
+        // directory. A directory can change while a long scan is running;
+        // using the pre-scan stamps makes that race invalidate the cache on
+        // the next launch instead of recording a misleading post-scan state.
+        let context = context_for_env(path, pathext);
+        let directories = split_path(path);
+        let extensions = parse_pathext(pathext);
+        let index = CommandIndex {
+            entries: Vec::new(),
+            by_name: HashMap::new(),
+            context,
+            context_valid: true,
+            complete: false,
+            base_entries: Vec::new(),
+            session_commands: HashMap::new(),
+            session_order: Vec::new(),
+        };
+        Self {
+            index,
+            directories,
+            extensions,
+            directory_index: 0,
+            current: None,
+            access_error: false,
+            done: false,
+        }
+    }
+
+    /// Advance discovery by one bounded batch. Returns `true` after every
+    /// PATH directory has been examined. An access error still ends the scan,
+    /// but the resulting snapshot remains incomplete and cannot be cached.
+    pub fn step(&mut self) -> bool {
+        if self.done {
+            return true;
+        }
+
+        let started = Instant::now();
+        let mut processed = 0usize;
+        loop {
+            if processed >= DISCOVERY_BATCH_ENTRIES
+                || (processed > 0 && started.elapsed() >= DISCOVERY_BATCH_BUDGET)
+            {
+                break;
+            }
+
+            if self.current.is_none() && !self.begin_next_directory() {
+                break;
+            }
+
+            let Some(scan) = self.current.as_mut() else {
+                break;
+            };
+            match scan.read_dir.next() {
+                Some(Ok(entry)) => {
+                    processed += 1;
+                    match inspect_executable(&entry, &self.extensions) {
+                        EntryInspection::Candidate(candidate) => scan.found.push(candidate),
+                        EntryInspection::Ignore => {}
+                        EntryInspection::AccessError => self.access_error = true,
+                    }
+                }
+                Some(Err(error)) => {
+                    processed += 1;
+                    // A broken target is handled by inspect_executable. An
+                    // iterator error means the directory could not be fully
+                    // enumerated and therefore must make the snapshot
+                    // incomplete.
+                    let _ = error;
+                    self.access_error = true;
+                }
+                None => {
+                    self.finish_current_directory();
+                }
+            }
+        }
+
+        if self.current.is_none() && self.directory_index >= self.directories.len() {
+            self.done = true;
+            self.index.complete = !self.access_error;
+        }
+        self.done
+    }
+
+    /// Return a queryable snapshot of all entries found so far.
+    pub fn snapshot(&self) -> CommandIndex {
+        let mut snapshot = self.index.clone();
+        // Discovery has no session overlay. Keeping the baseline synchronized
+        // is what lets the host call replace_shell_commands on every batch.
+        snapshot.base_entries = snapshot.entries.clone();
+        snapshot.session_commands.clear();
+        snapshot.session_order.clear();
+        snapshot.complete = self.done && !self.access_error;
+        snapshot
+    }
+
+    /// Whether the scan has ended and every directory was enumerated without
+    /// an access error.
+    pub fn is_complete(&self) -> bool {
+        self.done && !self.access_error
+    }
+
+    fn begin_next_directory(&mut self) -> bool {
+        while self.directory_index < self.directories.len() {
+            let directory = &self.directories[self.directory_index];
+            self.directory_index += 1;
+
+            // A local PATH symlink is fine, but a symlink chain ending at a
+            // UNC/remote target is intentionally ignored before read_dir can
+            // block on the remote server.
+            match symlink_target_status(directory) {
+                LinkStatus::Remote => continue,
+                LinkStatus::Inaccessible => {
+                    self.access_error = true;
+                    continue;
+                }
+                LinkStatus::Local | LinkStatus::Dangling => {}
+            }
+
+            match fs::read_dir(directory) {
+                Ok(read_dir) => {
+                    self.current = Some(DirectoryScan {
+                        read_dir,
+                        found: Vec::new(),
+                    });
+                    return true;
+                }
+                Err(error) => {
+                    // A missing PATH component is ordinary and is treated as
+                    // examined. Permission and other enumeration failures are
+                    // recorded so the result cannot be mistaken for a full
+                    // scan and cached.
+                    if is_scan_access_error(&error) {
+                        self.access_error = true;
+                    }
+                }
+            }
+        }
+        self.done = true;
+        self.index.complete = !self.access_error;
+        false
+    }
+
+    fn finish_current_directory(&mut self) {
+        let Some(mut scan) = self.current.take() else {
+            return;
+        };
+        scan.found.sort_by(|left, right| {
+            left.extension_rank
+                .cmp(&right.extension_rank)
+                .then_with(|| left.lower_name.cmp(&right.lower_name))
+                .then_with(|| {
+                    left.stem
+                        .to_ascii_lowercase()
+                        .cmp(&right.stem.to_ascii_lowercase())
+                })
+        });
+        for found in scan.found {
+            self.index.insert_command(
+                IndexedCommand {
+                    name: found.stem,
+                    kind: CandidateKind::Command,
+                    description: String::new(),
+                    definition: String::new(),
+                    executable_path: Some(found.executable_path),
+                },
+                false,
+            );
+        }
+    }
 }
 
 impl CommandIndex {
@@ -84,89 +332,13 @@ impl CommandIndex {
         Self::discover_with_env(&path, &pathext)
     }
 
-    /// Discover commands with an explicit environment snapshot.
-    ///
-    /// The host uses this when a child PowerShell has established a different
-    /// PATH.  It also makes discovery straightforward to test without changing
-    /// the process environment.
+    /// Discover commands with an explicit environment snapshot. The scan is
+    /// advanced to completion for this synchronous convenience API; callers
+    /// that need incremental work should use [`Discovery`] directly.
     pub fn discover_with_env(path: &OsStr, pathext: &OsStr) -> Self {
-        let mut index = Self {
-            entries: Vec::new(),
-            by_name: HashMap::new(),
-            context: context_for_env(path, pathext),
-            context_valid: true,
-            base_entries: Vec::new(),
-            session_commands: HashMap::new(),
-            session_order: Vec::new(),
-        };
-
-        let extensions = parse_pathext(pathext);
-        for directory in split_path(path) {
-            // Network/UNC PATH entries can block while a server is offline.
-            // The native host intentionally keeps completion local and
-            // predictable, so those entries are skipped.
-            if is_remote_path(&directory) {
-                continue;
-            }
-            let mut found = Vec::new();
-            let read_dir = match fs::read_dir(&directory) {
-                Ok(value) => value,
-                Err(_) => continue,
-            };
-            let started = Instant::now();
-
-            for (entry_number, entry) in read_dir.flatten().enumerate() {
-                if entry_number >= MAX_DIRECTORY_ENTRIES
-                    || started.elapsed() >= DIRECTORY_SCAN_BUDGET
-                {
-                    break;
-                }
-                let path = entry.path();
-                let is_file = entry
-                    .metadata()
-                    .map(|value| value.is_file())
-                    .unwrap_or(false);
-                if !is_file {
-                    continue;
-                }
-                let name = entry.file_name().to_string_lossy().into_owned();
-                let Some((stem, extension_rank)) = executable_stem(&name, &extensions) else {
-                    continue;
-                };
-                if stem.is_empty() {
-                    continue;
-                }
-                found.push((extension_rank, name.to_ascii_lowercase(), stem, path));
-            }
-
-            // read_dir order is unspecified.  PATHEXT order is meaningful on
-            // Windows (foo.cmd and foo.exe can coexist), followed by name for
-            // deterministic output.
-            found.sort_by(|left, right| {
-                left.0
-                    .cmp(&right.0)
-                    .then_with(|| left.1.cmp(&right.1))
-                    .then_with(|| {
-                        left.2
-                            .to_ascii_lowercase()
-                            .cmp(&right.2.to_ascii_lowercase())
-                    })
-            });
-            for (_, _, stem, executable_path) in found {
-                index.insert_command(
-                    IndexedCommand {
-                        name: stem,
-                        kind: CandidateKind::Command,
-                        description: "Executable".to_owned(),
-                        definition: String::new(),
-                        executable_path: Some(executable_path),
-                    },
-                    false,
-                );
-            }
-        }
-        index.base_entries = index.entries.clone();
-        index
+        let mut discovery = Discovery::new(path, pathext);
+        while !discovery.step() {}
+        discovery.snapshot()
     }
 
     /// Load a cache only when it was written for the current PATH/PATHEXT.
@@ -188,6 +360,9 @@ impl CommandIndex {
         if cache.version != CACHE_VERSION {
             bail!("unsupported command cache version {}", cache.version);
         }
+        if !cache.complete {
+            bail!("command cache contains an incomplete discovery");
+        }
         if cache.context != context {
             bail!("command cache PATH/PATHEXT context is stale");
         }
@@ -197,6 +372,7 @@ impl CommandIndex {
             by_name: HashMap::new(),
             context: cache.context,
             context_valid: true,
+            complete: true,
             base_entries: Vec::new(),
             session_commands: HashMap::new(),
             session_order: Vec::new(),
@@ -210,6 +386,9 @@ impl CommandIndex {
 
     /// Save an index as a complete file and atomically publish it.
     pub fn save(&self, path: &Path) -> Result<()> {
+        if !self.is_complete() {
+            bail!("cannot persist an incomplete command discovery");
+        }
         let cache = CacheFile {
             version: CACHE_VERSION,
             context: if self.context_valid {
@@ -217,6 +396,7 @@ impl CommandIndex {
             } else {
                 current_context()
             },
+            complete: true,
             // Session aliases/functions/cmdlets are supplied by the current
             // PowerShell process and must not become persistent cache data.
             commands: self.base_entries.clone(),
@@ -289,10 +469,30 @@ impl CommandIndex {
         self.entries.is_empty()
     }
 
-    /// Complete a line at a UTF-8 byte cursor.  The returned replacement range
+    /// Whether this snapshot represents a complete PATH scan. A complete
+    /// empty index is valid; it is distinct from a scan still in progress.
+    pub fn is_complete(&self) -> bool {
+        self.complete
+    }
+
+    /// Complete a line at a UTF-8 byte cursor. The returned replacement range
     /// always spans the complete current token, including its suffix after the
     /// cursor, when a cursor is placed in the middle of a token.
     pub fn complete(&self, line: &str, cursor: usize, cwd: &Path, limit: usize) -> Completion {
+        self.complete_with_descriptions(line, cursor, cwd, limit, &BTreeMap::new())
+    }
+
+    /// Complete with optional localized descriptions. The map is keyed by the
+    /// declarative spec candidate key; command descriptions use a normalized
+    /// canonical command key.
+    pub fn complete_with_descriptions(
+        &self,
+        line: &str,
+        cursor: usize,
+        cwd: &Path,
+        limit: usize,
+        overrides: &BTreeMap<String, String>,
+    ) -> Completion {
         let cursor = clamp_cursor(line, cursor);
         let tokens = lex_line(line);
         let current = current_token(line, &tokens, cursor);
@@ -300,6 +500,7 @@ impl CommandIndex {
             replace_start: current.start,
             replace_end: current.end,
             candidates: Vec::new(),
+            incomplete: !self.complete,
         };
         let effective_limit = limit.min(MAX_RESULTS);
         if effective_limit == 0 {
@@ -317,7 +518,8 @@ impl CommandIndex {
             .unwrap_or(true);
 
         if is_command_position {
-            let candidates = self.command_candidates(&prefix, &token_context, effective_limit);
+            let candidates =
+                self.command_candidates(&prefix, &token_context, effective_limit, overrides);
             return Completion {
                 candidates,
                 ..replacement
@@ -327,47 +529,47 @@ impl CommandIndex {
         let command_name = command_token
             .map(|command| decode_power_shell(&command.raw))
             .unwrap_or_default();
-        let command_name_lower = command_name.to_ascii_lowercase();
-        let arg_position = argument_position(&tokens, segment_start, current.start);
-        let spec = self.spec_for_command(&command_name);
+        let preceding_args = preceding_arguments(&tokens, segment_start, current.start);
+        let resolved_command = self.resolve_command(&command_name);
+        let spec_result = specs::complete(&resolved_command, &preceding_args, &prefix);
         let mut candidates = Vec::new();
+        let mut path_values = false;
+        let mut no_spec = true;
 
-        if let Some(spec) = spec {
-            // Subcommands are only valid as the first argument.  Options stay
-            // available at every argument position and are useful for the
-            // common PowerShell cmdlets too.
-            if arg_position <= 1 && !prefix.starts_with('-') {
-                add_static_candidates(
-                    &mut candidates,
-                    spec.subcommands,
-                    CandidateKind::Subcommand,
-                    spec.name,
-                    &token_context,
-                    effective_limit,
-                );
-            }
-            if prefix.starts_with('-') || (prefix.is_empty() && spec.name == "pwsh") {
-                add_static_candidates(
-                    &mut candidates,
-                    spec.options,
-                    CandidateKind::Option,
-                    spec.name,
-                    &token_context,
-                    effective_limit,
-                );
+        if let Some(result) = spec_result {
+            no_spec = false;
+            path_values = result.path_values || result.options_ended;
+            let prefix_lower = prefix.to_ascii_lowercase();
+            let mut seen = HashSet::new();
+            for candidate in result.candidates {
+                if !candidate
+                    .name
+                    .to_ascii_lowercase()
+                    .starts_with(&prefix_lower)
+                    // Spec keys intentionally preserve option spelling. In
+                    // particular, git -C and git -c are distinct candidates.
+                    || !seen.insert(candidate.key.clone())
+                {
+                    continue;
+                }
+                let description = override_value(overrides, &candidate.key)
+                    .unwrap_or_else(|| candidate.description.to_owned());
+                candidates.push(Candidate {
+                    label: candidate.name.to_owned(),
+                    insert_text: format_insert(candidate.name, &token_context, false),
+                    description,
+                    kind: candidate.kind,
+                });
+                if candidates.len() >= effective_limit {
+                    break;
+                }
             }
         }
 
-        let path_command = is_path_command(&command_name_lower)
-            || spec
-                .map(|spec| is_path_command(&spec.name.to_ascii_lowercase()))
-                .unwrap_or(false);
-        let no_spec = spec.is_none();
-        let path_like = looks_like_path(&prefix);
-        if candidates.is_empty()
-            && !prefix.starts_with('-')
-            && (path_command || no_spec || path_like)
-        {
+        // Specs explicitly opt into path values. Unknown commands retain the
+        // useful local filesystem fallback used by the original engine, while
+        // options are never treated as paths.
+        if candidates.is_empty() && !prefix.starts_with('-') && (path_values || no_spec) {
             candidates = filesystem_candidates(cwd, &prefix, &token_context, effective_limit);
         }
 
@@ -378,6 +580,8 @@ impl CommandIndex {
     }
 
     fn insert_command(&mut self, command: IndexedCommand, replace: bool) {
+        let mut command = command;
+        command.name = command.name.trim().to_owned();
         let key = command_key(&command.name);
         if key.is_empty() {
             return;
@@ -400,16 +604,21 @@ impl CommandIndex {
         if name.is_empty() {
             return;
         }
+        let command_kind = shell_kind(&command.kind);
+        let executable_path = if command_kind == CandidateKind::Command {
+            definition_path(&command.definition)
+        } else {
+            None
+        };
         let indexed = IndexedCommand {
             name: name.to_owned(),
-            kind: shell_kind(&command.kind),
-            description: if command.definition.trim().is_empty() {
-                command.kind.clone()
-            } else {
-                command.definition.clone()
-            },
+            kind: command_kind,
+            // Descriptions are resolved at query time from the canonical
+            // command/spec. The definition remains solely for alias target
+            // resolution and is never presented as a guessed description.
+            description: String::new(),
             definition: command.definition,
-            executable_path: None,
+            executable_path,
         };
         let key = command_key(name);
         if let Some(existing) = self.session_commands.get(&key) {
@@ -450,6 +659,7 @@ impl CommandIndex {
         prefix: &str,
         context: &TokenContext,
         limit: usize,
+        overrides: &BTreeMap<String, String>,
     ) -> Vec<Candidate> {
         let prefix_lower = prefix.to_ascii_lowercase();
         let mut candidates = Vec::new();
@@ -463,56 +673,87 @@ impl CommandIndex {
                 candidates.push(Candidate {
                     label: command.name.clone(),
                     insert_text: format_insert(&command.name, context, false),
-                    description: command.description.clone(),
+                    description: self.command_description(command, overrides),
                     kind: command.kind.clone(),
                 });
             }
         }
-        // PATH resolves duplicate names; display ranking is independent.
-        // A short exact command (git) should precede git-gui for the prefix gi.
-        candidates.sort_by_cached_key(|c| (c.label.len(), c.label.to_ascii_lowercase()));
+        // A short exact command (git) should precede git-gui for the prefix
+        // gi. PATH order still decides which duplicate is indexed.
+        candidates.sort_by_cached_key(|candidate| {
+            (candidate.label.len(), candidate.label.to_ascii_lowercase())
+        });
         candidates.truncate(limit);
         candidates
     }
 
-    fn spec_for_command(&self, command: &str) -> Option<&'static CommandSpec> {
-        let mut current = command
-            .trim_matches(|character| character == '\'' || character == '"')
-            .to_owned();
+    fn command_description(
+        &self,
+        command: &IndexedCommand,
+        overrides: &BTreeMap<String, String>,
+    ) -> String {
+        let resolved = self.resolve_command(&command.name);
+        if let Some(canonical) = specs::canonical_command(&resolved) {
+            if let Some(description) = override_value(overrides, canonical) {
+                return description;
+            }
+            if let Some(description) = specs::describe_command(canonical) {
+                return description.to_owned();
+            }
+        }
+
+        // Keep unknown descriptions factual. In particular, do not display a
+        // function body or an arbitrary alias definition as if it were a
+        // human-authored command description.
+        match command.kind {
+            CandidateKind::Command => command
+                .executable_path
+                .as_deref()
+                .map(|path| format!("Executable: {}", path.display()))
+                .unwrap_or_else(|| "Command".to_owned()),
+            CandidateKind::Alias => "Alias".to_owned(),
+            CandidateKind::Function => "Function".to_owned(),
+            CandidateKind::Cmdlet => "Cmdlet".to_owned(),
+            _ => "Command".to_owned(),
+        }
+    }
+
+    fn resolve_command(&self, command: &str) -> String {
+        let mut current = decode_power_shell(command).trim().to_owned();
         let mut visited = HashSet::new();
-        for _ in 0..4 {
-            let key = current.to_ascii_lowercase();
-            if !visited.insert(key.clone()) {
+        for _ in 0..MAX_ALIAS_DEPTH {
+            let key = command_key(&current);
+            if key.is_empty() || !visited.insert(key.clone()) {
                 break;
             }
-            if let Some(spec) = command_spec(&key) {
-                return Some(spec);
-            }
-            if let Some(stem) = without_program_extension(&key) {
-                if let Some(spec) = command_spec(stem) {
-                    return Some(spec);
-                }
-            }
-            let lookup_key = if self.by_name.contains_key(&key) {
-                key.clone()
-            } else if let Some(stem) = without_program_extension(&key) {
-                stem.to_owned()
-            } else {
-                key.clone()
-            };
-            let Some(index) = self
+
+            // Resolve a session alias before asking specs to canonicalize the
+            // name. An alias is allowed to shadow a known external command.
+            let lookup_key = command_lookup_key(&key);
+            if let Some(index) = self
                 .by_name
                 .get(&lookup_key)
-                .and_then(|index| self.entries.get(*index))
-            else {
-                break;
-            };
-            let Some(definition) = first_definition_token(&index.definition) else {
-                break;
-            };
-            current = definition.to_owned();
+                .and_then(|position| self.entries.get(*position))
+                && index.kind == CandidateKind::Alias
+            {
+                let Some(target) = first_definition_token(&index.definition) else {
+                    break;
+                };
+                current = target;
+                continue;
+            }
+
+            if let Some(canonical) = specs::canonical_command(&current) {
+                return canonical.to_owned();
+            }
+            if let Some(stem) = without_program_extension(&key) {
+                if let Some(canonical) = specs::canonical_command(stem) {
+                    return canonical.to_owned();
+                }
+            }
+            return current;
         }
-        None
+        current
     }
 }
 
@@ -529,28 +770,108 @@ fn context_for_env(path: &OsStr, pathext: &OsStr) -> CacheContext {
         pathext: pathext.to_string_lossy().into_owned(),
         directories: split_path(path)
             .into_iter()
-            .map(|directory| DirectoryStamp {
-                path: directory.to_string_lossy().into_owned(),
-                modified: directory_mtime(&directory),
-            })
+            .map(|directory| directory_stamp(&directory))
             .collect(),
     }
 }
 
-fn directory_mtime(path: &Path) -> Option<u128> {
-    if is_remote_path(path) {
-        return None;
+fn directory_stamp(path: &Path) -> DirectoryStamp {
+    if is_remote_path(path) || path_resolves_remote(path) {
+        return DirectoryStamp {
+            path: path.to_string_lossy().into_owned(),
+            modified: None,
+            accessible: true,
+        };
     }
-    let modified = fs::metadata(path).ok()?.modified().ok()?;
-    modified
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .map(|duration| duration.as_nanos())
+    match fs::metadata(path) {
+        Ok(metadata) => DirectoryStamp {
+            path: path.to_string_lossy().into_owned(),
+            modified: metadata
+                .modified()
+                .ok()
+                .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+                .map(|duration| duration.as_nanos()),
+            accessible: true,
+        },
+        Err(error) => DirectoryStamp {
+            path: path.to_string_lossy().into_owned(),
+            modified: None,
+            accessible: !is_scan_access_error(&error),
+        },
+    }
 }
 
 fn is_remote_path(path: &Path) -> bool {
     let text = path.to_string_lossy();
-    text.starts_with(r"\\") || text.starts_with("//")
+    if text.starts_with("//") {
+        return true;
+    }
+    let lower = text.to_ascii_lowercase();
+    if lower.starts_with("\\\\?\\unc\\") || lower.starts_with("\\\\.\\unc\\") {
+        return true;
+    }
+    // Verbatim disk paths (\\?\\C:\\...) and device/volume paths are
+    // local. A normal double-backslash path without a verbatim disk prefix is
+    // a UNC path and therefore remote.
+    lower.starts_with("\\\\") && !lower.starts_with("\\\\?\\") && !lower.starts_with("\\\\.\\")
+}
+
+fn path_resolves_remote(path: &Path) -> bool {
+    matches!(symlink_target_status(path), LinkStatus::Remote)
+}
+
+fn symlink_target_status(path: &Path) -> LinkStatus {
+    let mut current = path.to_owned();
+    for _ in 0..MAX_SYMLINK_DEPTH {
+        if is_remote_path(&current) {
+            return LinkStatus::Remote;
+        }
+        let metadata = match fs::symlink_metadata(&current) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                return if error.kind() == io::ErrorKind::NotFound {
+                    LinkStatus::Dangling
+                } else {
+                    LinkStatus::Inaccessible
+                };
+            }
+        };
+        if !metadata.file_type().is_symlink() {
+            return LinkStatus::Local;
+        }
+        let target = match fs::read_link(&current) {
+            Ok(target) => target,
+            Err(error) => {
+                return if error.kind() == io::ErrorKind::NotFound {
+                    LinkStatus::Dangling
+                } else {
+                    LinkStatus::Inaccessible
+                };
+            }
+        };
+        if is_remote_path(&target) {
+            return LinkStatus::Remote;
+        }
+        current = if target.is_absolute() {
+            target
+        } else {
+            current
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join(target)
+        };
+    }
+    LinkStatus::Inaccessible
+}
+
+fn is_scan_access_error(error: &io::Error) -> bool {
+    !matches!(
+        error.kind(),
+        io::ErrorKind::NotFound
+            | io::ErrorKind::NotADirectory
+            | io::ErrorKind::InvalidInput
+            | io::ErrorKind::InvalidData
+    )
 }
 
 fn split_path(path: &OsStr) -> Vec<PathBuf> {
@@ -593,6 +914,55 @@ fn executable_stem(name: &str, extensions: &[String]) -> Option<(String, usize)>
     })
 }
 
+fn inspect_executable(entry: &fs::DirEntry, extensions: &[String]) -> EntryInspection {
+    // Filter by PATHEXT before following a link. This keeps the ordinary
+    // directory path cheap and avoids touching unrelated (possibly remote)
+    // symlink targets.
+    let name = entry.file_name().to_string_lossy().into_owned();
+    let Some((stem, extension_rank)) = executable_stem(&name, extensions) else {
+        return EntryInspection::Ignore;
+    };
+    if stem.is_empty() {
+        return EntryInspection::Ignore;
+    }
+
+    let file_type = match entry.file_type() {
+        Ok(file_type) => file_type,
+        Err(error) => {
+            return if is_scan_access_error(&error) {
+                EntryInspection::AccessError
+            } else {
+                EntryInspection::Ignore
+            };
+        }
+    };
+    let path = entry.path();
+    if file_type.is_symlink() {
+        match symlink_target_status(&path) {
+            LinkStatus::Remote | LinkStatus::Dangling => return EntryInspection::Ignore,
+            LinkStatus::Inaccessible => return EntryInspection::AccessError,
+            LinkStatus::Local => {}
+        }
+        match fs::metadata(&path) {
+            Ok(metadata) if metadata.is_file() => {}
+            Ok(_) => return EntryInspection::Ignore,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                return EntryInspection::Ignore;
+            }
+            Err(_) => return EntryInspection::AccessError,
+        }
+    } else if !file_type.is_file() {
+        return EntryInspection::Ignore;
+    }
+
+    EntryInspection::Candidate(FoundCommand {
+        extension_rank,
+        lower_name: name.to_ascii_lowercase(),
+        stem,
+        executable_path: path,
+    })
+}
+
 fn shell_kind(kind: &str) -> CandidateKind {
     match kind.trim().to_ascii_lowercase().as_str() {
         "alias" => CandidateKind::Alias,
@@ -606,9 +976,6 @@ fn shell_kind(kind: &str) -> CandidateKind {
 
 fn command_priority(kind: &CandidateKind) -> u8 {
     match kind {
-        // A session-defined name is the most specific command available to
-        // the user.  Keep aliases ahead of functions, then cmdlets, then
-        // external applications discovered from PATH.
         CandidateKind::Alias => 4,
         CandidateKind::Function => 3,
         CandidateKind::Cmdlet => 2,
@@ -621,19 +988,60 @@ fn command_key(name: &str) -> String {
     name.trim().to_ascii_lowercase()
 }
 
+fn command_lookup_key(name: &str) -> String {
+    let key = command_key(name);
+    without_program_extension(&key)
+        .map(ToOwned::to_owned)
+        .unwrap_or(key)
+}
+
 fn without_program_extension(name: &str) -> Option<&str> {
     [".com", ".exe", ".bat", ".cmd"]
         .iter()
         .find_map(|extension| name.strip_suffix(extension))
 }
 
-fn first_definition_token(definition: &str) -> Option<&str> {
-    let definition = definition.trim();
-    if definition.is_empty() {
-        return None;
+fn first_definition_token(definition: &str) -> Option<String> {
+    lex_line(definition)
+        .into_iter()
+        .find(|token| !token.separator)
+        .map(|token| decode_power_shell(&token.raw))
+}
+
+fn definition_path(definition: &str) -> Option<PathBuf> {
+    let token = first_definition_token(definition)?;
+    let lower = token.to_ascii_lowercase();
+    if token.contains(['/', '\\'])
+        || [".com", ".exe", ".bat", ".cmd"]
+            .iter()
+            .any(|extension| lower.ends_with(extension))
+    {
+        Some(PathBuf::from(token))
+    } else {
+        None
     }
-    let token = definition.split_whitespace().next()?;
-    Some(token.trim_matches(|character| character == '\'' || character == '"'))
+}
+
+fn override_value(overrides: &BTreeMap<String, String>, key: &str) -> Option<String> {
+    // Spec keys are case-sensitive because option spelling can carry meaning
+    // (for example, git -C and git -c). Command canonicalization happens
+    // before this helper is called.
+    overrides.get(key).cloned()
+}
+
+fn preceding_arguments(
+    tokens: &[Token],
+    segment_start: usize,
+    current_start: usize,
+) -> Vec<String> {
+    tokens
+        .iter()
+        .filter(|token| {
+            !token.separator && token.start >= segment_start && token.start < current_start
+        })
+        .map(|token| decode_power_shell(&token.raw))
+        .skip(1)
+        .collect()
 }
 
 fn clamp_cursor(line: &str, cursor: usize) -> usize {
@@ -783,20 +1191,6 @@ fn segment_start(tokens: &[Token], current_start: usize) -> usize {
         .map(|token| token.end)
         .max()
         .unwrap_or(0)
-}
-
-fn argument_position(tokens: &[Token], segment_start: usize, current_start: usize) -> usize {
-    tokens
-        .iter()
-        .filter(|token| {
-            !token.separator && token.start >= segment_start && token.start < current_start
-        })
-        .count()
-        // The command itself is the first token in the segment.  Counting
-        // prior non-separators therefore gives the one-based position of the
-        // current argument (the current token is the next token).
-        .saturating_sub(1)
-        + 1
 }
 
 #[derive(Clone, Debug)]
@@ -989,473 +1383,6 @@ fn needs_literal_quote(text: &str) -> bool {
         || text.starts_with('#')
 }
 
-#[derive(Clone, Copy)]
-struct CommandSpec {
-    name: &'static str,
-    names: &'static [&'static str],
-    subcommands: &'static [&'static str],
-    options: &'static [&'static str],
-}
-
-const GIT_SUBCOMMANDS: &[&str] = &[
-    "add",
-    "am",
-    "archive",
-    "bisect",
-    "branch",
-    "checkout",
-    "cherry-pick",
-    "clean",
-    "clone",
-    "commit",
-    "config",
-    "diff",
-    "fetch",
-    "format-patch",
-    "grep",
-    "init",
-    "log",
-    "merge",
-    "mv",
-    "pull",
-    "push",
-    "rebase",
-    "reflog",
-    "remote",
-    "rename",
-    "reset",
-    "restore",
-    "revert",
-    "rm",
-    "show",
-    "sparse-checkout",
-    "stash",
-    "status",
-    "switch",
-    "tag",
-    "worktree",
-];
-const GIT_OPTIONS: &[&str] = &[
-    "--help",
-    "--version",
-    "--exec-path",
-    "--git-dir",
-    "--work-tree",
-    "--bare",
-    "--config-env",
-    "-C",
-    "-c",
-    "-p",
-    "--paginate",
-    "--no-pager",
-    "--no-replace-objects",
-];
-const CARGO_SUBCOMMANDS: &[&str] = &[
-    "add",
-    "bench",
-    "build",
-    "check",
-    "clean",
-    "clippy",
-    "doc",
-    "fetch",
-    "fix",
-    "fmt",
-    "generate-lockfile",
-    "install",
-    "metadata",
-    "new",
-    "publish",
-    "remove",
-    "report",
-    "run",
-    "rustc",
-    "rustdoc",
-    "search",
-    "test",
-    "tree",
-    "uninstall",
-    "update",
-    "vendor",
-    "version",
-    "locate-project",
-];
-const CARGO_OPTIONS: &[&str] = &[
-    "--help",
-    "--version",
-    "--verbose",
-    "--quiet",
-    "--locked",
-    "--offline",
-    "--frozen",
-    "--manifest-path",
-    "--package",
-    "--workspace",
-    "--exclude",
-    "--features",
-    "--all-features",
-    "--no-default-features",
-    "--target",
-];
-const NPM_SUBCOMMANDS: &[&str] = &[
-    "access",
-    "audit",
-    "bugs",
-    "cache",
-    "ci",
-    "completion",
-    "config",
-    "dedupe",
-    "deprecate",
-    "diff",
-    "dist-tag",
-    "doctor",
-    "docs",
-    "exec",
-    "explain",
-    "explore",
-    "fund",
-    "help",
-    "hook",
-    "init",
-    "install",
-    "install-ci-test",
-    "install-test",
-    "link",
-    "ll",
-    "login",
-    "logout",
-    "ls",
-    "org",
-    "outdated",
-    "owner",
-    "pack",
-    "ping",
-    "pkg",
-    "prefix",
-    "profile",
-    "prune",
-    "publish",
-    "query",
-    "rebuild",
-    "repo",
-    "restart",
-    "root",
-    "run",
-    "search",
-    "set",
-    "shrinkwrap",
-    "start",
-    "stop",
-    "team",
-    "test",
-    "token",
-    "uninstall",
-    "unpublish",
-    "update",
-    "version",
-    "view",
-];
-const NPM_OPTIONS: &[&str] = &[
-    "--help",
-    "--version",
-    "--global",
-    "--save",
-    "--save-dev",
-    "--save-exact",
-    "--prefix",
-    "--workspace",
-    "--workspaces",
-    "--include-workspace-root",
-    "--ignore-scripts",
-    "--production",
-    "--json",
-    "--silent",
-    "--registry",
-    "--yes",
-];
-const DOCKER_SUBCOMMANDS: &[&str] = &[
-    "build",
-    "builder",
-    "buildx",
-    "checkpoint",
-    "commit",
-    "compose",
-    "config",
-    "container",
-    "context",
-    "cp",
-    "create",
-    "diff",
-    "events",
-    "exec",
-    "export",
-    "history",
-    "image",
-    "images",
-    "info",
-    "init",
-    "inspect",
-    "kill",
-    "load",
-    "login",
-    "logout",
-    "logs",
-    "manifest",
-    "network",
-    "node",
-    "pause",
-    "plugin",
-    "port",
-    "ps",
-    "pull",
-    "push",
-    "rename",
-    "restart",
-    "rm",
-    "rmi",
-    "run",
-    "save",
-    "search",
-    "secret",
-    "service",
-    "stack",
-    "start",
-    "stats",
-    "stop",
-    "swarm",
-    "system",
-    "tag",
-    "top",
-    "trust",
-    "unpause",
-    "update",
-    "version",
-    "volume",
-    "wait",
-];
-const DOCKER_OPTIONS: &[&str] = &[
-    "--help",
-    "--version",
-    "--config",
-    "--context",
-    "--debug",
-    "--host",
-    "--log-level",
-    "--tls",
-    "--tlscacert",
-    "--tlscert",
-    "--tlskey",
-    "--tlsverify",
-];
-const PWSH_SUBCOMMANDS: &[&str] = &[];
-const PWSH_OPTIONS: &[&str] = &[
-    "-Command",
-    "-EncodedCommand",
-    "-EncodedArguments",
-    "-ExecutionPolicy",
-    "-File",
-    "-InputFormat",
-    "-Login",
-    "-Mta",
-    "-NoExit",
-    "-NoLogo",
-    "-NonInteractive",
-    "-NoProfile",
-    "-OutputFormat",
-    "-Sta",
-    "-Version",
-    "-WindowStyle",
-    "-WorkingDirectory",
-    "--help",
-    "--version",
-];
-const GH_SUBCOMMANDS: &[&str] = &[
-    "alias",
-    "api",
-    "attestation",
-    "auth",
-    "browse",
-    "codespace",
-    "config",
-    "copilot",
-    "extension",
-    "gist",
-    "issue",
-    "label",
-    "org",
-    "pr",
-    "project",
-    "release",
-    "repo",
-    "ruleset",
-    "run",
-    "search",
-    "secret",
-    "ssh-key",
-    "status",
-    "variable",
-    "workflow",
-];
-const GH_OPTIONS: &[&str] = &[
-    "--help",
-    "--version",
-    "--hostname",
-    "--repo",
-    "--json",
-    "--jq",
-    "--template",
-    "--web",
-    "--paginate",
-    "--slurp",
-];
-const LOCATION_OPTIONS: &[&str] = &[
-    "-Path",
-    "-LiteralPath",
-    "-Force",
-    "-PassThru",
-    "-StackName",
-    "-UseTransaction",
-    "-Verbose",
-    "-ErrorAction",
-    "-ErrorVariable",
-];
-const CHILD_ITEM_OPTIONS: &[&str] = &[
-    "-Path",
-    "-LiteralPath",
-    "-Filter",
-    "-Include",
-    "-Exclude",
-    "-Recurse",
-    "-Force",
-    "-Name",
-    "-Directory",
-    "-File",
-    "-Depth",
-    "-Attributes",
-    "-FollowSymlink",
-    "-Hidden",
-    "-ReadOnly",
-    "-System",
-    "-ErrorAction",
-    "-ErrorVariable",
-    "-Verbose",
-];
-
-const COMMAND_SPECS: &[CommandSpec] = &[
-    CommandSpec {
-        name: "git",
-        names: &["git"],
-        subcommands: GIT_SUBCOMMANDS,
-        options: GIT_OPTIONS,
-    },
-    CommandSpec {
-        name: "cargo",
-        names: &["cargo"],
-        subcommands: CARGO_SUBCOMMANDS,
-        options: CARGO_OPTIONS,
-    },
-    CommandSpec {
-        name: "npm",
-        names: &["npm"],
-        subcommands: NPM_SUBCOMMANDS,
-        options: NPM_OPTIONS,
-    },
-    CommandSpec {
-        name: "docker",
-        names: &["docker"],
-        subcommands: DOCKER_SUBCOMMANDS,
-        options: DOCKER_OPTIONS,
-    },
-    CommandSpec {
-        name: "pwsh",
-        names: &["pwsh", "powershell"],
-        subcommands: PWSH_SUBCOMMANDS,
-        options: PWSH_OPTIONS,
-    },
-    CommandSpec {
-        name: "gh",
-        names: &["gh"],
-        subcommands: GH_SUBCOMMANDS,
-        options: GH_OPTIONS,
-    },
-    CommandSpec {
-        name: "Set-Location",
-        names: &["set-location", "cd", "chdir", "sl"],
-        subcommands: &[],
-        options: LOCATION_OPTIONS,
-    },
-    CommandSpec {
-        name: "Get-ChildItem",
-        names: &["get-childitem", "gci", "dir", "ls"],
-        subcommands: &[],
-        options: CHILD_ITEM_OPTIONS,
-    },
-];
-
-fn command_spec(command: &str) -> Option<&'static CommandSpec> {
-    COMMAND_SPECS
-        .iter()
-        .find(|spec| spec.names.contains(&command))
-}
-
-fn add_static_candidates(
-    output: &mut Vec<Candidate>,
-    names: &[&str],
-    kind: CandidateKind,
-    command_name: &str,
-    context: &TokenContext,
-    limit: usize,
-) {
-    let prefix = context.value_before.to_ascii_lowercase();
-    let mut seen = output
-        .iter()
-        .map(|candidate| command_key(&candidate.label))
-        .collect::<HashSet<_>>();
-    for name in names {
-        if !name.to_ascii_lowercase().starts_with(&prefix) || !seen.insert(command_key(name)) {
-            continue;
-        }
-        output.push(Candidate {
-            label: (*name).to_owned(),
-            insert_text: format_insert(name, context, false),
-            description: format!("{command_name} command"),
-            kind: kind.clone(),
-        });
-        if output.len() >= limit {
-            break;
-        }
-    }
-}
-
-fn is_path_command(command: &str) -> bool {
-    matches!(
-        command,
-        "cd" | "chdir"
-            | "sl"
-            | "set-location"
-            | "get-childitem"
-            | "gci"
-            | "dir"
-            | "ls"
-            | "get-location"
-            | "pwd"
-            | "pushd"
-            | "popd"
-    )
-}
-
-fn looks_like_path(value: &str) -> bool {
-    value.is_empty()
-        || value.starts_with('.')
-        || value.starts_with('~')
-        || value.starts_with('/')
-        || value.starts_with('\\')
-        || value.contains('/')
-        || value.contains('\\')
-        || (value.len() >= 2 && value.as_bytes()[1] == b':')
-}
-
 fn filesystem_candidates(
     cwd: &Path,
     value: &str,
@@ -1470,26 +1397,37 @@ fn filesystem_candidates(
         None => ("", value),
     };
     let directory = resolve_directory(cwd, directory_text);
-    if is_remote_path(cwd) || is_remote_path(&directory) {
+    if is_remote_path(cwd)
+        || is_remote_path(&directory)
+        || path_resolves_remote(cwd)
+        || path_resolves_remote(&directory)
+    {
         return Vec::new();
     }
-    let mut entries = Vec::new();
     let read_dir = match fs::read_dir(&directory) {
         Ok(value) => value,
         Err(_) => return Vec::new(),
     };
     let prefix_lower = name_prefix.to_ascii_lowercase();
-    let started = Instant::now();
-    for (entry_number, entry) in read_dir.flatten().enumerate() {
-        if entry_number >= MAX_DIRECTORY_ENTRIES || started.elapsed() >= DIRECTORY_SCAN_BUDGET {
-            break;
-        }
+    let mut entries = Vec::new();
+    for entry in read_dir.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
         if !name.to_ascii_lowercase().starts_with(&prefix_lower) {
             continue;
         }
-        let metadata = match entry.metadata() {
-            Ok(value) => value,
+        let path = entry.path();
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(_) => continue,
+        };
+        if file_type.is_symlink() {
+            match symlink_target_status(&path) {
+                LinkStatus::Remote | LinkStatus::Dangling | LinkStatus::Inaccessible => continue,
+                LinkStatus::Local => {}
+            }
+        }
+        let metadata = match fs::metadata(&path) {
+            Ok(metadata) => metadata,
             Err(_) => continue,
         };
         entries.push((name.to_ascii_lowercase(), name, metadata.is_dir()));
@@ -1499,7 +1437,7 @@ fn filesystem_candidates(
     let separator = value
         .rfind(['/', '\\'])
         .and_then(|index| value[index..].chars().next())
-        .unwrap_or(path_separator());
+        .unwrap_or_else(path_separator);
     let mut candidates = Vec::new();
     for (_, name, is_directory) in entries {
         let mut insert = String::with_capacity(directory_text.len() + name.len() + 1);
@@ -1544,8 +1482,7 @@ fn resolve_directory(cwd: &Path, directory_text: &str) -> PathBuf {
         && path_text.as_bytes()[1] == b':'
         && trailing_separator.is_some()
     {
-        // Trimming `C:\\` to `C:` turns an absolute drive root into a
-        // drive-relative path on Windows.  Restore the root separator.
+        // Trimming C:\\ to C: turns a drive-relative path into a drive root.
         path_text.push(trailing_separator.unwrap());
     }
     if path_text == "~" || path_text.starts_with("~/") || path_text.starts_with("~\\") {

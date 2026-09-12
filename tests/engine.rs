@@ -1,7 +1,10 @@
-use shellsense::engine::CommandIndex;
+use serde_json::Value;
+use shellsense::engine::{CommandIndex, Discovery};
 use shellsense::model::{CandidateKind, ShellCommand};
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
+use std::io;
 use std::path::Path;
 use tempfile::tempdir;
 
@@ -111,7 +114,7 @@ fn session_command_priority_prefers_alias_then_function_then_cmdlet() {
 
     index.merge_shell_commands(vec![shell_command("same", "Alias", "updated")]);
     let completion = index.complete("sa", 2, Path::new("."), 10);
-    assert_eq!(completion.candidates[0].description, "updated");
+    assert_eq!(completion.candidates[0].description, "Alias");
 }
 
 #[test]
@@ -226,4 +229,221 @@ fn cache_round_trip_uses_explicit_environment_context() {
     let other_dir = tempdir().unwrap();
     let other_path = std::env::join_paths([other_dir.path()]).unwrap();
     assert!(CommandIndex::load_with_env(&cache, &other_path, pathext.as_os_str()).is_err());
+}
+
+#[test]
+fn discovery_is_incremental_and_has_no_8192_entry_cutoff() {
+    let command_dir = tempdir().unwrap();
+    for index in 0..8_300 {
+        fs::write(
+            command_dir.path().join(format!("batch-{index:05}.exe")),
+            b"",
+        )
+        .unwrap();
+    }
+    let path = std::env::join_paths([command_dir.path()]).unwrap();
+    let pathext = OsString::from(".EXE");
+    let mut discovery = Discovery::new(&path, pathext.as_os_str());
+
+    assert!(
+        !discovery.step(),
+        "a directory larger than one batch must remain pending"
+    );
+    let partial = discovery.snapshot();
+    assert!(!partial.is_complete());
+    assert!(
+        partial
+            .complete("batch-082", 9, Path::new("."), 10)
+            .incomplete
+    );
+
+    let mut batches = 1;
+    while !discovery.step() {
+        batches += 1;
+    }
+    assert!(
+        batches > 8,
+        "the full directory should require multiple batches"
+    );
+    let complete = discovery.snapshot();
+    assert!(complete.is_complete());
+    assert_eq!(complete.len(), 8_300);
+    assert!(
+        !complete
+            .complete("batch-082", 9, Path::new("."), 10)
+            .incomplete
+    );
+}
+
+#[test]
+fn cache_version_two_rejects_old_and_partial_snapshots() {
+    let command_dir = tempdir().unwrap();
+    for index in 0..300 {
+        fs::write(
+            command_dir.path().join(format!("cached-{index:03}.exe")),
+            b"",
+        )
+        .unwrap();
+    }
+    let path = std::env::join_paths([command_dir.path()]).unwrap();
+    let pathext = OsString::from(".EXE");
+    let mut discovery = Discovery::new(&path, pathext.as_os_str());
+    assert!(!discovery.step());
+    let partial = discovery.snapshot();
+    let cache_dir = tempdir().unwrap();
+    let cache = cache_dir.path().join("commands.json");
+    assert!(partial.save(&cache).is_err());
+
+    while !discovery.step() {}
+    let complete = discovery.snapshot();
+    complete.save(&cache).unwrap();
+    let mut json: Value = serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
+    assert_eq!(json["version"], 2);
+    assert_eq!(json["complete"], true);
+
+    json["version"] = Value::from(1);
+    fs::write(&cache, serde_json::to_vec(&json).unwrap()).unwrap();
+    assert!(CommandIndex::load_with_env(&cache, &path, pathext.as_os_str()).is_err());
+
+    json["version"] = Value::from(2);
+    json["complete"] = Value::from(false);
+    fs::write(&cache, serde_json::to_vec(&json).unwrap()).unwrap();
+    assert!(CommandIndex::load_with_env(&cache, &path, pathext.as_os_str()).is_err());
+}
+
+fn make_file_symlink(target: &Path, link: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_file(target, link)
+    }
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, link)
+    }
+}
+
+fn make_dir_symlink(target: &Path, link: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, link)
+    }
+}
+
+fn create_link_or_skip(result: io::Result<()>, label: &str) -> bool {
+    match result {
+        Ok(()) => true,
+        Err(error) if cfg!(windows) && error.kind() == io::ErrorKind::PermissionDenied => {
+            eprintln!("skipping {label}: Windows symlink privilege is unavailable ({error})");
+            false
+        }
+        Err(error) => panic!("unable to create {label} symlink: {error}"),
+    }
+}
+
+#[test]
+fn links_follow_local_relative_chains_skip_dangling_and_remote_targets() {
+    let command_dir = tempdir().unwrap();
+    let target = command_dir.path().join("rustup.exe");
+    let middle = command_dir.path().join("cargo-link.exe");
+    let cargo = command_dir.path().join("cargo.exe");
+    fs::write(&target, b"").unwrap();
+    if !create_link_or_skip(
+        make_file_symlink(Path::new("rustup.exe"), &middle),
+        "relative middle",
+    ) {
+        return;
+    }
+    if !create_link_or_skip(
+        make_file_symlink(Path::new("cargo-link.exe"), &cargo),
+        "relative outer",
+    ) {
+        return;
+    }
+    create_link_or_skip(
+        make_file_symlink(
+            Path::new("missing.exe"),
+            &command_dir.path().join("dangling.exe"),
+        ),
+        "dangling",
+    );
+    create_link_or_skip(
+        make_file_symlink(
+            Path::new(r"\\server\share\remote.exe"),
+            &command_dir.path().join("remote.exe"),
+        ),
+        "remote",
+    );
+
+    let path = std::env::join_paths([command_dir.path()]).unwrap();
+    let pathext = OsString::from(".EXE");
+    let index = CommandIndex::discover_with_env(&path, pathext.as_os_str());
+    assert!(index.is_complete());
+    let cargo_completion = index.complete("car", 3, Path::new("."), 20);
+    assert!(cargo_completion.candidates.iter().any(|candidate| {
+        candidate.label == "cargo" && candidate.kind == CandidateKind::Command
+    }));
+    let dangling_completion = index.complete("dang", 4, Path::new("."), 20);
+    assert!(dangling_completion.candidates.is_empty());
+    let remote_completion = index.complete("rem", 3, Path::new("."), 20);
+    assert!(remote_completion.candidates.is_empty());
+}
+
+#[test]
+fn filesystem_completion_follows_local_directory_symlinks() {
+    let cwd = tempdir().unwrap();
+    let real = cwd.path().join("real");
+    fs::create_dir(&real).unwrap();
+    fs::write(real.join("inside.txt"), b"").unwrap();
+    let linked = cwd.path().join("linked");
+    if !create_link_or_skip(make_dir_symlink(Path::new("real"), &linked), "directory") {
+        return;
+    }
+
+    let mut index = CommandIndex::default();
+    index.merge_shell_commands(vec![shell_command("mytool", "Application", "")]);
+    let completion = index.complete("mytool lin", 10, cwd.path(), 20);
+    let candidate = completion
+        .candidates
+        .iter()
+        .find(|candidate| candidate.label == "linked")
+        .expect("linked directory should be offered");
+    assert_eq!(candidate.kind, CandidateKind::Directory);
+    assert!(candidate.insert_text.ends_with(std::path::MAIN_SEPARATOR));
+}
+
+#[test]
+fn description_overrides_use_exact_spec_keys() {
+    let mut index = CommandIndex::default();
+    index.merge_shell_commands(vec![shell_command("git", "Application", "")]);
+    let overrides = BTreeMap::from([
+        ("git checkout".to_owned(), "CHECKOUT OVERRIDE".to_owned()),
+        ("git -C".to_owned(), "CAPITAL C".to_owned()),
+        ("git -c".to_owned(), "LOWER C".to_owned()),
+    ]);
+
+    let checkout = index.complete_with_descriptions("git ch", 6, Path::new("."), 20, &overrides);
+    let checkout = checkout
+        .candidates
+        .iter()
+        .find(|candidate| candidate.label == "checkout")
+        .expect("git checkout candidate");
+    assert_eq!(checkout.description, "CHECKOUT OVERRIDE");
+
+    let options = index.complete_with_descriptions("git -", 5, Path::new("."), 100, &overrides);
+    let upper = options
+        .candidates
+        .iter()
+        .find(|candidate| candidate.label == "-C")
+        .expect("git -C candidate");
+    let lower = options
+        .candidates
+        .iter()
+        .find(|candidate| candidate.label == "-c")
+        .expect("git -c candidate");
+    assert_eq!(upper.description, "CAPITAL C");
+    assert_eq!(lower.description, "LOWER C");
 }

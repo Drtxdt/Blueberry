@@ -1,6 +1,6 @@
 use crate::{
     config::{self, Config},
-    engine::CommandIndex,
+    engine::{CommandIndex, Discovery},
     input::{self, Input},
     model::{Completion, ShellCommand},
     overlay::Overlay,
@@ -72,8 +72,10 @@ impl Worker {
         let thread_shared = shared.clone();
         thread::spawn(move || {
             let mut index: Option<CommandIndex> = None;
+            let mut discovery: Option<Discovery> = None;
             let mut environment: Option<(String, String)> = None;
             let mut shell_commands = Vec::new();
+            let mut latest_query: Option<Query> = None;
             loop {
                 let (lock, condition) = &*thread_shared;
                 let mut work = lock.lock().unwrap();
@@ -82,7 +84,8 @@ impl Worker {
                         || (!work.refresh
                             && work.commands.is_none()
                             && work.query.is_none()
-                            && index.is_some()))
+                            && index.is_some()
+                            && discovery.is_none()))
                 {
                     work = condition.wait(work).unwrap();
                 }
@@ -93,6 +96,7 @@ impl Worker {
                 let commands = work.commands.take();
                 let commands_changed = commands.is_some();
                 let query = work.query.take();
+                let query_changed = query.is_some();
                 if let Some(env) = work.environment.take() {
                     environment = Some(env);
                 }
@@ -100,38 +104,45 @@ impl Worker {
                 if let Some(commands) = commands {
                     shell_commands = commands;
                 }
-                let rebuilt = index.is_none() || refresh;
-                if rebuilt {
-                    let discovered = if let Some((path, pathext)) = &environment {
-                        if !refresh {
-                            CommandIndex::load_with_env(
-                                &cache,
-                                OsStr::new(path),
-                                OsStr::new(pathext),
-                            )
-                            .unwrap_or_else(|_| {
-                                CommandIndex::discover_with_env(
-                                    OsStr::new(path),
-                                    OsStr::new(pathext),
-                                )
-                            })
-                        } else {
-                            CommandIndex::discover_with_env(OsStr::new(path), OsStr::new(pathext))
-                        }
-                    } else if !refresh {
-                        CommandIndex::load(&cache).unwrap_or_else(|_| CommandIndex::discover())
+                if let Some(query) = query {
+                    latest_query = Some(query);
+                }
+                let mut changed = commands_changed || query_changed;
+                if (index.is_none() && discovery.is_none()) || refresh {
+                    let (path, pathext) = environment.clone().unwrap_or_else(|| {
+                        (
+                            std::env::var("PATH").unwrap_or_default(),
+                            std::env::var("PATHEXT")
+                                .unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into()),
+                        )
+                    });
+                    let cached = if refresh {
+                        None
                     } else {
-                        CommandIndex::discover()
+                        CommandIndex::load_with_env(&cache, OsStr::new(&path), OsStr::new(&pathext))
+                            .ok()
                     };
-                    // A missing/unwritable cache must never prevent completion.
-                    let _ = discovered.save(&cache);
-                    index = Some(discovered);
+                    if let Some(cached) = cached {
+                        index = Some(cached);
+                    } else {
+                        discovery = Some(Discovery::new(OsStr::new(&path), OsStr::new(&pathext)));
+                    }
+                    changed = true;
+                }
+                let mut finished = false;
+                if let Some(scan) = discovery.as_mut() {
+                    finished = scan.step();
+                    index = Some(scan.snapshot());
+                    changed = true;
+                }
+                if finished {
+                    discovery = None;
                 }
                 let index = index.as_mut().unwrap();
-                if rebuilt || commands_changed {
+                if changed {
                     index.replace_shell_commands(shell_commands.clone());
                 }
-                if let Some(q) = query {
+                if let Some(q) = latest_query.as_ref().filter(|_| changed) {
                     let result = index.complete(&q.line, q.cursor, &q.cwd, q.limit);
                     if output
                         .send(HostEvent::Completion(q.revision, result))
@@ -139,6 +150,10 @@ impl Worker {
                     {
                         break;
                     }
+                }
+                // A partial index is never published as a complete cache.
+                if finished {
+                    let _ = index.save(&cache);
                 }
             }
         });
@@ -219,6 +234,39 @@ impl Drop for SessionFiles {
     }
 }
 
+#[derive(Default)]
+struct CommandSnapshot {
+    id: Option<String>,
+    pending: Vec<ShellCommand>,
+    previous: Vec<ShellCommand>,
+}
+impl CommandSnapshot {
+    fn receive(&mut self, value: &Value) -> Option<(Vec<ShellCommand>, bool)> {
+        let commands: Vec<ShellCommand> = serde_json::from_value(value["commands"].clone()).ok()?;
+        let Some(id) = value["snapshot"].as_str() else {
+            self.previous = commands.clone();
+            return Some((commands, true));
+        };
+        if self.id.as_deref() != Some(id) {
+            self.id = Some(id.into());
+            self.pending.clear();
+        }
+        self.pending.extend(commands);
+        let complete = value["complete"] == true;
+        if complete {
+            self.previous = std::mem::take(&mut self.pending);
+            self.id = None;
+            Some((self.previous.clone(), true))
+        } else {
+            // Keep old commands available until the replacement snapshot is
+            // complete; a partial batch must not delete aliases/functions.
+            let mut merged = self.previous.clone();
+            merged.extend(self.pending.clone());
+            Some((merged, false))
+        }
+    }
+}
+
 struct State {
     parser: vt100::Parser,
     decoder: Decoder,
@@ -237,6 +285,7 @@ struct State {
     cursor: usize,
     completion: Completion,
     selected: usize,
+    selection_touched: bool,
     dismissed: bool,
     indexed: bool,
     environment: Option<(String, String)>,
@@ -245,6 +294,9 @@ struct State {
     bell: bool,
     adapter_diagnostic_shown: bool,
     repaint: bool,
+    commands_snapshot: CommandSnapshot,
+    commands_pending: bool,
+    commands_allowed: bool,
 }
 
 impl State {
@@ -252,6 +304,7 @@ impl State {
         self.revision += 1;
         self.completion = Completion::default();
         self.selected = 0;
+        self.selection_touched = false;
     }
     fn message(&mut self, value: Value, writer: &mut impl Write, worker: &Worker) -> Result<()> {
         match value["event"].as_str().unwrap_or("") {
@@ -273,6 +326,7 @@ impl State {
             }
             "prompt_end" => {
                 self.prompt = true;
+                self.commands_allowed = true;
                 if !self.ready && !self.adapter_diagnostic_shown {
                     self.diagnostic = Some("PowerShell adapter unavailable (PSReadLine or reserved key binding). Completion is disabled for this session.".into());
                     self.adapter_diagnostic_shown = true;
@@ -309,8 +363,9 @@ impl State {
                 self.invalidate();
             }
             "commands" => {
-                if let Ok(commands) = serde_json::from_value(value["commands"].clone()) {
+                if let Some((commands, complete)) = self.commands_snapshot.receive(&value) {
                     worker.update(|w| w.commands = Some(commands));
+                    self.commands_pending = !complete;
                 }
             }
             "buffer" => {
@@ -369,6 +424,16 @@ impl State {
             writer.flush()?;
             self.pending_query = Some(self.revision);
             self.dirty = false;
+        } else if self.commands_pending
+            && self.commands_allowed
+            && self.ready
+            && self.prompt
+            && !self.nested_edit
+            && self.pending_query.is_none()
+        {
+            writer.write_all(COMMANDS)?;
+            writer.flush()?;
+            self.commands_pending = false;
         }
         Ok(())
     }
@@ -427,6 +492,9 @@ impl State {
             }
         }
         let paste = matches!(event, Event::Paste(_));
+        if matches!(event, Event::Key(_) | Event::Paste(_)) {
+            self.commands_allowed = query_after && !self.nested_edit;
+        }
         let Some(input) = input::translate(event, self.parser.screen().application_cursor()) else {
             return Ok(());
         };
@@ -453,6 +521,7 @@ impl State {
             }
             Input::Tab if visible => return self.accept(writer),
             Input::Previous if visible => {
+                self.selection_touched = true;
                 self.selected = self
                     .selected
                     .checked_sub(1)
@@ -460,6 +529,7 @@ impl State {
                 return Ok(());
             }
             Input::BackTab if visible => {
+                self.selection_touched = true;
                 self.selected = self
                     .selected
                     .checked_sub(1)
@@ -467,6 +537,7 @@ impl State {
                 return Ok(());
             }
             Input::Next if visible => {
+                self.selection_touched = true;
                 self.selected = (self.selected + 1) % self.completion.candidates.len();
                 return Ok(());
             }
@@ -482,6 +553,7 @@ impl State {
                 return Ok(());
             }
             Input::Refresh if self.prompt && self.ready => {
+                self.commands_allowed = true;
                 worker.update(|w| w.refresh = true);
                 writer.write_all(COMMANDS)?;
                 writer.flush()?;
@@ -645,6 +717,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         cursor: 0,
         completion: Completion::default(),
         selected: 0,
+        selection_touched: false,
         dismissed: false,
         indexed: false,
         environment: None,
@@ -652,11 +725,15 @@ pub fn run(options: RunOptions) -> Result<u32> {
         nested_edit: false,
         bell: false,
         adapter_diagnostic_shown: false,
+        commands_snapshot: CommandSnapshot::default(),
+        commands_pending: false,
+        commands_allowed: false,
     };
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
     let mut exit_code = None;
-    'events: loop {
+    loop {
+        let mut eof = false;
         let event = if exit_code.is_some() {
             match rx.recv_timeout(std::time::Duration::from_millis(100)) {
                 Ok(e) => e,
@@ -703,12 +780,25 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 HostEvent::Completion(revision, completion)
                     if revision == state.revision && state.prompt && !state.dismissed =>
                 {
+                    let selected_label = state
+                        .completion
+                        .candidates
+                        .get(state.selected)
+                        .filter(|_| state.selection_touched)
+                        .map(|candidate| candidate.label.clone());
+                    state.selected = selected_label
+                        .and_then(|label| {
+                            completion
+                                .candidates
+                                .iter()
+                                .position(|candidate| candidate.label == label)
+                        })
+                        .unwrap_or(0);
                     state.completion = completion;
-                    state.selected = 0;
                 }
                 HostEvent::Completion(_, _) => {}
                 HostEvent::Exit(code) => exit_code = Some(code),
-                HostEvent::Eof => break 'events,
+                HostEvent::Eof => eof = true,
                 HostEvent::Error(error) => {
                     if exit_code.is_none() {
                         return Err(anyhow::anyhow!(error));
@@ -744,9 +834,44 @@ pub fn run(options: RunOptions) -> Result<u32> {
             )?;
         }
         output.flush()?;
+        if eof {
+            break;
+        }
     }
     state.overlay.erase(state.parser.screen(), &mut output)?;
     output.write_all(&state.decoder.finish())?;
     output.flush()?;
     Ok(exit_code.unwrap_or(0))
+}
+
+#[cfg(test)]
+mod snapshot_tests {
+    use super::*;
+    #[test]
+    fn batches_keep_previous_commands_until_complete_and_do_not_truncate() {
+        let mut snapshot = CommandSnapshot::default();
+        snapshot
+            .receive(&json!({"commands":[{"name":"obsolete","kind":"function"}]}))
+            .unwrap();
+        for batch in 0..6 {
+            let commands: Vec<_> = (0..128)
+                .map(|n| json!({"name":format!("f{}",batch*128+n),"kind":"function"}))
+                .collect();
+            let (merged, complete) = snapshot
+                .receive(&json!({"snapshot":"first","complete":false,"commands":commands}))
+                .unwrap();
+            assert!(!complete);
+            assert!(merged.iter().any(|c| c.name == "obsolete"));
+        }
+        let (merged, complete) = snapshot
+            .receive(&json!({"snapshot":"first","complete":true,"commands":[]}))
+            .unwrap();
+        assert!(complete);
+        assert_eq!(merged.len(), 768);
+        assert!(!merged.iter().any(|c| c.name == "obsolete"));
+        let (merged,complete) = snapshot.receive(&json!({"snapshot":"next","complete":true,"commands":[{"name":"new","kind":"alias","definition":"git"}]})).unwrap();
+        assert!(complete);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].name, "new");
+    }
 }

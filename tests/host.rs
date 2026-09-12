@@ -72,7 +72,7 @@ fn wait_until_for(
 ) -> Result<()> {
     let deadline = Instant::now() + timeout;
     loop {
-        let contents = harness.contents();
+        let contents = harness.viewport_contents();
         if predicate(&contents) {
             return Ok(());
         }
@@ -97,6 +97,9 @@ fn wait_for_next_prompt(
 ) -> Result<()> {
     wait_until(harness, description, |contents| {
         prompt_count(contents) > previous_count
+            && contents.lines().last().is_some_and(|line| {
+                line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
+            })
     })
 }
 
@@ -160,8 +163,11 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // no longer present.
     host.harness.send(b"gi")?;
     host.harness
-        .wait_text("Executable", PTY_TIMEOUT)
+        .wait_text("⌘ git ", PTY_TIMEOUT)
         .context("wait for git executable completion")?;
+    host.harness
+        .wait_text("≈ gi ", PTY_TIMEOUT)
+        .context("wait for the current session's gi alias")?;
     ensure!(
         host.harness.contents().contains("git"),
         "git candidate did not appear; screen:\n{}",
@@ -174,7 +180,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     wait_until(
         &mut host.harness,
         "accepted git row without menu",
-        |contents| contents.contains("git") && !contents.contains("Executable"),
+        |contents| contents.contains("git") && !contents.contains("⌘ git "),
     )?;
 
     // Execute the accepted candidate itself. If Tab had left `gi` in the
@@ -239,13 +245,13 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         .wait_text("😀 file.txt", PTY_TIMEOUT)
         .context("wait for emoji filesystem completion")?;
     wait_until(&mut host.harness, "emoji candidate row", |contents| {
-        contents.contains("😀 file.txt") && contents.contains("File")
+        contents.contains("😀 file.txt") && contents.contains("□ 😀 file.txt")
     })?;
     host.harness.send(b"\t")?;
     wait_until(
         &mut host.harness,
         "quoted emoji candidate acceptance",
-        |contents| contents.contains("'😀 file.txt'") && !contents.contains("File"),
+        |contents| contents.contains("'😀 file.txt'") && !contents.contains("□ 😀 file.txt"),
     )?;
     let previous_prompt_count = prompt_count(&host.harness.contents());
     host.harness.send(b"\r")?;
@@ -271,20 +277,38 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         |contents| {
             contents.contains(unicode_clear_query)
                 && contents.contains("😀 file.txt")
-                && contents.contains("File")
+                && contents.contains("□ 😀 file.txt")
         },
     )?;
     host.harness.send(b"\x1b")?;
     wait_until(
         &mut host.harness,
         "emoji clear-query menu dismissal",
-        |contents| contents.contains(unicode_clear_query) && !contents.contains("File"),
+        |contents| contents.contains(unicode_clear_query) && !contents.contains("□ 😀 file.txt"),
     )?;
     run_and_wait_for_output(
         &mut host.harness,
         b"Write-Output SHELLSENSE_UNICODE_CLEAR_OK\r",
         "SHELLSENSE_UNICODE_CLEAR_OK",
         "Unicode clear-line command",
+    )?;
+
+    // Git's --oneline belongs to log/show. Read the actual shell buffer after
+    // Tab so a visually correct menu cannot hide a failed replacement.
+    clear_line_and_send(&mut host.harness, b"git log --o", "git log option")?;
+    host.harness.wait_text("--oneline", PTY_TIMEOUT)?;
+    host.harness.send(b"\t")?;
+    wait_until(&mut host.harness, "accepted git log option", |contents| {
+        contents
+            .lines()
+            .any(|line| line.trim_end().ends_with("> git log --oneline"))
+            && !contents.contains("− --oneline")
+    })?;
+    run_and_wait_for_output(
+        &mut host.harness,
+        b"Write-Output SHELLSENSE_CONTEXT_OK\r",
+        "SHELLSENSE_CONTEXT_OK",
+        "post-option buffer clear",
     )?;
 
     // Run an actual child process after the Unicode interaction. Its marker
@@ -322,7 +346,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // but keeps the candidate usable; restoring a wider frame redraws them.
     clear_line_and_send(&mut host.harness, b"gi", "resize menu query")?;
     host.harness
-        .wait_text("Executable", PTY_TIMEOUT)
+        .wait_text("⌘ git ", PTY_TIMEOUT)
         .context("wait for menu before resize")?;
     host.harness.resize(24, 80).context("resize PTY to 24x80")?;
     wait_until_for(
@@ -351,7 +375,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         Duration::from_secs(5),
         |contents| {
             contents.contains("git")
-                && contents.contains("Executable")
+                && contents.contains("⌘ git ")
                 && contents.lines().any(|line| {
                     let line = line.trim();
                     line.starts_with('╭') && line.ends_with('╮') && line.chars().count() == 80
@@ -363,9 +387,52 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         &mut host.harness,
         "menu dismissal after resize",
         Duration::from_secs(5),
-        |contents| !contents.contains("Executable"),
+        |contents| !contents.contains("⌘ git "),
     )?;
 
     host.harness.stop().context("stop host process")?;
+    Ok(())
+}
+
+#[test]
+fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()> {
+    let cwd = tempdir()?;
+    let mut host = start_host(cwd.path())?;
+    let cargo_version = std::process::Command::new("cargo")
+        .arg("--version")
+        .output()
+        .context("read the installed Cargo version")?;
+    ensure!(cargo_version.status.success(), "Cargo fixture is available");
+    let cargo_version = String::from_utf8(cargo_version.stdout)?.trim().to_owned();
+    host.harness.send(b"car")?;
+    host.harness.wait_text("⌘ cargo ", PTY_TIMEOUT)?;
+    host.harness.send(b"\t --version\r")?;
+    wait_for_line(
+        &mut host.harness,
+        &cargo_version,
+        "execution of accepted Cargo command",
+    )?;
+    wait_until(&mut host.harness, "empty prompt after Cargo", |contents| {
+        contents.lines().last().is_some_and(|line| {
+            line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
+        })
+    })?;
+
+    run_and_wait_for_output(&mut host.harness,
+        b"1..700 | ForEach-Object { Set-Alias ('ssfixture{0:D4}' -f $_) Write-Output }; Write-Output SNAPSHOT_CREATED\r",
+        "SNAPSHOT_CREATED", "create session aliases")?;
+    // Encode the actual Windows Ctrl+Alt+C key, including VK/scan code.
+    // ESC + ETX can be interpreted as literal Ctrl+C with no physical C key.
+    host.harness
+        .send(b"\x1b[67;46;3;1;10;1_\x1b[67;46;3;0;10;1_")?;
+    host.harness.send(b"ssfixture070")?;
+    host.harness.wait_text("≈ ssfixture0700", PTY_TIMEOUT)?;
+    host.harness.send(b"\t SNAPSHOT_ALIAS_OK\r")?;
+    wait_for_line(
+        &mut host.harness,
+        "SNAPSHOT_ALIAS_OK",
+        "alias from final snapshot batch",
+    )?;
+    host.harness.finish(Duration::from_secs(5))?;
     Ok(())
 }

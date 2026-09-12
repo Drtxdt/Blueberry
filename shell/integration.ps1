@@ -20,6 +20,9 @@ $shellsenseStateDefaults = [ordered]@{
     SHELLSENSE_PSREADLINE_AVAILABLE = $false
     SHELLSENSE_KEY_HANDLERS        = [ordered]@{ buffer = $false; apply = $false; commands = $false }
     SHELLSENSE_CAPABILITIES_REFRESHED = $false
+    SHELLSENSE_COMMAND_SNAPSHOT_ID = $null
+    SHELLSENSE_COMMAND_SNAPSHOT = $null
+    SHELLSENSE_COMMAND_SNAPSHOT_OFFSET = 0
     SHELLSENSE_INITIALIZED         = $false
 }
 foreach ($shellsenseStateName in $shellsenseStateDefaults.Keys) {
@@ -440,48 +443,147 @@ function Invoke-ShellsenseApplyEdit {
     }
 }
 
-function Get-ShellsenseImportedCommands {
+function Get-ShellsenseLoadedCommands {
     [CmdletBinding()]
     param()
 
-    $maxCommands = 512
+    # CommandInvocationIntrinsics searches the current runspace only. Unlike
+    # Get-Command, it does not resolve commands from module manifests or load
+    # an available module as a side effect of a wildcard search.
+    $commandTypes = [System.Management.Automation.CommandTypes]::Alias -bor
+        [System.Management.Automation.CommandTypes]::Function -bor
+        [System.Management.Automation.CommandTypes]::Cmdlet
+    return @($ExecutionContext.InvokeCommand.GetCommands('*', $commandTypes, $true))
+}
+
+function Get-ShellsenseImportedCommands {
+    [CmdletBinding()]
+    param(
+        # This optional provider keeps the snapshot protocol deterministic in
+        # adapter tests without creating functions or aliases in the runspace.
+        # The key handler calls the default runspace provider below.
+        [AllowNull()]
+        [scriptblock]$CommandProvider
+    )
+
+    $batchSize = 128
     try {
-        $commands = @(Get-Command -ListImported -CommandType Alias,Function,Cmdlet -ErrorAction Stop |
-            Sort-Object -Property Name,CommandType |
-            Select-Object -First $maxCommands)
+        $snapshotId = [string]$script:SHELLSENSE_COMMAND_SNAPSHOT_ID
+        if ([string]::IsNullOrEmpty($snapshotId)) {
+            $commands = if ($null -ne $CommandProvider) {
+                @(& $CommandProvider)
+            } else {
+                @(Get-ShellsenseLoadedCommands)
+            }
+
+            $items = [System.Collections.Generic.List[object]]::new()
+            foreach ($command in $commands) {
+                if ($null -eq $command -or $null -eq $command.Name) {
+                    continue
+                }
+
+                $kind = ([string]$command.CommandType).ToLowerInvariant()
+                if ($kind -ne 'alias' -and $kind -ne 'function' -and $kind -ne 'cmdlet') {
+                    continue
+                }
+                $definition = ''
+                # Function and cmdlet definitions can be large or executable
+                # text. Aliases retain only their target for root priority and
+                # display; returned text is never evaluated by the host.
+                if ($kind -eq 'alias' -and $null -ne $command.Definition) {
+                    $definition = [string]$command.Definition
+                }
+                [void]$items.Add([ordered]@{
+                    name       = [string]$command.Name
+                    kind       = $kind
+                    definition = $definition
+                })
+            }
+
+            # Keep a stable order without invoking Sort-Object (which can
+            # import Microsoft.PowerShell.Utility in a cold runspace). Equal
+            # names remain separate records so the root can apply Alias >
+            # Function > Cmdlet precedence itself.
+            $items.Sort([System.Comparison[object]]{
+                param($left, $right)
+
+                $comparison = [StringComparer]::OrdinalIgnoreCase.Compare(
+                    [string]$left.name,
+                    [string]$right.name)
+                if ($comparison -ne 0) {
+                    return $comparison
+                }
+                $comparison = [StringComparer]::Ordinal.Compare(
+                    [string]$left.name,
+                    [string]$right.name)
+                if ($comparison -ne 0) {
+                    return $comparison
+                }
+
+                $leftRank = switch ([string]$left.kind) {
+                    'alias' { 0 }
+                    'function' { 1 }
+                    'cmdlet' { 2 }
+                    default { 3 }
+                }
+                $rightRank = switch ([string]$right.kind) {
+                    'alias' { 0 }
+                    'function' { 1 }
+                    'cmdlet' { 2 }
+                    default { 3 }
+                }
+                $comparison = $leftRank.CompareTo($rightRank)
+                if ($comparison -ne 0) {
+                    return $comparison
+                }
+                return [StringComparer]::Ordinal.Compare(
+                    [string]$left.definition,
+                    [string]$right.definition)
+            })
+
+            $script:SHELLSENSE_COMMAND_SNAPSHOT_ID = [Guid]::NewGuid().ToString()
+            $script:SHELLSENSE_COMMAND_SNAPSHOT = [object[]]$items.ToArray()
+            $script:SHELLSENSE_COMMAND_SNAPSHOT_OFFSET = 0
+            $snapshotId = [string]$script:SHELLSENSE_COMMAND_SNAPSHOT_ID
+        }
+
+        $snapshotCommands = @($script:SHELLSENSE_COMMAND_SNAPSHOT)
+        $offset = [int]$script:SHELLSENSE_COMMAND_SNAPSHOT_OFFSET
+        if ($offset -lt 0 -or $offset -gt $snapshotCommands.Count) {
+            throw 'Command snapshot offset is invalid.'
+        }
+
+        $end = [Math]::Min($offset + $batchSize, $snapshotCommands.Count)
+        $batch = [System.Collections.Generic.List[object]]::new()
+        for ($index = $offset; $index -lt $end; $index++) {
+            [void]$batch.Add($snapshotCommands[$index])
+        }
+        $complete = $end -ge $snapshotCommands.Count
+        $script:SHELLSENSE_COMMAND_SNAPSHOT_OFFSET = $end
+
+        Send-ShellsenseEvent -Event 'commands' -Data ([ordered]@{
+            snapshot = $snapshotId
+            complete = [bool]$complete
+            commands = @($batch.ToArray())
+        })
+
+        # A completed request is also the reset point. The next F12,c starts a
+        # fresh UUID and snapshot, while an incomplete request keeps this
+        # batch cursor for the host's next chord call.
+        if ($complete) {
+            $script:SHELLSENSE_COMMAND_SNAPSHOT_ID = $null
+            $script:SHELLSENSE_COMMAND_SNAPSHOT = $null
+            $script:SHELLSENSE_COMMAND_SNAPSHOT_OFFSET = 0
+        }
     } catch {
+        $script:SHELLSENSE_COMMAND_SNAPSHOT_ID = $null
+        $script:SHELLSENSE_COMMAND_SNAPSHOT = $null
+        $script:SHELLSENSE_COMMAND_SNAPSHOT_OFFSET = 0
         Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
             code    = 'commands_unavailable'
             message = 'Loaded command enumeration failed.'
         })
-        return
     }
-
-    $items = New-Object 'System.Collections.Generic.List[object]'
-    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-    foreach ($command in $commands) {
-        if ($null -eq $command -or $null -eq $command.Name) {
-            continue
-        }
-        $name = [string]$command.Name
-        if (-not $seen.Add($name)) {
-            continue
-        }
-        $kind = ([string]$command.CommandType).ToLowerInvariant()
-        $definition = ''
-        if ($kind -eq 'alias' -and $null -ne $command.Definition) {
-            $definition = [string]$command.Definition
-        }
-        [void]$items.Add([ordered]@{
-            name       = $name
-            kind       = $kind
-            definition = $definition
-        })
-    }
-
-    Send-ShellsenseEvent -Event 'commands' -Data ([ordered]@{
-        commands = @($items.ToArray())
-    })
 }
 
 function Invoke-ShellsenseBufferKeyHandler {

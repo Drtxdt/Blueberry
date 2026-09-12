@@ -9,3 +9,4 @@ pub mod overlay;
 pub mod probe;
 pub mod protocol;
 pub mod pty;
+pub mod specs;

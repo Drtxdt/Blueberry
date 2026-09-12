@@ -58,6 +58,8 @@ enum Command {
         with_profile: bool,
         #[arg(long, conflicts_with = "with_profile")]
         host: bool,
+        #[arg(long, requires = "host")]
+        no_descriptions: bool,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -178,10 +180,16 @@ fn execute() -> Result<u32> {
             iterations,
             with_profile,
             host,
+            no_descriptions,
             output,
         } => {
             let report = if host {
-                shellsense::metrics::host_probe(&std::env::current_exe()?, &shell, iterations)?
+                shellsense::metrics::host_probe_with_descriptions(
+                    &std::env::current_exe()?,
+                    &shell,
+                    iterations,
+                    !no_descriptions,
+                )?
             } else {
                 probe::run(&shell, iterations, !with_profile)?
             };

@@ -1,12 +1,5 @@
-//! Small, repeatable measurements for the complete native host.
-//!
-//! The probe intentionally exercises the same executable that a user starts:
-//! the host owns an outer ConPTY and starts PowerShell in the inner one.  The
-//! timings therefore include host startup, ConPTY setup, and PowerShell
-//! startup.  This module does not attempt to clear operating-system caches or
-//! to attribute PowerShell's memory to the native host.
-
-use crate::{config, probe::Harness};
+//! Reproducible complete-host measurements with explicit application cache modes.
+use crate::{config, engine::CommandIndex, probe::Harness};
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{
@@ -24,122 +17,111 @@ const WAIT_TIMEOUT: Duration = Duration::from_secs(20);
 const FIXTURE_PREFIX: &str = "ss-ben";
 const TEMP_PREFIX: &str = "shellsense-host-probe-";
 
-/// Run a bounded end-to-end host measurement.
-///
-/// A fresh host process and fresh data directory are used for every sample.
-/// The returned report contains the first visible PowerShell prompt, the
-/// first completion menu, the warm completion menu, and working-set samples
-/// for the native host process alone.  The first-prompt measurement includes
-/// the outer ConPTY and the inner PowerShell startup.
+#[derive(Default)]
+struct Measurements {
+    prompt: Vec<f64>,
+    first: Vec<f64>,
+    warm: Vec<f64>,
+    prompt_memory: Vec<u64>,
+    menu_memory: Vec<u64>,
+}
+impl Measurements {
+    fn report(&self) -> Value {
+        json!({
+            "first_prompt":timing_stats(&self.prompt),
+            "first_menu":timing_stats(&self.first),
+            "warm_menu":timing_stats(&self.warm),
+            "host_working_set_at_prompt":working_set_stats(&self.prompt_memory),
+            "host_working_set_at_menu":working_set_stats(&self.menu_memory),
+        })
+    }
+}
+
 pub fn host_probe(executable: &Path, shell: &Path, iterations: u16) -> Result<Value> {
+    host_probe_with_descriptions(executable, shell, iterations, true)
+}
+
+pub fn host_probe_with_descriptions(
+    executable: &Path,
+    shell: &Path,
+    iterations: u16,
+    descriptions: bool,
+) -> Result<Value> {
     ensure!(
         (1..=MAX_ITERATIONS).contains(&iterations),
         "iterations must be between 1 and {MAX_ITERATIONS}"
     );
-
     let temporary = ProbeDirectory::new()?;
     let fixture_dir = temporary.path().join("fixtures");
-    fs::create_dir_all(&fixture_dir).with_context(|| {
-        format!(
-            "unable to create probe fixture directory '{}'",
-            fixture_dir.display()
-        )
-    })?;
+    fs::create_dir_all(&fixture_dir)?;
     create_fixtures(&fixture_dir)?;
-
-    // Keep this configuration fixed and local to the run.  In particular, a
-    // user's normal config must not alter the menu size or auto-trigger mode.
     let config_path = temporary.path().join("defaults.toml");
-    fs::write(&config_path, config::example())
-        .with_context(|| format!("unable to write probe config '{}'", config_path.display()))?;
-
+    let mut settings = config::Config::default();
+    settings.ui.descriptions = descriptions;
+    fs::write(&config_path, toml::to_string(&settings)?)?;
     let path = fixture_path(&fixture_dir)?;
     let pathext = probe_pathext();
-    let cwd = env::current_dir().context("unable to determine probe working directory")?;
-
-    let mut first_prompt = Vec::with_capacity(iterations as usize);
-    let mut first_menu = Vec::with_capacity(iterations as usize);
-    let mut warm_menu = Vec::with_capacity(iterations as usize);
-    let mut prompt_working_set = Vec::with_capacity(iterations as usize);
-    let mut first_menu_working_set = Vec::with_capacity(iterations as usize);
-    let mut warm_menu_working_set = Vec::with_capacity(iterations as usize);
-
+    let cwd = env::current_dir()?;
+    let environment = probe_environment(&path, &pathext);
+    let mut missing = Measurements::default();
+    let mut cached = Measurements::default();
     for iteration in 0..iterations {
+        // Each pair starts with an empty directory. The second run reuses only
+        // a cache proven complete and valid for the exact fixture environment.
         let data_dir = temporary.path().join(format!("run-{iteration}"));
-        fs::create_dir_all(&data_dir).with_context(|| {
-            format!(
-                "unable to create probe data directory '{}'",
-                data_dir.display()
-            )
-        })?;
-        let args = host_args(&config_path, shell, &data_dir);
-        let environment = probe_environment(&path, &pathext);
-        let token = uuid::Uuid::new_v4().to_string();
-
-        let startup = Instant::now();
-        let mut harness = Harness::start(executable, &args, &cwd, &environment, token)
-            .with_context(|| format!("unable to start native host for iteration {iteration}"))?;
-        harness.wait_text("PS ", WAIT_TIMEOUT).with_context(|| {
-            format!("native host did not show the PowerShell prompt in iteration {iteration}")
-        })?;
-        first_prompt.push(milliseconds(startup.elapsed()));
-        push_working_set(&mut prompt_working_set, harness.process_id());
-
-        let first_started = Instant::now();
-        harness.send(b"ss-ben0")?;
-        wait_menu(&mut harness, "ss-ben0", "ss-ben0-complete").with_context(|| {
-            format!("first completion menu did not show ss-ben0-complete in iteration {iteration}")
-        })?;
-        first_menu.push(milliseconds(first_started.elapsed()));
-        push_working_set(&mut first_menu_working_set, harness.process_id());
-
-        // Reuse the same host and change the prefix.  A different fixture
-        // label makes wait_text immune to a stale first-menu frame.
-        let warm_started = Instant::now();
-        harness.send(b"\x7f1")?;
-        wait_menu(&mut harness, "ss-ben1", "ss-ben1-complete").with_context(|| {
-            format!("warm completion menu did not show ss-ben1-complete in iteration {iteration}")
-        })?;
-        warm_menu.push(milliseconds(warm_started.elapsed()));
-        push_working_set(&mut warm_menu_working_set, harness.process_id());
-
-        // Prefer a normal child wait.  If an intermediate operation failed,
-        // Harness::Drop still kills the child before this function returns.
-        harness
-            .finish(Duration::from_secs(5))
-            .with_context(|| format!("unable to stop native host in iteration {iteration}"))?;
+        fs::create_dir_all(&data_dir)?;
+        for cache_hit in [false, true] {
+            if cache_hit {
+                CommandIndex::load_with_env(&data_dir.join("commands.json"), &path, &pathext)
+                    .context("warm-cache sample requires a valid completed command index")?;
+            }
+            let measured = if cache_hit { &mut cached } else { &mut missing };
+            let args = host_args(&config_path, shell, &data_dir);
+            let started = Instant::now();
+            let mut harness = Harness::start(
+                executable,
+                &args,
+                &cwd,
+                &environment,
+                uuid::Uuid::new_v4().to_string(),
+            )?;
+            harness.wait_text("PS ", WAIT_TIMEOUT)?;
+            measured.prompt.push(milliseconds(started.elapsed()));
+            push_working_set(&mut measured.prompt_memory, harness.process_id());
+            let started = Instant::now();
+            harness.send(b"ss-ben0")?;
+            wait_menu(&mut harness, "ss-ben0", "ss-ben0-complete")?;
+            measured.first.push(milliseconds(started.elapsed()));
+            for index in 1..=10 {
+                let suffix = index % FIXTURE_COUNT;
+                let prefix = format!("{FIXTURE_PREFIX}{suffix}");
+                let started = Instant::now();
+                harness.send(format!("\x7f{suffix}").as_bytes())?;
+                wait_menu(&mut harness, &prefix, &format!("{prefix}-complete"))?;
+                measured.warm.push(milliseconds(started.elapsed()));
+            }
+            push_working_set(&mut measured.menu_memory, harness.process_id());
+            harness.finish(Duration::from_secs(5))?;
+        }
     }
-
     Ok(json!({
-        "schema": 1,
-        "platform": env::consts::OS,
-        "arch": env::consts::ARCH,
-        "executable": executable.to_string_lossy(),
-        "shell": shell.to_string_lossy(),
-        "iterations": iterations,
-        "fixtures": fixture_names(),
-        "method": {
-            "host": "fresh native host process through an outer ConPTY with PowerShell in the inner ConPTY",
-            "native_host_first_prompt": "time from Harness::start until visible 'PS '; includes native host, ConPTY, and PowerShell startup",
-            "first_menu": "time from sending ss-ben0 until a distinct ss-ben0-complete candidate is visible",
-            "warm_menu": "same host after Backspace + 1, until distinct ss-ben1-complete is visible",
-            "working_set": "native host process only, sampled with K32GetProcessMemoryInfo WorkingSetSize; pwsh is excluded",
-            "cache": "operating-system caches are not cleared"
-        },
-        "native_host_first_prompt": timing_stats(&first_prompt),
-        "first_menu": timing_stats(&first_menu),
-        "warm_menu": timing_stats(&warm_menu),
-        "native_host_working_set": {
-            "process": "native host only",
-            "unit": "bytes",
-            "startup": working_set_stats(&prompt_working_set),
-            "first_menu": working_set_stats(&first_menu_working_set),
-            "warm_menu": working_set_stats(&warm_menu_working_set),
-            "api": if cfg!(windows) { "K32GetProcessMemoryInfo" } else { "unavailable on this platform" }
+        "schema":2, "build":if cfg!(debug_assertions) {"debug"} else {"release"},
+        "platform":env::consts::OS,"arch":env::consts::ARCH,"shell":shell,
+        "executable":executable,"iterations_per_cache_mode":iterations,
+        "warm_queries_per_session":10,"descriptions":descriptions,
+        "cache_miss":missing.report(),"cache_hit":cached.report(),
+        "method":{
+            "host":"fresh native host via an outer ConPTY, pwsh --no-profile in its inner ConPTY",
+            "first_prompt":"from process start to visible PS prompt; not yet a ready-to-type measurement",
+            "first_menu":"send ss-ben0 and wait for a matching editable line and distinct candidate",
+            "warm_menu":"ten prefix edits per session; wait for matching editable line and distinct candidate",
+            "cache":"new application data directory for miss; validated complete index and integration reused for hit; OS caches are not cleared",
+            "memory":"own-process WorkingSetSize, excluding pwsh/ConHost/Windows Terminal",
+            "statistics":"median averages the middle pair for even samples; p95 uses nearest-rank",
+            "trace":"disabled"
         }
     }))
 }
-
 fn wait_menu(harness: &mut Harness, prefix: &str, label: &str) -> Result<()> {
     let deadline = Instant::now() + WAIT_TIMEOUT;
     let ending = format!("> {prefix}");
@@ -240,7 +222,7 @@ fn working_set_stats(values: &[u64]) -> Value {
     json!({
         "available": true,
         "samples": values,
-        "median": sorted[sorted.len() / 2],
+        "median": (sorted[(sorted.len()-1)/2] as f64 + sorted[sorted.len()/2] as f64)/2.0,
         "p95": sorted[p95_index(sorted.len())],
         "unit": "bytes"
     })
@@ -252,7 +234,7 @@ fn stats(values: &[f64], unit: &str) -> Value {
     sorted.sort_by(f64::total_cmp);
     json!({
         "samples": values,
-        "median": sorted[sorted.len() / 2],
+        "median": (sorted[(sorted.len()-1)/2] + sorted[sorted.len()/2])/2.0,
         "p95": sorted[p95_index(sorted.len())],
         "unit": unit
     })
@@ -356,5 +338,19 @@ impl Drop for ProbeDirectory {
         {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+}
+
+#[cfg(test)]
+mod statistics_tests {
+    use super::*;
+    #[test]
+    fn even_samples_use_average_median_and_nearest_rank_p95() {
+        let report = timing_stats(&[3.0, 1.0]);
+        assert_eq!(report["median"], 2.0);
+        assert_eq!(report["p95"], 3.0);
+        assert_eq!(p95_index(100), 94);
+        let memory = working_set_stats(&[4, 2]);
+        assert_eq!(memory["median"], 3.0);
     }
 }

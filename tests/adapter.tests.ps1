@@ -143,6 +143,135 @@ $transportJson = ConvertTo-ShellsenseJson -Payload @{ line = $transportText }
 Assert-ShellsenseTrue -Condition (-not ($transportJson.ToCharArray() | Where-Object { [int]$_ -gt 127 })) -Message 'JSON transport is ASCII under legacy console code pages'
 Assert-ShellsenseEqual -Actual ($transportJson | ConvertFrom-Json).line -Expected $transportText -Message 'ASCII JSON preserves non-BMP text'
 
+# Command snapshots are intentionally fed by a deterministic in-memory
+# provider. This exercises the >512 path without creating functions or
+# aliases in the test runspace, then proves that each OSC frame is at most one
+# host-sized batch and that command-kind duplicates survive.
+function Get-ShellsenseCapturedEvents {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Raw,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Token
+    )
+
+    $prefix = [string]([char]27) + ']7776;' + $Token + ';'
+    $events = [System.Collections.Generic.List[object]]::new()
+    foreach ($segment in $Raw.Split([char]7, [StringSplitOptions]::RemoveEmptyEntries)) {
+        if (-not $segment.StartsWith($prefix, [StringComparison]::Ordinal)) {
+            continue
+        }
+        $json = $segment.Substring($prefix.Length)
+        [void]$events.Add((ConvertFrom-Json -InputObject $json))
+    }
+    return @($events.ToArray())
+}
+
+$fixtureCommands = [System.Collections.Generic.List[object]]::new()
+for ($fixtureIndex = 0; $fixtureIndex -lt 600; $fixtureIndex++) {
+    [void]$fixtureCommands.Add([pscustomobject]@{
+        Name        = ('shellsenseFixture{0:D4}' -f $fixtureIndex)
+        CommandType = 'Function'
+        Definition  = ('function body {{ {0} }}' -f $fixtureIndex)
+    })
+}
+# All three records use one name deliberately. The root engine owns
+# Alias > Function > Cmdlet precedence, so the adapter must not deduplicate
+# these records while forming a snapshot.
+[void]$fixtureCommands.Add([pscustomobject]@{
+    Name        = 'shellsenseDuplicate'
+    CommandType = 'Cmdlet'
+    Definition  = 'cmdlet definition must stay omitted'
+})
+[void]$fixtureCommands.Add([pscustomobject]@{
+    Name        = 'shellsenseDuplicate'
+    CommandType = 'Function'
+    Definition  = 'function definition must stay omitted'
+})
+[void]$fixtureCommands.Add([pscustomobject]@{
+    Name        = 'shellsenseDuplicate'
+    CommandType = 'Alias'
+    Definition  = 'Get-Item'
+})
+
+$commandTypes = [System.Management.Automation.CommandTypes]::Alias -bor
+    [System.Management.Automation.CommandTypes]::Function -bor
+    [System.Management.Automation.CommandTypes]::Cmdlet
+$fixtureNamesBefore = @($ExecutionContext.InvokeCommand.GetCommands('shellsenseFixture*', $commandTypes, $true))
+$commandToken = 'adapter-commands-token'
+$savedCommandToken = [string]$script:SHELLSENSE_TOKEN
+$commandCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+$commandProvider = { $fixtureCommands }
+[Console]::SetOut($commandCapture)
+try {
+    $script:SHELLSENSE_TOKEN = $commandToken
+    $fixtureCount = $fixtureCommands.Count
+    $snapshotEvents = [System.Collections.Generic.List[object]]::new()
+    do {
+        $beforeLength = $commandCapture.GetStringBuilder().Length
+        Get-ShellsenseImportedCommands -CommandProvider $commandProvider
+        $newRaw = $commandCapture.ToString().Substring($beforeLength)
+        foreach ($event in @(Get-ShellsenseCapturedEvents -Raw $newRaw -Token $commandToken)) {
+            [void]$snapshotEvents.Add($event)
+        }
+        $lastSnapshotEvent = $snapshotEvents[$snapshotEvents.Count - 1]
+    } while (-not [bool]$lastSnapshotEvent.complete)
+
+    Assert-ShellsenseTrue -Condition ($snapshotEvents.Count -gt 1) -Message 'large command snapshot is split across frames'
+    $firstSnapshotId = [string]$snapshotEvents[0].snapshot
+    $parsedSnapshotId = [Guid]::Empty
+    Assert-ShellsenseTrue -Condition ([Guid]::TryParse($firstSnapshotId, [ref]$parsedSnapshotId)) -Message 'snapshot id is a UUID'
+    $totalCommands = 0
+    $duplicateRecords = [System.Collections.Generic.List[object]]::new()
+    for ($eventIndex = 0; $eventIndex -lt $snapshotEvents.Count; $eventIndex++) {
+        $event = $snapshotEvents[$eventIndex]
+        Assert-ShellsenseEqual -Actual ([string]$event.event) -Expected 'commands' -Message 'snapshot event type'
+        Assert-ShellsenseEqual -Actual ([string]$event.snapshot) -Expected $firstSnapshotId -Message 'all batches share one snapshot id'
+        $batch = @($event.commands)
+        Assert-ShellsenseTrue -Condition ($batch.Count -le 128) -Message 'snapshot batch is bounded at 128 entries'
+        $totalCommands += $batch.Count
+        foreach ($command in $batch) {
+            if ([string]$command.name -eq 'shellsenseDuplicate') {
+                [void]$duplicateRecords.Add($command)
+            }
+        }
+        if ($eventIndex -lt $snapshotEvents.Count - 1) {
+            Assert-ShellsenseEqual -Actual ([bool]$event.complete) -Expected $false -Message 'non-final snapshot batch is incomplete'
+        } else {
+            Assert-ShellsenseEqual -Actual ([bool]$event.complete) -Expected $true -Message 'final snapshot batch is complete'
+        }
+    }
+    Assert-ShellsenseEqual -Actual $totalCommands -Expected $fixtureCount -Message 'snapshot includes every command beyond the old 512 limit'
+    Assert-ShellsenseEqual -Actual $duplicateRecords.Count -Expected 3 -Message 'same-name alias/function/cmdlet records are preserved'
+    $aliasRecord = $duplicateRecords | Where-Object { $_.kind -eq 'alias' }
+    Assert-ShellsenseEqual -Actual ([string]$aliasRecord.definition) -Expected 'Get-Item' -Message 'alias target is included'
+    $functionRecord = $duplicateRecords | Where-Object { $_.kind -eq 'function' }
+    Assert-ShellsenseEqual -Actual ([string]$functionRecord.definition) -Expected '' -Message 'function definition is omitted'
+    $cmdletRecord = $duplicateRecords | Where-Object { $_.kind -eq 'cmdlet' }
+    Assert-ShellsenseEqual -Actual ([string]$cmdletRecord.definition) -Expected '' -Message 'cmdlet definition is omitted'
+
+    # Completion resets the cursor. A new request must enumerate a new
+    # snapshot rather than replaying the final batch or reusing its UUID.
+    $secondCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    [Console]::SetOut($secondCapture)
+    Get-ShellsenseImportedCommands -CommandProvider $commandProvider
+    $secondEvents = @(Get-ShellsenseCapturedEvents -Raw $secondCapture.ToString() -Token $commandToken)
+    Assert-ShellsenseEqual -Actual $secondEvents.Count -Expected 1 -Message 'new snapshot starts with one batch'
+    Assert-ShellsenseTrue -Condition (-not [string]::Equals([string]$secondEvents[0].snapshot, $firstSnapshotId, [StringComparison]::Ordinal)) -Message 'new snapshot receives a new UUID'
+    Assert-ShellsenseEqual -Actual (@($secondEvents[0].commands).Count) -Expected 128 -Message 'new snapshot starts at batch zero'
+    # Drain the second fixture snapshot before leaving the test so later
+    # adapter calls start from a clean cursor as well.
+    while ($null -ne $script:SHELLSENSE_COMMAND_SNAPSHOT_ID) {
+        Get-ShellsenseImportedCommands -CommandProvider $commandProvider
+    }
+} finally {
+    $script:SHELLSENSE_TOKEN = $savedCommandToken
+    [Console]::SetOut($consoleWriter)
+}
+$fixtureNamesAfter = @($ExecutionContext.InvokeCommand.GetCommands('shellsenseFixture*', $commandTypes, $true))
+Assert-ShellsenseEqual -Actual $fixtureNamesAfter.Count -Expected $fixtureNamesBefore.Count -Message 'fixture provider does not pollute loaded commands'
+
 # Preserve the prior command status seen by a user's actual Prompt.
 Remove-Variable LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
 $script:SHELLSENSE_ORIGINAL_PROMPT = { 'strict prompt' }

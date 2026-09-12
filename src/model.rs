@@ -28,6 +28,9 @@ pub struct Completion {
     pub replace_start: usize,
     pub replace_end: usize,
     pub candidates: Vec<Candidate>,
+    /// More command discovery batches are still pending.
+    #[serde(default)]
+    pub incomplete: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
