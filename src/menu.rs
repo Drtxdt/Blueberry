@@ -149,13 +149,13 @@ pub fn preview(config: &Config) -> String {
         Candidate {
             label: "Get-ChildItem".to_owned(),
             insert_text: "Get-ChildItem".to_owned(),
-            description: "List items in a directory".to_owned(),
+            description: "列出目录中的项目".to_owned(),
             kind: CandidateKind::Cmdlet,
         },
         Candidate {
             label: "Get-Content".to_owned(),
             insert_text: "Get-Content".to_owned(),
-            description: "Read the contents of a file".to_owned(),
+            description: "读取文件内容".to_owned(),
             kind: CandidateKind::Cmdlet,
         },
     ];
@@ -224,7 +224,11 @@ fn render_candidate(
     }
 
     let label = sanitize_text(&candidate.label);
-    let description = sanitize_text(&candidate.description);
+    let description = if ui.descriptions {
+        sanitize_text(&candidate.description)
+    } else {
+        String::new()
+    };
     let prefix_width = display_width(&prefix);
     let text_width = width.saturating_sub(prefix_width);
     let separator = "  ";
@@ -639,6 +643,27 @@ mod tests {
                 assert!(display_width(&strip_ansi(line)) <= frame.width as usize);
             }
         }
+    }
+
+    #[test]
+    fn chinese_description_truncates_by_terminal_cells_and_can_be_hidden() {
+        let mut config = Config::default();
+        config.ui.icons = false;
+        let item = candidate("--release", "使用发布配置构建，默认启用优化");
+        for width in 32..=48 {
+            let frame = render(std::slice::from_ref(&item), 0, "", width, &config);
+            let visible: Vec<_> = frame.lines.iter().map(|line| strip_ansi(line)).collect();
+            assert!(visible.iter().any(|line| line.contains("使用")));
+            assert!(
+                visible
+                    .iter()
+                    .all(|line| display_width(line) == usize::from(frame.width))
+            );
+            assert!(!visible.iter().any(|line| line.contains('�')));
+        }
+        config.ui.descriptions = false;
+        let frame = render(&[item], 0, "", 48, &config);
+        assert!(!frame.lines.join("").contains("使用"));
     }
 
     #[test]

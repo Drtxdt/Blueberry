@@ -4,6 +4,7 @@
 //! means the renderer can assume values read from disk are bounded while still
 //! remaining defensive for callers that construct a [`Config`] directly.
 
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -21,6 +22,9 @@ const MAX_RESULTS: usize = 1_000;
 pub struct Config {
     pub ui: UiConfig,
     pub completion: CompletionConfig,
+    /// Offline overrides keyed by the full canonical command context.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub descriptions: BTreeMap<String, String>,
 }
 
 /// Presentation settings for the completion menu.
@@ -83,6 +87,17 @@ impl Config {
     pub fn validate(&self) -> Result<()> {
         validate_ui(&self.ui)?;
         validate_completion(&self.completion)?;
+        if self.descriptions.len() > 10_000 {
+            bail!("descriptions must contain at most 10000 entries");
+        }
+        for (key, value) in &self.descriptions {
+            if key.trim().is_empty() || key.chars().count() > 512 {
+                bail!("description keys must contain 1 to 512 characters");
+            }
+            if value.trim().is_empty() || value.chars().count() > 2_048 {
+                bail!("descriptions.{key} must contain 1 to 2048 characters");
+            }
+        }
         Ok(())
     }
 }
@@ -175,6 +190,12 @@ match_color = "#ffcc66"
 [completion]
 max_results = 100
 auto_trigger = true
+
+[descriptions]
+# Optional overrides; keys distinguish command scopes and option case.
+# "git log --oneline" = "每条提交显示为一行"
+# "cargo" = "构建项目并管理 Rust 依赖"
+# "mytool" = "运行我的本地工具"
 "##
 }
 
@@ -336,5 +357,33 @@ mod tests {
         assert!(!is_valid_color("#12345"));
         assert!(!is_valid_color("123456"));
         assert!(!is_valid_color("#1234567"));
+    }
+
+    #[test]
+    fn description_overrides_are_optional_validated_and_reloaded() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.toml");
+        fs::write(&path, "[ui]\nwidth = 60\n").unwrap();
+        assert!(load(Some(&path)).unwrap().descriptions.is_empty());
+        fs::write(
+            &path,
+            "[descriptions]\n\"git log --oneline\" = \"逐行查看提交\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            load(Some(&path)).unwrap().descriptions["git log --oneline"],
+            "逐行查看提交"
+        );
+        fs::write(
+            &path,
+            "[descriptions]\n\"git log --oneline\" = \"查看精简历史\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            load(Some(&path)).unwrap().descriptions["git log --oneline"],
+            "查看精简历史"
+        );
+        fs::write(&path, "[descriptions]\n\"git\" = \" \"\n").unwrap();
+        assert!(load(Some(&path)).is_err());
     }
 }

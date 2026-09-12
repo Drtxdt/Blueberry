@@ -59,7 +59,11 @@ impl Overlay {
         if available < 3 {
             return self.erase(screen, output);
         }
-        let mut config = config.clone();
+        let mut config = Config {
+            ui: config.ui.clone(),
+            completion: config.completion.clone(),
+            descriptions: Default::default(),
+        };
         let border_rows = if config.ui.border == "none" { 0 } else { 2 };
         config.ui.max_rows = config
             .ui

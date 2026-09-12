@@ -141,6 +141,12 @@ enum EntryInspection {
     AccessError,
 }
 
+enum DirectoryStart {
+    Opened,
+    Skipped,
+    Finished,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum LinkStatus {
     Local,
@@ -197,8 +203,19 @@ impl Discovery {
                 break;
             }
 
-            if self.current.is_none() && !self.begin_next_directory() {
-                break;
+            if self.current.is_none() {
+                match self.begin_next_directory() {
+                    DirectoryStart::Opened => {}
+                    DirectoryStart::Skipped => {
+                        // A missing, remote, or inaccessible PATH entry is
+                        // still a directory boundary. Counting it prevents a
+                        // long run of skipped entries from escaping the
+                        // batch budget.
+                        processed += 1;
+                        continue;
+                    }
+                    DirectoryStart::Finished => break,
+                }
             }
 
             let Some(scan) = self.current.as_mut() else {
@@ -223,6 +240,10 @@ impl Discovery {
                     self.access_error = true;
                 }
                 None => {
+                    // EOF is the boundary at which the directory's sorted
+                    // candidates become part of the snapshot. Count that
+                    // boundary as work as well as ordinary entries.
+                    processed += 1;
                     self.finish_current_directory();
                 }
             }
@@ -253,45 +274,45 @@ impl Discovery {
         self.done && !self.access_error
     }
 
-    fn begin_next_directory(&mut self) -> bool {
-        while self.directory_index < self.directories.len() {
-            let directory = &self.directories[self.directory_index];
-            self.directory_index += 1;
+    fn begin_next_directory(&mut self) -> DirectoryStart {
+        let Some(directory) = self.directories.get(self.directory_index).cloned() else {
+            self.done = true;
+            self.index.complete = !self.access_error;
+            return DirectoryStart::Finished;
+        };
+        self.directory_index += 1;
 
-            // A local PATH symlink is fine, but a symlink chain ending at a
-            // UNC/remote target is intentionally ignored before read_dir can
-            // block on the remote server.
-            match symlink_target_status(directory) {
-                LinkStatus::Remote => continue,
-                LinkStatus::Inaccessible => {
-                    self.access_error = true;
-                    continue;
-                }
-                LinkStatus::Local | LinkStatus::Dangling => {}
+        // A local PATH symlink is fine, but a symlink chain ending at a
+        // UNC/remote target is intentionally ignored before read_dir can
+        // block on the remote server.
+        match symlink_target_status(&directory) {
+            LinkStatus::Remote => return DirectoryStart::Skipped,
+            LinkStatus::Inaccessible => {
+                self.access_error = true;
+                return DirectoryStart::Skipped;
             }
+            LinkStatus::Local | LinkStatus::Dangling => {}
+        }
 
-            match fs::read_dir(directory) {
-                Ok(read_dir) => {
-                    self.current = Some(DirectoryScan {
-                        read_dir,
-                        found: Vec::new(),
-                    });
-                    return true;
+        match fs::read_dir(&directory) {
+            Ok(read_dir) => {
+                self.current = Some(DirectoryScan {
+                    read_dir,
+                    found: Vec::new(),
+                });
+                DirectoryStart::Opened
+            }
+            Err(error) => {
+                // A missing PATH component is ordinary and is treated as
+                // examined. Permission and other enumeration failures are
+                // recorded so the result cannot be mistaken for a full
+                // scan and cached.
+                if is_scan_access_error(&error) {
+                    self.access_error = true;
                 }
-                Err(error) => {
-                    // A missing PATH component is ordinary and is treated as
-                    // examined. Permission and other enumeration failures are
-                    // recorded so the result cannot be mistaken for a full
-                    // scan and cached.
-                    if is_scan_access_error(&error) {
-                        self.access_error = true;
-                    }
-                }
+                DirectoryStart::Skipped
             }
         }
-        self.done = true;
-        self.index.complete = !self.access_error;
-        false
     }
 
     fn finish_current_directory(&mut self) {
@@ -554,9 +575,10 @@ impl CommandIndex {
                 }
                 let description = override_value(overrides, &candidate.key)
                     .unwrap_or_else(|| candidate.description.to_owned());
+                let insert_text = format_insert(&candidate.name, &token_context, false);
                 candidates.push(Candidate {
-                    label: candidate.name.to_owned(),
-                    insert_text: format_insert(candidate.name, &token_context, false),
+                    label: candidate.name,
+                    insert_text,
                     description,
                     kind: candidate.kind,
                 });
@@ -692,7 +714,29 @@ impl CommandIndex {
         command: &IndexedCommand,
         overrides: &BTreeMap<String, String>,
     ) -> String {
-        let resolved = self.resolve_command(&command.name);
+        // Let a configured description for the actual candidate win first.
+        // This is important for aliases and locally-installed tools: the
+        // visible name is the key a user can recognize and customize.
+        if let Some(description) = override_value(overrides, &command.name) {
+            return description;
+        }
+
+        let (resolved, alias_targets) = self.resolve_command_with_alias_targets(&command.name);
+        // An alias can point at a locally-defined command that is not in the
+        // static catalog. Give that target a chance to provide its own
+        // configured description before falling back to the alias source.
+        // Preserve each raw target spelling here: `cd` is itself an alias for
+        // `Set-Location`, and a user may intentionally configure `cd` and
+        // `Set-Location` differently.
+        for target in &alias_targets {
+            if let Some(description) = override_value(overrides, target) {
+                return description;
+            }
+        }
+        if let Some(description) = override_value(overrides, &resolved) {
+            return description;
+        }
+
         if let Some(canonical) = specs::canonical_command(&resolved) {
             if let Some(description) = override_value(overrides, canonical) {
                 return description;
@@ -704,23 +748,35 @@ impl CommandIndex {
 
         // Keep unknown descriptions factual. In particular, do not display a
         // function body or an arbitrary alias definition as if it were a
-        // human-authored command description.
+        // human-authored command description. Alias targets are limited to
+        // their first decoded token so arguments and bodies never leak into
+        // the menu.
         match command.kind {
             CandidateKind::Command => command
                 .executable_path
                 .as_deref()
-                .map(|path| format!("Executable: {}", path.display()))
-                .unwrap_or_else(|| "Command".to_owned()),
-            CandidateKind::Alias => "Alias".to_owned(),
-            CandidateKind::Function => "Function".to_owned(),
-            CandidateKind::Cmdlet => "Cmdlet".to_owned(),
-            _ => "Command".to_owned(),
+                .map(|path| format!("用途暂未收录 · 程序：{}", path.display()))
+                .unwrap_or_else(|| format!("用途暂未收录 · 程序：{}", command.name)),
+            CandidateKind::Alias => {
+                let target = first_definition_token(&command.definition)
+                    .filter(|target| !target.trim().is_empty())
+                    .unwrap_or_else(|| "未知目标".to_owned());
+                format!("用途暂未收录 · 别名 → {target}")
+            }
+            CandidateKind::Function => "用途暂未收录 · 当前会话函数".to_owned(),
+            CandidateKind::Cmdlet => "用途暂未收录 · PowerShell 命令".to_owned(),
+            _ => format!("用途暂未收录 · 程序：{}", command.name),
         }
     }
 
     fn resolve_command(&self, command: &str) -> String {
+        self.resolve_command_with_alias_targets(command).0
+    }
+
+    fn resolve_command_with_alias_targets(&self, command: &str) -> (String, Vec<String>) {
         let mut current = decode_power_shell(command).trim().to_owned();
         let mut visited = HashSet::new();
+        let mut alias_targets = Vec::new();
         for _ in 0..MAX_ALIAS_DEPTH {
             let key = command_key(&current);
             if key.is_empty() || !visited.insert(key.clone()) {
@@ -739,21 +795,22 @@ impl CommandIndex {
                 let Some(target) = first_definition_token(&index.definition) else {
                     break;
                 };
+                alias_targets.push(target.clone());
                 current = target;
                 continue;
             }
 
             if let Some(canonical) = specs::canonical_command(&current) {
-                return canonical.to_owned();
+                return (canonical.to_owned(), alias_targets);
             }
             if let Some(stem) = without_program_extension(&key) {
                 if let Some(canonical) = specs::canonical_command(stem) {
-                    return canonical.to_owned();
+                    return (canonical.to_owned(), alias_targets);
                 }
             }
-            return current;
+            return (current, alias_targets);
         }
-        current
+        (current, alias_targets)
     }
 }
 
@@ -1450,9 +1507,9 @@ fn filesystem_candidates(
             label: name,
             insert_text: format_insert(&insert, context, true),
             description: if is_directory {
-                "Directory".to_owned()
+                "目录".to_owned()
             } else {
-                "File".to_owned()
+                "文件".to_owned()
             },
             kind: if is_directory {
                 CandidateKind::Directory

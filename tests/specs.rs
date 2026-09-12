@@ -1,5 +1,5 @@
 use shellsense::model::CandidateKind;
-use shellsense::specs::{canonical_command, complete, describe_command};
+use shellsense::specs::{all_builtin_descriptions, canonical_command, complete, describe_command};
 
 fn args(values: &[&str]) -> Vec<String> {
     values.iter().map(|value| (*value).to_owned()).collect()
@@ -9,7 +9,30 @@ fn names(result: &shellsense::specs::SpecResult) -> Vec<&str> {
     result
         .candidates
         .iter()
-        .map(|candidate| candidate.name)
+        .map(|candidate| candidate.name.as_str())
+        .collect()
+}
+
+fn has_chinese(value: &str) -> bool {
+    value
+        .chars()
+        .any(|character| ('\u{3400}'..='\u{9fff}').contains(&character))
+}
+
+fn static_table_names(source: &str) -> Vec<&str> {
+    source
+        .lines()
+        .filter_map(|line| {
+            let declaration = line.trim_start().strip_prefix("const ")?;
+            let (name, _) = declaration.split_once(':')?;
+            if name.chars().all(|character| {
+                character.is_ascii_uppercase() || character.is_ascii_digit() || character == '_'
+            }) {
+                Some(name)
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
@@ -42,7 +65,7 @@ fn root_descriptions_are_human_readable() {
     ] {
         let description = describe_command(command).expect("recognized command");
         assert!(!description.trim().is_empty());
-        assert!(!description.eq_ignore_ascii_case("command"));
+        assert!(has_chinese(description));
     }
 }
 
@@ -59,7 +82,14 @@ fn git_log_scope_contains_oneline_and_status_does_not() {
     assert!(
         log.candidates
             .iter()
-            .all(|candidate| !candidate.description.contains("command"))
+            .all(|candidate| has_chinese(candidate.description))
+    );
+    assert_eq!(
+        log.candidates
+            .iter()
+            .find(|candidate| candidate.name == "--oneline")
+            .map(|candidate| candidate.description),
+        Some("每条提交显示为一行")
     );
 
     let status = complete("git", &args(&["status"]), "--o").expect("git spec");
@@ -95,11 +125,11 @@ fn git_global_directory_and_config_options_are_consumed_before_subcommand() {
 fn git_short_option_case_is_significant_but_powershell_parameters_are_not() {
     let upper = complete("git", &[], "-C").expect("git spec");
     assert_eq!(names(&upper), vec!["-C"]);
-    assert!(upper.candidates[0].description.contains("directory"));
+    assert!(upper.candidates[0].description.contains("目录"));
 
     let lower = complete("git", &[], "-c").expect("git spec");
     assert_eq!(names(&lower), vec!["-c"]);
-    assert!(lower.candidates[0].description.contains("configuration"));
+    assert!(lower.candidates[0].description.contains("配置"));
 
     let powershell = complete("pwsh", &[], "-command").expect("PowerShell spec");
     assert_eq!(names(&powershell), vec!["-Command"]);
@@ -157,6 +187,52 @@ fn value_options_report_path_or_value_completion_without_options() {
             .iter()
             .all(|candidate| candidate.kind == CandidateKind::Value)
     );
+}
+
+#[test]
+fn optional_values_are_completed_only_when_attached() {
+    let ignored = complete("git", &args(&["status"]), "--ignored=mat").expect("git spec");
+    assert_eq!(ignored.context, "git status");
+    assert_eq!(names(&ignored), vec!["--ignored=matching"]);
+    assert_eq!(ignored.candidates[0].kind, CandidateKind::Value);
+    assert_eq!(ignored.candidates[0].key, "git status --ignored matching");
+
+    let bare_ignored = complete("git", &args(&["status", "--ignored"]), "src").expect("git spec");
+    assert!(bare_ignored.candidates.is_empty());
+    assert!(bare_ignored.path_values);
+
+    let rebase = complete("git", &args(&["pull"]), "--rebase=me").expect("git spec");
+    assert_eq!(names(&rebase), vec!["--rebase=merges"]);
+    assert_eq!(rebase.candidates[0].key, "git pull --rebase merges");
+
+    let bare_rebase = complete("git", &args(&["pull", "--rebase"]), "--st").expect("git spec");
+    assert!(names(&bare_rebase).contains(&"--strategy"));
+
+    let timings = complete("cargo", &args(&["build"]), "--timings=").expect("cargo spec");
+    assert_eq!(names(&timings), vec!["--timings=html", "--timings=json"]);
+
+    let color_inline = complete("cargo", &args(&["build"]), "--color=a").expect("cargo spec");
+    assert_eq!(names(&color_inline), vec!["--color=always", "--color=auto"]);
+
+    let date_inline = complete("git", &args(&["log"]), "--date=rel").expect("git spec");
+    assert_eq!(names(&date_inline), vec!["--date=relative"]);
+
+    let artifact =
+        complete("cargo", &args(&["build", "--artifact-dir"]), "out").expect("cargo spec");
+    assert!(artifact.path_values);
+    assert!(artifact.candidates.is_empty());
+}
+
+#[test]
+fn no_value_flags_do_not_consume_following_options() {
+    let ff = complete("git", &args(&["pull", "--ff"]), "--re").expect("git spec");
+    assert!(names(&ff).contains(&"--rebase"));
+
+    let full_diff = complete("git", &args(&["show", "--full-diff"]), "--fi").expect("git spec");
+    assert!(names(&full_diff).contains(&"--find-renames"));
+
+    let minimal = complete("git", &args(&["diff", "--minimal"]), "--an").expect("git spec");
+    assert!(names(&minimal).contains(&"--anchored"));
 }
 
 #[test]
@@ -259,9 +335,92 @@ fn every_returned_candidate_has_a_real_description_and_context_key() {
         let result = complete(command, &before, prefix).expect("known spec");
         for candidate in result.candidates {
             assert!(!candidate.description.trim().is_empty());
-            assert!(!candidate.description.contains("TODO"));
+            assert!(has_chinese(candidate.description));
+            let lower = candidate.description.to_ascii_lowercase();
+            assert!(!lower.contains("todo"));
+            assert!(!lower.contains("placeholder"));
+            assert!(!lower.contains("command description"));
+            assert!(!lower.contains("option description"));
             assert!(candidate.key.starts_with(&result.context));
-            assert!(candidate.key.ends_with(candidate.name));
+            assert!(candidate.key.ends_with(candidate.name.as_str()));
+        }
+    }
+}
+
+#[test]
+fn every_builtin_description_is_localized() {
+    let descriptions = all_builtin_descriptions();
+    assert!(
+        descriptions.len() >= 1_000,
+        "static catalog unexpectedly small: {} descriptions",
+        descriptions.len()
+    );
+
+    for command in [
+        "git",
+        "cargo",
+        "npm",
+        "docker",
+        "pwsh",
+        "gh",
+        "set-location",
+        "get-childitem",
+    ] {
+        let root = describe_command(command).expect("recognized root command");
+        assert!(
+            descriptions.contains(&root),
+            "missing root description: {root}"
+        );
+    }
+
+    assert!(descriptions.contains(&"每条提交显示为一行"));
+    assert!(descriptions.contains(&"构建项目并管理 Rust 依赖"));
+    assert!(descriptions.contains(&"使用发布配置构建，默认启用优化"));
+
+    for description in descriptions {
+        assert!(!description.trim().is_empty());
+        assert!(
+            has_chinese(description),
+            "description is not localized: {description}"
+        );
+        let lower = description.to_ascii_lowercase();
+        assert!(
+            !lower.contains("todo"),
+            "placeholder description: {description}"
+        );
+        assert!(
+            !lower.contains("placeholder"),
+            "placeholder description: {description}"
+        );
+        assert!(
+            !lower.contains("command description"),
+            "placeholder description: {description}"
+        );
+        assert!(
+            !lower.contains("option description"),
+            "placeholder description: {description}"
+        );
+    }
+}
+
+#[test]
+fn every_static_description_table_is_in_the_coverage_inventory() {
+    let source = include_str!("../src/specs.rs");
+    let inventory_start = source
+        .find("pub fn all_builtin_descriptions")
+        .expect("description inventory");
+    let inventory_end = source[inventory_start..]
+        .find("fn append_value_descriptions")
+        .map(|offset| inventory_start + offset)
+        .expect("description inventory helpers");
+    let inventory = &source[inventory_start..inventory_end];
+
+    for table in static_table_names(source) {
+        if table != "EMPTY_VALUES" {
+            assert!(
+                inventory.contains(table),
+                "static description table missing from inventory: {table}"
+            );
         }
     }
 }

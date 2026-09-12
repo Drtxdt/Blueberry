@@ -152,7 +152,109 @@ fn session_command_priority_prefers_alias_then_function_then_cmdlet() {
 
     index.merge_shell_commands(vec![shell_command("same", "Alias", "updated")]);
     let completion = index.complete("sa", 2, Path::new("."), 10);
-    assert_eq!(completion.candidates[0].description, "Alias");
+    assert_eq!(
+        completion.candidates[0].description,
+        "用途暂未收录 · 别名 → updated"
+    );
+}
+
+#[test]
+fn descriptions_prefer_actual_name_then_alias_target_then_catalog() {
+    let mut index = CommandIndex::default();
+    index.merge_shell_commands(vec![
+        shell_command("mytool", "Application", r#"C:\tools\mytool.exe"#),
+        shell_command("myalias", "Alias", "mytool --flag"),
+        shell_command("git-alias", "Alias", "git"),
+    ]);
+
+    let target_override = BTreeMap::from([(String::from("mytool"), String::from("工具用途"))]);
+    let tool = index.complete_with_descriptions("mytool", 6, Path::new("."), 10, &target_override);
+    assert_eq!(tool.candidates.len(), 1);
+    assert_eq!(tool.candidates[0].description, "工具用途");
+
+    let alias_target =
+        index.complete_with_descriptions("myalias", 7, Path::new("."), 10, &target_override);
+    assert_eq!(alias_target.candidates.len(), 1);
+    assert_eq!(alias_target.candidates[0].description, "工具用途");
+
+    let alias_override = BTreeMap::from([
+        (String::from("myalias"), String::from("别名用途")),
+        (String::from("mytool"), String::from("工具用途")),
+    ]);
+    let alias = index.complete_with_descriptions("myalias", 7, Path::new("."), 10, &alias_override);
+    assert_eq!(alias.candidates[0].description, "别名用途");
+
+    let catalog_override = BTreeMap::from([(String::from("git"), String::from("Git 用途"))]);
+    let known_alias =
+        index.complete_with_descriptions("git-alias", 9, Path::new("."), 10, &catalog_override);
+    assert_eq!(known_alias.candidates.len(), 1);
+    assert_eq!(known_alias.candidates[0].description, "Git 用途");
+}
+
+#[test]
+fn alias_description_overrides_keep_raw_targets_through_alias_chain() {
+    let mut index = CommandIndex::default();
+    index.merge_shell_commands(vec![
+        shell_command("cd", "Alias", "Set-Location"),
+        shell_command("go", "Alias", "cd"),
+    ]);
+
+    let overrides = BTreeMap::from([
+        (String::from("cd"), String::from("CD target用途")),
+        (String::from("Set-Location"), String::from("规范用途")),
+    ]);
+    let completion = index.complete_with_descriptions("go", 2, Path::new("."), 10, &overrides);
+    assert_eq!(completion.candidates.len(), 1);
+    assert_eq!(completion.candidates[0].description, "CD target用途");
+
+    let canonical_only = BTreeMap::from([(String::from("Set-Location"), String::from("规范用途"))]);
+    let completion = index.complete_with_descriptions("go", 2, Path::new("."), 10, &canonical_only);
+    assert_eq!(completion.candidates[0].description, "规范用途");
+}
+
+#[test]
+fn unknown_descriptions_identify_source_and_session_kind() {
+    let mut index = CommandIndex::default();
+    index.merge_shell_commands(vec![
+        shell_command("mystery", "Application", r#"C:\tools\mystery.exe"#),
+        shell_command("mystery-alias", "Alias", "mystery --flag"),
+        shell_command("mystery-function", "Function", "param($x) { $x }"),
+        shell_command("mystery-cmdlet", "Cmdlet", ""),
+    ]);
+
+    let no_overrides = BTreeMap::new();
+    let application =
+        index.complete_with_descriptions("mystery", 7, Path::new("."), 10, &no_overrides);
+    let application = application
+        .candidates
+        .iter()
+        .find(|candidate| candidate.label == "mystery")
+        .expect("unknown application");
+    assert_eq!(
+        application.description,
+        r#"用途暂未收录 · 程序：C:\tools\mystery.exe"#
+    );
+
+    let alias =
+        index.complete_with_descriptions("mystery-alias", 13, Path::new("."), 10, &no_overrides);
+    assert_eq!(
+        alias.candidates[0].description,
+        "用途暂未收录 · 别名 → mystery"
+    );
+
+    let function =
+        index.complete_with_descriptions("mystery-function", 16, Path::new("."), 10, &no_overrides);
+    assert_eq!(
+        function.candidates[0].description,
+        "用途暂未收录 · 当前会话函数"
+    );
+
+    let cmdlet =
+        index.complete_with_descriptions("mystery-cmdlet", 14, Path::new("."), 10, &no_overrides);
+    assert_eq!(
+        cmdlet.candidates[0].description,
+        "用途暂未收录 · PowerShell 命令"
+    );
 }
 
 #[test]
@@ -247,6 +349,7 @@ fn alias_to_child_item_uses_filesystem_fallback() {
     assert_eq!(completion.candidates.len(), 1);
     assert_eq!(completion.candidates[0].label, "notes.txt");
     assert_eq!(completion.candidates[0].kind, CandidateKind::File);
+    assert_eq!(completion.candidates[0].description, "文件");
 }
 
 #[test]
@@ -311,6 +414,39 @@ fn discovery_is_incremental_and_has_no_8192_entry_cutoff() {
             .complete("batch-082", 9, Path::new("."), 10)
             .incomplete
     );
+}
+
+#[test]
+fn discovery_counts_missing_and_empty_path_boundaries() {
+    let root = tempdir().unwrap();
+    let mut directories = Vec::new();
+    for index in 0..130 {
+        directories.push(root.path().join(format!("missing-{index:03}")));
+    }
+    for index in 0..130 {
+        let directory = root.path().join(format!("empty-{index:03}"));
+        fs::create_dir(&directory).unwrap();
+        directories.push(directory);
+    }
+
+    let path = std::env::join_paths(directories.iter()).unwrap();
+    let pathext = OsString::from(".EXE");
+    let mut discovery = Discovery::new(&path, pathext.as_os_str());
+    let mut batches = 0;
+    loop {
+        batches += 1;
+        if discovery.step() {
+            break;
+        }
+        assert!(batches < 20, "skipped PATH entries made no progress");
+    }
+
+    assert!(
+        batches >= 2,
+        "missing and empty directory boundaries should consume batch work"
+    );
+    assert!(discovery.is_complete());
+    assert_eq!(discovery.snapshot().len(), 0);
 }
 
 #[test]
@@ -450,6 +586,7 @@ fn filesystem_completion_follows_local_directory_symlinks() {
         .find(|candidate| candidate.label == "linked")
         .expect("linked directory should be offered");
     assert_eq!(candidate.kind, CandidateKind::Directory);
+    assert_eq!(candidate.description, "目录");
     assert!(candidate.insert_text.ends_with(std::path::MAIN_SEPARATOR));
 }
 
@@ -484,4 +621,29 @@ fn description_overrides_use_exact_spec_keys() {
         .expect("git -c candidate");
     assert_eq!(upper.description, "CAPITAL C");
     assert_eq!(lower.description, "LOWER C");
+}
+
+#[test]
+fn inline_choice_replaces_the_whole_option_and_preserves_context_override() {
+    let index = CommandIndex::default();
+    let overrides = BTreeMap::from([(
+        "git status --ignored matching".to_owned(),
+        "显示匹配忽略规则的项目".to_owned(),
+    )]);
+    let line = "git status --ignored=mat";
+    let completion =
+        index.complete_with_descriptions(line, line.len(), Path::new("."), 30, &overrides);
+    let selected = completion
+        .candidates
+        .iter()
+        .find(|c| c.label == "--ignored=matching")
+        .unwrap();
+    let replaced = format!(
+        "{}{}{}",
+        &line[..completion.replace_start],
+        selected.insert_text,
+        &line[completion.replace_end..]
+    );
+    assert_eq!(replaced, "git status --ignored=matching");
+    assert_eq!(selected.description, "显示匹配忽略规则的项目");
 }

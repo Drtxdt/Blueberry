@@ -113,11 +113,12 @@ fn execute() -> Result<u32> {
         } => {
             let settings = config::load(cli.config.as_deref())?;
             let cwd = cwd.unwrap_or(std::env::current_dir()?);
-            let result = CommandIndex::discover().complete(
+            let result = CommandIndex::discover().complete_with_descriptions(
                 &line,
                 cursor.unwrap_or(line.len()),
                 &cwd,
                 settings.completion.max_results,
+                &settings.descriptions,
             );
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
@@ -157,8 +158,13 @@ fn execute() -> Result<u32> {
         }
         Command::Theme => {
             let settings = config::load(cli.config.as_deref())?;
-            let result =
-                CommandIndex::discover().complete("git ", 4, &std::env::current_dir()?, 20);
+            let result = CommandIndex::discover().complete_with_descriptions(
+                "git ",
+                4,
+                &std::env::current_dir()?,
+                20,
+                &settings.descriptions,
+            );
             let frame = shellsense::menu::render(&result.candidates, 0, "", 100, &settings);
             for line in frame.lines {
                 println!("{line}");

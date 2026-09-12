@@ -1,0 +1,88 @@
+{
+  "version": "0.2.0",
+  "status": "alpha",
+  "measurement_date": "2026-09-12",
+  "platform": "windows-x86_64",
+  "build": "release",
+  "binary": "dist/shellsense.exe",
+  "binary_size_bytes": 2337792,
+  "binary_sha256": "8857C28BE6451BA0943C7B29380258ACC77E3177AD587AC03E2C253FE6E1CAC0",
+  "previous_binary": "dist/previous/shellsense-v0.1.0.exe",
+  "previous_binary_sha256": "998C461CCA4C84DEF1E4E2E945E5400868BB7209F40C2665A0ED32B7541AA3EB",
+  "toolchain": {
+    "rust": "rustc 1.94.1 (e408947bf 2026-03-25)",
+    "cargo": "cargo 1.94.1 (29ea6fb6a 2026-03-24)",
+    "pwsh": "7.6.6",
+    "psreadline": "2.4.5",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel"
+  },
+  "functional_validation": {
+    "rust_tests_passed": 69,
+    "powershell_adapter_tests": "passed",
+    "clippy_all_targets_deny_warnings": "passed",
+    "rustfmt": "passed",
+    "conpty_host_tests_passed": 4
+  },
+  "performance_acceptance": {
+    "passed": false,
+    "first_input": {
+      "target_p50_ms": 50,
+      "no_profile_p50_ms": 102.95784999999995,
+      "with_profile_p50_ms": 119.71140000000003,
+      "pairs_per_profile_mode": 30,
+      "passed": false
+    },
+    "warm_menu": {
+      "target_p95_ms": 20,
+      "descriptions_on_miss_p95_ms": 37.6318,
+      "descriptions_on_hit_p95_ms": 37.6012,
+      "descriptions_off_miss_p95_ms": 37.083600000000004,
+      "descriptions_off_hit_p95_ms": 36.1151,
+      "samples_per_cache_and_description_mode": 300,
+      "passed": false
+    },
+    "remaining_bottlenecks": [
+      "PowerShell adapter bootstrap and initial JIT",
+      "Initial shell command snapshot still synchronously materializes on the PSReadLine runspace",
+      "PSReadLine and ConPTY visible output roundtrip"
+    ],
+    "measurement_limits": [
+      "Formal timing has trace disabled",
+      "OS caches are not cleared",
+      "CPU frequency and background load are not isolated",
+      "Description on/off results are sequential batches, not interleaved pairs",
+      "Host timing uses outer and inner ConPTY and a fixed root-candidate fixture",
+      "Host working set excludes pwsh, ConHost and Windows Terminal"
+    ]
+  },
+  "benchmark_reports": [
+    {
+      "file": "v0.2-final-adapter.json",
+      "sha256": "6EA571949C7B0E907F57F37B5DBACEA70875B847B499D58A46F838B9C93D427F"
+    },
+    {
+      "file": "v0.2-final-profile.json",
+      "sha256": "126D6304DED7A8C0C32BC18365129F3EC3CFC4741335FC383A40556997812FA8"
+    },
+    {
+      "file": "v0.2-final-host.json",
+      "sha256": "E78D70B4D17C38B555B023524321E9255696BAD8579DA119A9345A917A99BAAD"
+    },
+    {
+      "file": "v0.2-final-host-no-descriptions.json",
+      "sha256": "112B47D9A95F59E82EDE7216C405A19F3EBFC001FD9BF71D07D0A449F42AF7FE"
+    }
+  ],
+  "diagnostic_traces": [
+    {
+      "file": "hit-0.jsonl",
+      "sha256": "39D21DB651B12B1EA1D83D7C199E913DB17C163D62F896ED4A899A1142AA6860"
+    },
+    {
+      "file": "miss-0.jsonl",
+      "sha256": "33C60AE6ADE4E4983C9BB72618A6C33C345BCD414A8956A504ED60B0C09B4ECA"
+    }
+  ],
+  "baseline_binary_sha256": "7DAF9C7C9C111FC7D8B092DFF1AE101C7378DD898C5E54017A89628E7358E3A5",
+  "performance_stage_binary_sha256": "F673108F0AFA82DF3F7B93173ACFEAEC411B68C56E1CD5F036B2085CE3616150"
+}

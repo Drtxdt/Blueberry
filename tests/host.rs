@@ -16,6 +16,75 @@ struct RunningHost {
     _data_dir: TempDir,
 }
 
+#[test]
+fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Result<()> {
+    let cwd = tempdir()?;
+    std::fs::write(
+        cwd.path().join("git.cmd"),
+        b"@echo off\r\necho GIT_ARGS:%*\r\n",
+    )?;
+    let mut host = start_host(cwd.path())?;
+    host.harness.send(b"git log --o")?;
+    host.harness.wait_text("每条提交显示为一行", PTY_TIMEOUT)?;
+    let config_path = host._data_dir.path().join("config.toml");
+    let mut settings = config::Config::default();
+    settings
+        .descriptions
+        .insert("git log --oneline".into(), "自定义精简历史".into());
+    std::fs::write(&config_path, toml::to_string(&settings)?)?;
+    // Ctrl+Alt+R in the Windows console input encoding used by the host.
+    let reload = b"\x1b[82;19;18;1;10;1_\x1b[82;19;18;0;10;1_";
+    host.harness.send(reload)?;
+    host.harness.wait_text("自定义精简历史", PTY_TIMEOUT)?;
+    settings
+        .descriptions
+        .insert("git log --oneline".into(), "更新后的中文说明".into());
+    std::fs::write(&config_path, toml::to_string(&settings)?)?;
+    host.harness.send(reload)?;
+    host.harness.wait_text("更新后的中文说明", PTY_TIMEOUT)?;
+    // Invalid reload preserves the last usable settings and current text.
+    std::fs::write(&config_path, "[descriptions]\n\"git\" = \"\"\n")?;
+    host.harness.send(reload)?;
+    host.harness.send(b"\t")?;
+    wait_until(
+        &mut host.harness,
+        "reloaded completion accepted",
+        |screen| {
+            screen
+                .lines()
+                .any(|line| line.trim_end().ends_with("> git log --oneline"))
+        },
+    )?;
+    let previous_prompt_count = prompt_count(&host.harness.contents());
+    host.harness.send(b"\r")?;
+    wait_for_line(
+        &mut host.harness,
+        "GIT_ARGS:log --oneline",
+        "actual accepted argument execution",
+    )?;
+    wait_for_next_prompt(
+        &mut host.harness,
+        previous_prompt_count,
+        "prompt before inline choice",
+    )?;
+    host.harness.send(b"git status --ignored=mat")?;
+    host.harness.wait_text("--ignored=matching", PTY_TIMEOUT)?;
+    host.harness.send(b"\t")?;
+    wait_until(&mut host.harness, "inline value accepted", |screen| {
+        screen
+            .lines()
+            .any(|line| line.trim_end().ends_with("> git status --ignored=matching"))
+    })?;
+    host.harness.send(b"\r")?;
+    wait_for_line(
+        &mut host.harness,
+        "GIT_ARGS:status --ignored=matching",
+        "actual inline value execution",
+    )?;
+    host.harness.stop()?;
+    Ok(())
+}
+
 fn start_host(cwd: &Path) -> Result<RunningHost> {
     let data_dir = tempdir().context("create host data directory")?;
     let config_path = data_dir.path().join("config.toml");

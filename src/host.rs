@@ -56,6 +56,7 @@ struct Query {
     cursor: usize,
     cwd: PathBuf,
     limit: usize,
+    descriptions: Arc<BTreeMap<String, String>>,
 }
 
 #[derive(Default)]
@@ -167,7 +168,13 @@ impl Worker {
                 }
                 if let Some(q) = latest_query.as_ref().filter(|_| changed || query_changed) {
                     let started = Instant::now();
-                    let result = index.complete(&q.line, q.cursor, &q.cwd, q.limit);
+                    let result = index.complete_with_descriptions(
+                        &q.line,
+                        q.cursor,
+                        &q.cwd,
+                        q.limit,
+                        &q.descriptions,
+                    );
                     trace.event(
                         "completion",
                         Some(q.revision),
@@ -307,6 +314,7 @@ struct State {
     decoder: Decoder,
     overlay: Overlay,
     config: Config,
+    descriptions: Arc<BTreeMap<String, String>>,
     config_path: Option<PathBuf>,
     cwd: PathBuf,
     edit_path: PathBuf,
@@ -438,6 +446,7 @@ impl State {
                         cursor,
                         cwd: self.cwd.clone(),
                         limit: self.config.completion.max_results,
+                        descriptions: self.descriptions.clone(),
                     };
                     worker.update(|w| w.query = Some(query));
                 }
@@ -634,7 +643,14 @@ impl State {
             }
             Input::Reload if self.prompt => {
                 match config::load(self.config_path.as_deref()) {
-                    Ok(config) => self.config = config,
+                    Ok(mut config) => {
+                        self.descriptions = Arc::new(std::mem::take(&mut config.descriptions));
+                        self.config = config;
+                        self.invalidate();
+                        self.dirty = true;
+                        self.explicit = true;
+                        self.dismissed = false;
+                    }
                     Err(_) => self.bell = true,
                 }
                 return Ok(());
@@ -684,7 +700,8 @@ impl State {
 pub fn run(options: RunOptions) -> Result<u32> {
     let trace = Trace::open(options.trace_path.as_deref())?;
     trace.event("host_start", None, None, None);
-    let config = config::load(options.config_path.as_deref())?;
+    let mut config = config::load(options.config_path.as_deref())?;
+    let descriptions = Arc::new(std::mem::take(&mut config.descriptions));
     let integration = pty::ensure_integration(&options.data_dir)?;
     let session_directory = options
         .data_dir
@@ -787,6 +804,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
     });
     let worker = Worker::new(options.data_dir.join("commands.json"), tx, trace.clone());
     let mut state = State {
+        descriptions,
         parser: vt100::Parser::new(rows, cols, 0),
         decoder: Decoder::new(token),
         overlay: Overlay::default(),

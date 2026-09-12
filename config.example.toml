@@ -17,3 +17,9 @@ match_color = "#ffcc66"
 [completion]
 max_results = 100
 auto_trigger = true
+
+[descriptions]
+# Optional overrides; keys distinguish command scopes and option case.
+# "git log --oneline" = "每条提交显示为一行"
+# "cargo" = "构建项目并管理 Rust 依赖"
+# "mytool" = "运行我的本地工具"

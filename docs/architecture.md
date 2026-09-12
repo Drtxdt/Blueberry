@@ -52,6 +52,15 @@ Cache schema 2 invalidates old incomplete discovery results. A separate worker p
 
 Argument completion uses Rust command trees, option scopes and explicit value rules. Git global value options are consumed before subcommands, and `--` ends option completion. Unknown options remain ordinary input. No help command or downloaded specification runs during typing.
 
+Every built-in command, option and static value has a short Chinese description.
+Custom `[descriptions]` entries use complete canonical context keys, so option
+case and subcommand scope remain distinct. Unknown tools expose their source
+with a Chinese fallback; aliases resolve their target before using catalog
+text. Configuration reload swaps one shared immutable map and re-queries the
+live PSReadLine buffer. The query and renderer do not clone this map on every
+keystroke. Completion JSON retains its existing fields, with the additive
+`incomplete` discovery flag.
+
 ## Rendering
 
 Private OSC frames are stripped from output before display; unrelated OSC is preserved. A vt100 screen tracks the shell's output. The menu is an overlay, and its occupied rows are restored before processing subsequent shell output. Menu code returns bounded ANSI-styled lines, never cursor movement.
