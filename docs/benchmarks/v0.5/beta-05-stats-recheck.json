@@ -1,0 +1,5941 @@
+{
+  "schema": 1,
+  "kind": "beta-05-independent-stats-recheck",
+  "quantiles": {
+    "median": "standard median of sorted finite samples; even n averages the two middle values",
+    "p95": "nearest-rank: sorted sample at rank ceil(0.95*n), one-based",
+    "outliers": "none removed"
+  },
+  "formal_design": {
+    "variants": 3,
+    "scenarios": [
+      "root",
+      "git",
+      "cargo",
+      "js",
+      "path",
+      "fuzzy"
+    ],
+    "cache_modes": [
+      "miss",
+      "hit"
+    ],
+    "samples_per_scenario_cache_variant": 300,
+    "sessions_per_scenario_cache_variant": 30,
+    "queries_per_session": 10,
+    "hot_samples_per_variant": 3600,
+    "total_hot_samples": 10800,
+    "pipe_sessions": 360,
+    "fixed_candidate_fixture": "Ten fixed candidates (0..9) cycled in each scenario; this is not a large-repository benchmark.",
+    "cache_definition": "miss/hit refers only to persisted complete commands.json; provider caches are in-memory and cold in each new process.",
+    "ordering": "Variants ran sequentially and are not paired; differences under 1 ms are not assigned causal meaning."
+  },
+  "startup": {
+    "paired_first_input_delta_ms": {
+      "available": true,
+      "samples": 30,
+      "median": 143.40209999999996,
+      "p95": 203.07010000000002,
+      "nearest_rank": 29
+    },
+    "paired_adapter_delta_ms": {
+      "available": true,
+      "samples": 30,
+      "median": 151.79415,
+      "p95": 206.32119999999998,
+      "nearest_rank": 29
+    },
+    "embedded_paired_first_input_delta_ms": {
+      "available": true,
+      "samples": 30,
+      "median": 143.40209999999996,
+      "p95": 203.07010000000002,
+      "nearest_rank": 29
+    },
+    "embedded_paired_adapter_delta_ms": {
+      "available": true,
+      "samples": 30,
+      "median": 151.79415,
+      "p95": 206.32119999999998,
+      "nearest_rank": 29
+    },
+    "embedded_stats_match": true,
+    "iterations": 30,
+    "metric": "Fresh pwsh adapter first input increment (--with-profile), not full host process startup or full dynamic menu."
+  },
+  "variants": [
+    {
+      "key": "osc_descriptions",
+      "label": "OSC + descriptions",
+      "source": "beta-05-host-osc-descriptions-300.json",
+      "transport": "osc",
+      "descriptions": true,
+      "executable": "C:\\Users\\dell\\.codex\\visualizations\\2026\\09\\10\\01a08c3e-7202-7b72-bd9a-33b2fa60a094\\shellsense-work-v2\\target\\release\\shellsense.exe",
+      "build": "release",
+      "profile_mode": "preserved",
+      "trace": "disabled",
+      "os_cache_cleared": false,
+      "actual_transport_set": [
+        "osc"
+      ],
+      "transport_degraded": false,
+      "sample_count_per_cache_mode": 300,
+      "sessions_per_cache_mode": 30,
+      "queries_per_session": 10,
+      "hot_samples": 3600,
+      "hot_stats": {
+        "available": true,
+        "samples": 3600,
+        "median": 28.987949999999998,
+        "p95": 36.7951,
+        "nearest_rank": 3420
+      },
+      "first_dynamic_stats": {
+        "available": true,
+        "samples": 240,
+        "median": 63.94875,
+        "p95": 100.1595,
+        "nearest_rank": 228
+      },
+      "input_echo_stats": {
+        "available": true,
+        "samples": 3600,
+        "median": 28.983,
+        "p95": 36.7916,
+        "nearest_rank": 3420
+      },
+      "plain_pwsh_control": {
+        "input_echo": {
+          "available": true,
+          "samples": 60,
+          "median": 15.26145,
+          "p95": 30.567400000000003,
+          "nearest_rank": 57,
+          "min": 8.092699999999999,
+          "max": 44.7375
+        },
+        "throughput": {
+          "available": true,
+          "samples": 6,
+          "median": 3841825.4634620147,
+          "p95": 4037145.981242203,
+          "nearest_rank": 6,
+          "min": 3549085.8677757564,
+          "max": 4037145.981242203
+        }
+      },
+      "scenarios": [
+        {
+          "scenario": "root",
+          "dynamic": false,
+          "acceptance_metric": "transport_eligible_first_candidate_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.02445,
+                "p95": 38.2518,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.020200000000003,
+                "p95": 38.246900000000004,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 62.50055,
+                "p95": 67.9667,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.02445,
+                "p95": 38.2518,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13201408.0,
+                "p95": 14381056.0,
+                "nearest_rank": 29,
+                "min": 12845056.0,
+                "max": 14589952.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14178304.0,
+                "p95": 14684160.0,
+                "nearest_rank": 314,
+                "min": 13295616.0,
+                "max": 14798848.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1641362.7589851418,
+                "p95": 1742269.7678870035,
+                "nearest_rank": 29,
+                "min": 1538279.1769211178,
+                "max": 1753559.5431208923
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.42035,
+                "p95": 36.934000000000005,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.41675,
+                "p95": 36.9304,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 59.34855,
+                "p95": 72.8142,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.42035,
+                "p95": 36.934000000000005,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13084672.0,
+                "p95": 13266944.0,
+                "nearest_rank": 29,
+                "min": 12857344.0,
+                "max": 13291520.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 13905920.0,
+                "p95": 14086144.0,
+                "nearest_rank": 314,
+                "min": 13017088.0,
+                "max": 14110720.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1664942.1497955213,
+                "p95": 1729860.994255661,
+                "nearest_rank": 29,
+                "min": 1446391.5250496578,
+                "max": 1739926.9101137766
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.28115,
+              "p95": 44.7375,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3549085.8677757564,
+              "p95": 3549085.8677757564,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "git",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.133000000000003,
+                "p95": 36.9425,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.129550000000002,
+                "p95": 36.939,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.133000000000003,
+                "p95": 36.9425,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 93.85515000000001,
+                "p95": 110.3986,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 93.85515000000001,
+                "p95": 110.3986,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.13145,
+                "p95": 36.9409,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13299712.0,
+                "p95": 14381056.0,
+                "nearest_rank": 29,
+                "min": 13033472.0,
+                "max": 14397440.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14462976.0,
+                "p95": 14823424.0,
+                "nearest_rank": 314,
+                "min": 13750272.0,
+                "max": 14852096.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1662672.9536392563,
+                "p95": 1751441.305830766,
+                "nearest_rank": 29,
+                "min": 1381150.3826108582,
+                "max": 1768628.5410487738
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.2549,
+                "p95": 35.6365,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.25155,
+                "p95": 35.6334,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.2549,
+                "p95": 35.6365,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 92.25805,
+                "p95": 108.13449999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 92.25805,
+                "p95": 108.13449999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.2534,
+                "p95": 35.6351,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13125632.0,
+                "p95": 13303808.0,
+                "nearest_rank": 29,
+                "min": 12877824.0,
+                "max": 13348864.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14225408.0,
+                "p95": 14405632.0,
+                "nearest_rank": 314,
+                "min": 13422592.0,
+                "max": 14434304.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1657371.6129707934,
+                "p95": 1717276.6637624383,
+                "nearest_rank": 29,
+                "min": 1273879.4075341134,
+                "max": 1740378.5700486042
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 14.29115,
+              "p95": 27.3768,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3939651.2468458773,
+              "p95": 3939651.2468458773,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "cargo",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 28.74575,
+                "p95": 37.4235,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 28.741600000000002,
+                "p95": 37.42,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.74575,
+                "p95": 37.4235,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 66.24975,
+                "p95": 81.6826,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 66.24975,
+                "p95": 81.6826,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.743949999999998,
+                "p95": 37.422,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13295616.0,
+                "p95": 14401536.0,
+                "nearest_rank": 29,
+                "min": 12091392.0,
+                "max": 14434304.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14419968.0,
+                "p95": 14839808.0,
+                "nearest_rank": 314,
+                "min": 13598720.0,
+                "max": 14852096.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1768672.1066767513,
+                "p95": 1837314.5647045302,
+                "nearest_rank": 29,
+                "min": 1183418.4896498735,
+                "max": 1908836.8462366327
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 28.258,
+                "p95": 37.5526,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 28.25445,
+                "p95": 37.5486,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.258,
+                "p95": 37.5526,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 65.97300000000001,
+                "p95": 79.7065,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 65.97300000000001,
+                "p95": 79.7065,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.25645,
+                "p95": 37.551,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13096960.0,
+                "p95": 13312000.0,
+                "nearest_rank": 29,
+                "min": 12898304.0,
+                "max": 13344768.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14303232.0,
+                "p95": 14495744.0,
+                "nearest_rank": 314,
+                "min": 13389824.0,
+                "max": 14508032.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1726135.421258754,
+                "p95": 1814499.4386447733,
+                "nearest_rank": 29,
+                "min": 1635173.5980942603,
+                "max": 1822118.5158308642
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 14.839400000000001,
+              "p95": 30.567400000000003,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3743999.6800781526,
+              "p95": 3743999.6800781526,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "js",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 26.0696,
+                "p95": 37.004799999999996,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 26.065849999999998,
+                "p95": 37.0014,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 26.0696,
+                "p95": 37.004799999999996,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 58.56925,
+                "p95": 70.58019999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 58.56925,
+                "p95": 70.58019999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 26.06795,
+                "p95": 37.0034,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13357056.0,
+                "p95": 14475264.0,
+                "nearest_rank": 29,
+                "min": 12812288.0,
+                "max": 14585856.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14479360.0,
+                "p95": 14872576.0,
+                "nearest_rank": 314,
+                "min": 13643776.0,
+                "max": 15060992.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1681783.8736264324,
+                "p95": 1742661.2438957265,
+                "nearest_rank": 29,
+                "min": 1546844.2239402563,
+                "max": 1758292.4687823001
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 28.1508,
+                "p95": 36.3902,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 28.1474,
+                "p95": 36.3869,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.1508,
+                "p95": 36.3902,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 58.01255,
+                "p95": 68.59609999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 58.01255,
+                "p95": 68.59609999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.14935,
+                "p95": 36.388799999999996,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13142016.0,
+                "p95": 13430784.0,
+                "nearest_rank": 29,
+                "min": 12947456.0,
+                "max": 13467648.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14262272.0,
+                "p95": 14430208.0,
+                "nearest_rank": 314,
+                "min": 13139968.0,
+                "max": 14467072.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1690753.1397945415,
+                "p95": 1735318.630063172,
+                "nearest_rank": 29,
+                "min": 1584687.9909758675,
+                "max": 1751928.2344583399
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 14.178600000000001,
+              "p95": 41.2759,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 4037145.981242203,
+              "p95": 4037145.981242203,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "path",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 27.944049999999997,
+                "p95": 36.3632,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 27.93745,
+                "p95": 36.3602,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 27.944049999999997,
+                "p95": 36.3632,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 54.087,
+                "p95": 73.3251,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 54.087,
+                "p95": 73.3251,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 27.9415,
+                "p95": 36.362,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13309952.0,
+                "p95": 14450688.0,
+                "nearest_rank": 29,
+                "min": 12996608.0,
+                "max": 14553088.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14163968.0,
+                "p95": 14594048.0,
+                "nearest_rank": 314,
+                "min": 13242368.0,
+                "max": 14675968.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1668682.5468032756,
+                "p95": 1719869.1255595526,
+                "nearest_rank": 29,
+                "min": 1534015.966068885,
+                "max": 1724939.1174347533
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 28.2729,
+                "p95": 36.435900000000004,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 28.269849999999998,
+                "p95": 36.4329,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.2729,
+                "p95": 36.435900000000004,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 54.109049999999996,
+                "p95": 66.3689,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 54.109049999999996,
+                "p95": 66.3689,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.2718,
+                "p95": 36.4348,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13127680.0,
+                "p95": 13365248.0,
+                "nearest_rank": 29,
+                "min": 12922880.0,
+                "max": 13426688.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 13942784.0,
+                "p95": 14123008.0,
+                "nearest_rank": 314,
+                "min": 12935168.0,
+                "max": 14254080.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 7.801982927014385
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1675215.051836499,
+                "p95": 1729345.1822962193,
+                "nearest_rank": 29,
+                "min": 1555463.650329227,
+                "max": 1737689.400216628
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.5729,
+              "p95": 32.008700000000005,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3995744.278707065,
+              "p95": 3995744.278707065,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "fuzzy",
+          "dynamic": false,
+          "acceptance_metric": "transport_eligible_first_candidate_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.0038,
+                "p95": 36.3889,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.000750000000004,
+                "p95": 36.3861,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 57.1101,
+                "p95": 70.2174,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.0038,
+                "p95": 36.3889,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13312000.0,
+                "p95": 14422016.0,
+                "nearest_rank": 29,
+                "min": 12980224.0,
+                "max": 14430208.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14217216.0,
+                "p95": 14565376.0,
+                "nearest_rank": 314,
+                "min": 13459456.0,
+                "max": 14675968.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1674307.917309366,
+                "p95": 1741562.5458819058,
+                "nearest_rank": 29,
+                "min": 1560045.7282691041,
+                "max": 1744826.8012595787
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.224200000000003,
+                "p95": 36.5415,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.2213,
+                "p95": 36.536,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 54.671850000000006,
+                "p95": 63.3488,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.224200000000003,
+                "p95": 36.5415,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13135872.0,
+                "p95": 13316096.0,
+                "nearest_rank": 29,
+                "min": 12967936.0,
+                "max": 13324288.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 13905920.0,
+                "p95": 14123008.0,
+                "nearest_rank": 314,
+                "min": 12984320.0,
+                "max": 14176256.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 7.788957874823346
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1688428.3140241615,
+                "p95": 1724760.9360175696,
+                "nearest_rank": 29,
+                "min": 1599592.877057048,
+                "max": 1728044.4667692378
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.6446,
+              "p95": 29.992,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3646023.70560762,
+              "p95": 3646023.70560762,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        }
+      ],
+      "target_embedded": {
+        "hot_menu": {
+          "available": true,
+          "samples": 3600,
+          "median": 28.987949999999998,
+          "p95": 36.7951,
+          "nearest_rank": 3420
+        },
+        "complete_dynamic_menu": {
+          "available": true,
+          "samples": 2400,
+          "median": 28.42015,
+          "p95": 36.648399999999995,
+          "nearest_rank": 2280
+        },
+        "hot_menu_p95_ms": 36.7951,
+        "complete_dynamic_menu_p95_ms": 36.648399999999995,
+        "status": "failed"
+      }
+    },
+    {
+      "key": "osc_no_descriptions",
+      "label": "OSC - descriptions",
+      "source": "beta-05-host-osc-no-descriptions-300.json",
+      "transport": "osc",
+      "descriptions": false,
+      "executable": "C:\\Users\\dell\\.codex\\visualizations\\2026\\09\\10\\01a08c3e-7202-7b72-bd9a-33b2fa60a094\\shellsense-work-v2\\target\\release\\shellsense.exe",
+      "build": "release",
+      "profile_mode": "preserved",
+      "trace": "disabled",
+      "os_cache_cleared": false,
+      "actual_transport_set": [
+        "osc"
+      ],
+      "transport_degraded": false,
+      "sample_count_per_cache_mode": 300,
+      "sessions_per_cache_mode": 30,
+      "queries_per_session": 10,
+      "hot_samples": 3600,
+      "hot_stats": {
+        "available": true,
+        "samples": 3600,
+        "median": 30.44625,
+        "p95": 37.2417,
+        "nearest_rank": 3420
+      },
+      "first_dynamic_stats": {
+        "available": true,
+        "samples": 240,
+        "median": 65.60569999999998,
+        "p95": 98.8091,
+        "nearest_rank": 228
+      },
+      "input_echo_stats": {
+        "available": true,
+        "samples": 3600,
+        "median": 30.43925,
+        "p95": 37.2383,
+        "nearest_rank": 3420
+      },
+      "plain_pwsh_control": {
+        "input_echo": {
+          "available": true,
+          "samples": 60,
+          "median": 15.4862,
+          "p95": 28.9834,
+          "nearest_rank": 57,
+          "min": 8.1154,
+          "max": 42.6036
+        },
+        "throughput": {
+          "available": true,
+          "samples": 6,
+          "median": 4003911.993982043,
+          "p95": 4080900.6675301385,
+          "nearest_rank": 6,
+          "min": 3754671.066671823,
+          "max": 4080900.6675301385
+        }
+      },
+      "scenarios": [
+        {
+          "scenario": "root",
+          "dynamic": false,
+          "acceptance_metric": "transport_eligible_first_candidate_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.594,
+                "p95": 37.286899999999996,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.588,
+                "p95": 37.2835,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 57.47775,
+                "p95": 67.2813,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.594,
+                "p95": 37.286899999999996,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13162496.0,
+                "p95": 14200832.0,
+                "nearest_rank": 29,
+                "min": 12873728.0,
+                "max": 14385152.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14258176.0,
+                "p95": 14561280.0,
+                "nearest_rank": 314,
+                "min": 13283328.0,
+                "max": 14700544.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1674162.701171481,
+                "p95": 1725175.2361434952,
+                "nearest_rank": 29,
+                "min": 1550042.7210184454,
+                "max": 1727208.7562231014
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.74935,
+                "p95": 36.6198,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.74555,
+                "p95": 36.615700000000004,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 53.665099999999995,
+                "p95": 70.644,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.74935,
+                "p95": 36.6198,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13053952.0,
+                "p95": 13287424.0,
+                "nearest_rank": 29,
+                "min": 12800000.0,
+                "max": 13410304.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 13885440.0,
+                "p95": 14184448.0,
+                "nearest_rank": 314,
+                "min": 12963840.0,
+                "max": 14290944.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1666472.7884599157,
+                "p95": 1742680.9381641569,
+                "nearest_rank": 29,
+                "min": 1554361.5024197956,
+                "max": 1744437.8343055563
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 14.33485,
+              "p95": 30.6307,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3754671.066671823,
+              "p95": 3754671.066671823,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "git",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.08925,
+                "p95": 36.6352,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.08595,
+                "p95": 36.632,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.08925,
+                "p95": 36.6352,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 92.02529999999999,
+                "p95": 110.0304,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 92.02529999999999,
+                "p95": 110.0304,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.0878,
+                "p95": 36.6338,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13406208.0,
+                "p95": 14405632.0,
+                "nearest_rank": 29,
+                "min": 12902400.0,
+                "max": 14413824.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14544896.0,
+                "p95": 15044608.0,
+                "nearest_rank": 314,
+                "min": 13717504.0,
+                "max": 15093760.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1673716.4321188345,
+                "p95": 1722711.662134437,
+                "nearest_rank": 29,
+                "min": 1484275.6042694214,
+                "max": 1742438.8454109298
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.72025,
+                "p95": 36.4968,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.716,
+                "p95": 36.492999999999995,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.72025,
+                "p95": 36.4968,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 93.66114999999999,
+                "p95": 104.3904,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 93.66114999999999,
+                "p95": 104.3904,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.71835,
+                "p95": 36.4951,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13086720.0,
+                "p95": 13271040.0,
+                "nearest_rank": 29,
+                "min": 12693504.0,
+                "max": 13283328.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14245888.0,
+                "p95": 14401536.0,
+                "nearest_rank": 314,
+                "min": 13668352.0,
+                "max": 14434304.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1685526.268925822,
+                "p95": 1724122.2822995048,
+                "nearest_rank": 29,
+                "min": 1530381.824847688,
+                "max": 1731910.1592746358
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.428,
+              "p95": 28.9834,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 4080900.6675301385,
+              "p95": 4080900.6675301385,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "cargo",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.261699999999998,
+                "p95": 37.682599999999994,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.2575,
+                "p95": 37.6646,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.261699999999998,
+                "p95": 37.682599999999994,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 67.2863,
+                "p95": 82.7276,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 67.2863,
+                "p95": 82.7276,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.259900000000002,
+                "p95": 37.6802,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13297664.0,
+                "p95": 14512128.0,
+                "nearest_rank": 29,
+                "min": 13012992.0,
+                "max": 14581760.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14614528.0,
+                "p95": 14929920.0,
+                "nearest_rank": 314,
+                "min": 13590528.0,
+                "max": 14962688.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1763036.160472182,
+                "p95": 1821040.0763027351,
+                "nearest_rank": 29,
+                "min": 1355144.3418133245,
+                "max": 1836089.4566899904
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.4441,
+                "p95": 37.5644,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.4394,
+                "p95": 37.561,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.4441,
+                "p95": 37.5644,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 66.5059,
+                "p95": 86.9664,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 66.5059,
+                "p95": 86.9664,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.4424,
+                "p95": 37.563,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13150208.0,
+                "p95": 13266944.0,
+                "nearest_rank": 29,
+                "min": 12873728.0,
+                "max": 13316096.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14284800.0,
+                "p95": 14540800.0,
+                "nearest_rank": 314,
+                "min": 13414400.0,
+                "max": 14557184.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1742493.1210869956,
+                "p95": 1834859.5598616074,
+                "nearest_rank": 29,
+                "min": 1537644.8595499522,
+                "max": 1864218.62810565
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.586300000000001,
+              "p95": 33.0326,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 4025695.0107267303,
+              "p95": 4025695.0107267303,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "js",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.766550000000002,
+                "p95": 37.581,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.761499999999998,
+                "p95": 37.5777,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.766550000000002,
+                "p95": 37.581,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 56.399550000000005,
+                "p95": 69.0565,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 56.399550000000005,
+                "p95": 69.0565,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.76435,
+                "p95": 37.5796,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13277184.0,
+                "p95": 14331904.0,
+                "nearest_rank": 29,
+                "min": 12914688.0,
+                "max": 14376960.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14491648.0,
+                "p95": 14876672.0,
+                "nearest_rank": 314,
+                "min": 13438976.0,
+                "max": 14909440.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1677485.3014410238,
+                "p95": 1741724.5427660798,
+                "nearest_rank": 29,
+                "min": 1555438.7309845265,
+                "max": 1752046.4959604763
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 31.1172,
+                "p95": 37.8802,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 31.11285,
+                "p95": 37.8769,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 31.1172,
+                "p95": 37.8802,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 58.21155,
+                "p95": 66.41959999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 58.21155,
+                "p95": 66.41959999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 31.1153,
+                "p95": 37.8787,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13121536.0,
+                "p95": 13279232.0,
+                "nearest_rank": 29,
+                "min": 12931072.0,
+                "max": 13287424.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14192640.0,
+                "p95": 14544896.0,
+                "nearest_rank": 314,
+                "min": 13275136.0,
+                "max": 14589952.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1675938.0932313323,
+                "p95": 1736339.3036335132,
+                "nearest_rank": 29,
+                "min": 1588713.963730554,
+                "max": 1740744.9217427105
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.4862,
+              "p95": 42.6036,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3927545.1344670015,
+              "p95": 3927545.1344670015,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "path",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.6926,
+                "p95": 37.2213,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.68935,
+                "p95": 37.2179,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.6926,
+                "p95": 37.2213,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 60.9406,
+                "p95": 76.17609999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 60.9406,
+                "p95": 76.17609999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.6913,
+                "p95": 37.220000000000006,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13443072.0,
+                "p95": 14462976.0,
+                "nearest_rank": 29,
+                "min": 12890112.0,
+                "max": 14610432.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14204928.0,
+                "p95": 14651392.0,
+                "nearest_rank": 314,
+                "min": 13348864.0,
+                "max": 14770176.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1669055.206194492,
+                "p95": 1732955.4656941004,
+                "nearest_rank": 29,
+                "min": 1579818.3604225803,
+                "max": 1740123.255190286
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.9667,
+                "p95": 37.601099999999995,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.9627,
+                "p95": 37.5981,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.9667,
+                "p95": 37.601099999999995,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 57.109750000000005,
+                "p95": 76.30969999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 57.109750000000005,
+                "p95": 76.30969999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.96525,
+                "p95": 37.6001,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13148160.0,
+                "p95": 13328384.0,
+                "nearest_rank": 29,
+                "min": 12849152.0,
+                "max": 13344768.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 13934592.0,
+                "p95": 14245888.0,
+                "nearest_rank": 314,
+                "min": 13004800.0,
+                "max": 14282752.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1681991.0024654707,
+                "p95": 1734916.6671630302,
+                "nearest_rank": 29,
+                "min": 1553006.0225903417,
+                "max": 1749926.0695220188
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.7256,
+              "p95": 28.839299999999998,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3985520.136345461,
+              "p95": 3985520.136345461,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "fuzzy",
+          "dynamic": false,
+          "acceptance_metric": "transport_eligible_first_candidate_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.27225,
+                "p95": 36.5771,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.2694,
+                "p95": 36.5674,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 56.0856,
+                "p95": 67.4752,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.27225,
+                "p95": 36.5771,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13312000.0,
+                "p95": 14467072.0,
+                "nearest_rank": 29,
+                "min": 12881920.0,
+                "max": 14602240.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14231552.0,
+                "p95": 14487552.0,
+                "nearest_rank": 314,
+                "min": 13357056.0,
+                "max": 14647296.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 7.789260740580478
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1679228.975908069,
+                "p95": 1719862.3553763742,
+                "nearest_rank": 29,
+                "min": 1565627.6689142783,
+                "max": 1724231.1489502764
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.27115,
+                "p95": 36.4953,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.265700000000002,
+                "p95": 36.4925,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 57.221450000000004,
+                "p95": 72.498,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.27115,
+                "p95": 36.4953,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13160448.0,
+                "p95": 13279232.0,
+                "nearest_rank": 29,
+                "min": 12939264.0,
+                "max": 13287424.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 13852672.0,
+                "p95": 14114816.0,
+                "nearest_rank": 314,
+                "min": 12947456.0,
+                "max": 14192640.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1662476.0522211506,
+                "p95": 1730262.901693868,
+                "nearest_rank": 29,
+                "min": 1512908.9319362966,
+                "max": 1750495.1447104656
+              },
+              "actual_transport": [
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc",
+                "osc"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 14.480550000000001,
+              "p95": 23.5447,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 4022303.851618625,
+              "p95": 4022303.851618625,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        }
+      ],
+      "target_embedded": {
+        "hot_menu": {
+          "available": true,
+          "samples": 3600,
+          "median": 30.44625,
+          "p95": 37.2417,
+          "nearest_rank": 3420
+        },
+        "complete_dynamic_menu": {
+          "available": true,
+          "samples": 2400,
+          "median": 30.61885,
+          "p95": 37.4461,
+          "nearest_rank": 2280
+        },
+        "hot_menu_p95_ms": 37.2417,
+        "complete_dynamic_menu_p95_ms": 37.4461,
+        "status": "failed"
+      }
+    },
+    {
+      "key": "pipe_descriptions",
+      "label": "pipe + descriptions",
+      "source": "beta-05-host-pipe-descriptions-300.json",
+      "transport": "pipe",
+      "descriptions": true,
+      "executable": "C:\\Users\\dell\\.codex\\visualizations\\2026\\09\\10\\01a08c3e-7202-7b72-bd9a-33b2fa60a094\\shellsense-work-v2\\target\\release\\shellsense.exe",
+      "build": "release",
+      "profile_mode": "preserved",
+      "trace": "disabled",
+      "os_cache_cleared": false,
+      "actual_transport_set": [
+        "pipe"
+      ],
+      "transport_degraded": false,
+      "sample_count_per_cache_mode": 300,
+      "sessions_per_cache_mode": 30,
+      "queries_per_session": 10,
+      "hot_samples": 3600,
+      "hot_stats": {
+        "available": true,
+        "samples": 3600,
+        "median": 29.3934,
+        "p95": 37.0887,
+        "nearest_rank": 3420
+      },
+      "first_dynamic_stats": {
+        "available": true,
+        "samples": 240,
+        "median": 104.55879999999999,
+        "p95": 136.1048,
+        "nearest_rank": 228
+      },
+      "input_echo_stats": {
+        "available": true,
+        "samples": 3600,
+        "median": 29.3893,
+        "p95": 37.085100000000004,
+        "nearest_rank": 3420
+      },
+      "plain_pwsh_control": {
+        "input_echo": {
+          "available": true,
+          "samples": 60,
+          "median": 14.908249999999999,
+          "p95": 28.2405,
+          "nearest_rank": 57,
+          "min": 8.147400000000001,
+          "max": 39.736599999999996
+        },
+        "throughput": {
+          "available": true,
+          "samples": 6,
+          "median": 3869069.7158524008,
+          "p95": 4126945.643977261,
+          "nearest_rank": 6,
+          "min": 3656668.4289008263,
+          "max": 4126945.643977261
+        }
+      },
+      "scenarios": [
+        {
+          "scenario": "root",
+          "dynamic": false,
+          "acceptance_metric": "transport_eligible_first_candidate_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.66905,
+                "p95": 37.0887,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.664299999999997,
+                "p95": 37.085100000000004,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 95.41465,
+                "p95": 112.1516,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.66905,
+                "p95": 37.0887,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13709312.0,
+                "p95": 14880768.0,
+                "nearest_rank": 29,
+                "min": 13205504.0,
+                "max": 14946304.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14598144.0,
+                "p95": 14987264.0,
+                "nearest_rank": 314,
+                "min": 13910016.0,
+                "max": 15036416.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1753914.3522003174,
+                "p95": 1835284.76094195,
+                "nearest_rank": 29,
+                "min": 1611508.9515638726,
+                "max": 1915110.763366084
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.4957,
+                "p95": 36.705,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.4917,
+                "p95": 36.6978,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 95.12765,
+                "p95": 105.8904,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.4957,
+                "p95": 36.705,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13535232.0,
+                "p95": 13635584.0,
+                "nearest_rank": 29,
+                "min": 13398016.0,
+                "max": 13684736.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14395392.0,
+                "p95": 14651392.0,
+                "nearest_rank": 314,
+                "min": 13565952.0,
+                "max": 14671872.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1778327.0469228802,
+                "p95": 1861441.398580543,
+                "nearest_rank": 29,
+                "min": 1672823.5725794872,
+                "max": 1925207.8376075907
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.5547,
+              "p95": 33.4049,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3919898.557312726,
+              "p95": 3919898.557312726,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "git",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.092599999999997,
+                "p95": 36.7074,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.086100000000002,
+                "p95": 36.7039,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.092599999999997,
+                "p95": 36.7074,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 132.1284,
+                "p95": 143.1123,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 132.1284,
+                "p95": 143.1123,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.08865,
+                "p95": 36.7059,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13785088.0,
+                "p95": 15093760.0,
+                "nearest_rank": 29,
+                "min": 13451264.0,
+                "max": 15142912.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14938112.0,
+                "p95": 15302656.0,
+                "nearest_rank": 314,
+                "min": 14450688.0,
+                "max": 15331328.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 7.798544504609002
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1752181.2292182613,
+                "p95": 1837051.9039483329,
+                "nearest_rank": 29,
+                "min": 1607553.0661028195,
+                "max": 1837858.1504196709
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 25.5101,
+                "p95": 34.6678,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 25.506700000000002,
+                "p95": 34.664500000000004,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 25.5101,
+                "p95": 34.6678,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 131.27665000000002,
+                "p95": 140.9219,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 131.27665000000002,
+                "p95": 140.9219,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 25.50855,
+                "p95": 34.6663,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13611008.0,
+                "p95": 13783040.0,
+                "nearest_rank": 29,
+                "min": 13389824.0,
+                "max": 13852672.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14692352.0,
+                "p95": 14938112.0,
+                "nearest_rank": 314,
+                "min": 14184448.0,
+                "max": 14962688.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1767178.7964381916,
+                "p95": 1814684.0826792174,
+                "nearest_rank": 29,
+                "min": 1657264.852979573,
+                "max": 1836595.0017410044
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 11.902350000000002,
+              "p95": 36.3925,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3974667.0770555707,
+              "p95": 3974667.0770555707,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "cargo",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 28.6859,
+                "p95": 37.1924,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 28.682299999999998,
+                "p95": 37.1871,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.6859,
+                "p95": 37.1924,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 114.15725,
+                "p95": 124.7944,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 114.15725,
+                "p95": 124.7944,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.68445,
+                "p95": 37.19,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13815808.0,
+                "p95": 14987264.0,
+                "nearest_rank": 29,
+                "min": 13512704.0,
+                "max": 15036416.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 15048704.0,
+                "p95": 15331328.0,
+                "nearest_rank": 314,
+                "min": 14503936.0,
+                "max": 15360000.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 7.797758337862272
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1767062.83114527,
+                "p95": 1821718.3822297952,
+                "nearest_rank": 29,
+                "min": 1673147.0820259745,
+                "max": 1848477.1133340197
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 28.581049999999998,
+                "p95": 37.79,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 28.57775,
+                "p95": 37.785199999999996,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.581049999999998,
+                "p95": 37.79,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 111.77855,
+                "p95": 124.7996,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 111.77855,
+                "p95": 124.7996,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.5797,
+                "p95": 37.787800000000004,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13649920.0,
+                "p95": 13848576.0,
+                "nearest_rank": 29,
+                "min": 13443072.0,
+                "max": 13856768.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14757888.0,
+                "p95": 14962688.0,
+                "nearest_rank": 314,
+                "min": 14221312.0,
+                "max": 15147008.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1758454.527225565,
+                "p95": 1852280.5158099274,
+                "nearest_rank": 29,
+                "min": 1630219.355496698,
+                "max": 1871779.2913566302
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 12.540600000000001,
+              "p95": 28.203200000000002,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3818240.8743920755,
+              "p95": 3818240.8743920755,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "js",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 29.085549999999998,
+                "p95": 36.763400000000004,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 29.082050000000002,
+                "p95": 36.759800000000006,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.085549999999998,
+                "p95": 36.763400000000004,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 95.3871,
+                "p95": 112.01029999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 95.3871,
+                "p95": 112.01029999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 29.084,
+                "p95": 36.7619,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13705216.0,
+                "p95": 14536704.0,
+                "nearest_rank": 29,
+                "min": 13475840.0,
+                "max": 14893056.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14876672.0,
+                "p95": 15294464.0,
+                "nearest_rank": 314,
+                "min": 14082048.0,
+                "max": 15306752.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1789517.1197586956,
+                "p95": 1824432.8573854507,
+                "nearest_rank": 29,
+                "min": 1632035.0632533121,
+                "max": 1835190.9685395635
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 28.60235,
+                "p95": 37.038799999999995,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 28.598599999999998,
+                "p95": 37.0353,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.60235,
+                "p95": 37.038799999999995,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 97.57355000000001,
+                "p95": 115.48219999999999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 97.57355000000001,
+                "p95": 115.48219999999999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 28.600749999999998,
+                "p95": 37.0373,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13576192.0,
+                "p95": 13803520.0,
+                "nearest_rank": 29,
+                "min": 13459456.0,
+                "max": 14016512.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14729216.0,
+                "p95": 14946304.0,
+                "nearest_rank": 314,
+                "min": 13856768.0,
+                "max": 14970880.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1756530.1333028318,
+                "p95": 1836106.1751033294,
+                "nearest_rank": 29,
+                "min": 1664677.9823755368,
+                "max": 1841487.2729699449
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 15.483649999999997,
+              "p95": 39.736599999999996,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3794349.235757295,
+              "p95": 3794349.235757295,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "path",
+          "dynamic": true,
+          "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.79795,
+                "p95": 37.165499999999994,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.79335,
+                "p95": 37.1608,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.79795,
+                "p95": 37.165499999999994,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 97.31515,
+                "p95": 108.0999,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 97.31515,
+                "p95": 108.0999,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.79625,
+                "p95": 37.163799999999995,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13819904.0,
+                "p95": 14827520.0,
+                "nearest_rank": 29,
+                "min": 13639680.0,
+                "max": 14872576.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14766080.0,
+                "p95": 15122432.0,
+                "nearest_rank": 314,
+                "min": 14036992.0,
+                "max": 15187968.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1781762.3056570343,
+                "p95": 1846002.6069265942,
+                "nearest_rank": 29,
+                "min": 1671295.2691347445,
+                "max": 1869609.993923539
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_dynamic_complete_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.57965,
+                "p95": 37.309200000000004,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.575449999999996,
+                "p95": 37.3063,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.57965,
+                "p95": 37.309200000000004,
+                "nearest_rank": 285
+              },
+              "first_dynamic_query": {
+                "available": true,
+                "samples": 30,
+                "median": 96.01839999999999,
+                "p95": 104.1671,
+                "nearest_rank": 29
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 96.01839999999999,
+                "p95": 104.1671,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.578049999999998,
+                "p95": 37.308099999999996,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13596672.0,
+                "p95": 13807616.0,
+                "nearest_rank": 29,
+                "min": 13447168.0,
+                "max": 13852672.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14381056.0,
+                "p95": 14626816.0,
+                "nearest_rank": 314,
+                "min": 13574144.0,
+                "max": 14737408.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1770291.9437981625,
+                "p95": 1829407.269643985,
+                "nearest_rank": 29,
+                "min": 1680526.600559526,
+                "max": 1830016.4471387842
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 16.35005,
+              "p95": 28.2405,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 3656668.4289008263,
+              "p95": 3656668.4289008263,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        },
+        {
+          "scenario": "fuzzy",
+          "dynamic": false,
+          "acceptance_metric": "transport_eligible_first_candidate_menu",
+          "cache_modes": {
+            "miss": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.63015,
+                "p95": 36.9579,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.6267,
+                "p95": 36.9552,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 99.20519999999999,
+                "p95": 109.9379,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.63015,
+                "p95": 36.9579,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13824000.0,
+                "p95": 14962688.0,
+                "nearest_rank": 29,
+                "min": 13611008.0,
+                "max": 15085568.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14622720.0,
+                "p95": 14962688.0,
+                "nearest_rank": 314,
+                "min": 13897728.0,
+                "max": 15122432.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1771259.4172396492,
+                "p95": 1849656.1670493302,
+                "nearest_rank": 29,
+                "min": 1672514.0602220926,
+                "max": 1857139.7197542838
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            },
+            "hit": {
+              "acceptance_metric": "transport_eligible_first_candidate_menu",
+              "acceptance": {
+                "available": true,
+                "samples": 300,
+                "median": 30.7533,
+                "p95": 38.0417,
+                "nearest_rank": 285
+              },
+              "embedded_stat_match": true,
+              "input_echo": {
+                "available": true,
+                "samples": 300,
+                "median": 30.7506,
+                "p95": 38.0378,
+                "nearest_rank": 285
+              },
+              "dynamic_complete_menu": {
+                "available": false,
+                "samples": 0
+              },
+              "first_dynamic_query": {
+                "available": false,
+                "samples": 0
+              },
+              "first_query": {
+                "available": true,
+                "samples": 30,
+                "median": 91.03989999999999,
+                "p95": 105.2429,
+                "nearest_rank": 29
+              },
+              "first_candidate_menu": {
+                "available": true,
+                "samples": 300,
+                "median": 30.7533,
+                "p95": 38.0417,
+                "nearest_rank": 285
+              },
+              "memory_prompt": {
+                "available": true,
+                "samples": 30,
+                "median": 13584384.0,
+                "p95": 13676544.0,
+                "nearest_rank": 29,
+                "min": 13492224.0,
+                "max": 13709312.0
+              },
+              "memory_menu": {
+                "available": true,
+                "samples": 330,
+                "median": 14385152.0,
+                "p95": 14548992.0,
+                "nearest_rank": 314,
+                "min": 13586432.0,
+                "max": 14606336.0
+              },
+              "idle_cpu": {
+                "available": true,
+                "samples": 30,
+                "median": 0.0,
+                "p95": 0.0,
+                "nearest_rank": 29,
+                "min": 0.0,
+                "max": 0.0
+              },
+              "throughput": {
+                "available": true,
+                "samples": 30,
+                "median": 1749072.567777918,
+                "p95": 1836093.3147583536,
+                "nearest_rank": 29,
+                "min": 1677113.0092312102,
+                "max": 1853359.5960481495
+              },
+              "actual_transport": [
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe",
+                "pipe"
+              ],
+              "sessions": 30,
+              "queries": 300,
+              "missing": {
+                "dynamic_complete_menu": 0,
+                "first_candidate_menu": 0,
+                "first_menu": 0,
+                "input_echo": 0
+              }
+            }
+          },
+          "plain_pwsh_control": {
+            "input_echo": {
+              "available": true,
+              "samples": 10,
+              "median": 14.1063,
+              "p95": 25.2468,
+              "nearest_rank": 10
+            },
+            "throughput": {
+              "available": true,
+              "samples": 1,
+              "median": 4126945.643977261,
+              "p95": 4126945.643977261,
+              "nearest_rank": 1
+            },
+            "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+            "profile_mode": "preserved"
+          }
+        }
+      ],
+      "target_embedded": {
+        "hot_menu": {
+          "available": true,
+          "samples": 3600,
+          "median": 29.3934,
+          "p95": 37.0887,
+          "nearest_rank": 3420
+        },
+        "complete_dynamic_menu": {
+          "available": true,
+          "samples": 2400,
+          "median": 29.10745,
+          "p95": 36.976099999999995,
+          "nearest_rank": 2280
+        },
+        "hot_menu_p95_ms": 37.0887,
+        "complete_dynamic_menu_p95_ms": 36.976099999999995,
+        "status": "failed"
+      }
+    }
+  ],
+  "subgroup_p95": [
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "root",
+      "dynamic": false,
+      "cache": "miss",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.02445,
+      "p95_ms": 38.2518,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "root",
+      "dynamic": false,
+      "cache": "hit",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.42035,
+      "p95_ms": 36.934000000000005,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "git",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.133000000000003,
+      "p95_ms": 36.9425,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "git",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 29.2549,
+      "p95_ms": 35.6365,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "cargo",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 28.74575,
+      "p95_ms": 37.4235,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "cargo",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 28.258,
+      "p95_ms": 37.5526,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "js",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 26.0696,
+      "p95_ms": 37.004799999999996,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "js",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 28.1508,
+      "p95_ms": 36.3902,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "path",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 27.944049999999997,
+      "p95_ms": 36.3632,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "path",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 28.2729,
+      "p95_ms": 36.435900000000004,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "fuzzy",
+      "dynamic": false,
+      "cache": "miss",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 29.0038,
+      "p95_ms": 36.3889,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_descriptions",
+      "variant_label": "OSC + descriptions",
+      "transport": "osc",
+      "descriptions": true,
+      "scenario": "fuzzy",
+      "dynamic": false,
+      "cache": "hit",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 29.224200000000003,
+      "p95_ms": 36.5415,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "root",
+      "dynamic": false,
+      "cache": "miss",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.594,
+      "p95_ms": 37.286899999999996,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "root",
+      "dynamic": false,
+      "cache": "hit",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.74935,
+      "p95_ms": 36.6198,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "git",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.08925,
+      "p95_ms": 36.6352,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "git",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 29.72025,
+      "p95_ms": 36.4968,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "cargo",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.261699999999998,
+      "p95_ms": 37.682599999999994,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "cargo",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.4441,
+      "p95_ms": 37.5644,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "js",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.766550000000002,
+      "p95_ms": 37.581,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "js",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 31.1172,
+      "p95_ms": 37.8802,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "path",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.6926,
+      "p95_ms": 37.2213,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "path",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.9667,
+      "p95_ms": 37.601099999999995,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "fuzzy",
+      "dynamic": false,
+      "cache": "miss",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 29.27225,
+      "p95_ms": 36.5771,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "osc_no_descriptions",
+      "variant_label": "OSC - descriptions",
+      "transport": "osc",
+      "descriptions": false,
+      "scenario": "fuzzy",
+      "dynamic": false,
+      "cache": "hit",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 29.27115,
+      "p95_ms": 36.4953,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "root",
+      "dynamic": false,
+      "cache": "miss",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.66905,
+      "p95_ms": 37.0887,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "root",
+      "dynamic": false,
+      "cache": "hit",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.4957,
+      "p95_ms": 36.705,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "git",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 29.092599999999997,
+      "p95_ms": 36.7074,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "git",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 25.5101,
+      "p95_ms": 34.6678,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "cargo",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 28.6859,
+      "p95_ms": 37.1924,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "cargo",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 28.581049999999998,
+      "p95_ms": 37.79,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "js",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 29.085549999999998,
+      "p95_ms": 36.763400000000004,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "js",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 28.60235,
+      "p95_ms": 37.038799999999995,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "path",
+      "dynamic": true,
+      "cache": "miss",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.79795,
+      "p95_ms": 37.165499999999994,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "path",
+      "dynamic": true,
+      "cache": "hit",
+      "metric": "transport_eligible_dynamic_complete_menu",
+      "samples": 300,
+      "median_ms": 30.57965,
+      "p95_ms": 37.309200000000004,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "fuzzy",
+      "dynamic": false,
+      "cache": "miss",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.63015,
+      "p95_ms": 36.9579,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    },
+    {
+      "variant": "pipe_descriptions",
+      "variant_label": "pipe + descriptions",
+      "transport": "pipe",
+      "descriptions": true,
+      "scenario": "fuzzy",
+      "dynamic": false,
+      "cache": "hit",
+      "metric": "transport_eligible_first_candidate_menu",
+      "samples": 300,
+      "median_ms": 30.7533,
+      "p95_ms": 38.0417,
+      "p95_limit_ms": 20.0,
+      "status": "failed",
+      "embedded_stat_match": true
+    }
+  ],
+  "subgroup_summary": {
+    "count": 36,
+    "failed": 36,
+    "passed": 0,
+    "all_observed_samples": true,
+    "all_embedded_stats_match": true
+  },
+  "aggregate_formal_hot": {
+    "available": true,
+    "samples": 10800,
+    "median": 29.4998,
+    "p95": 37.0938,
+    "nearest_rank": 10260
+  },
+  "aggregate_first_dynamic_query": {
+    "osc_descriptions": {
+      "available": true,
+      "samples": 240,
+      "median": 63.94875,
+      "p95": 100.1595,
+      "nearest_rank": 228
+    },
+    "osc_no_descriptions": {
+      "available": true,
+      "samples": 240,
+      "median": 65.60569999999998,
+      "p95": 98.8091,
+      "nearest_rank": 228
+    },
+    "pipe_descriptions": {
+      "available": true,
+      "samples": 240,
+      "median": 104.55879999999999,
+      "p95": 136.1048,
+      "nearest_rank": 228
+    }
+  },
+  "aggregate_input_echo": {
+    "osc_descriptions": {
+      "available": true,
+      "samples": 3600,
+      "median": 28.983,
+      "p95": 36.7916,
+      "nearest_rank": 3420
+    },
+    "osc_no_descriptions": {
+      "available": true,
+      "samples": 3600,
+      "median": 30.43925,
+      "p95": 37.2383,
+      "nearest_rank": 3420
+    },
+    "pipe_descriptions": {
+      "available": true,
+      "samples": 3600,
+      "median": 29.3893,
+      "p95": 37.085100000000004,
+      "nearest_rank": 3420
+    }
+  },
+  "diagnostics": {
+    "osc_descriptions": {
+      "memory_prompt": {
+        "available": true,
+        "samples": 360,
+        "median": 13201408.0,
+        "p95": 14356480.0,
+        "nearest_rank": 342,
+        "min": 12091392.0,
+        "max": 14589952.0
+      },
+      "memory_menu": {
+        "available": true,
+        "samples": 3960,
+        "median": 14209024.0,
+        "p95": 14733312.0,
+        "nearest_rank": 3762,
+        "min": 12935168.0,
+        "max": 15060992.0
+      },
+      "idle_cpu_200ms_one_logical_core_percent": {
+        "available": true,
+        "samples": 360,
+        "median": 0.0,
+        "p95": 0.0,
+        "nearest_rank": 342,
+        "min": 0.0,
+        "max": 7.801982927014385
+      },
+      "throughput_bytes_per_second": {
+        "available": true,
+        "samples": 360,
+        "median": 1678774.0069175744,
+        "p95": 1778736.772823347,
+        "nearest_rank": 342,
+        "min": 1183418.4896498735,
+        "max": 1908836.8462366327
+      },
+      "plain_pwsh_input_echo": {
+        "available": true,
+        "samples": 60,
+        "median": 15.26145,
+        "p95": 30.567400000000003,
+        "nearest_rank": 57,
+        "min": 8.092699999999999,
+        "max": 44.7375
+      },
+      "plain_pwsh_throughput_bytes_per_second": {
+        "available": true,
+        "samples": 6,
+        "median": 3841825.4634620147,
+        "p95": 4037145.981242203,
+        "nearest_rank": 6,
+        "min": 3549085.8677757564,
+        "max": 4037145.981242203
+      }
+    },
+    "osc_no_descriptions": {
+      "memory_prompt": {
+        "available": true,
+        "samples": 360,
+        "median": 13185024.0,
+        "p95": 14331904.0,
+        "nearest_rank": 342,
+        "min": 12693504.0,
+        "max": 14610432.0
+      },
+      "memory_menu": {
+        "available": true,
+        "samples": 3960,
+        "median": 14221312.0,
+        "p95": 14749696.0,
+        "nearest_rank": 3762,
+        "min": 12947456.0,
+        "max": 15093760.0
+      },
+      "idle_cpu_200ms_one_logical_core_percent": {
+        "available": true,
+        "samples": 360,
+        "median": 0.0,
+        "p95": 0.0,
+        "nearest_rank": 342,
+        "min": 0.0,
+        "max": 7.789260740580478
+      },
+      "throughput_bytes_per_second": {
+        "available": true,
+        "samples": 360,
+        "median": 1681773.3172206583,
+        "p95": 1788263.1586846157,
+        "nearest_rank": 342,
+        "min": 1355144.3418133245,
+        "max": 1864218.62810565
+      },
+      "plain_pwsh_input_echo": {
+        "available": true,
+        "samples": 60,
+        "median": 15.4862,
+        "p95": 28.9834,
+        "nearest_rank": 57,
+        "min": 8.1154,
+        "max": 42.6036
+      },
+      "plain_pwsh_throughput_bytes_per_second": {
+        "available": true,
+        "samples": 6,
+        "median": 4003911.993982043,
+        "p95": 4080900.6675301385,
+        "nearest_rank": 6,
+        "min": 3754671.066671823,
+        "max": 4080900.6675301385
+      }
+    },
+    "pipe_descriptions": {
+      "memory_prompt": {
+        "available": true,
+        "samples": 360,
+        "median": 13668352.0,
+        "p95": 14811136.0,
+        "nearest_rank": 342,
+        "min": 13205504.0,
+        "max": 15142912.0
+      },
+      "memory_menu": {
+        "available": true,
+        "samples": 3960,
+        "median": 14675968.0,
+        "p95": 15171584.0,
+        "nearest_rank": 3762,
+        "min": 13565952.0,
+        "max": 15360000.0
+      },
+      "idle_cpu_200ms_one_logical_core_percent": {
+        "available": true,
+        "samples": 360,
+        "median": 0.0,
+        "p95": 0.0,
+        "nearest_rank": 342,
+        "min": 0.0,
+        "max": 7.798544504609002
+      },
+      "throughput_bytes_per_second": {
+        "available": true,
+        "samples": 360,
+        "median": 1766125.655896665,
+        "p95": 1835284.76094195,
+        "nearest_rank": 342,
+        "min": 1607553.0661028195,
+        "max": 1925207.8376075907
+      },
+      "plain_pwsh_input_echo": {
+        "available": true,
+        "samples": 60,
+        "median": 14.908249999999999,
+        "p95": 28.2405,
+        "nearest_rank": 57,
+        "min": 8.147400000000001,
+        "max": 39.736599999999996
+      },
+      "plain_pwsh_throughput_bytes_per_second": {
+        "available": true,
+        "samples": 6,
+        "median": 3869069.7158524008,
+        "p95": 4126945.643977261,
+        "nearest_rank": 6,
+        "min": 3656668.4289008263,
+        "max": 4126945.643977261
+      }
+    }
+  },
+  "comparisons": {
+    "bridge_early_beta": {
+      "source": "beta-bridge-ab-30.json",
+      "pair_count": 30,
+      "metric_primary": "paired_first_input_delta_ms (first input echo)",
+      "profile_mode": "with_profile",
+      "ordering": "odd pairs baseline then bridge; even pairs bridge then baseline",
+      "verified": true,
+      "aggregate": {
+        "first_input_difference_ms": {
+          "available": true,
+          "samples": 30,
+          "median": -37.88215000000008,
+          "p95": 43.405899999999974,
+          "nearest_rank": 29
+        },
+        "startup_difference_ms": {
+          "available": true,
+          "samples": 30,
+          "median": -37.284899999999936,
+          "p95": 47.66039999999998,
+          "nearest_rank": 29
+        }
+      },
+      "note": "Old key configuration and proofIO bridge comparison; raw pairs are preserved and it is not current formal A/B evidence."
+    },
+    "input_batch_small_samples": {
+      "before": {
+        "source": "beta-05-before-input-batch.json",
+        "samples_per_cache_mode": 10,
+        "hot_menu_p95_ms": 37.614399999999996
+      },
+      "after": {
+        "source": "beta-05-after-input-batch.json",
+        "samples_per_cache_mode": 10,
+        "hot_menu_p95_ms": 38.1473
+      },
+      "note": "37.61 ms to 38.15 ms in small samples; no latency benefit shown. After version did complete concentrated write per batch."
+    }
+  },
+  "trace_diagnostic": {
+    "source": "beta-05-trace-diagnostic.json",
+    "formal_acceptance": false,
+    "profile_mode": "no_profile",
+    "readline_init_duration_ms": {
+      "miss": 113.44269999999999,
+      "hit": 114.0013
+    }
+  }
+}

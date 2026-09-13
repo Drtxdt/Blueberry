@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "kind": "beta-05-performance-metadata",
+  "source_commit": "aa1457cd1a1d056931f68cd77dfbdb72e432dfd7",
+  "source_commit_short": "aa1457c",
+  "executable": "C:\\Users\\dell\\.codex\\visualizations\\2026\\09\\10\\01a08c3e-7202-7b72-bd9a-33b2fa60a094\\shellsense-work-v2\\target\\release\\shellsense.exe",
+  "executable_sha256": "8064AC6293EE3CE3C7E909BFC56A605F3DAE8A413B914B7129B49740F4F4219A",
+  "build": "release",
+  "profile_mode": "preserved",
+  "static_crt": true,
+  "runtime_dependencies": "Windows system DLLs only; static CRT confirmed.",
+  "environment": {
+    "measured_at": "2026-09-13T12:45:30.8340674+08:00",
+    "cpu": "13th Gen Intel(R) Core(TM) i9-13900HX",
+    "logical_processors": 32,
+    "windows": "10.0.26200.0",
+    "rust": "rustc 1.94.1 (e408947bf 2026-03-25)",
+    "git": "git version 2.45.1.windows.1",
+    "shell": {
+      "powershell": "7.6.6",
+      "psreadline": "2.4.5",
+      "dotnet": "10.0.12"
+    },
+    "release_profile": "lto thin; codegen-units=1",
+    "profile": "preserved",
+    "os_cache_cleared": false,
+    "trace": "disabled in formal runs",
+    "drive_note": "E drive is offline. Fixtures and build are on C. Historical 0.2 runs are not a paired speedup comparison."
+  },
+  "formal_conditions": {
+    "trace": "disabled",
+    "os_cache_cleared": false,
+    "no_history": true,
+    "three_variants_sequential_nonpaired": true,
+    "fixed_fixture_candidates": 10,
+    "source_and_build_drive": "C:",
+    "e_drive": "offline",
+    "probe": "probe --with-profile --iterations 30; one probe process with 30 alternating fresh pwsh pairs",
+    "history": "Test sessions set PSReadLine HistorySaveStyle=SaveNothing while retaining the user profile; ordinary use retains the existing history policy."
+  },
+  "formal_counts": {
+    "scenarios": 6,
+    "cache_modes": 2,
+    "samples_per_scenario_cache_mode_variant": 300,
+    "sessions_per_scenario_cache_mode_variant": 30,
+    "hot_samples_per_variant": 3600,
+    "variants": 3,
+    "total_hot_samples": 10800,
+    "pipe_sessions": 360
+  },
+  "sourcefiles": [
+    {
+      "name": "beta-05-host-osc-descriptions-300.json",
+      "kind": "raw",
+      "source": "artifacts/beta-05-host-osc-descriptions-300.json",
+      "destination": "docs/benchmarks/v0.5/beta-05-host-osc-descriptions-300.json",
+      "bytes": 1041861,
+      "source_sha256": "366E5B961F8AE1D65454F51AE462623A79F0BE95B507BC901275E31C93A69328",
+      "destination_sha256": "366E5B961F8AE1D65454F51AE462623A79F0BE95B507BC901275E31C93A69328",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-05-host-osc-no-descriptions-300.json",
+      "kind": "raw",
+      "source": "artifacts/beta-05-host-osc-no-descriptions-300.json",
+      "destination": "docs/benchmarks/v0.5/beta-05-host-osc-no-descriptions-300.json",
+      "bytes": 1046186,
+      "source_sha256": "A70FF0A25093B817575EA5A956A0719C530BF46F0C90DEB5A02BF2EB77F35921",
+      "destination_sha256": "A70FF0A25093B817575EA5A956A0719C530BF46F0C90DEB5A02BF2EB77F35921",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-05-host-pipe-descriptions-300.json",
+      "kind": "raw",
+      "source": "artifacts/beta-05-host-pipe-descriptions-300.json",
+      "destination": "docs/benchmarks/v0.5/beta-05-host-pipe-descriptions-300.json",
+      "bytes": 1046616,
+      "source_sha256": "24FA8741479849C44002A9CC62494D016ABFDB0D860D4AA1C3FCAE10A2BD27AB",
+      "destination_sha256": "24FA8741479849C44002A9CC62494D016ABFDB0D860D4AA1C3FCAE10A2BD27AB",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-05-startup-profile-30.json",
+      "kind": "raw",
+      "source": "artifacts/beta-05-startup-profile-30.json",
+      "destination": "docs/benchmarks/v0.5/beta-05-startup-profile-30.json",
+      "bytes": 12497,
+      "source_sha256": "83C8F56614C58283FE84ABCA2B24A436AC2BACCEA953C6D8EE7214A7FF5A6CDD",
+      "destination_sha256": "83C8F56614C58283FE84ABCA2B24A436AC2BACCEA953C6D8EE7214A7FF5A6CDD",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-environment.json",
+      "kind": "raw",
+      "source": "artifacts/beta-environment.json",
+      "destination": "docs/benchmarks/v0.5/beta-environment.json",
+      "bytes": 636,
+      "source_sha256": "DA308E6267B1DCB800420B89BC16446789595785DDE6BFD3ACC1674AAFBD177F",
+      "destination_sha256": "DA308E6267B1DCB800420B89BC16446789595785DDE6BFD3ACC1674AAFBD177F",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-bridge-ab-30.json",
+      "kind": "raw",
+      "source": "artifacts/beta-bridge-ab-30.json",
+      "destination": "docs/benchmarks/v0.5/beta-bridge-ab-30.json",
+      "bytes": 688692,
+      "source_sha256": "6E871D61518ECA43E8DF47B6B19EC717079071290B7178431709E921B6C6A708",
+      "destination_sha256": "6E871D61518ECA43E8DF47B6B19EC717079071290B7178431709E921B6C6A708",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-05-before-input-batch.json",
+      "kind": "raw",
+      "source": "artifacts/beta-05-before-input-batch.json",
+      "destination": "docs/benchmarks/v0.5/beta-05-before-input-batch.json",
+      "bytes": 82644,
+      "source_sha256": "66AA7C1E2AD138E9CFBD35CA6F92BD441300AB5BB9BF3530FE9DCE6A41DB3FFA",
+      "destination_sha256": "66AA7C1E2AD138E9CFBD35CA6F92BD441300AB5BB9BF3530FE9DCE6A41DB3FFA",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-05-after-input-batch.json",
+      "kind": "raw",
+      "source": "artifacts/beta-05-after-input-batch.json",
+      "destination": "docs/benchmarks/v0.5/beta-05-after-input-batch.json",
+      "bytes": 82876,
+      "source_sha256": "CBAE5ECADBCF2EAE953E03C9EA2532DB559036B011975ABCA8D40FED7F00BC53",
+      "destination_sha256": "CBAE5ECADBCF2EAE953E03C9EA2532DB559036B011975ABCA8D40FED7F00BC53",
+      "byte_exact": true
+    },
+    {
+      "name": "beta-05-stats-recheck.json",
+      "kind": "derived",
+      "destination": "docs/benchmarks/v0.5/beta-05-stats-recheck.json",
+      "bytes": 178406,
+      "sha256": "CBC17C50570A72B997C66C45CEBD14D04D9ECC9E3D6BE9916492E613F2B3424B"
+    },
+    {
+      "name": "beta-05-trace-diagnostic.json",
+      "kind": "derived",
+      "destination": "docs/benchmarks/v0.5/beta-05-trace-diagnostic.json",
+      "bytes": 87079,
+      "sha256": "870C6A2F052CB2D1FD51B59B812A2982D7647511AF80E704529B2EFFDC70FF09"
+    }
+  ],
+  "notes": [
+    "Cache hit/miss is persisted commands.json completeness only; provider caches are cold per new process.",
+    "Memory is Rust ShellSense host working set, not full process-tree memory and not a Windows Terminal visual frame.",
+    "CPU diagnostic samples 200 ms and normalizes one logical core to 100 percent.",
+    "Initial dynamic completion, input echo, and hot-menu metrics are separate measurements.",
+    "The early C# bridge comparison and input-batch pair are preserved as nonformal comparisons.",
+    "Historical 0.2 values were measured with E online and are not a paired speed comparison with this E-offline run."
+  ],
+  "environment_captured_at": "2026-09-13T12:45:30.8340674+08:00",
+  "measured_date": "2026-09-13",
+  "host_profile_mode": "preserved",
+  "startup_profile_mode": "with_profile",
+  "startup_no_profile": false
+}

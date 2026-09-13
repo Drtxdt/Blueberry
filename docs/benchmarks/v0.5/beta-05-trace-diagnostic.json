@@ -1,0 +1,3498 @@
+{
+  "schema": 1,
+  "kind": "beta-05-stage-diagnostic",
+  "formal_acceptance": false,
+  "trace_enabled": true,
+  "profile_mode": "no_profile",
+  "causal_comparison": false,
+  "purpose": "Stage location only; trace-on samples are excluded from formal acceptance and cannot establish causality.",
+  "source_files": [
+    "artifacts/beta-05-trace/miss-0.jsonl",
+    "artifacts/beta-05-trace/hit-0.jsonl"
+  ],
+  "modes": {
+    "miss": {
+      "source_jsonl": "artifacts/beta-05-trace/miss-0.jsonl",
+      "event_count": 258,
+      "event_counts": {
+        "adapter_bootstrap": 1,
+        "cache_miss": 1,
+        "cache_write": 1,
+        "command_snapshot": 10,
+        "completion": 40,
+        "completion_discarded": 2,
+        "dynamic_ready": 22,
+        "host_exit": 1,
+        "host_start": 1,
+        "index_batch": 35,
+        "key_register": 1,
+        "key_snapshot": 1,
+        "output": 54,
+        "prompt_end": 1,
+        "pty_started": 1,
+        "public_keys": 1,
+        "query_response": 12,
+        "query_sent": 12,
+        "readline_init": 1,
+        "readline_wrap": 1,
+        "redraw": 33,
+        "serialize": 26
+      },
+      "stages": {
+        "readline_init": {
+          "count": 1,
+          "duration_ms": [
+            113.44269999999999
+          ],
+          "elapsed_ms": [
+            559.6521
+          ]
+        },
+        "adapter_bootstrap": {
+          "count": 1,
+          "duration_ms": [
+            136.4593
+          ],
+          "elapsed_ms": [
+            568.1763
+          ]
+        },
+        "cache_miss": {
+          "count": 1,
+          "duration_ms": [
+            4.2082999999999995
+          ],
+          "elapsed_ms": [
+            599.8802
+          ]
+        }
+      },
+      "events": [
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 0.0038,
+          "event": "host_start",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 25.1889,
+          "event": "pty_started",
+          "revision": null
+        },
+        {
+          "count": 24,
+          "duration_ms": 0.0936,
+          "elapsed_ms": 31.6093,
+          "event": "output",
+          "revision": 0
+        },
+        {
+          "count": 40,
+          "duration_ms": 0.06820000000000001,
+          "elapsed_ms": 31.686400000000003,
+          "event": "output",
+          "revision": 0
+        },
+        {
+          "count": null,
+          "duration_ms": 1.1303999999999998,
+          "elapsed_ms": 505.9323,
+          "event": "readline_wrap",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 13.2298,
+          "elapsed_ms": 520.9648,
+          "event": "key_snapshot",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 20.6286,
+          "elapsed_ms": 544.7927,
+          "event": "public_keys",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 11.1357,
+          "elapsed_ms": 559.0164,
+          "event": "key_register",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 113.44269999999999,
+          "elapsed_ms": 559.6521,
+          "event": "readline_init",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.1761,
+          "elapsed_ms": 567.5533,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 136.4593,
+          "elapsed_ms": 568.1763,
+          "event": "adapter_bootstrap",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 0.19560000000000002,
+          "elapsed_ms": 585.4256,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.0563,
+          "elapsed_ms": 585.5943,
+          "event": "output",
+          "revision": 1
+        },
+        {
+          "count": null,
+          "duration_ms": 0.1304,
+          "elapsed_ms": 594.2293,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 595.6092,
+          "event": "prompt_end",
+          "revision": null
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.0962,
+          "elapsed_ms": 595.7656999999999,
+          "event": "output",
+          "revision": 1
+        },
+        {
+          "count": 115,
+          "duration_ms": 0.1035,
+          "elapsed_ms": 598.1923999999999,
+          "event": "output",
+          "revision": 1
+        },
+        {
+          "count": null,
+          "duration_ms": 4.2082999999999995,
+          "elapsed_ms": 599.8802,
+          "event": "cache_miss",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.21259999999999998,
+          "elapsed_ms": 603.7401,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.31110000000000004,
+          "elapsed_ms": 604.0609999999999,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.3504,
+          "elapsed_ms": 604.4157,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.3852,
+          "elapsed_ms": 604.8052,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.131,
+          "elapsed_ms": 604.9412,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.12510000000000002,
+          "elapsed_ms": 605.07,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.11019999999999999,
+          "elapsed_ms": 605.1837,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1347,
+          "elapsed_ms": 605.3217,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.11950000000000001,
+          "elapsed_ms": 605.4446,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1205,
+          "elapsed_ms": 605.5684,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1137,
+          "elapsed_ms": 605.6854999999999,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.12459999999999999,
+          "elapsed_ms": 605.8136,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.12860000000000002,
+          "elapsed_ms": 605.9454,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1237,
+          "elapsed_ms": 606.0723999999999,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1227,
+          "elapsed_ms": 606.1985,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1282,
+          "elapsed_ms": 606.33,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.135,
+          "elapsed_ms": 606.4687,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1344,
+          "elapsed_ms": 606.6066,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1461,
+          "elapsed_ms": 606.7561000000001,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1275,
+          "elapsed_ms": 606.887,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1383,
+          "elapsed_ms": 607.0289,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.1207,
+          "elapsed_ms": 607.1529,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.4622,
+          "elapsed_ms": 607.6183,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.3241,
+          "elapsed_ms": 608.0437,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.9248000000000001,
+          "elapsed_ms": 609.0435,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.4529,
+          "elapsed_ms": 609.5798,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 3.0082,
+          "elapsed_ms": 612.6741999999999,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.7739,
+          "elapsed_ms": 613.5437999999999,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 613.8898,
+          "event": "query_sent",
+          "revision": 8
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.051199999999999996,
+          "elapsed_ms": 613.9442,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.7787999999999999,
+          "elapsed_ms": 614.4445,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.4942,
+          "elapsed_ms": 615.0937,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.7327,
+          "elapsed_ms": 615.9792,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.3754,
+          "elapsed_ms": 616.4818,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 1.1303,
+          "elapsed_ms": 617.7425,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 0,
+          "duration_ms": 1.3778,
+          "elapsed_ms": 619.3063,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 1.3699999999999999,
+          "elapsed_ms": 620.9698,
+          "event": "index_batch",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 2.9862,
+          "elapsed_ms": 624.5971999999999,
+          "event": "cache_write",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 0.4828,
+          "elapsed_ms": 647.8317,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 27.094,
+          "elapsed_ms": 648.6496000000001,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 20,
+          "duration_ms": 0.0714,
+          "elapsed_ms": 658.697,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.049,
+          "elapsed_ms": 663.0622000000001,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 49.3692,
+          "elapsed_ms": 663.2584,
+          "event": "query_response",
+          "revision": 8
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.6608,
+          "elapsed_ms": 663.9326,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 663.9526,
+          "event": "dynamic_ready",
+          "revision": 8
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0054,
+          "elapsed_ms": 663.9558,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0,
+          "elapsed_ms": 663.9805,
+          "event": "dynamic_ready",
+          "revision": 8
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0073,
+          "elapsed_ms": 663.9876,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0515,
+          "elapsed_ms": 664.0536999999999,
+          "event": "redraw",
+          "revision": 8
+        },
+        {
+          "count": 746,
+          "duration_ms": 0.0906,
+          "elapsed_ms": 664.1494,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0805,
+          "elapsed_ms": 666.7271999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.2179,
+          "elapsed_ms": 667.4763,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4449,
+          "elapsed_ms": 668.0919,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.07289999999999999,
+          "elapsed_ms": 670.6189,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.8276,
+          "elapsed_ms": 671.2253000000001,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4217,
+          "elapsed_ms": 671.729,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.033800000000000004,
+          "elapsed_ms": 673.8106,
+          "event": "redraw",
+          "revision": 8
+        },
+        {
+          "count": 828,
+          "duration_ms": 0.11689999999999999,
+          "elapsed_ms": 673.9308000000001,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 673.9688,
+          "event": "query_sent",
+          "revision": 10
+        },
+        {
+          "count": 79,
+          "duration_ms": 0.005,
+          "elapsed_ms": 673.9749,
+          "event": "redraw",
+          "revision": 10
+        },
+        {
+          "count": 87,
+          "duration_ms": 0.0522,
+          "elapsed_ms": 674.0281,
+          "event": "output",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": 0.08009999999999999,
+          "elapsed_ms": 674.5967,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.0761,
+          "elapsed_ms": 675.3327,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.44220000000000004,
+          "elapsed_ms": 675.8317000000001,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 675.8388,
+          "event": "completion_discarded",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0819,
+          "elapsed_ms": 677.2928,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.4191,
+          "elapsed_ms": 677.3878,
+          "event": "query_response",
+          "revision": 10
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4724,
+          "elapsed_ms": 677.87,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 677.8755,
+          "event": "dynamic_ready",
+          "revision": 10
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0039,
+          "elapsed_ms": 677.8786,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 677.8828,
+          "event": "dynamic_ready",
+          "revision": 10
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0037,
+          "elapsed_ms": 677.8857,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.031,
+          "elapsed_ms": 677.9091000000001,
+          "event": "redraw",
+          "revision": 10
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0524,
+          "elapsed_ms": 677.9632,
+          "event": "output",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": 0.060399999999999995,
+          "elapsed_ms": 680.6007,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.8486000000000002,
+          "elapsed_ms": 681.2479999999999,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4389,
+          "elapsed_ms": 681.7894,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.032499999999999994,
+          "elapsed_ms": 689.2918,
+          "event": "redraw",
+          "revision": 10
+        },
+        {
+          "count": 857,
+          "duration_ms": 0.0776,
+          "elapsed_ms": 689.373,
+          "event": "output",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 699.198,
+          "event": "query_sent",
+          "revision": 12
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0078,
+          "elapsed_ms": 699.2166,
+          "event": "redraw",
+          "revision": 12
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.08270000000000001,
+          "elapsed_ms": 699.3019,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0717,
+          "elapsed_ms": 703.1895999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 11,
+          "duration_ms": 0.0467,
+          "elapsed_ms": 703.2436,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 21.6706,
+          "elapsed_ms": 704.1139,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.7259,
+          "elapsed_ms": 705.2212,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 705.2341,
+          "event": "completion_discarded",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0592,
+          "elapsed_ms": 705.8188,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 6.7306,
+          "elapsed_ms": 705.9279,
+          "event": "query_response",
+          "revision": 12
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4768,
+          "elapsed_ms": 706.4373,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 706.4599000000001,
+          "event": "dynamic_ready",
+          "revision": 12
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.004,
+          "elapsed_ms": 706.4629,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0,
+          "elapsed_ms": 706.4757000000001,
+          "event": "dynamic_ready",
+          "revision": 12
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0153,
+          "elapsed_ms": 706.4906,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0376,
+          "elapsed_ms": 706.5373000000001,
+          "event": "redraw",
+          "revision": 12
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.097,
+          "elapsed_ms": 706.6365,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.093,
+          "elapsed_ms": 709.236,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.9019,
+          "elapsed_ms": 709.8057,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.48919999999999997,
+          "elapsed_ms": 710.6798,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0518,
+          "elapsed_ms": 713.1347999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.7883,
+          "elapsed_ms": 713.6922999999999,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4661,
+          "elapsed_ms": 714.4086,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0599,
+          "elapsed_ms": 716.7991999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.921,
+          "elapsed_ms": 717.4983000000001,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4572,
+          "elapsed_ms": 718.1908999999999,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0536,
+          "elapsed_ms": 719.1669,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4567,
+          "elapsed_ms": 720.356,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 2.5915999999999997,
+          "elapsed_ms": 720.8664,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0282,
+          "elapsed_ms": 726.1592999999999,
+          "event": "redraw",
+          "revision": 12
+        },
+        {
+          "count": 857,
+          "duration_ms": 0.1003,
+          "elapsed_ms": 726.2618,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 726.4397,
+          "event": "query_sent",
+          "revision": 14
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0034000000000000002,
+          "elapsed_ms": 726.4441,
+          "event": "redraw",
+          "revision": 14
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0378,
+          "elapsed_ms": 726.4829000000001,
+          "event": "output",
+          "revision": 14
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0356,
+          "elapsed_ms": 727.9504999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.5694000000000001,
+          "elapsed_ms": 728.0091,
+          "event": "query_response",
+          "revision": 14
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4867,
+          "elapsed_ms": 728.5069,
+          "event": "completion",
+          "revision": 14
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 728.5112,
+          "event": "dynamic_ready",
+          "revision": 14
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0036,
+          "elapsed_ms": 728.5139,
+          "event": "completion",
+          "revision": 14
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0,
+          "elapsed_ms": 728.5169999999999,
+          "event": "dynamic_ready",
+          "revision": 14
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0031,
+          "elapsed_ms": 728.5196000000001,
+          "event": "completion",
+          "revision": 14
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.023799999999999998,
+          "elapsed_ms": 728.5484,
+          "event": "redraw",
+          "revision": 14
+        },
+        {
+          "count": 746,
+          "duration_ms": 0.0626,
+          "elapsed_ms": 728.6128,
+          "event": "output",
+          "revision": 14
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.034499999999999996,
+          "elapsed_ms": 747.2255,
+          "event": "redraw",
+          "revision": 14
+        },
+        {
+          "count": 865,
+          "duration_ms": 0.0969,
+          "elapsed_ms": 747.3256,
+          "event": "output",
+          "revision": 14
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 756.7961,
+          "event": "query_sent",
+          "revision": 16
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0063,
+          "elapsed_ms": 756.8048,
+          "event": "redraw",
+          "revision": 16
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.044199999999999996,
+          "elapsed_ms": 756.8501,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0461,
+          "elapsed_ms": 757.112,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": null,
+          "duration_ms": 0.045399999999999996,
+          "elapsed_ms": 758.3727,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.6557,
+          "elapsed_ms": 758.4513000000001,
+          "event": "query_response",
+          "revision": 16
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5667,
+          "elapsed_ms": 759.03,
+          "event": "completion",
+          "revision": 16
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 759.0369000000001,
+          "event": "dynamic_ready",
+          "revision": 16
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0036,
+          "elapsed_ms": 759.0397,
+          "event": "completion",
+          "revision": 16
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 759.0563999999999,
+          "event": "dynamic_ready",
+          "revision": 16
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0092,
+          "elapsed_ms": 759.0632,
+          "event": "completion",
+          "revision": 16
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.025400000000000002,
+          "elapsed_ms": 759.0635,
+          "event": "redraw",
+          "revision": 16
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.047599999999999996,
+          "elapsed_ms": 759.113,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0348,
+          "elapsed_ms": 765.1908,
+          "event": "redraw",
+          "revision": 16
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0625,
+          "elapsed_ms": 765.2561,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 780.6832,
+          "event": "query_sent",
+          "revision": 18
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0048,
+          "elapsed_ms": 780.6904,
+          "event": "redraw",
+          "revision": 18
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0646,
+          "elapsed_ms": 780.7562,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.037200000000000004,
+          "elapsed_ms": 780.89,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0427,
+          "elapsed_ms": 782.0496,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.4022,
+          "elapsed_ms": 782.0849,
+          "event": "query_response",
+          "revision": 18
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4863,
+          "elapsed_ms": 782.5809,
+          "event": "completion",
+          "revision": 18
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0219,
+          "elapsed_ms": 782.6179,
+          "event": "redraw",
+          "revision": 18
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0,
+          "elapsed_ms": 782.6248999999999,
+          "event": "dynamic_ready",
+          "revision": 18
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0006,
+          "elapsed_ms": 782.6256999999999,
+          "event": "dynamic_ready",
+          "revision": 18
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0053,
+          "elapsed_ms": 782.629,
+          "event": "completion",
+          "revision": 18
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0838,
+          "elapsed_ms": 782.7069,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0415,
+          "elapsed_ms": 796.3268999999999,
+          "event": "redraw",
+          "revision": 18
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0924,
+          "elapsed_ms": 796.423,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 814.0532000000001,
+          "event": "query_sent",
+          "revision": 20
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0204,
+          "elapsed_ms": 814.0764,
+          "event": "redraw",
+          "revision": 20
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0995,
+          "elapsed_ms": 814.1786,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0964,
+          "elapsed_ms": 814.4911999999999,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": null,
+          "duration_ms": 0.049499999999999995,
+          "elapsed_ms": 816.0991,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.1609,
+          "elapsed_ms": 816.2139999999999,
+          "event": "query_response",
+          "revision": 20
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5054000000000001,
+          "elapsed_ms": 816.7425000000001,
+          "event": "completion",
+          "revision": 20
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0401,
+          "elapsed_ms": 816.793,
+          "event": "redraw",
+          "revision": 20
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0007,
+          "elapsed_ms": 816.8028,
+          "event": "dynamic_ready",
+          "revision": 20
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0047,
+          "elapsed_ms": 816.8061,
+          "event": "completion",
+          "revision": 20
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.054400000000000004,
+          "elapsed_ms": 816.8488000000001,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0,
+          "elapsed_ms": 816.8737,
+          "event": "dynamic_ready",
+          "revision": 20
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0242,
+          "elapsed_ms": 816.8863,
+          "event": "completion",
+          "revision": 20
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0388,
+          "elapsed_ms": 831.7888,
+          "event": "redraw",
+          "revision": 20
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.1311,
+          "elapsed_ms": 831.9257,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 846.9197,
+          "event": "query_sent",
+          "revision": 22
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.008199999999999999,
+          "elapsed_ms": 846.9314999999999,
+          "event": "redraw",
+          "revision": 22
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0736,
+          "elapsed_ms": 847.0067,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.055,
+          "elapsed_ms": 847.2267,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0505,
+          "elapsed_ms": 848.4979999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.6946,
+          "elapsed_ms": 848.6131,
+          "event": "query_response",
+          "revision": 22
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5389,
+          "elapsed_ms": 849.1629,
+          "event": "completion",
+          "revision": 22
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 849.1677,
+          "event": "dynamic_ready",
+          "revision": 22
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0040999999999999995,
+          "elapsed_ms": 849.1708,
+          "event": "completion",
+          "revision": 22
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 849.1974,
+          "event": "dynamic_ready",
+          "revision": 22
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0043,
+          "elapsed_ms": 849.2009,
+          "event": "completion",
+          "revision": 22
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.041699999999999994,
+          "elapsed_ms": 849.2180000000001,
+          "event": "redraw",
+          "revision": 22
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.07669999999999999,
+          "elapsed_ms": 849.3023,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0281,
+          "elapsed_ms": 860.8272000000001,
+          "event": "redraw",
+          "revision": 22
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0752,
+          "elapsed_ms": 860.9069999999999,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 869.7572,
+          "event": "query_sent",
+          "revision": 24
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0122,
+          "elapsed_ms": 869.7768,
+          "event": "redraw",
+          "revision": 24
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0916,
+          "elapsed_ms": 869.875,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0402,
+          "elapsed_ms": 870.2651999999999,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": null,
+          "duration_ms": 0.054400000000000004,
+          "elapsed_ms": 871.6566,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.9677000000000002,
+          "elapsed_ms": 871.7233,
+          "event": "query_response",
+          "revision": 24
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5548000000000001,
+          "elapsed_ms": 872.2963,
+          "event": "completion",
+          "revision": 24
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 872.3176,
+          "event": "dynamic_ready",
+          "revision": 24
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0040999999999999995,
+          "elapsed_ms": 872.3205,
+          "event": "completion",
+          "revision": 24
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.068,
+          "elapsed_ms": 872.3893,
+          "event": "redraw",
+          "revision": 24
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 872.4300000000001,
+          "event": "dynamic_ready",
+          "revision": 24
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0081,
+          "elapsed_ms": 872.4363000000001,
+          "event": "completion",
+          "revision": 24
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0582,
+          "elapsed_ms": 872.4490999999999,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0324,
+          "elapsed_ms": 885.0435,
+          "event": "redraw",
+          "revision": 24
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.09179999999999999,
+          "elapsed_ms": 885.1396,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 900.8795,
+          "event": "query_sent",
+          "revision": 26
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0074,
+          "elapsed_ms": 900.8903,
+          "event": "redraw",
+          "revision": 26
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0547,
+          "elapsed_ms": 900.947,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0688,
+          "elapsed_ms": 904.7444999999999,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": null,
+          "duration_ms": 0.07289999999999999,
+          "elapsed_ms": 906.8538000000001,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 6.1135,
+          "elapsed_ms": 906.9920000000001,
+          "event": "query_response",
+          "revision": 26
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5268999999999999,
+          "elapsed_ms": 907.5308,
+          "event": "completion",
+          "revision": 26
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 907.5355000000001,
+          "event": "dynamic_ready",
+          "revision": 26
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0040999999999999995,
+          "elapsed_ms": 907.5386,
+          "event": "completion",
+          "revision": 26
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 907.5403,
+          "event": "dynamic_ready",
+          "revision": 26
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0042,
+          "elapsed_ms": 907.544,
+          "event": "completion",
+          "revision": 26
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.028,
+          "elapsed_ms": 907.5729,
+          "event": "redraw",
+          "revision": 26
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.052899999999999996,
+          "elapsed_ms": 907.6282,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.027100000000000003,
+          "elapsed_ms": 914.7313,
+          "event": "redraw",
+          "revision": 26
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0613,
+          "elapsed_ms": 914.7962,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 927.6026,
+          "event": "query_sent",
+          "revision": 28
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.012799999999999999,
+          "elapsed_ms": 927.6238999999999,
+          "event": "redraw",
+          "revision": 28
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.1528,
+          "elapsed_ms": 927.7814,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0807,
+          "elapsed_ms": 927.9682,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": null,
+          "duration_ms": 0.07669999999999999,
+          "elapsed_ms": 930.2549,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.7590000000000003,
+          "elapsed_ms": 930.3588000000001,
+          "event": "query_response",
+          "revision": 28
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5417,
+          "elapsed_ms": 930.9129,
+          "event": "completion",
+          "revision": 28
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0297,
+          "elapsed_ms": 930.9602,
+          "event": "redraw",
+          "revision": 28
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0007,
+          "elapsed_ms": 930.9697,
+          "event": "dynamic_ready",
+          "revision": 28
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0007,
+          "elapsed_ms": 930.9766999999999,
+          "event": "dynamic_ready",
+          "revision": 28
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0218,
+          "elapsed_ms": 930.9824,
+          "event": "completion",
+          "revision": 28
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.061,
+          "elapsed_ms": 931.0228999999999,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0318,
+          "elapsed_ms": 943.9933000000001,
+          "event": "redraw",
+          "revision": 28
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0911,
+          "elapsed_ms": 944.0891,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 956.9036,
+          "event": "query_sent",
+          "revision": 30
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0062,
+          "elapsed_ms": 956.9131,
+          "event": "redraw",
+          "revision": 30
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.10880000000000001,
+          "elapsed_ms": 957.028,
+          "event": "output",
+          "revision": 30
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0443,
+          "elapsed_ms": 958.6853,
+          "event": "output",
+          "revision": 30
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0584,
+          "elapsed_ms": 960.7776,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.9553000000000003,
+          "elapsed_ms": 960.8586,
+          "event": "query_response",
+          "revision": 30
+        },
+        {
+          "count": 37,
+          "duration_ms": 0.104,
+          "elapsed_ms": 976.3321000000001,
+          "event": "output",
+          "revision": 30
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.0779,
+          "elapsed_ms": 1219.2376,
+          "event": "output",
+          "revision": 35
+        },
+        {
+          "count": 14,
+          "duration_ms": 0.0713,
+          "elapsed_ms": 1219.7096000000001,
+          "event": "output",
+          "revision": 35
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0591,
+          "elapsed_ms": 1227.8745,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.061099999999999995,
+          "elapsed_ms": 1228.0183,
+          "event": "output",
+          "revision": 36
+        },
+        {
+          "count": 25,
+          "duration_ms": 0.2504,
+          "elapsed_ms": 1232.0437,
+          "event": "output",
+          "revision": 36
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 1347.9334999999999,
+          "event": "host_exit",
+          "revision": null
+        }
+      ]
+    },
+    "hit": {
+      "source_jsonl": "artifacts/beta-05-trace/hit-0.jsonl",
+      "event_count": 223,
+      "event_counts": {
+        "adapter_bootstrap": 1,
+        "cache_hit": 1,
+        "command_snapshot": 10,
+        "completion": 38,
+        "completion_discarded": 2,
+        "dynamic_ready": 22,
+        "host_exit": 1,
+        "host_start": 1,
+        "key_register": 1,
+        "key_snapshot": 1,
+        "output": 55,
+        "prompt_end": 1,
+        "pty_started": 1,
+        "public_keys": 1,
+        "query_response": 12,
+        "query_sent": 12,
+        "readline_init": 1,
+        "readline_wrap": 1,
+        "redraw": 35,
+        "serialize": 26
+      },
+      "stages": {
+        "readline_init": {
+          "count": 1,
+          "duration_ms": [
+            114.0013
+          ],
+          "elapsed_ms": [
+            534.3378
+          ]
+        },
+        "adapter_bootstrap": {
+          "count": 1,
+          "duration_ms": [
+            136.7191
+          ],
+          "elapsed_ms": [
+            542.3354
+          ]
+        },
+        "cache_hit": {
+          "count": 1,
+          "duration_ms": [
+            4.8179
+          ],
+          "elapsed_ms": [
+            564.8714
+          ]
+        }
+      },
+      "events": [
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 0.0036,
+          "event": "host_start",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 26.2958,
+          "event": "pty_started",
+          "revision": null
+        },
+        {
+          "count": 24,
+          "duration_ms": 0.147,
+          "elapsed_ms": 32.364,
+          "event": "output",
+          "revision": 0
+        },
+        {
+          "count": 40,
+          "duration_ms": 0.0567,
+          "elapsed_ms": 32.431799999999996,
+          "event": "output",
+          "revision": 0
+        },
+        {
+          "count": null,
+          "duration_ms": 1.2082,
+          "elapsed_ms": 481.4687,
+          "event": "readline_wrap",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 13.9199,
+          "elapsed_ms": 497.3742,
+          "event": "key_snapshot",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 19.7487,
+          "elapsed_ms": 520.0827,
+          "event": "public_keys",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 10.730699999999999,
+          "elapsed_ms": 533.7746,
+          "event": "key_register",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 114.0013,
+          "elapsed_ms": 534.3378,
+          "event": "readline_init",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.1482,
+          "elapsed_ms": 541.7684,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 136.7191,
+          "elapsed_ms": 542.3354,
+          "event": "adapter_bootstrap",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 0.2097,
+          "elapsed_ms": 550.0394,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.0889,
+          "elapsed_ms": 550.2545,
+          "event": "output",
+          "revision": 1
+        },
+        {
+          "count": null,
+          "duration_ms": 0.1735,
+          "elapsed_ms": 558.4291999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 559.9661,
+          "event": "prompt_end",
+          "revision": null
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.0652,
+          "elapsed_ms": 560.1064,
+          "event": "output",
+          "revision": 1
+        },
+        {
+          "count": null,
+          "duration_ms": 4.8179,
+          "elapsed_ms": 564.8714,
+          "event": "cache_hit",
+          "revision": null
+        },
+        {
+          "count": 115,
+          "duration_ms": 0.0944,
+          "elapsed_ms": 570.2093,
+          "event": "output",
+          "revision": 1
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 586.2636,
+          "event": "query_sent",
+          "revision": 8
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.1254,
+          "elapsed_ms": 586.3933,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.47859999999999997,
+          "elapsed_ms": 610.779,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 27.2776,
+          "elapsed_ms": 611.5350999999999,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 20,
+          "duration_ms": 0.0629,
+          "elapsed_ms": 622.0634,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0657,
+          "elapsed_ms": 627.3112,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 41.151199999999996,
+          "elapsed_ms": 627.4142,
+          "event": "query_response",
+          "revision": 8
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.7718999999999999,
+          "elapsed_ms": 628.2002,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 628.2081000000001,
+          "event": "dynamic_ready",
+          "revision": 8
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0072,
+          "elapsed_ms": 628.2122,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 628.2141,
+          "event": "dynamic_ready",
+          "revision": 8
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.012799999999999999,
+          "elapsed_ms": 628.2266,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0588,
+          "elapsed_ms": 628.2708,
+          "event": "redraw",
+          "revision": 8
+        },
+        {
+          "count": 746,
+          "duration_ms": 0.12430000000000001,
+          "elapsed_ms": 628.3981,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0797,
+          "elapsed_ms": 630.732,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.9175,
+          "elapsed_ms": 631.3176000000001,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4321,
+          "elapsed_ms": 631.9081,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0737,
+          "elapsed_ms": 634.4267,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.8632000000000004,
+          "elapsed_ms": 635.1048999999999,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4328,
+          "elapsed_ms": 635.6299,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0301,
+          "elapsed_ms": 637.5174000000001,
+          "event": "redraw",
+          "revision": 8
+        },
+        {
+          "count": 828,
+          "duration_ms": 0.0769,
+          "elapsed_ms": 637.5974,
+          "event": "output",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 637.7309,
+          "event": "query_sent",
+          "revision": 10
+        },
+        {
+          "count": 79,
+          "duration_ms": 0.0046,
+          "elapsed_ms": 637.7374,
+          "event": "redraw",
+          "revision": 10
+        },
+        {
+          "count": 87,
+          "duration_ms": 0.06810000000000001,
+          "elapsed_ms": 637.8071,
+          "event": "output",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": 0.08220000000000001,
+          "elapsed_ms": 638.4984999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.9835000000000003,
+          "elapsed_ms": 639.0916,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4392,
+          "elapsed_ms": 639.6157000000001,
+          "event": "completion",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 639.6271999999999,
+          "event": "completion_discarded",
+          "revision": 8
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0569,
+          "elapsed_ms": 641.3516000000001,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.7272999999999996,
+          "elapsed_ms": 641.4578,
+          "event": "query_response",
+          "revision": 10
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.49269999999999997,
+          "elapsed_ms": 641.9591,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 641.9639999999999,
+          "event": "dynamic_ready",
+          "revision": 10
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0037,
+          "elapsed_ms": 641.9671,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 641.9686,
+          "event": "dynamic_ready",
+          "revision": 10
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.003,
+          "elapsed_ms": 641.9713,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.04,
+          "elapsed_ms": 642.0073,
+          "event": "redraw",
+          "revision": 10
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0511,
+          "elapsed_ms": 642.0605,
+          "event": "output",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0868,
+          "elapsed_ms": 644.9287,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.1893,
+          "elapsed_ms": 645.5623,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.426,
+          "elapsed_ms": 646.0396000000001,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0251,
+          "elapsed_ms": 649.1745,
+          "event": "redraw",
+          "revision": 10
+        },
+        {
+          "count": 857,
+          "duration_ms": 0.056100000000000004,
+          "elapsed_ms": 649.2327,
+          "event": "output",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0717,
+          "elapsed_ms": 667.2565000000001,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 21.5043,
+          "elapsed_ms": 668.1983,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0498,
+          "elapsed_ms": 669.0969,
+          "event": "redraw",
+          "revision": 10
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.8346,
+          "elapsed_ms": 669.2119,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": 828,
+          "duration_ms": 0.2788,
+          "elapsed_ms": 669.3795,
+          "event": "output",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 669.5546999999999,
+          "event": "query_sent",
+          "revision": 12
+        },
+        {
+          "count": 79,
+          "duration_ms": 0.018099999999999998,
+          "elapsed_ms": 669.5786,
+          "event": "redraw",
+          "revision": 12
+        },
+        {
+          "count": 87,
+          "duration_ms": 0.085,
+          "elapsed_ms": 669.6801999999999,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.1124,
+          "elapsed_ms": 671.7526,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.1315,
+          "elapsed_ms": 672.4644,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.46890000000000004,
+          "elapsed_ms": 672.938,
+          "event": "completion",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 672.9498000000001,
+          "event": "completion_discarded",
+          "revision": 10
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0318,
+          "elapsed_ms": 673.7199,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 4.203,
+          "elapsed_ms": 673.7566,
+          "event": "query_response",
+          "revision": 12
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.49319999999999997,
+          "elapsed_ms": 674.2584,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 674.2648,
+          "event": "dynamic_ready",
+          "revision": 12
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0042,
+          "elapsed_ms": 674.2681,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 674.2703,
+          "event": "dynamic_ready",
+          "revision": 12
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0043,
+          "elapsed_ms": 674.2741,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.049499999999999995,
+          "elapsed_ms": 674.3289,
+          "event": "redraw",
+          "revision": 12
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0596,
+          "elapsed_ms": 674.4,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.07619999999999999,
+          "elapsed_ms": 677.7569,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0266,
+          "elapsed_ms": 678.2325000000001,
+          "event": "redraw",
+          "revision": 12
+        },
+        {
+          "count": 857,
+          "duration_ms": 0.12310000000000001,
+          "elapsed_ms": 678.4583,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 3.9858000000000002,
+          "elapsed_ms": 678.6244,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4781,
+          "elapsed_ms": 679.4885,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0673,
+          "elapsed_ms": 681.6704,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.8876,
+          "elapsed_ms": 682.3462000000001,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5262,
+          "elapsed_ms": 683.0823,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 0.043699999999999996,
+          "elapsed_ms": 684.1081,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.4774,
+          "elapsed_ms": 685.2498,
+          "event": "completion",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": 2.673,
+          "elapsed_ms": 685.8866999999999,
+          "event": "command_snapshot",
+          "revision": null
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0291,
+          "elapsed_ms": 691.0242,
+          "event": "redraw",
+          "revision": 12
+        },
+        {
+          "count": 828,
+          "duration_ms": 0.1371,
+          "elapsed_ms": 691.1656,
+          "event": "output",
+          "revision": 12
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 691.2344,
+          "event": "query_sent",
+          "revision": 14
+        },
+        {
+          "count": 79,
+          "duration_ms": 0.013900000000000001,
+          "elapsed_ms": 691.2543,
+          "event": "redraw",
+          "revision": 14
+        },
+        {
+          "count": 87,
+          "duration_ms": 0.0663,
+          "elapsed_ms": 691.3243,
+          "event": "output",
+          "revision": 14
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0424,
+          "elapsed_ms": 692.9194,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.7448,
+          "elapsed_ms": 692.9781,
+          "event": "query_response",
+          "revision": 14
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5044,
+          "elapsed_ms": 693.4951,
+          "event": "completion",
+          "revision": 14
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 693.5133,
+          "event": "dynamic_ready",
+          "revision": 14
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0039,
+          "elapsed_ms": 693.5162,
+          "event": "completion",
+          "revision": 14
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0006,
+          "elapsed_ms": 693.5183000000001,
+          "event": "dynamic_ready",
+          "revision": 14
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0056,
+          "elapsed_ms": 693.5233,
+          "event": "completion",
+          "revision": 14
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.064,
+          "elapsed_ms": 693.5926,
+          "event": "redraw",
+          "revision": 14
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0703,
+          "elapsed_ms": 693.6645,
+          "event": "output",
+          "revision": 14
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0327,
+          "elapsed_ms": 710.3178999999999,
+          "event": "redraw",
+          "revision": 14
+        },
+        {
+          "count": 857,
+          "duration_ms": 0.08449999999999999,
+          "elapsed_ms": 710.4307,
+          "event": "output",
+          "revision": 14
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 726.7958,
+          "event": "query_sent",
+          "revision": 16
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0085,
+          "elapsed_ms": 726.8076,
+          "event": "redraw",
+          "revision": 16
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.056799999999999996,
+          "elapsed_ms": 726.8666999999999,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0748,
+          "elapsed_ms": 727.1128,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0528,
+          "elapsed_ms": 728.626,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.8668,
+          "elapsed_ms": 728.662,
+          "event": "query_response",
+          "revision": 16
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.6086,
+          "elapsed_ms": 729.2889,
+          "event": "completion",
+          "revision": 16
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0007,
+          "elapsed_ms": 729.3253,
+          "event": "dynamic_ready",
+          "revision": 16
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0005,
+          "elapsed_ms": 729.3276,
+          "event": "dynamic_ready",
+          "revision": 16
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.010499999999999999,
+          "elapsed_ms": 729.3329,
+          "event": "completion",
+          "revision": 16
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.06160000000000001,
+          "elapsed_ms": 729.3699,
+          "event": "redraw",
+          "revision": 16
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0539,
+          "elapsed_ms": 729.4266,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0304,
+          "elapsed_ms": 742.6793,
+          "event": "redraw",
+          "revision": 16
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0871,
+          "elapsed_ms": 742.7707,
+          "event": "output",
+          "revision": 16
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 757.8355,
+          "event": "query_sent",
+          "revision": 18
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0054,
+          "elapsed_ms": 757.8435999999999,
+          "event": "redraw",
+          "revision": 18
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.1369,
+          "elapsed_ms": 757.9829,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0356,
+          "elapsed_ms": 758.0916,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0506,
+          "elapsed_ms": 759.4731999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.6951,
+          "elapsed_ms": 759.5303,
+          "event": "query_response",
+          "revision": 18
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5091,
+          "elapsed_ms": 760.0522,
+          "event": "completion",
+          "revision": 18
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 760.0573,
+          "event": "dynamic_ready",
+          "revision": 18
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0046,
+          "elapsed_ms": 760.0608,
+          "event": "completion",
+          "revision": 18
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0246,
+          "elapsed_ms": 760.0935,
+          "event": "redraw",
+          "revision": 18
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00039999999999999996,
+          "elapsed_ms": 760.1018,
+          "event": "dynamic_ready",
+          "revision": 18
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0293,
+          "elapsed_ms": 760.1245,
+          "event": "completion",
+          "revision": 18
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.055099999999999996,
+          "elapsed_ms": 760.15,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0259,
+          "elapsed_ms": 773.102,
+          "event": "redraw",
+          "revision": 18
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0878,
+          "elapsed_ms": 773.1931,
+          "event": "output",
+          "revision": 18
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 788.7642000000001,
+          "event": "query_sent",
+          "revision": 20
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.006,
+          "elapsed_ms": 788.7735,
+          "event": "redraw",
+          "revision": 20
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0566,
+          "elapsed_ms": 788.8341,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0347,
+          "elapsed_ms": 788.9939,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": null,
+          "duration_ms": 0.048600000000000004,
+          "elapsed_ms": 790.3406,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 1.6294,
+          "elapsed_ms": 790.3928,
+          "event": "query_response",
+          "revision": 20
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5243,
+          "elapsed_ms": 790.9318,
+          "event": "completion",
+          "revision": 20
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 790.9366,
+          "event": "dynamic_ready",
+          "revision": 20
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 790.9377,
+          "event": "dynamic_ready",
+          "revision": 20
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0063,
+          "elapsed_ms": 790.942,
+          "event": "completion",
+          "revision": 20
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0305,
+          "elapsed_ms": 790.9728,
+          "event": "redraw",
+          "revision": 20
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0955,
+          "elapsed_ms": 791.0709999999999,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0333,
+          "elapsed_ms": 803.316,
+          "event": "redraw",
+          "revision": 20
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.08600000000000001,
+          "elapsed_ms": 803.4057,
+          "event": "output",
+          "revision": 20
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 815.9663,
+          "event": "query_sent",
+          "revision": 22
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.006,
+          "elapsed_ms": 815.9752,
+          "event": "redraw",
+          "revision": 22
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0632,
+          "elapsed_ms": 816.0396,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0374,
+          "elapsed_ms": 816.4687,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0961,
+          "elapsed_ms": 818.7288,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.8293,
+          "elapsed_ms": 818.7948,
+          "event": "query_response",
+          "revision": 22
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5133,
+          "elapsed_ms": 819.3205999999999,
+          "event": "completion",
+          "revision": 22
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 819.3406,
+          "event": "dynamic_ready",
+          "revision": 22
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.004,
+          "elapsed_ms": 819.3438,
+          "event": "completion",
+          "revision": 22
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0007,
+          "elapsed_ms": 819.3470000000001,
+          "event": "dynamic_ready",
+          "revision": 22
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0043,
+          "elapsed_ms": 819.3504,
+          "event": "completion",
+          "revision": 22
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0784,
+          "elapsed_ms": 819.4244000000001,
+          "event": "redraw",
+          "revision": 22
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0466,
+          "elapsed_ms": 819.4762,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.032,
+          "elapsed_ms": 831.2779999999999,
+          "event": "redraw",
+          "revision": 22
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.0721,
+          "elapsed_ms": 831.3548,
+          "event": "output",
+          "revision": 22
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 845.658,
+          "event": "query_sent",
+          "revision": 24
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0083,
+          "elapsed_ms": 845.6692999999999,
+          "event": "redraw",
+          "revision": 24
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.08670000000000001,
+          "elapsed_ms": 845.7577,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0488,
+          "elapsed_ms": 846.132,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0672,
+          "elapsed_ms": 848.5429,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.9229999999999996,
+          "elapsed_ms": 848.5798,
+          "event": "query_response",
+          "revision": 24
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5736,
+          "elapsed_ms": 849.1763,
+          "event": "completion",
+          "revision": 24
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 849.1998,
+          "event": "dynamic_ready",
+          "revision": 24
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0078,
+          "elapsed_ms": 849.2054,
+          "event": "completion",
+          "revision": 24
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0306,
+          "elapsed_ms": 849.2208999999999,
+          "event": "redraw",
+          "revision": 24
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.077,
+          "elapsed_ms": 849.2997,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0006,
+          "elapsed_ms": 849.3695,
+          "event": "dynamic_ready",
+          "revision": 24
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0083,
+          "elapsed_ms": 849.3761,
+          "event": "completion",
+          "revision": 24
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.030800000000000004,
+          "elapsed_ms": 864.8369,
+          "event": "redraw",
+          "revision": 24
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.06899999999999999,
+          "elapsed_ms": 864.9364,
+          "event": "output",
+          "revision": 24
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 878.6924,
+          "event": "query_sent",
+          "revision": 26
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0079,
+          "elapsed_ms": 878.7033,
+          "event": "redraw",
+          "revision": 26
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0708,
+          "elapsed_ms": 878.7751999999999,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0369,
+          "elapsed_ms": 879.0489,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": null,
+          "duration_ms": 0.057800000000000004,
+          "elapsed_ms": 880.9404,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.3255,
+          "elapsed_ms": 881.0171,
+          "event": "query_response",
+          "revision": 26
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.5255000000000001,
+          "elapsed_ms": 881.5535,
+          "event": "completion",
+          "revision": 26
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.00019999999999999998,
+          "elapsed_ms": 881.5593,
+          "event": "dynamic_ready",
+          "revision": 26
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 881.5604999999999,
+          "event": "dynamic_ready",
+          "revision": 26
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0069,
+          "elapsed_ms": 881.5653,
+          "event": "completion",
+          "revision": 26
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0295,
+          "elapsed_ms": 881.5934,
+          "event": "redraw",
+          "revision": 26
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.0493,
+          "elapsed_ms": 881.6451,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0276,
+          "elapsed_ms": 893.8028999999999,
+          "event": "redraw",
+          "revision": 26
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.08600000000000001,
+          "elapsed_ms": 893.8931,
+          "event": "output",
+          "revision": 26
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 907.8706,
+          "event": "query_sent",
+          "revision": 28
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.007,
+          "elapsed_ms": 907.8808,
+          "event": "redraw",
+          "revision": 28
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0596,
+          "elapsed_ms": 907.9416,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.0586,
+          "elapsed_ms": 908.2192,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0573,
+          "elapsed_ms": 909.8060999999999,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 2.0401,
+          "elapsed_ms": 909.9098,
+          "event": "query_response",
+          "revision": 28
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.49089999999999995,
+          "elapsed_ms": 910.4139,
+          "event": "completion",
+          "revision": 28
+        },
+        {
+          "count": 733,
+          "duration_ms": 0.0263,
+          "elapsed_ms": 910.4578,
+          "event": "redraw",
+          "revision": 28
+        },
+        {
+          "count": 0,
+          "duration_ms": 9.999999999999999e-05,
+          "elapsed_ms": 910.4605,
+          "event": "dynamic_ready",
+          "revision": 28
+        },
+        {
+          "count": 0,
+          "duration_ms": 0.0006,
+          "elapsed_ms": 910.4733,
+          "event": "dynamic_ready",
+          "revision": 28
+        },
+        {
+          "count": 1,
+          "duration_ms": 0.0536,
+          "elapsed_ms": 910.5020999999999,
+          "event": "completion",
+          "revision": 28
+        },
+        {
+          "count": 741,
+          "duration_ms": 0.07490000000000001,
+          "elapsed_ms": 910.5348,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": 738,
+          "duration_ms": 0.0244,
+          "elapsed_ms": 920.1042,
+          "event": "redraw",
+          "revision": 28
+        },
+        {
+          "count": 851,
+          "duration_ms": 0.08310000000000001,
+          "elapsed_ms": 920.1899999999999,
+          "event": "output",
+          "revision": 28
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 936.9126,
+          "event": "query_sent",
+          "revision": 30
+        },
+        {
+          "count": 84,
+          "duration_ms": 0.0053,
+          "elapsed_ms": 936.9208,
+          "event": "redraw",
+          "revision": 30
+        },
+        {
+          "count": 92,
+          "duration_ms": 0.0608,
+          "elapsed_ms": 936.9834000000001,
+          "event": "output",
+          "revision": 30
+        },
+        {
+          "count": 17,
+          "duration_ms": 0.038099999999999995,
+          "elapsed_ms": 938.4574,
+          "event": "output",
+          "revision": 30
+        },
+        {
+          "count": null,
+          "duration_ms": 0.0625,
+          "elapsed_ms": 940.4617,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": null,
+          "duration_ms": 3.5939,
+          "elapsed_ms": 940.5057999999999,
+          "event": "query_response",
+          "revision": 30
+        },
+        {
+          "count": 37,
+          "duration_ms": 0.0759,
+          "elapsed_ms": 957.7938,
+          "event": "output",
+          "revision": 30
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.055,
+          "elapsed_ms": 1191.0556,
+          "event": "output",
+          "revision": 35
+        },
+        {
+          "count": 14,
+          "duration_ms": 0.07239999999999999,
+          "elapsed_ms": 1191.5496,
+          "event": "output",
+          "revision": 35
+        },
+        {
+          "count": null,
+          "duration_ms": 0.053399999999999996,
+          "elapsed_ms": 1200.1417000000001,
+          "event": "serialize",
+          "revision": null
+        },
+        {
+          "count": 8,
+          "duration_ms": 0.0673,
+          "elapsed_ms": 1200.3871,
+          "event": "output",
+          "revision": 36
+        },
+        {
+          "count": 25,
+          "duration_ms": 0.2016,
+          "elapsed_ms": 1210.4668000000001,
+          "event": "output",
+          "revision": 36
+        },
+        {
+          "count": null,
+          "duration_ms": null,
+          "elapsed_ms": 1326.1281000000001,
+          "event": "host_exit",
+          "revision": null
+        }
+      ]
+    }
+  }
+}

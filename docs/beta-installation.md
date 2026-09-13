@@ -5,6 +5,16 @@ Beta 首批交付是 Windows x64 ZIP。压缩包包含已构建的
 配置示例、规格源文件和安装管理脚本。包内的 `signature_status` 固定为
 `unsigned`；没有签名证书时不要把它当作已签名发行版运行。
 
+本包的 Windows x64 `shellsense.exe` 使用 MSVC 静态 C 运行库（Rust
+`+crt-static`，属于 `/MT` 静态链接类别）构建；包内不带
+`vcruntime140*.dll`、`msvcp*.dll` 或 `vc_redist.x64.exe`，安装不需要单独安装
+Visual C++ Runtime。`THIRD-PARTY-NOTICES.txt` 由 `scripts/licenses.ps1` 根据离线
+Cargo metadata 生成，只覆盖当前解析出的 95 个 Rust crate 的许可证文本，不代替
+MSVC/Visual Studio 工具链许可说明。MSVC/Visual Studio 构建工具组件的再分发
+（包括静态链接产物涉及的组件）仍受实际 Visual Studio/Build Tools 许可证及相应
+REDIST/EULA 约束；若以后改用动态 CRT 或附带 Microsoft 运行库文件，还应对所加入
+的文件重新审核。本说明不判断发行者的许可资格。
+
 ## 校验本地包
 
 把 ZIP 和同名 `.sha256` 文件放在同一目录，在 PowerShell 7 中执行：

@@ -1,0 +1,18 @@
+{
+  "measured_at": "2026-09-13T12:45:30.8340674+08:00",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900HX",
+  "logical_processors": 32,
+  "windows": "10.0.26200.0",
+  "rust": "rustc 1.94.1 (e408947bf 2026-03-25)",
+  "git": "git version 2.45.1.windows.1",
+  "shell": {
+    "powershell": "7.6.6",
+    "psreadline": "2.4.5",
+    "dotnet": "10.0.12"
+  },
+  "release_profile": "lto thin; codegen-units=1",
+  "profile": "preserved",
+  "os_cache_cleared": false,
+  "trace": "disabled in formal runs",
+  "drive_note": "E drive is offline. Fixtures and build are on C. Historical 0.2 runs are not a paired speedup comparison."
+}

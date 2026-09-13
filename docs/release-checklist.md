@@ -1,26 +1,37 @@
-# ShellSense Beta 发布准备清单
+# ShellSense Beta 发布准备与验收
 
-这份清单用于 `0.5.0-beta.1` 的本地 Beta 准备与冻结，不表示已经公开分发。当前工作副本和待迁移资产位于
-`C:\Users\dell\.codex\visualizations\2026\09\10\01a08c3e-7202-7b72-bd9a-33b2fa60a094\shellsense-work-v2`；E 盘离线。本轮只在 C 盘保留唯一源码、发布包和回滚版，完成检查后清理临时缓存。脚本只打包已经存在的 Windows x64
-exe；它不会调用 Cargo、创建 GitHub Release、推送提交或签名。
+当前版本 `0.5.0-beta.1` 是未签名的本地 Beta 候选，尚未公开发布。功能自动回归通过，性能门槛未通过；真实 Windows Terminal 输入法/视觉及远程 CI 仍待完成。原始测量、构建环境与可执行文件 SHA-256 见 [性能报告](performance-v0.5.md)，功能范围见 [验收记录](beta-progress.md)。
 
-## 构建与验收
+## 已完成的本机检查
 
-已有基线证据：0.4 的完整 123 个 Rust 测试通过；root 当前还记录了不含粘贴路径的 Rust/PowerShell adapter 回归和新增 specs 用例通过。0.5 新增粘贴等宿主交互仍在验证，这些记录不代表当前版本最新全量通过。
+- [x] `cargo fmt --check`、`cargo clippy --all-targets --locked -- -D warnings`、release 构建。
+- [x] 完整 Rust 回归：144 passed、0 failed；一个 ignored helper 由实际鼠标测试作为子进程运行。回归使用 debug 测试构建，正式性能使用 release。
+- [x] pipe 的 `terminal_beta` 与 `terminal_modes`：8 passed；默认 OSC 的 terminal_modes 定向复跑通过。
+- [x] `tests/adapter.tests.ps1`；release CLI 的 6 项 Cargo/Git 上下文、链接发现和中文说明回归。
+- [x] 单行/多行粘贴、中文/emoji、撤销、历史、真实插入范围、全屏恢复、鼠标与缩放的实际 ConPTY 回归。
+- [x] Windows x64 静态 CRT；导入表仅包含 Windows 系统 DLL。C# 对照实验不进入生产路径或发布包。
+- [x] 正式计时关闭 trace、保留 profile；30 对启动与三个变体各 3,600 次热态查询，分组统计及原始数组已保存。
+- [x] 准确记录失败指标：首次输入增量 P50 **143.40 ms**（要求 ≤50 ms）；默认 OSC + 中文说明热态 P95 **36.80 ms**（要求 ≤20 ms）。不降低验收标准。
+- [x] 95 项实际离线 Rust 依赖许可证原文已收集；包包含项目 LICENSE 和 THIRD-PARTY-NOTICES.txt。
 
-- [ ] 在固定 Windows 机器、release 配置和固定设置下完成 `cargo fmt --check`、
-      `cargo clippy --all-targets --locked -- -D warnings` 和 `cargo test --locked`。
-- [ ] 运行 `tests/adapter.tests.ps1`，并在真实 Windows Terminal 中检查 PowerShell 7、
-      中文输入法、粘贴、缩放、外部全屏程序恢复和退出后的 profile 状态；当前真实 IME/视觉验收尚未完成，鼠标只有编码层测试。
-- [ ] 确认首次输入增量 P50 与热态菜单 P95 的结果和动态数据就绪时间已记录；
-      未达性能门槛时，版本说明必须明确标为性能验收未通过。
-- [ ] 确认当前提交没有把测试输出、用户配置、profile 或真实安装目录带入包。
-- [ ] 确认 `.github/workflows/windows.yml` 的 CI 配置已经审阅；远程 runner 尚未执行，不能写成 CI 已通过。
+旧版 terminal_modes 的首次完整运行曾超时一次，原因尚未确定；后续完整回归通过，增加启动阶段和 ready/transport 诊断后，OSC 与 pipe 的定向回归也通过。自动回归不替代 Windows Terminal 的输入法和视觉验收。
 
-## 生成包
+## 本地发布生命周期自测
 
-从仓库根目录运行以下命令。`-ExePath` 必须是已经完成构建的 exe，发布脚本不会
-自行构建：
+已运行 `scripts/test-release.ps1`，以真实 0.4 和 0.5 exe 生成临时包并验证：
+
+- [x] Install → Upgrade → Rollback → Uninstall；升级中断后恢复全部受管文件与元数据。
+- [x] 升级和回滚保留用户配置；卸载保留用户文件及被用户修改的受管文件，恢复原内容后可干净重试。
+- [x] ZIP、manifest、exe 版本/架构/长度/SHA-256 校验，以及报告引用的原始数据文件完整性。
+- [x] 打包覆盖失败时保留恢复备份；拒绝路径穿越、链接和重解析点，避免写到指定目录之外。
+- [x] 标准 Windows Terminal JSON 先 Preview 再 Apply，保留其他设置并备份原始字节；JSONC 含注释或尾逗号时拒绝自动改写，只提供手动合并片段。
+- [x] 不自动修改 profile、不下载外部包、不运行项目脚本；自测只使用隔离的临时目录，结束后清理。
+
+同一安装根或发布输出目录的并发操作不受支持。详细命令见 [安装、升级与回滚](beta-installation.md)。
+
+## 生成本地包
+
+发布脚本只打包已构建的 exe，不调用 Cargo，不签名，不创建 GitHub Release 或推送提交：
 
 ```powershell
 pwsh -NoProfile -File .\scripts\release.ps1 `
@@ -28,57 +39,20 @@ pwsh -NoProfile -File .\scripts\release.ps1 `
   -Version 0.5.0-beta.1 `
   -OutputDirectory .\dist\beta `
   -LicenseNoticesPath .\THIRD-PARTY-NOTICES.txt `
-  -ReleaseNotesPath .\CHANGELOG.md
+  -ReleaseNotesPath .\CHANGELOG.md `
+  -PreviousExePath .\artifacts\shellsense-v0.4-frozen.exe
 ```
 
-如果仓库尚未提供完整的依赖许可证清单，先运行
-`pwsh -NoProfile -File .\scripts\licenses.ps1`。收集器只从离线 Cargo registry
-读取实际解析依赖的许可证原文；缺少原文时会生成 `.missing` 缺口报告并失败。
-`release.ps1` 没有许可证文件时也会失败，不会用 SPDX 名称冒充许可证文本。
-公开分发前必须审核 `THIRD-PARTY-NOTICES.txt`，并把它通过
-`-LicenseNoticesPath` 传入发布脚本。根 `LICENSE` 和该依赖说明都必须进入压缩包。
+输出为 `shellsense-v0.5.0-beta.1-windows-x64.zip`、同名 `.zip.sha256`、`shellsense-v0.5.0-beta.1-release.json` 和 `previous/` 下的上一版 exe。ZIP 内 manifest 标记 `windows-x64` / `x64` / `unsigned`；每个受管文件有长度及 SHA-256，性能报告引用的原始数据也进入清单。manifest 自身不包含递归的自校验条目，由外部 ZIP 摘要覆盖。
 
-逐项确认：
+出包后需独立核对 ZIP 摘要、文件清单、exe SHA-256 与离线文档链接。`dist/shellsense.exe` 更新前另存原文件，禁止覆盖用户配置。源码 Git bundle、最终文件摘要和核对结果存放在本地交付目录；生成物不提交到 Git。
 
-- [ ] 文件名为 `shellsense-v<version>-windows-x64.zip`，旁边有同名 `.sha256` 和
-      `shellsense-v<version>-release.json`。
-- [ ] `release.json` 的 `platform`/`architecture` 为 `windows-x64`/`x64`，
-      `signature_status` 为 `unsigned`，每个文件有 SHA-256 和长度。
-- [ ] ZIP 含 `shellsense.exe`、`VERSION.txt`、`README.md`、`LICENSE`、
-      `THIRD-PARTY-NOTICES.txt`、`RELEASE-NOTES.md`、配置示例、规格说明、
-      `docs/beta-progress.md`、`docs/performance.md`、`docs/powershell-adapter.md`
-      和 `manage-install.ps1`。
-- [ ] 运行 `Get-FileHash`，并把 ZIP 内 exe 的 SHA-256 与 `release.json` 对照。
-- [ ] 若有上一版 exe，使用 `-PreviousExePath` 保存到输出目录的 `previous`；确认
-      该文件与上一版清单一致，且没有覆盖既有文件。
-- [ ] 不打包 C# 对照接入层或 DLL；该路径已因无收益而拒绝。OSC 仍为默认 transport，
-      named pipe 仅作显式实验。
-- [ ] 确认整段粘贴即使使用 pipe 也走会话私有 FIFO 文件通道，ShellSense 不另行记录粘贴正文，不写入 trace 或学习统计；
-      PSReadLine 原有历史策略保持不变；当前 Windows 原生 `Event::Paste` 输入路径仍在补齐，尚未验收。
+## 尚未完成的验收
 
-## 本地安装矩阵
+- [ ] 两项正式性能门槛。
+- [ ] 真实 Windows Terminal 中文输入法、颜色、视觉布局，以及用户终端环境下的完整交互验收。
+- [ ] 远程 Windows CI：工作流已配置 PowerShell 7.4/7.5/7.6 和 PSReadLine 2.3.6/2.4.5，尚未运行。
+- [ ] 公开发布前的许可证与分发审核；本轮不执行公开发布，不能把未签名包描述为已签名。
+- [ ] E 盘恢复后迁移至独立的 `E:\OpenSource\shellsense-rs`。原 inshellisense 仓库保持不变。
 
-- [ ] 在明确生成的临时目录运行 `scripts/test-release.ps1`。
-- [ ] 对新临时安装根依次执行 Install、Upgrade、Rollback、Uninstall；确认升级前
-      的 exe 可回滚，SHA-256 与清单一致。
-- [ ] 在安装根外创建用户配置和用户规格，重复上述操作后确认字节内容不变。
-- [ ] 确认没有 profile 自动修改，没有网络下载，没有执行项目脚本。
-- [ ] 对标准 Windows Terminal settings 先 Preview，再 Apply；确认原字节备份存在，
-      其他 profile/设置保留，ShellSense profile 的 GUID、命令行和名称正确。
-- [ ] 对含注释或尾逗号的 JSONC 运行 Preview/Apply；确认 Apply 明确拒绝、输出手动
-      profile，且原 settings 未被写入。
-
-## CI 与交付记录
-
-- [ ] `.github/workflows/windows.yml` 在 Windows runner 上运行 Rust 检查、适配器检查、
-      release 构建和本地打包检查。
-- [ ] CI 的 PowerShell 7 与 PSReadLine 版本矩阵全部记录实际版本；不要用 CI 的
-      `workflow_dispatch` 代替真实 Windows Terminal 中文输入法验收。
-- [ ] 上传的 CI artifact 只作为检查结果，公开 GitHub Release 仍需人工审核和明确
-      的发布操作；工作流不包含 `gh release create`、推送或签名步骤。
-- [ ] 版本说明写明 unsigned 状态、依赖许可证来源、已知性能结果、安装路径和回滚
-      方法。
-- [ ] 保存本次 ZIP、`.sha256`、release manifest、依赖许可证说明和上一版二进制，
-      并记录构建机器、Rust、PowerShell、PSReadLine 和 Git 版本。
-- [ ] 本轮只保留 C 盘本地 Beta 资产，不执行公开发布；正式性能数字由 root 更新后再写入
-      版本说明。
+E 盘离线期间，唯一源码、发布包、原始测量和回滚版本保留在 C 盘工作副本。交付完成后只删除临时编译缓存；待迁移并校验完成后再删除 C 盘剩余副本，避免丢失唯一交付物。

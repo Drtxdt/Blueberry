@@ -1,0 +1,3330 @@
+{
+  "acceptance_sample_count_ok": false,
+  "actual_transports": [
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc",
+    "osc"
+  ],
+  "arch": "x86_64",
+  "build": "release",
+  "descriptions": true,
+  "executable": "C:\\Users\\dell\\.codex\\visualizations\\2026\\09\\10\\01a08c3e-7202-7b72-bd9a-33b2fa60a094\\shellsense-work-v2\\target\\release\\shellsense.exe",
+  "fixture": {
+    "cargo": "C:\\Users\\dell\\AppData\\Local\\Temp\\shellsense-beta-metrics-5262b172-b6a7-43cb-be3d-04bc99998598\\fixtures\\cargo\\app",
+    "git": "C:\\Users\\dell\\AppData\\Local\\Temp\\shellsense-beta-metrics-5262b172-b6a7-43cb-be3d-04bc99998598\\fixtures\\git",
+    "javascript": "C:\\Users\\dell\\AppData\\Local\\Temp\\shellsense-beta-metrics-5262b172-b6a7-43cb-be3d-04bc99998598\\fixtures\\javascript",
+    "paths": "C:\\Users\\dell\\AppData\\Local\\Temp\\shellsense-beta-metrics-5262b172-b6a7-43cb-be3d-04bc99998598\\fixtures\\paths",
+    "root": "C:\\Users\\dell\\AppData\\Local\\Temp\\shellsense-beta-metrics-5262b172-b6a7-43cb-be3d-04bc99998598\\fixtures",
+    "throughput_bytes": 262144
+  },
+  "method": {
+    "cache": "每个 session pair 先在全新空 data 目录测量 miss，再复用同一份已验证 complete=true 的 commands.json 测量 hit；hit 后检查文件时间未改变",
+    "cache_state": "保留 OS 文件缓存，不清空系统缓存",
+    "cpu": "Windows 使用 GetProcessTimes，空闲约 200 ms；其他平台报告 unavailable",
+    "dynamic": "计时前确认无旧输入/菜单；动态结果须出现目标候选和完整可见的 F1 状态行且无加载标记。诊断替代或裁切状态行不算完成；静态场景不计作动态完成",
+    "host": "每个样本都在真实 PowerShell + ShellSense + 外层 ConPTY 中测量",
+    "initial_query": "每个 session 的首个查询单独等待完整动态结果；它不进入热态菜单统计。静态场景的首个查询只等待首个可用候选",
+    "memory": "Windows 采样 ShellSense host working set；其他平台报告 unavailable",
+    "observation": "只读取 Harness 的 viewport 行；输入回显和带候选图标的真实菜单行分别确认",
+    "ordering": "每场景每种 cache 模式使用 0..9 循环的十个唯一夹具候选",
+    "profile": "不传 --no-profile；SHELLSENSE_NO_HISTORY=1 只禁止历史落盘，不改变 profile 加载",
+    "throughput": "固定安全文本夹具通过 Get-Content -Raw 输出，并用独立 pwsh 同命令作基准",
+    "trace": "未设置 trace 路径，SHELLSENSE_TRACE=0",
+    "transport": "每个 host 读取新建 session 的 adapter.json；只有与请求 transport 相同的热态样本进入验收统计，降级样本只保留为诊断"
+  },
+  "minimum_acceptance_samples_per_cache_mode": 300,
+  "no_history": true,
+  "os_cache_cleared": false,
+  "overall": {
+    "complete_dynamic_menu": {
+      "available": true,
+      "median": 31.33175,
+      "p95": 37.757,
+      "samples": [
+        24.6045,
+        36.6538,
+        33.213899999999995,
+        25.2422,
+        27.124200000000002,
+        35.4086,
+        31.1515,
+        30.2685,
+        30.8329,
+        26.7537,
+        32.7176,
+        31.614700000000003,
+        32.912,
+        28.9126,
+        24.849,
+        16.5112,
+        31.442999999999998,
+        37.233000000000004,
+        34.7299,
+        26.7885,
+        30.7928,
+        33.4123,
+        31.3844,
+        30.2616,
+        24.7068,
+        16.7728,
+        26.6212,
+        36.2843,
+        32.6954,
+        38.1473,
+        31.279099999999996,
+        26.0475,
+        37.4551,
+        25.248099999999997,
+        33.7014,
+        25.1222,
+        34.8491,
+        16.8277,
+        37.757,
+        31.2254,
+        26.2428,
+        30.8639,
+        32.187,
+        24.1777,
+        35.1908,
+        32.7784,
+        34.605,
+        38.139399999999995,
+        16.825699999999998,
+        31.6264,
+        31.8948,
+        23.7634,
+        33.6749,
+        41.7912,
+        31.661599999999996,
+        25.0846,
+        26.1451,
+        31.924899999999997,
+        30.3561,
+        24.6766,
+        31.703500000000002,
+        32.9466,
+        28.736500000000003,
+        35.526799999999994,
+        36.291700000000006,
+        32.3955,
+        31.385900000000003,
+        29.6227,
+        30.1003,
+        29.5685,
+        36.332499999999996,
+        35.6622,
+        29.8881,
+        24.830399999999997,
+        30.3357,
+        31.1809,
+        37.0147,
+        32.0663,
+        42.5841,
+        30.3405
+      ],
+      "unit": "ms"
+    },
+    "first_dynamic_query": {
+      "available": true,
+      "median": 61.673700000000004,
+      "p95": 91.19149999999999,
+      "samples": [
+        83.50200000000001,
+        91.19149999999999,
+        65.04690000000001,
+        73.9055,
+        46.8884,
+        56.352,
+        42.533300000000004,
+        58.3005
+      ],
+      "unit": "ms"
+    },
+    "first_query": {
+      "available": true,
+      "median": 63.769,
+      "p95": 91.19149999999999,
+      "samples": [
+        63.261700000000005,
+        59.1512,
+        83.50200000000001,
+        91.19149999999999,
+        65.04690000000001,
+        73.9055,
+        46.8884,
+        56.352,
+        42.533300000000004,
+        58.3005,
+        76.31609999999999,
+        64.27629999999999
+      ],
+      "unit": "ms"
+    },
+    "input_echo": {
+      "available": true,
+      "median": 31.156150000000004,
+      "p95": 38.144,
+      "samples": [
+        39.9943,
+        30.1778,
+        28.8726,
+        29.8122,
+        29.3998,
+        32.0336,
+        35.0679,
+        31.5221,
+        30.8473,
+        25.0904,
+        30.5778,
+        29.8584,
+        33.6648,
+        38.1675,
+        31.1642,
+        30.252299999999998,
+        30.872400000000003,
+        34.066399999999994,
+        28.9269,
+        31.032899999999998,
+        24.601499999999998,
+        36.649300000000004,
+        33.210499999999996,
+        25.2391,
+        27.1205,
+        35.405300000000004,
+        31.148100000000003,
+        30.261400000000002,
+        30.8275,
+        26.7486,
+        32.713300000000004,
+        31.601999999999997,
+        32.9084,
+        28.9092,
+        24.845,
+        16.5079,
+        31.4396,
+        37.226099999999995,
+        34.7265,
+        26.7851,
+        30.7889,
+        33.408899999999996,
+        31.380900000000004,
+        30.258,
+        24.703400000000002,
+        16.7697,
+        26.6179,
+        36.281099999999995,
+        32.6921,
+        38.144,
+        31.275699999999997,
+        26.0442,
+        37.451499999999996,
+        25.244699999999998,
+        33.697900000000004,
+        25.118399999999998,
+        34.845800000000004,
+        16.822899999999997,
+        37.7532,
+        31.221700000000002,
+        26.2392,
+        30.8604,
+        32.183499999999995,
+        24.1743,
+        35.1875,
+        32.775,
+        34.6015,
+        38.136,
+        16.8223,
+        31.6227,
+        31.887,
+        23.7594,
+        33.6714,
+        41.7875,
+        31.6571,
+        25.0811,
+        26.141399999999997,
+        31.921400000000002,
+        30.352500000000003,
+        24.6649,
+        31.700300000000002,
+        32.9435,
+        28.7333,
+        35.5237,
+        36.2883,
+        32.3926,
+        31.382800000000003,
+        29.619699999999998,
+        30.096999999999998,
+        29.5654,
+        36.3296,
+        35.6591,
+        29.8852,
+        24.8274,
+        30.3323,
+        31.177400000000002,
+        37.0113,
+        32.061600000000006,
+        42.579699999999995,
+        30.337699999999998,
+        31.859400000000004,
+        27.063,
+        29.6,
+        38.1802,
+        30.5806,
+        26.3454,
+        16.6753,
+        38.5918,
+        33.4838,
+        31.1718,
+        33.1619,
+        29.3627,
+        19.001,
+        28.4468,
+        31.244899999999998,
+        31.1302,
+        33.255399999999995,
+        30.106299999999997,
+        31.2058,
+        28.2804
+      ],
+      "unit": "ms"
+    }
+  },
+  "platform": "windows",
+  "profile_mode": "preserved",
+  "queries_per_session": 10,
+  "samples_per_cache_mode": 10,
+  "scenarios": [
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 30.9562,
+            "p95": 38.1711,
+            "samples": [
+              30.581500000000002,
+              29.863500000000002,
+              33.6764,
+              38.1711,
+              31.1715,
+              30.2557,
+              30.8757,
+              34.0728,
+              28.930500000000002,
+              31.0367
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 30.5203,
+            "p95": 40.0009,
+            "samples": [
+              40.0009,
+              30.189500000000002,
+              28.8758,
+              29.8156,
+              29.4103,
+              32.0396,
+              35.0715,
+              31.525499999999997,
+              30.8511,
+              25.0948
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "osc"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "osc"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 30.9562,
+          "p95": 38.1711,
+          "samples": [
+            30.581500000000002,
+            29.863500000000002,
+            33.6764,
+            38.1711,
+            31.1715,
+            30.2557,
+            30.8757,
+            34.0728,
+            28.930500000000002,
+            31.0367
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 30.954050000000002,
+          "p95": 38.1689,
+          "samples": [
+            30.5793,
+            29.860500000000002,
+            33.6693,
+            38.1689,
+            31.166800000000002,
+            30.2536,
+            30.8736,
+            34.0689,
+            28.9283,
+            31.0345
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 59.1512,
+          "p95": 59.1512,
+          "samples": [
+            59.1512
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 30.95265,
+          "p95": 38.1675,
+          "samples": [
+            30.5778,
+            29.8584,
+            33.6648,
+            38.1675,
+            31.1642,
+            30.252299999999998,
+            30.872400000000003,
+            34.066399999999994,
+            28.9269,
+            31.032899999999998
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 13897728.0,
+          "p95": 13897728,
+          "samples": [
+            13402112,
+            13889536,
+            13897728,
+            13897728,
+            13897728,
+            13897728,
+            13897728,
+            13897728,
+            13897728,
+            13897728,
+            13897728
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 12976128.0,
+          "p95": 12976128,
+          "samples": [
+            12976128
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1671424.208438351,
+          "p95": 1671424.208438351,
+          "samples": [
+            1671424.208438351
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 30.9562,
+          "p95": 38.1711,
+          "samples": [
+            30.581500000000002,
+            29.863500000000002,
+            33.6764,
+            38.1711,
+            31.1715,
+            30.2557,
+            30.8757,
+            34.0728,
+            28.930500000000002,
+            31.0367
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 30.5203,
+          "p95": 40.0009,
+          "samples": [
+            40.0009,
+            30.189500000000002,
+            28.8758,
+            29.8156,
+            29.4103,
+            32.0396,
+            35.0715,
+            31.525499999999997,
+            30.8511,
+            25.0948
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 30.5156,
+          "p95": 39.996700000000004,
+          "samples": [
+            39.996700000000004,
+            30.1824,
+            28.8737,
+            29.8134,
+            29.403599999999997,
+            32.0357,
+            35.0692,
+            31.5234,
+            30.8488,
+            25.0915
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 63.261700000000005,
+          "p95": 63.261700000000005,
+          "samples": [
+            63.261700000000005
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 30.51255,
+          "p95": 39.9943,
+          "samples": [
+            39.9943,
+            30.1778,
+            28.8726,
+            29.8122,
+            29.3998,
+            32.0336,
+            35.0679,
+            31.5221,
+            30.8473,
+            25.0904
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 13918208.0,
+          "p95": 13918208,
+          "samples": [
+            13680640,
+            13918208,
+            13918208,
+            13918208,
+            13918208,
+            13918208,
+            13918208,
+            13918208,
+            13918208,
+            13918208,
+            13918208
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13115392.0,
+          "p95": 13115392,
+          "samples": [
+            13115392
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1679076.682045478,
+          "p95": 1679076.682045478,
+          "samples": [
+            1679076.682045478
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 30.5203,
+          "p95": 40.0009,
+          "samples": [
+            40.0009,
+            30.189500000000002,
+            28.8758,
+            29.8156,
+            29.4103,
+            32.0396,
+            35.0715,
+            31.525499999999997,
+            30.8511,
+            25.0948
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "首词命令索引",
+      "dynamic": false,
+      "name": "root",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 16.7676,
+          "p95": 33.0413,
+          "samples": [
+            33.0413,
+            15.420100000000001,
+            15.8404,
+            17.6035,
+            15.5745,
+            14.79,
+            16.16,
+            21.9989,
+            17.3752,
+            18.8776
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+        "profile_mode": "preserved",
+        "shell": "D:/pwsh/7/pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 3937367.1680797855,
+          "p95": 3937367.1680797855,
+          "samples": [
+            3937367.1680797855
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 31.52885,
+            "p95": 37.233000000000004,
+            "samples": [
+              32.7176,
+              31.614700000000003,
+              32.912,
+              28.9126,
+              24.849,
+              16.5112,
+              31.442999999999998,
+              37.233000000000004,
+              34.7299,
+              26.7885
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 30.5507,
+            "p95": 36.6538,
+            "samples": [
+              24.6045,
+              36.6538,
+              33.213899999999995,
+              25.2422,
+              27.124200000000002,
+              35.4086,
+              31.1515,
+              30.2685,
+              30.8329,
+              26.7537
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "osc"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "osc"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 31.52885,
+          "p95": 37.233000000000004,
+          "samples": [
+            32.7176,
+            31.614700000000003,
+            32.912,
+            28.9126,
+            24.849,
+            16.5112,
+            31.442999999999998,
+            37.233000000000004,
+            34.7299,
+            26.7885
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 31.525350000000003,
+          "p95": 37.229699999999994,
+          "samples": [
+            32.7158,
+            31.6091,
+            32.9105,
+            28.910999999999998,
+            24.8472,
+            16.5097,
+            31.4416,
+            37.229699999999994,
+            34.7284,
+            26.787
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 91.19149999999999,
+          "p95": 91.19149999999999,
+          "samples": [
+            91.19149999999999
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 31.52345,
+          "p95": 37.227999999999994,
+          "samples": [
+            32.714600000000004,
+            31.606,
+            32.9097,
+            28.9102,
+            24.8462,
+            16.5088,
+            31.4409,
+            37.227999999999994,
+            34.727599999999995,
+            26.7862
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 91.19149999999999,
+          "p95": 91.19149999999999,
+          "samples": [
+            91.19149999999999
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 31.520799999999998,
+          "p95": 37.226099999999995,
+          "samples": [
+            32.713300000000004,
+            31.601999999999997,
+            32.9084,
+            28.9092,
+            24.845,
+            16.5079,
+            31.4396,
+            37.226099999999995,
+            34.7265,
+            26.7851
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14229504.0,
+          "p95": 14229504,
+          "samples": [
+            13651968,
+            14229504,
+            14229504,
+            14229504,
+            14229504,
+            14229504,
+            14229504,
+            14229504,
+            14229504,
+            14229504,
+            14229504
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13025280.0,
+          "p95": 13025280,
+          "samples": [
+            13025280
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1768886.3217388722,
+          "p95": 1768886.3217388722,
+          "samples": [
+            1768886.3217388722
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 31.52885,
+          "p95": 37.233000000000004,
+          "samples": [
+            32.7176,
+            31.614700000000003,
+            32.912,
+            28.9126,
+            24.849,
+            16.5112,
+            31.442999999999998,
+            37.233000000000004,
+            34.7299,
+            26.7885
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 31.525350000000003,
+          "p95": 37.229699999999994,
+          "samples": [
+            32.7158,
+            31.6091,
+            32.9105,
+            28.910999999999998,
+            24.8472,
+            16.5097,
+            31.4416,
+            37.229699999999994,
+            34.7284,
+            26.787
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 30.5507,
+          "p95": 36.6538,
+          "samples": [
+            24.6045,
+            36.6538,
+            33.213899999999995,
+            25.2422,
+            27.124200000000002,
+            35.4086,
+            31.1515,
+            30.2685,
+            30.8329,
+            26.7537
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 30.5479,
+          "p95": 36.6518,
+          "samples": [
+            24.603099999999998,
+            36.6518,
+            33.2125,
+            25.2408,
+            27.122500000000002,
+            35.4071,
+            31.150000000000002,
+            30.2653,
+            30.8305,
+            26.7515
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 83.50200000000001,
+          "p95": 83.50200000000001,
+          "samples": [
+            83.50200000000001
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 30.5464,
+          "p95": 36.6507,
+          "samples": [
+            24.6023,
+            36.6507,
+            33.21169999999999,
+            25.24,
+            27.1216,
+            35.4063,
+            31.149199999999997,
+            30.2635,
+            30.8293,
+            26.7502
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 83.50200000000001,
+          "p95": 83.50200000000001,
+          "samples": [
+            83.50200000000001
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 30.54445,
+          "p95": 36.649300000000004,
+          "samples": [
+            24.601499999999998,
+            36.649300000000004,
+            33.210499999999996,
+            25.2391,
+            27.1205,
+            35.405300000000004,
+            31.148100000000003,
+            30.261400000000002,
+            30.8275,
+            26.7486
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14176256.0,
+          "p95": 14184448,
+          "samples": [
+            13598720,
+            14151680,
+            14168064,
+            14172160,
+            14176256,
+            14176256,
+            14176256,
+            14176256,
+            14176256,
+            14184448,
+            14184448
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13176832.0,
+          "p95": 13176832,
+          "samples": [
+            13176832
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1728834.2384942344,
+          "p95": 1728834.2384942344,
+          "samples": [
+            1728834.2384942344
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 30.5507,
+          "p95": 36.6538,
+          "samples": [
+            24.6045,
+            36.6538,
+            33.213899999999995,
+            25.2422,
+            27.124200000000002,
+            35.4086,
+            31.1515,
+            30.2685,
+            30.8329,
+            26.7537
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 30.5479,
+          "p95": 36.6518,
+          "samples": [
+            24.603099999999998,
+            36.6518,
+            33.2125,
+            25.2408,
+            27.122500000000002,
+            35.4071,
+            31.150000000000002,
+            30.2653,
+            30.8305,
+            26.7515
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "Git 本地分支动态值",
+      "dynamic": true,
+      "name": "git",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 15.58525,
+          "p95": 34.6359,
+          "samples": [
+            34.6359,
+            15.7821,
+            9.4576,
+            9.6137,
+            15.3884,
+            15.918999999999999,
+            16.2447,
+            11.733,
+            9.6946,
+            15.838600000000001
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+        "profile_mode": "preserved",
+        "shell": "D:/pwsh/7/pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 3872645.1887394516,
+          "p95": 3872645.1887394516,
+          "samples": [
+            3872645.1887394516
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 31.252249999999997,
+            "p95": 37.757,
+            "samples": [
+              31.279099999999996,
+              26.0475,
+              37.4551,
+              25.248099999999997,
+              33.7014,
+              25.1222,
+              34.8491,
+              16.8277,
+              37.757,
+              31.2254
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 31.0886,
+            "p95": 38.1473,
+            "samples": [
+              30.7928,
+              33.4123,
+              31.3844,
+              30.2616,
+              24.7068,
+              16.7728,
+              26.6212,
+              36.2843,
+              32.6954,
+              38.1473
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "osc"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "osc"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 31.252249999999997,
+          "p95": 37.757,
+          "samples": [
+            31.279099999999996,
+            26.0475,
+            37.4551,
+            25.248099999999997,
+            33.7014,
+            25.1222,
+            34.8491,
+            16.8277,
+            37.757,
+            31.2254
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 31.250799999999998,
+          "p95": 37.7555,
+          "samples": [
+            31.277600000000003,
+            26.0461,
+            37.4535,
+            25.2467,
+            33.7,
+            25.1207,
+            34.8477,
+            16.825599999999998,
+            37.7555,
+            31.223999999999997
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 73.9055,
+          "p95": 73.9055,
+          "samples": [
+            73.9055
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 31.2499,
+          "p95": 37.754599999999996,
+          "samples": [
+            31.2768,
+            26.0451,
+            37.452600000000004,
+            25.245900000000002,
+            33.6991,
+            25.1198,
+            34.8469,
+            16.8244,
+            37.754599999999996,
+            31.223
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 73.9055,
+          "p95": 73.9055,
+          "samples": [
+            73.9055
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 31.2487,
+          "p95": 37.7532,
+          "samples": [
+            31.275699999999997,
+            26.0442,
+            37.451499999999996,
+            25.244699999999998,
+            33.697900000000004,
+            25.118399999999998,
+            34.845800000000004,
+            16.822899999999997,
+            37.7532,
+            31.221700000000002
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14348288.0,
+          "p95": 14352384,
+          "samples": [
+            13930496,
+            14336000,
+            14348288,
+            14348288,
+            14348288,
+            14348288,
+            14352384,
+            14352384,
+            14352384,
+            14352384,
+            14352384
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13230080.0,
+          "p95": 13230080,
+          "samples": [
+            13230080
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1796184.7245090443,
+          "p95": 1796184.7245090443,
+          "samples": [
+            1796184.7245090443
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 31.252249999999997,
+          "p95": 37.757,
+          "samples": [
+            31.279099999999996,
+            26.0475,
+            37.4551,
+            25.248099999999997,
+            33.7014,
+            25.1222,
+            34.8491,
+            16.8277,
+            37.757,
+            31.2254
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 31.250799999999998,
+          "p95": 37.7555,
+          "samples": [
+            31.277600000000003,
+            26.0461,
+            37.4535,
+            25.2467,
+            33.7,
+            25.1207,
+            34.8477,
+            16.825599999999998,
+            37.7555,
+            31.223999999999997
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 31.0886,
+          "p95": 38.1473,
+          "samples": [
+            30.7928,
+            33.4123,
+            31.3844,
+            30.2616,
+            24.7068,
+            16.7728,
+            26.6212,
+            36.2843,
+            32.6954,
+            38.1473
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 31.086999999999996,
+          "p95": 38.1458,
+          "samples": [
+            30.791099999999997,
+            33.410799999999995,
+            31.3829,
+            30.2601,
+            24.7053,
+            16.7713,
+            26.619799999999998,
+            36.283,
+            32.694,
+            38.1458
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 65.04690000000001,
+          "p95": 65.04690000000001,
+          "samples": [
+            65.04690000000001
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 31.086100000000002,
+          "p95": 38.1451,
+          "samples": [
+            30.7902,
+            33.410000000000004,
+            31.382,
+            30.2593,
+            24.7046,
+            16.7706,
+            26.619,
+            36.2822,
+            32.6932,
+            38.1451
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 65.04690000000001,
+          "p95": 65.04690000000001,
+          "samples": [
+            65.04690000000001
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 31.084900000000005,
+          "p95": 38.144,
+          "samples": [
+            30.7889,
+            33.408899999999996,
+            31.380900000000004,
+            30.258,
+            24.703400000000002,
+            16.7697,
+            26.6179,
+            36.281099999999995,
+            32.6921,
+            38.144
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14184448.0,
+          "p95": 14237696,
+          "samples": [
+            14028800,
+            14159872,
+            14159872,
+            14159872,
+            14176256,
+            14184448,
+            14188544,
+            14192640,
+            14200832,
+            14213120,
+            14237696
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13271040.0,
+          "p95": 13271040,
+          "samples": [
+            13271040
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1884669.8031817607,
+          "p95": 1884669.8031817607,
+          "samples": [
+            1884669.8031817607
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 31.0886,
+          "p95": 38.1473,
+          "samples": [
+            30.7928,
+            33.4123,
+            31.3844,
+            30.2616,
+            24.7068,
+            16.7728,
+            26.6212,
+            36.2843,
+            32.6954,
+            38.1473
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 31.086999999999996,
+          "p95": 38.1458,
+          "samples": [
+            30.791099999999997,
+            33.410799999999995,
+            31.3829,
+            30.2601,
+            24.7053,
+            16.7713,
+            26.619799999999998,
+            36.283,
+            32.694,
+            38.1458
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "Cargo features 动态值",
+      "dynamic": true,
+      "name": "cargo",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 15.69325,
+          "p95": 33.132000000000005,
+          "samples": [
+            33.132000000000005,
+            21.285700000000002,
+            10.7517,
+            13.488999999999999,
+            15.709000000000001,
+            16.883300000000002,
+            15.6775,
+            13.488399999999999,
+            13.9589,
+            15.821700000000002
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+        "profile_mode": "preserved",
+        "shell": "D:/pwsh/7/pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 4120109.075763648,
+          "p95": 4120109.075763648,
+          "samples": [
+            4120109.075763648
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 31.00885,
+            "p95": 41.7912,
+            "samples": [
+              31.8948,
+              23.7634,
+              33.6749,
+              41.7912,
+              31.661599999999996,
+              25.0846,
+              26.1451,
+              31.924899999999997,
+              30.3561,
+              24.6766
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 31.9067,
+            "p95": 38.139399999999995,
+            "samples": [
+              26.2428,
+              30.8639,
+              32.187,
+              24.1777,
+              35.1908,
+              32.7784,
+              34.605,
+              38.139399999999995,
+              16.825699999999998,
+              31.6264
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "osc"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "osc"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 31.00885,
+          "p95": 41.7912,
+          "samples": [
+            31.8948,
+            23.7634,
+            33.6749,
+            41.7912,
+            31.661599999999996,
+            25.0846,
+            26.1451,
+            31.924899999999997,
+            30.3561,
+            24.6766
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 31.007149999999996,
+          "p95": 41.7896,
+          "samples": [
+            31.891299999999998,
+            23.7618,
+            33.6734,
+            41.7896,
+            31.659699999999997,
+            25.0831,
+            26.1436,
+            31.923399999999997,
+            30.354599999999998,
+            24.671499999999998
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 56.352,
+          "p95": 56.352,
+          "samples": [
+            56.352
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 31.006050000000002,
+          "p95": 41.7888,
+          "samples": [
+            31.8895,
+            23.7608,
+            33.672599999999996,
+            41.7888,
+            31.658400000000004,
+            25.0823,
+            26.1428,
+            31.922399999999996,
+            30.3537,
+            24.668599999999998
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 56.352,
+          "p95": 56.352,
+          "samples": [
+            56.352
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 31.004800000000003,
+          "p95": 41.7875,
+          "samples": [
+            31.887,
+            23.7594,
+            33.6714,
+            41.7875,
+            31.6571,
+            25.0811,
+            26.141399999999997,
+            31.921400000000002,
+            30.352500000000003,
+            24.6649
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 13991936.0,
+          "p95": 13991936,
+          "samples": [
+            13258752,
+            13934592,
+            13959168,
+            13983744,
+            13983744,
+            13991936,
+            13991936,
+            13991936,
+            13991936,
+            13991936,
+            13991936
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13017088.0,
+          "p95": 13017088,
+          "samples": [
+            13017088
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1680178.6933211128,
+          "p95": 1680178.6933211128,
+          "samples": [
+            1680178.6933211128
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 31.00885,
+          "p95": 41.7912,
+          "samples": [
+            31.8948,
+            23.7634,
+            33.6749,
+            41.7912,
+            31.661599999999996,
+            25.0846,
+            26.1451,
+            31.924899999999997,
+            30.3561,
+            24.6766
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 31.007149999999996,
+          "p95": 41.7896,
+          "samples": [
+            31.891299999999998,
+            23.7618,
+            33.6734,
+            41.7896,
+            31.659699999999997,
+            25.0831,
+            26.1436,
+            31.923399999999997,
+            30.354599999999998,
+            24.671499999999998
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 31.9067,
+          "p95": 38.139399999999995,
+          "samples": [
+            26.2428,
+            30.8639,
+            32.187,
+            24.1777,
+            35.1908,
+            32.7784,
+            34.605,
+            38.139399999999995,
+            16.825699999999998,
+            31.6264
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 31.905199999999997,
+          "p95": 38.1379,
+          "samples": [
+            26.2413,
+            30.8624,
+            32.1855,
+            24.176199999999998,
+            35.1893,
+            32.777,
+            34.603500000000004,
+            38.1379,
+            16.8242,
+            31.624899999999997
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 46.8884,
+          "p95": 46.8884,
+          "samples": [
+            46.8884
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 31.9043,
+          "p95": 38.137,
+          "samples": [
+            26.2403,
+            30.8616,
+            32.1846,
+            24.1753,
+            35.1886,
+            32.7761,
+            34.6027,
+            38.137,
+            16.8233,
+            31.624
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 46.8884,
+          "p95": 46.8884,
+          "samples": [
+            46.8884
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 31.903099999999995,
+          "p95": 38.136,
+          "samples": [
+            26.2392,
+            30.8604,
+            32.183499999999995,
+            24.1743,
+            35.1875,
+            32.775,
+            34.6015,
+            38.136,
+            16.8223,
+            31.6227
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14446592.0,
+          "p95": 14446592,
+          "samples": [
+            13807616,
+            14409728,
+            14422016,
+            14422016,
+            14446592,
+            14446592,
+            14446592,
+            14446592,
+            14446592,
+            14446592,
+            14446592
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13213696.0,
+          "p95": 13213696,
+          "samples": [
+            13213696
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1610627.744473574,
+          "p95": 1610627.744473574,
+          "samples": [
+            1610627.744473574
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 31.9067,
+          "p95": 38.139399999999995,
+          "samples": [
+            26.2428,
+            30.8639,
+            32.187,
+            24.1777,
+            35.1908,
+            32.7784,
+            34.605,
+            38.139399999999995,
+            16.825699999999998,
+            31.6264
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 31.905199999999997,
+          "p95": 38.1379,
+          "samples": [
+            26.2413,
+            30.8624,
+            32.1855,
+            24.176199999999998,
+            35.1893,
+            32.777,
+            34.603500000000004,
+            38.1379,
+            16.8242,
+            31.624899999999997
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "npm scripts 动态值",
+      "dynamic": true,
+      "name": "js",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 15.776299999999999,
+          "p95": 38.4724,
+          "samples": [
+            38.4724,
+            14.707899999999999,
+            15.985699999999998,
+            19.556,
+            14.735,
+            12.937199999999999,
+            16.1081,
+            15.5669,
+            17.6143,
+            9.9635
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+        "profile_mode": "preserved",
+        "shell": "D:/pwsh/7/pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 4140830.9652471836,
+          "p95": 4140830.9652471836,
+          "samples": [
+            4140830.9652471836
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 31.6236,
+            "p95": 42.5841,
+            "samples": [
+              36.332499999999996,
+              35.6622,
+              29.8881,
+              24.830399999999997,
+              30.3357,
+              31.1809,
+              37.0147,
+              32.0663,
+              42.5841,
+              30.3405
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 31.544700000000002,
+            "p95": 36.291700000000006,
+            "samples": [
+              31.703500000000002,
+              32.9466,
+              28.736500000000003,
+              35.526799999999994,
+              36.291700000000006,
+              32.3955,
+              31.385900000000003,
+              29.6227,
+              30.1003,
+              29.5685
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "osc"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "osc"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 31.6236,
+          "p95": 42.5841,
+          "samples": [
+            36.332499999999996,
+            35.6622,
+            29.8881,
+            24.830399999999997,
+            30.3357,
+            31.1809,
+            37.0147,
+            32.0663,
+            42.5841,
+            30.3405
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 31.62205,
+          "p95": 42.5824,
+          "samples": [
+            36.3314,
+            35.661100000000005,
+            29.887,
+            24.8293,
+            30.3346,
+            31.179599999999997,
+            37.013400000000004,
+            32.0645,
+            42.5824,
+            30.339399999999998
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 58.3005,
+          "p95": 58.3005,
+          "samples": [
+            58.3005
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 31.6209,
+          "p95": 42.581300000000006,
+          "samples": [
+            36.3307,
+            35.6603,
+            29.886300000000002,
+            24.8285,
+            30.3338,
+            31.1786,
+            37.0126,
+            32.0632,
+            42.581300000000006,
+            30.3387
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 58.3005,
+          "p95": 58.3005,
+          "samples": [
+            58.3005
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 31.619500000000002,
+          "p95": 42.579699999999995,
+          "samples": [
+            36.3296,
+            35.6591,
+            29.8852,
+            24.8274,
+            30.3323,
+            31.177400000000002,
+            37.0113,
+            32.061600000000006,
+            42.579699999999995,
+            30.337699999999998
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14016512.0,
+          "p95": 14016512,
+          "samples": [
+            13127680,
+            14016512,
+            14016512,
+            14016512,
+            14016512,
+            14016512,
+            14016512,
+            14016512,
+            14016512,
+            14016512,
+            14016512
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13090816.0,
+          "p95": 13090816,
+          "samples": [
+            13090816
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1563241.3117811996,
+          "p95": 1563241.3117811996,
+          "samples": [
+            1563241.3117811996
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 31.6236,
+          "p95": 42.5841,
+          "samples": [
+            36.332499999999996,
+            35.6622,
+            29.8881,
+            24.830399999999997,
+            30.3357,
+            31.1809,
+            37.0147,
+            32.0663,
+            42.5841,
+            30.3405
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 31.62205,
+          "p95": 42.5824,
+          "samples": [
+            36.3314,
+            35.661100000000005,
+            29.887,
+            24.8293,
+            30.3346,
+            31.179599999999997,
+            37.013400000000004,
+            32.0645,
+            42.5824,
+            30.339399999999998
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 31.544700000000002,
+          "p95": 36.291700000000006,
+          "samples": [
+            31.703500000000002,
+            32.9466,
+            28.736500000000003,
+            35.526799999999994,
+            36.291700000000006,
+            32.3955,
+            31.385900000000003,
+            29.6227,
+            30.1003,
+            29.5685
+          ],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 31.543599999999998,
+          "p95": 36.2905,
+          "samples": [
+            31.702399999999997,
+            32.9455,
+            28.735500000000002,
+            35.525800000000004,
+            36.2905,
+            32.3944,
+            31.3848,
+            29.6216,
+            30.0991,
+            29.5673
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 42.533300000000004,
+          "p95": 42.533300000000004,
+          "samples": [
+            42.533300000000004
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 31.5427,
+          "p95": 36.2896,
+          "samples": [
+            31.701399999999996,
+            32.944599999999994,
+            28.7346,
+            35.524899999999995,
+            36.2896,
+            32.3936,
+            31.384000000000004,
+            29.6208,
+            30.0982,
+            29.566399999999998
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 42.533300000000004,
+          "p95": 42.533300000000004,
+          "samples": [
+            42.533300000000004
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 31.54155,
+          "p95": 36.2883,
+          "samples": [
+            31.700300000000002,
+            32.9435,
+            28.7333,
+            35.5237,
+            36.2883,
+            32.3926,
+            31.382800000000003,
+            29.619699999999998,
+            30.096999999999998,
+            29.5654
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14180352.0,
+          "p95": 14188544,
+          "samples": [
+            13635584,
+            14176256,
+            14180352,
+            14180352,
+            14180352,
+            14180352,
+            14180352,
+            14180352,
+            14188544,
+            14188544,
+            14188544
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13279232.0,
+          "p95": 13279232,
+          "samples": [
+            13279232
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1658684.6769208186,
+          "p95": 1658684.6769208186,
+          "samples": [
+            1658684.6769208186
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 31.544700000000002,
+          "p95": 36.291700000000006,
+          "samples": [
+            31.703500000000002,
+            32.9466,
+            28.736500000000003,
+            35.526799999999994,
+            36.291700000000006,
+            32.3955,
+            31.385900000000003,
+            29.6227,
+            30.1003,
+            29.5685
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 31.543599999999998,
+          "p95": 36.2905,
+          "samples": [
+            31.702399999999997,
+            32.9455,
+            28.735500000000002,
+            35.525800000000004,
+            36.2905,
+            32.3944,
+            31.3848,
+            29.6216,
+            30.0991,
+            29.5673
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "PowerShell 目录路径",
+      "dynamic": true,
+      "name": "path",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 16.9429,
+          "p95": 43.1345,
+          "samples": [
+            43.1345,
+            16.0762,
+            18.9962,
+            22.744799999999998,
+            19.8504,
+            8.235100000000001,
+            14.001,
+            15.4547,
+            15.2469,
+            17.8096
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+        "profile_mode": "preserved",
+        "shell": "D:/pwsh/7/pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 4207059.80532976,
+          "p95": 4207059.80532976,
+          "samples": [
+            4207059.80532976
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 30.62115,
+            "p95": 33.2582,
+            "samples": [
+              33.164899999999996,
+              29.366400000000002,
+              19.004,
+              28.4498,
+              31.247600000000002,
+              31.1333,
+              33.2582,
+              30.109,
+              31.2085,
+              28.2834
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 30.883499999999998,
+            "p95": 38.5945,
+            "samples": [
+              31.8644,
+              27.066,
+              29.6031,
+              38.1834,
+              30.592299999999998,
+              26.348300000000002,
+              16.6781,
+              38.5945,
+              33.4871,
+              31.1747
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "osc"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "osc"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 30.62115,
+          "p95": 33.2582,
+          "samples": [
+            33.164899999999996,
+            29.366400000000002,
+            19.004,
+            28.4498,
+            31.247600000000002,
+            31.1333,
+            33.2582,
+            30.109,
+            31.2085,
+            28.2834
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 30.6195,
+          "p95": 33.2565,
+          "samples": [
+            33.163199999999996,
+            29.3642,
+            19.002299999999998,
+            28.4481,
+            31.246,
+            31.1316,
+            33.2565,
+            30.1074,
+            31.206999999999997,
+            28.2817
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 64.27629999999999,
+          "p95": 64.27629999999999,
+          "samples": [
+            64.27629999999999
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 30.618249999999996,
+          "p95": 33.255399999999995,
+          "samples": [
+            33.1619,
+            29.3627,
+            19.001,
+            28.4468,
+            31.244899999999998,
+            31.1302,
+            33.255399999999995,
+            30.106299999999997,
+            31.2058,
+            28.2804
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 13803520.0,
+          "p95": 13803520,
+          "samples": [
+            13488128,
+            13799424,
+            13799424,
+            13799424,
+            13803520,
+            13803520,
+            13803520,
+            13803520,
+            13803520,
+            13803520,
+            13803520
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13217792.0,
+          "p95": 13217792,
+          "samples": [
+            13217792
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1645786.495515184,
+          "p95": 1645786.495515184,
+          "samples": [
+            1645786.495515184
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 30.62115,
+          "p95": 33.2582,
+          "samples": [
+            33.164899999999996,
+            29.366400000000002,
+            19.004,
+            28.4498,
+            31.247600000000002,
+            31.1333,
+            33.2582,
+            30.109,
+            31.2085,
+            28.2834
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_transport": [
+          "osc"
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_candidate_menu": {
+          "available": true,
+          "median": 30.883499999999998,
+          "p95": 38.5945,
+          "samples": [
+            31.8644,
+            27.066,
+            29.6031,
+            38.1834,
+            30.592299999999998,
+            26.348300000000002,
+            16.6781,
+            38.5945,
+            33.4871,
+            31.1747
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 30.879199999999997,
+          "p95": 38.5929,
+          "samples": [
+            31.8615,
+            27.0643,
+            29.601300000000002,
+            38.1816,
+            30.5854,
+            26.3465,
+            16.6765,
+            38.5929,
+            33.4853,
+            31.173
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 76.31609999999999,
+          "p95": 76.31609999999999,
+          "samples": [
+            76.31609999999999
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 30.8762,
+          "p95": 38.5918,
+          "samples": [
+            31.859400000000004,
+            27.063,
+            29.6,
+            38.1802,
+            30.5806,
+            26.3454,
+            16.6753,
+            38.5918,
+            33.4838,
+            31.1718
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 14110720.0,
+          "p95": 14114816,
+          "samples": [
+            13668352,
+            14110720,
+            14110720,
+            14110720,
+            14110720,
+            14110720,
+            14110720,
+            14114816,
+            14114816,
+            14114816,
+            14114816
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 13619200.0,
+          "p95": 13619200,
+          "samples": [
+            13619200
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "queries": 10,
+        "sessions": 1,
+        "throughput": {
+          "available": true,
+          "median": 1641072.8974817735,
+          "p95": 1641072.8974817735,
+          "samples": [
+            1641072.8974817735
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 30.883499999999998,
+          "p95": 38.5945,
+          "samples": [
+            31.8644,
+            27.066,
+            29.6031,
+            38.1834,
+            30.592299999999998,
+            26.348300000000002,
+            16.6781,
+            38.5945,
+            33.4871,
+            31.1747
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "模糊匹配命令",
+      "dynamic": false,
+      "name": "fuzzy",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 14.0173,
+          "p95": 28.165,
+          "samples": [
+            28.165,
+            8.4185,
+            16.6115,
+            9.5064,
+            9.305900000000001,
+            12.580300000000001,
+            15.705299999999998,
+            21.8019,
+            10.728299999999999,
+            15.4543
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+        "profile_mode": "preserved",
+        "shell": "D:/pwsh/7/pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 4095507.2592828674,
+          "p95": 4095507.2592828674,
+          "samples": [
+            4095507.2592828674
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    }
+  ],
+  "schema": 1,
+  "sessions_per_cache_mode": 1,
+  "shell": "D:/pwsh/7/pwsh.exe",
+  "target": {
+    "complete_dynamic_menu": {
+      "available": true,
+      "median": 31.33175,
+      "p95": 37.757,
+      "samples": [
+        24.6045,
+        36.6538,
+        33.213899999999995,
+        25.2422,
+        27.124200000000002,
+        35.4086,
+        31.1515,
+        30.2685,
+        30.8329,
+        26.7537,
+        32.7176,
+        31.614700000000003,
+        32.912,
+        28.9126,
+        24.849,
+        16.5112,
+        31.442999999999998,
+        37.233000000000004,
+        34.7299,
+        26.7885,
+        30.7928,
+        33.4123,
+        31.3844,
+        30.2616,
+        24.7068,
+        16.7728,
+        26.6212,
+        36.2843,
+        32.6954,
+        38.1473,
+        31.279099999999996,
+        26.0475,
+        37.4551,
+        25.248099999999997,
+        33.7014,
+        25.1222,
+        34.8491,
+        16.8277,
+        37.757,
+        31.2254,
+        26.2428,
+        30.8639,
+        32.187,
+        24.1777,
+        35.1908,
+        32.7784,
+        34.605,
+        38.139399999999995,
+        16.825699999999998,
+        31.6264,
+        31.8948,
+        23.7634,
+        33.6749,
+        41.7912,
+        31.661599999999996,
+        25.0846,
+        26.1451,
+        31.924899999999997,
+        30.3561,
+        24.6766,
+        31.703500000000002,
+        32.9466,
+        28.736500000000003,
+        35.526799999999994,
+        36.291700000000006,
+        32.3955,
+        31.385900000000003,
+        29.6227,
+        30.1003,
+        29.5685,
+        36.332499999999996,
+        35.6622,
+        29.8881,
+        24.830399999999997,
+        30.3357,
+        31.1809,
+        37.0147,
+        32.0663,
+        42.5841,
+        30.3405
+      ],
+      "unit": "ms"
+    },
+    "complete_dynamic_menu_p95_ms": 37.757,
+    "hot_menu": {
+      "available": true,
+      "median": 31.1615,
+      "p95": 38.1473,
+      "samples": [
+        40.0009,
+        30.189500000000002,
+        28.8758,
+        29.8156,
+        29.4103,
+        32.0396,
+        35.0715,
+        31.525499999999997,
+        30.8511,
+        25.0948,
+        30.581500000000002,
+        29.863500000000002,
+        33.6764,
+        38.1711,
+        31.1715,
+        30.2557,
+        30.8757,
+        34.0728,
+        28.930500000000002,
+        31.0367,
+        24.6045,
+        36.6538,
+        33.213899999999995,
+        25.2422,
+        27.124200000000002,
+        35.4086,
+        31.1515,
+        30.2685,
+        30.8329,
+        26.7537,
+        32.7176,
+        31.614700000000003,
+        32.912,
+        28.9126,
+        24.849,
+        16.5112,
+        31.442999999999998,
+        37.233000000000004,
+        34.7299,
+        26.7885,
+        30.7928,
+        33.4123,
+        31.3844,
+        30.2616,
+        24.7068,
+        16.7728,
+        26.6212,
+        36.2843,
+        32.6954,
+        38.1473,
+        31.279099999999996,
+        26.0475,
+        37.4551,
+        25.248099999999997,
+        33.7014,
+        25.1222,
+        34.8491,
+        16.8277,
+        37.757,
+        31.2254,
+        26.2428,
+        30.8639,
+        32.187,
+        24.1777,
+        35.1908,
+        32.7784,
+        34.605,
+        38.139399999999995,
+        16.825699999999998,
+        31.6264,
+        31.8948,
+        23.7634,
+        33.6749,
+        41.7912,
+        31.661599999999996,
+        25.0846,
+        26.1451,
+        31.924899999999997,
+        30.3561,
+        24.6766,
+        31.703500000000002,
+        32.9466,
+        28.736500000000003,
+        35.526799999999994,
+        36.291700000000006,
+        32.3955,
+        31.385900000000003,
+        29.6227,
+        30.1003,
+        29.5685,
+        36.332499999999996,
+        35.6622,
+        29.8881,
+        24.830399999999997,
+        30.3357,
+        31.1809,
+        37.0147,
+        32.0663,
+        42.5841,
+        30.3405,
+        31.8644,
+        27.066,
+        29.6031,
+        38.1834,
+        30.592299999999998,
+        26.348300000000002,
+        16.6781,
+        38.5945,
+        33.4871,
+        31.1747,
+        33.164899999999996,
+        29.366400000000002,
+        19.004,
+        28.4498,
+        31.247600000000002,
+        31.1333,
+        33.2582,
+        30.109,
+        31.2085,
+        28.2834
+      ],
+      "unit": "ms"
+    },
+    "hot_menu_p95_ms": 38.1473,
+    "limits": {
+      "hot_menu_p95_ms": 20.0,
+      "startup_increment_p50_ms": 50.0
+    },
+    "reasons": [
+      "每种 cache 模式只有 10 个热态样本，正式验收至少需要 300 个",
+      "热态菜单 P95 超过 20 ms 或无可用样本",
+      "root cache_miss 热态 failed（观测 10/10）",
+      "root cache_hit 热态 failed（观测 10/10）",
+      "git cache_miss 热态 failed（观测 10/10）",
+      "git cache_hit 热态 failed（观测 10/10）",
+      "cargo cache_miss 热态 failed（观测 10/10）",
+      "cargo cache_hit 热态 failed（观测 10/10）",
+      "js cache_miss 热态 failed（观测 10/10）",
+      "js cache_hit 热态 failed（观测 10/10）",
+      "path cache_miss 热态 failed（观测 10/10）",
+      "path cache_hit 热态 failed（观测 10/10）",
+      "fuzzy cache_miss 热态 failed（观测 10/10）",
+      "fuzzy cache_hit 热态 failed（观测 10/10）"
+    ],
+    "startup": {
+      "reason": "启动增量由独立 probe --with-profile 配对测量；本 harness 只记录提示符后的输入回显",
+      "status": "not_measured"
+    },
+    "status": "failed"
+  },
+  "trace": "disabled",
+  "transport": "osc",
+  "transport_degraded": false
+}
