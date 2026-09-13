@@ -8,6 +8,7 @@ status_bar = true
 descriptions = true
 border = "rounded" # "rounded", "square", or "none"
 icons = true
+icon_style = "nerd" # nerd or unicode
 # Uncomment individual colors to override the selected theme.
 # foreground = "default"
 # background = "default"
@@ -28,10 +29,14 @@ up_arrow_history = true
 [keys]
 trigger = "Ctrl+Space"
 native = "Ctrl+Alt+Space"
+search = "Ctrl+Alt+F"
 details = "F1"
 refresh = "Ctrl+Alt+C"
 reload = "Ctrl+Alt+R"
 protocol_prefix = "F12" # F5..F12; takes effect in a new session
+
+[help]
+enabled = true # background help for recognized installations
 
 [learning]
 enabled = true # local selection counts only; learning clear removes them

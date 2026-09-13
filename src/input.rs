@@ -10,6 +10,7 @@ pub enum Input {
     Dismiss,
     Trigger,
     Native,
+    Search,
     Details,
     Refresh,
     Reload,
@@ -66,6 +67,7 @@ pub fn configured(event: &Event, keys: &crate::config::KeyBindings) -> Option<In
     };
     for (chord, action) in [
         (&keys.native, Input::Native),
+        (&keys.search, Input::Search),
         (&keys.trigger, Input::Trigger),
         (&keys.details, Input::Details),
         (&keys.refresh, Input::Refresh),

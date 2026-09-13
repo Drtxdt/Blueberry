@@ -578,11 +578,12 @@ impl CommandIndex {
             raw: line[context.replace_start..context.replace_end].into(),
             separator: false,
         };
-        let replacement = Completion {
+        let mut replacement = Completion {
             replace_start: current.start,
             replace_end: current.end,
             candidates: Vec::new(),
             incomplete: !self.complete,
+            argument_hint: String::new(),
         };
         let effective_limit = limit.min(MAX_RESULTS);
         if effective_limit == 0 || context.suppressed {
@@ -611,6 +612,15 @@ impl CommandIndex {
                         && let Some(description) = catalog.describe_command(&resolved)
                     {
                         candidate.description = description.into();
+                        if let Some(node) = catalog.nodes.get(&canonical) {
+                            candidate.description_source = node.source.clone();
+                            candidate.detail = format!(
+                                "{}\n{}\n示例：\n{}",
+                                candidate.detail,
+                                node.detail,
+                                node.examples.join("\n")
+                            );
+                        }
                     }
                 }
             }
@@ -633,6 +643,7 @@ impl CommandIndex {
         let mut no_spec = true;
 
         if let Some(result) = spec_result {
+            replacement.argument_hint = result.argument_hint.clone();
             no_spec = false;
             path_values = result.path_values || result.options_ended;
             let prefix_lower = prefix.to_ascii_lowercase();
@@ -657,6 +668,7 @@ impl CommandIndex {
                     source: candidate.source,
                     detail: candidate.detail,
                     append_space: candidate.append_space,
+                    ..Default::default()
                 });
                 if candidates.len() >= effective_limit {
                     break;
@@ -785,8 +797,13 @@ impl CommandIndex {
                     label: command.name.clone(),
                     insert_text: format_insert(&command.name, context, false),
                     description: self.command_description(command, overrides),
-                    kind: command.kind.clone(),
+                    kind: command.kind,
                     id: format!("command:{}", command.name),
+                    detail: if command.kind == CandidateKind::Alias {
+                        format!("别名目标：{}", self.resolve_command(&command.name))
+                    } else {
+                        String::new()
+                    },
                     source: match &command.executable_path {
                         Some(path) => path.display().to_string(),
                         None => "PowerShell 会话".into(),
@@ -845,21 +862,176 @@ impl CommandIndex {
         // their first decoded token so arguments and bodies never leak into
         // the menu.
         match command.kind {
-            CandidateKind::Command => command
-                .executable_path
-                .as_deref()
-                .map(|path| format!("用途暂未收录 · 程序：{}", path.display()))
-                .unwrap_or_else(|| format!("用途暂未收录 · 程序：{}", command.name)),
-            CandidateKind::Alias => {
-                let target = first_definition_token(&command.definition)
-                    .filter(|target| !target.trim().is_empty())
-                    .unwrap_or_else(|| "未知目标".to_owned());
-                format!("用途暂未收录 · 别名 → {target}")
-            }
-            CandidateKind::Function => "用途暂未收录 · 当前会话函数".to_owned(),
-            CandidateKind::Cmdlet => "用途暂未收录 · PowerShell 命令".to_owned(),
-            _ => format!("用途暂未收录 · 程序：{}", command.name),
+            CandidateKind::Alias => "命令别名",
+            CandidateKind::Function => "会话函数",
+            CandidateKind::Cmdlet => "PowerShell 命令",
+            _ => "本地程序",
         }
+        .to_owned()
+    }
+
+    pub fn executable(&self, command: &str) -> Option<PathBuf> {
+        let mut name = decode_power_shell(command);
+        for _ in 0..MAX_ALIAS_DEPTH {
+            if name.contains(['/', '\\']) {
+                return Some(PathBuf::from(name));
+            }
+            if let Some(i) = self.by_name.get(&command_key(&name)) {
+                let entry = &self.entries[*i];
+                if entry.kind == CandidateKind::Alias {
+                    name = first_definition_token(&entry.definition)?;
+                    continue;
+                }
+                if entry.kind != CandidateKind::Command {
+                    return None;
+                }
+                return entry.executable_path.clone();
+            }
+            if without_program_extension(&name.to_ascii_lowercase()).is_some() {
+                return split_path(OsStr::new(&self.context.path))
+                    .into_iter()
+                    .map(|p| p.join(&name))
+                    .find(|p| p.is_file());
+            }
+            return None;
+        }
+        None
+    }
+    pub fn has_command(&self, command: &str) -> bool {
+        self.by_name.contains_key(&command_key(command))
+    }
+    pub fn purpose_search(
+        &self,
+        catalog: &crate::spec_catalog::Catalog,
+        line: &str,
+        cursor: usize,
+        supplied: Option<&InputContext>,
+        limit: usize,
+        overrides: &BTreeMap<String, String>,
+    ) -> Completion {
+        let derived = self.input_context(line, cursor);
+        let context = supplied.unwrap_or(&derived);
+        let mut result = Completion {
+            replace_start: context.replace_start,
+            replace_end: context.replace_end,
+            ..Default::default()
+        };
+        if context.suppressed
+            || line
+                .get(context.replace_start..context.replace_end)
+                .is_none()
+        {
+            return result;
+        }
+        let query = context.prefix.trim_matches(['\'', '"']).to_lowercase();
+        if query.is_empty() {
+            return result;
+        }
+        let mut choices = Vec::new();
+        if context.command_position {
+            for node in catalog.nodes.values() {
+                let root = node.path.split_whitespace().next().unwrap_or("");
+                let mut path = node.path.as_str();
+                let mut reachable = true;
+                while let Some((parent, _)) = path.rsplit_once(' ') {
+                    if !catalog
+                        .nodes
+                        .get(parent)
+                        .is_some_and(|n| n.children.iter().any(|c| c == path))
+                    {
+                        reachable = false;
+                        break;
+                    }
+                    path = parent;
+                }
+                if !self.has_command(root) || !reachable {
+                    continue;
+                }
+                choices.push(Candidate {
+                    label: node.path.clone(),
+                    insert_text: node.path.clone(),
+                    description: node.description.clone(),
+                    detail: node.detail.clone(),
+                    id: node.path.clone(),
+                    source: node.source.clone(),
+                    kind: CandidateKind::Command,
+                    append_space: true,
+                    ..Default::default()
+                });
+            }
+            // Session-only functions and aliases are useful even without a catalog entry.
+            let token = TokenContext::from(
+                line,
+                &Token {
+                    start: context.replace_start,
+                    end: context.replace_end,
+                    raw: context.prefix.clone(),
+                    separator: false,
+                },
+                cursor,
+            );
+            choices.extend(self.command_candidates("", &token, MAX_RESULTS, overrides, false));
+        } else {
+            for prefix in ["", "-"] {
+                if let Some(found) = catalog.lookup_unfiltered(
+                    &self.resolve_command(&context.command),
+                    &context.arguments,
+                    prefix,
+                ) {
+                    result.argument_hint = found.argument_hint;
+                    choices.extend(found.candidates.into_iter().map(|c| Candidate {
+                        label: c.name.clone(),
+                        insert_text: c.name,
+                        description: c.description,
+                        detail: c.detail,
+                        id: c.key,
+                        source: c.source,
+                        kind: c.kind,
+                        append_space: c.append_space,
+                        ..Default::default()
+                    }));
+                }
+            }
+        }
+        let mut scored = Vec::new();
+        let mut seen = HashSet::new();
+        for mut candidate in choices {
+            if !seen.insert(candidate.id.clone()) {
+                continue;
+            }
+            if let Some(text) = overrides.get(&candidate.id) {
+                candidate.description = text.clone();
+                candidate.description_source = "user".into();
+            }
+            let keywords = catalog
+                .nodes
+                .get(&candidate.id)
+                .map(|n| n.keywords.join(" "))
+                .unwrap_or_default()
+                .to_lowercase();
+            let (score, reason) = if candidate.label.to_lowercase().contains(&query) {
+                (0, "命令名")
+            } else if keywords.contains(&query) {
+                (1, "用途关键词")
+            } else if candidate.description.to_lowercase().contains(&query) {
+                (2, "用途说明")
+            } else {
+                continue;
+            };
+            candidate.match_reason = reason.into();
+            crate::knowledge::annotate(&mut candidate);
+            crate::completion::preserve_suffix(
+                &mut candidate,
+                line,
+                cursor,
+                result.replace_start,
+                result.replace_end,
+            );
+            scored.push((score, candidate));
+        }
+        scored.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.label.cmp(&b.1.label)));
+        result.candidates = scored.into_iter().take(limit).map(|(_, c)| c).collect();
+        result
     }
 
     fn resolve_command(&self, command: &str) -> String {

@@ -763,4 +763,23 @@ try {
 }
 
 Remove-Item -LiteralPath $env:SHELLSENSE_EDIT_PATH -Force -ErrorAction SilentlyContinue
+
+function Test-ShellsenseMetadataFixture {
+    <#
+    .SYNOPSIS
+    查看元数据测试说明。
+    .PARAMETER Mode
+    选择测试模式。
+    #>
+    param([ValidateSet('fast','slow')][string]$Mode, [switch]$Force)
+    dynamicparam { throw 'must not evaluate dynamic parameters' }
+    process { throw 'must not execute function' }
+}
+$metadata = Get-ShellsenseCommandMetadata -Name Test-ShellsenseMetadataFixture
+Assert-ShellsenseEqual -Actual ([string]$metadata.description).Trim() -Expected '查看元数据测试说明。' -Message 'metadata reads comment help without execution'
+Assert-ShellsenseEqual -Actual $metadata.options.Count -Expected 2 -Message 'metadata uses static parameters only'
+$modeMetadata = @($metadata.options | Where-Object { $_.names[0] -eq '-Mode' })[0]
+Assert-ShellsenseEqual -Actual ($modeMetadata.values -join ',') -Expected 'fast,slow' -Message 'static ValidateSet values are data'
+Assert-ShellsenseEqual -Actual (Get-ShellsenseCommandMetadata -Name 'x;evil') -Expected $null -Message 'metadata rejects expressions'
+Remove-Item Function:Test-ShellsenseMetadataFixture
 Write-Output 'PowerShell adapter tests passed.'

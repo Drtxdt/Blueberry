@@ -28,6 +28,7 @@ pub struct Config {
     pub keys: KeyBindings,
     pub learning: LearningConfig,
     pub specs: SpecsConfig,
+    pub help: HelpConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -35,6 +36,7 @@ pub struct Config {
 pub struct KeyBindings {
     pub trigger: String,
     pub native: String,
+    pub search: String,
     pub details: String,
     pub refresh: String,
     pub reload: String,
@@ -45,6 +47,7 @@ impl Default for KeyBindings {
         Self {
             trigger: "Ctrl+Space".into(),
             native: "Ctrl+Alt+Space".into(),
+            search: "Ctrl+Alt+F".into(),
             details: "F1".into(),
             refresh: "Ctrl+Alt+C".into(),
             reload: "Ctrl+Alt+R".into(),
@@ -68,6 +71,17 @@ pub struct SpecsConfig {
     pub directory: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct HelpConfig {
+    pub enabled: bool,
+}
+impl Default for HelpConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
 /// Presentation settings for the completion menu.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -78,6 +92,7 @@ pub struct UiConfig {
     /// One of `rounded`, `square`, or `none`.
     pub border: String,
     pub icons: bool,
+    pub icon_style: String,
     pub foreground: String,
     pub background: String,
     pub selected_foreground: String,
@@ -109,6 +124,7 @@ impl Default for UiConfig {
             descriptions: true,
             border: "rounded".to_owned(),
             icons: true,
+            icon_style: "unicode".into(),
             foreground: "default".to_owned(),
             background: "default".to_owned(),
             selected_foreground: "#ffffff".to_owned(),
@@ -144,6 +160,7 @@ impl Config {
         for (name, chord) in [
             ("trigger", &self.keys.trigger),
             ("native", &self.keys.native),
+            ("search", &self.keys.search),
             ("details", &self.keys.details),
             ("refresh", &self.keys.refresh),
             ("reload", &self.keys.reload),
@@ -299,6 +316,7 @@ status_bar = true
 descriptions = true
 border = "rounded" # "rounded", "square", or "none"
 icons = true
+icon_style = "nerd"
 # Uncomment individual colors to override the selected theme.
 # foreground = "default"
 # background = "default"
@@ -319,6 +337,7 @@ up_arrow_history = true
 [keys]
 trigger = "Ctrl+Space"
 native = "Ctrl+Alt+Space"
+search = "Ctrl+Alt+F"
 details = "F1"
 refresh = "Ctrl+Alt+C"
 reload = "Ctrl+Alt+R"
@@ -377,6 +396,9 @@ fn config_root() -> PathBuf {
 }
 
 fn validate_ui(ui: &UiConfig) -> Result<()> {
+    if !matches!(ui.icon_style.as_str(), "nerd" | "unicode") {
+        bail!("ui.icon_style must be nerd or unicode");
+    }
     if !(1..=MAX_ROWS).contains(&ui.max_rows) {
         bail!(
             "ui.max_rows must be between 1 and {MAX_ROWS} (got {})",

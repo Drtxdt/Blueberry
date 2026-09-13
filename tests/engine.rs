@@ -152,10 +152,7 @@ fn session_command_priority_prefers_alias_then_function_then_cmdlet() {
 
     index.merge_shell_commands(vec![shell_command("same", "Alias", "updated")]);
     let completion = index.complete("sa", 2, Path::new("."), 10);
-    assert_eq!(
-        completion.candidates[0].description,
-        "用途暂未收录 · 别名 → updated"
-    );
+    assert_eq!(completion.candidates[0].description, "命令别名");
 }
 
 #[test]
@@ -230,31 +227,20 @@ fn unknown_descriptions_identify_source_and_session_kind() {
         .iter()
         .find(|candidate| candidate.label == "mystery")
         .expect("unknown application");
-    assert_eq!(
-        application.description,
-        r#"用途暂未收录 · 程序：C:\tools\mystery.exe"#
-    );
+    assert_eq!(application.description, "本地程序");
 
+    assert!(application.source.contains("mystery.exe"));
     let alias =
         index.complete_with_descriptions("mystery-alias", 13, Path::new("."), 10, &no_overrides);
-    assert_eq!(
-        alias.candidates[0].description,
-        "用途暂未收录 · 别名 → mystery"
-    );
+    assert_eq!(alias.candidates[0].description, "命令别名");
 
     let function =
         index.complete_with_descriptions("mystery-function", 16, Path::new("."), 10, &no_overrides);
-    assert_eq!(
-        function.candidates[0].description,
-        "用途暂未收录 · 当前会话函数"
-    );
+    assert_eq!(function.candidates[0].description, "会话函数");
 
     let cmdlet =
         index.complete_with_descriptions("mystery-cmdlet", 14, Path::new("."), 10, &no_overrides);
-    assert_eq!(
-        cmdlet.candidates[0].description,
-        "用途暂未收录 · PowerShell 命令"
-    );
+    assert_eq!(cmdlet.candidates[0].description, "PowerShell 命令");
 }
 
 #[test]

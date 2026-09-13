@@ -39,6 +39,7 @@ pub struct SpecResult {
     pub provider: Option<String>,
     /// Delimiter used by an option that accepts an inline value.
     pub value_delimiter: Option<char>,
+    pub argument_hint: String,
 }
 
 /// Return the canonical root command name for a command or one of its
@@ -54,6 +55,12 @@ pub fn canonical_command(command: &str) -> Option<&'static str> {
         .find_map(|suffix| lower.strip_suffix(suffix))
         .unwrap_or(&lower);
     match stem {
+        "codex" => Some("codex"),
+        "python" | "python3" => Some("python"),
+        "uv" => Some("uv"),
+        "rustc" => Some("rustc"),
+        "winget" => Some("winget"),
+        "dotnet" => Some("dotnet"),
         "git" => Some("git"),
         "cargo" => Some("cargo"),
         "npm" => Some("npm"),

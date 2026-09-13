@@ -126,6 +126,14 @@ enum Command {
 
 #[derive(Subcommand)]
 enum SpecsCommand {
+    /// Learn this installed executable's help into the local cache.
+    Learn {
+        command: String,
+        #[arg(long)]
+        context: Vec<String>,
+    },
+    /// Forget cached help for a command.
+    Forget { command: String },
     /// Validate every user specification in the configured directory.
     Check {
         /// Read specifications from this directory instead of the configured path.
@@ -202,8 +210,27 @@ fn complete_line(
     cwd: &Path,
 ) -> Result<CompletionRun> {
     let catalog_path = catalog_directory(settings, config_path);
-    let catalog = load_catalog(&catalog_path)?;
+    let mut catalog = load_catalog(&catalog_path)?;
     let index = CommandIndex::discover();
+    let context = index.input_context(line, cursor);
+    let command = if context.command_position {
+        &context.prefix
+    } else {
+        &context.command
+    };
+    if let Some(entry) = index
+        .executable(command)
+        .and_then(|p| shellsense::knowledge::entry(command, &p, cwd))
+    {
+        for record in shellsense::knowledge::records(&shellsense::knowledge::cache_dir())
+            .iter()
+            .filter(|r| {
+                r.entry.fingerprint == entry.fingerprint && shellsense::knowledge::current(r)
+            })
+        {
+            catalog.apply_help(record);
+        }
+    }
     let environment = Arc::new(env::vars().collect::<BTreeMap<_, _>>());
     let (base, request) = completion::plan(
         &index,
@@ -465,6 +492,30 @@ fn print_check_report(directory: &Path, report: &CheckReport, json: bool) -> Res
 fn run_specs_command(command: SpecsCommand, config_path: Option<&Path>) -> Result<u32> {
     let settings = config::load(config_path)?;
     match command {
+        SpecsCommand::Learn { command, context } => {
+            let index = CommandIndex::discover();
+            let path = index
+                .executable(&command)
+                .ok_or_else(|| anyhow!("找不到程序：{command}"))?;
+            let entry = shellsense::knowledge::entry(&command, &path, &std::env::current_dir()?)
+                .ok_or_else(|| anyhow!("无法解析此入口；请传入实际可执行文件路径"))?;
+            let record = shellsense::knowledge::learn(
+                entry,
+                context,
+                &shellsense::knowledge::cache_dir(),
+                &std::sync::atomic::AtomicBool::new(false),
+            )
+            .map_err(|e| anyhow!(e))?;
+            println!("{}", serde_json::to_string_pretty(&record)?);
+            Ok(if record.error.is_some() { 1 } else { 0 })
+        }
+        SpecsCommand::Forget { command } => {
+            println!(
+                "已清除 {} 条帮助缓存",
+                shellsense::knowledge::forget(&shellsense::knowledge::cache_dir(), &command)?
+            );
+            Ok(0)
+        }
         SpecsCommand::Check { directory, json } => {
             let explicit = directory.is_some();
             let directory = directory.unwrap_or_else(|| catalog_directory(&settings, config_path));
@@ -500,12 +551,14 @@ fn run_specs_command(command: SpecsCommand, config_path: Option<&Path>) -> Resul
                     "{}",
                     serde_json::to_string_pretty(&serde_json::json!({
                         "directory": directory,
+                        "help_cache": shellsense::knowledge::records(&shellsense::knowledge::cache_dir()).iter().map(|r|serde_json::json!({"command":r.entry.command,"context":r.context,"source":r.entry.path,"stale":!shellsense::knowledge::current(r),"error":r.error})).collect::<Vec<_>>(),
                         "count": nodes.len(),
                         "nodes": nodes,
                         "diagnostics": diagnostics,
                     }))?
                 );
             } else {
+                print_help_status();
                 println!(
                     "有效规格: {}（{} 个上下文）",
                     directory.display(),
@@ -553,7 +606,26 @@ fn command_available(name: &str) -> bool {
     })
 }
 
+fn print_help_status() {
+    for r in shellsense::knowledge::records(&shellsense::knowledge::cache_dir()) {
+        println!(
+            "帮助：{} {} · {} · {} · 入口：{}",
+            r.entry.command,
+            r.context.join(" "),
+            if !shellsense::knowledge::current(&r) {
+                "过期"
+            } else if r.error.is_some() {
+                "失败"
+            } else {
+                "可用"
+            },
+            r.error.as_deref().unwrap_or("本地帮助缓存"),
+            r.entry.path.display()
+        );
+    }
+}
 fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
+    print_help_status();
     let path = config_path
         .map(Path::to_path_buf)
         .unwrap_or_else(config::default_path);
@@ -600,7 +672,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
     };
     let (builtin_catalog_name, builtin_catalog_version) = Catalog::builtin_metadata();
     println!(
-        "ShellSense {}\nPlatform: {} / {}\nConfig: {}\nCache: {}\nSpecs: {}\nEffective contexts: {}\nSpec files: {}\nSpec diagnostics: {}\nMax candidates: {}\nCompletion: fuzzy={} dynamic={}\nKeys: trigger={} native={} details={} refresh={} reload={} protocol={}\nKey status: valid\nLearning: {}\nData sources:",
+        "ShellSense {}\nPlatform: {} / {}\nConfig: {}\nCache: {}\nSpecs: {}\nEffective contexts: {}\nSpec files: {}\nSpec diagnostics: {}\nMax candidates: {}\nCompletion: fuzzy={} dynamic={}\nKeys: trigger={} native={} search={} details={} refresh={} reload={} protocol={}\nKey status: valid\nLearning: {}\nData sources:",
         env!("CARGO_PKG_VERSION"),
         std::env::consts::OS,
         std::env::consts::ARCH,
@@ -615,6 +687,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
         settings.completion.dynamic,
         settings.keys.trigger,
         settings.keys.native,
+        settings.keys.search,
         settings.keys.details,
         settings.keys.refresh,
         settings.keys.reload,

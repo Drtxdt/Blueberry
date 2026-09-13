@@ -2,7 +2,7 @@
 
 Windows Terminal + PowerShell 7 的 Rust 补全宿主。当前源码版本为 `0.5.0-beta.1`，已完成本机自动功能回归，性能验收未通过，提供项目感知候选、离线中文说明和可配置菜单，不需要 Node、在线翻译或模型。架构是 Windows Terminal → ShellSense → 一个 pwsh，保留用户 profile 和 PSReadLine 的行内预测。
 
-本地构建未签名，尚未公开发布。功能、真实终端验证和性能是不同验收项，具体状态见 [Beta 验收记录](docs/beta-progress.md) 和 [性能报告](docs/performance-v0.5.md)。最终性能数字只以该报告为准；启动增量 P50 ≤50 ms、热态菜单 P95 ≤20 ms 的目标不随版本推进而降低。
+本地构建未签名，尚未公开发布。功能、真实终端验证和性能是不同验收项，具体状态见 [Beta 验收记录](docs/beta-progress.md) 和 [性能报告](docs/performance-v0.5.md)。0.5 旧版的正式性能数字以该报告为准；本轮增量对比见 [命令知识交付记录](docs/command-knowledge.md)。启动增量 P50 ≤50 ms、热态菜单 P95 ≤20 ms 的目标不随版本推进而降低。
 
 ## 启动
 
@@ -29,7 +29,8 @@ cargo build --release --locked
 | `shellsense beta-probe` | 运行完整宿主的 Beta 场景探针；不替代独立启动 A/B runner，正式结果见性能报告 |
 | `shellsense probe` | 测量适配器回显；`--host` 才包含外层 ConPTY 宿主 |
 | `shellsense doctor` | 输出平台、配置、规格、缓存、键位和当前会话诊断 |
-| `shellsense specs check/list` | 校验或查看生效的内置与用户规格 |
+| `shellsense specs check/list` | 校验规格，查看来源与帮助缓存状态 |
+| `shellsense specs learn <command>` / `specs forget <command>` | 显式学习本机工具帮助 / 清除帮助缓存 |
 | `shellsense learning clear` | 清除本地加盐候选选择统计 |
 | `shellsense config init/check`、`shellsense theme`、`shellsense terminal-profile` | 初始化/校验配置、查看主题和打印 Windows Terminal profile |
 
@@ -50,6 +51,27 @@ cargo build --release --locked
 
 Git 使用固定只读查询；Cargo/JS 读取本地清单，不执行构建、项目脚本、安装、fetch 或凭据交互。最多两个后台数据任务，静态候选立即可用，未完成结果显示加载状态。缓存更新会重算当前查询，保留选中的具体候选；缺失目录会由 notify 监听逐级重挂，Git status 使用实际工作树递归监听，项目根变化时清理旧 provider 根监听。
 
+## 命令知识与按需学习
+
+内置新增 Codex、Python、uv、rustc、winget、dotnet 的根参数和主要一级子命令。有效原生 ToolTip 会直接显示为摘要，完整帮助保留在 F1；没有说明时显示准确类型，路径和别名目标放在详情中。
+
+可信安装入口在当前命令或子命令上下文空闲 300 ms 后获取帮助，每次最多一个任务、2 秒、256 KiB。帮助缓存在独立目录，绑定入口、包装目标、文件大小/修改时间和解析器版本；完整结果校正本机可见参数，不完整结果仅补充，用户规格优先。失败在当前会话退避 5 分钟。自动学习不会扫描所有工具，也不会自动运行 PowerShell 原生补全脚本。
+
+```powershell
+shellsense specs learn codex
+shellsense specs learn codex --context exec
+shellsense specs list
+shellsense specs forget codex
+```
+
+未知可执行程序需要显式学习；非标准脚本入口需要指定实际可执行文件。`[help] enabled = false` 关闭自动帮助执行，已有缓存和离线规格仍可用。修改缓存后按 Ctrl+Alt+C 刷新当前会话。
+
+`[ui] icon_style = "nerd"` 使用 Nerd Font 图标，`"unicode"` 使用兼容符号，`icons = false` 隐藏图标。未配置新字段的旧配置沿用 Unicode，新建配置采用 Nerd Font；程序不修改字体或猜测缺字。`shellsense theme` 同时预览两种风格。
+
+输入“查看分支”后按 Ctrl+Alt+F，再用 Tab 插入 `git branch`。根位置仅搜索已安装工具；子命令位置搜索当前合法选项和命令，参数位置仅搜索合法值。搜索词仍由 PSReadLine 编辑，Esc 退出，Enter 执行现有输入。参数占位提示不可接受为真实值。
+
+实现和验收细节见 [本轮交付记录](docs/command-knowledge.md)。
+
 ## 按键
 
 | 操作 | 默认按键 |
@@ -62,6 +84,8 @@ Git 使用固定只读查询；Cargo/JS 读取本地清单，不执行构建、�
 | 关闭菜单 | Esc |
 | 中文详情、参数格式、离线示例 | F1 |
 | 手动请求本会话原生补全 | Ctrl+Alt+Space |
+| 用途搜索（当前编辑词） | Ctrl+Alt+F |
+| F1 详情翻页 | PgUp / PgDn |
 | 刷新命令和项目候选 | Ctrl+Alt+C |
 | 重新加载配置和规格 | Ctrl+Alt+R |
 

@@ -277,7 +277,11 @@ fn start_host() -> Result<RunningHost> {
 
     let data_dir = tempdir().context("create terminal-modes data directory")?;
     let config_path = data_dir.path().join("config.toml");
-    fs::write(&config_path, config::example()).context("write temporary config")?;
+    fs::write(
+        &config_path,
+        config::example().replace("icon_style = \"nerd\"", "icon_style = \"unicode\""),
+    )
+    .context("write temporary config")?;
 
     let shell = selected_pwsh();
     let inherited_path = std::env::var_os("PATH").unwrap_or_default();

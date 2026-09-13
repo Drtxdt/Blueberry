@@ -136,11 +136,13 @@ pub fn merge(
     base.candidates.extend(paths);
     let mut seen = HashSet::new();
     base.candidates
-        .retain(|c| seen.insert((c.insert_text.clone(), c.kind.clone())));
+        .retain(|c| seen.insert((c.insert_text.clone(), c.kind)));
     for candidate in &mut base.candidates {
         if let Some(description) = descriptions.get(candidate.identity()) {
             candidate.description = description.clone();
+            candidate.description_source = "user".into();
         }
+        crate::knowledge::annotate(candidate);
         preserve_suffix(
             candidate,
             &request.line,

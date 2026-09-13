@@ -61,6 +61,92 @@ fn ctrl_space_records() -> &'static [u8] {
     b"\x1b[32;57;0;1;8;1_\x1b[32;57;0;0;8;1_"
 }
 
+#[test]
+fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion() -> Result<()> {
+    let mut host = start_host()?;
+    let config_path = host.data_dir.path().join("config.toml");
+    let mut config: config::Config = toml::from_str(&fs::read_to_string(&config_path)?)?;
+    config.ui.icon_style = "nerd".into();
+    fs::write(config_path, toml::to_string(&config)?)?;
+    send_command(
+        &mut host.harness,
+        &buffer_probe_command(&host.buffer_marker),
+        "SS_BUFFER_READY",
+    )?;
+    clear_line(&mut host.harness)?;
+    host.harness.send("查看分支".as_bytes())?;
+    let _ = request_buffer(&mut host.harness, "查看分支")?;
+    host.harness
+        .send(b"\x1b[70;33;6;1;10;1_\x1b[70;33;6;0;10;1_")?;
+    host.harness.wait_text("git branch", PTY_TIMEOUT)?;
+    accept_selected(&mut host.harness)?;
+    let buffer = read_real_buffer(
+        &mut host.harness,
+        &host.buffer_marker,
+        "purpose search inserted command",
+    )?;
+    ensure!(
+        buffer["line"]
+            .as_str()
+            .is_some_and(|s| s.trim_end() == "git branch"),
+        "invalid search insertion: {buffer}"
+    );
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"codex --model ")?;
+    let _ = request_buffer(&mut host.harness, "codex --model")?;
+    host.harness.wait_text("<MODEL>", PTY_TIMEOUT)?;
+    let buffer = read_real_buffer(
+        &mut host.harness,
+        &host.buffer_marker,
+        "noninsertable argument hint",
+    )?;
+    ensure!(
+        buffer["line"]
+            .as_str()
+            .is_some_and(|s| !s.contains("<MODEL>")),
+        "hint entered the buffer: {buffer}"
+    );
+    host.harness.finish(PTY_TIMEOUT)?;
+    Ok(())
+}
+
+#[test]
+fn terminal_static_function_metadata_refreshes_values_without_execution() -> Result<()> {
+    let mut host = start_host()?;
+    send_command(
+        &mut host.harness,
+        "function global:SS-Knowledge { param([ValidateSet('fast','slow')][string]$Mode) dynamicparam { throw 'must not execute' } process { throw 'must not execute' } }; Write-Output SS_METADATA_READY",
+        "SS_METADATA_READY",
+    )?;
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"SS-Knowledge -Mode ")?;
+    let _ = request_buffer(&mut host.harness, "SS-Knowledge")?;
+    let metadata = host.harness.event("command_metadata", PTY_TIMEOUT)?;
+    let _: shellsense::knowledge::HelpPage = serde_json::from_value(metadata["page"].clone())?;
+    wait_until(
+        &mut host.harness,
+        "learned enum menu",
+        PTY_TIMEOUT,
+        |screen| {
+            screen
+                .lines()
+                .any(|line| line.contains("│") && line.contains(" fast "))
+        },
+    )?;
+    select_candidate(&mut host.harness, "fast")?;
+    accept_selected(&mut host.harness)?;
+    let buffer = request_buffer(&mut host.harness, "SS-Knowledge -Mode fast")
+        .context("accept statically learned enum")?;
+    ensure!(
+        buffer["line"]
+            .as_str()
+            .is_some_and(|line| line.trim_end() == "SS-Knowledge -Mode fast"),
+        "unexpected learned value: {buffer}"
+    );
+    host.harness.finish(PTY_TIMEOUT)?;
+    Ok(())
+}
+
 fn ps_quote(value: &Path) -> String {
     format!("'{}'", value.to_string_lossy().replace('\'', "''"))
 }
@@ -127,6 +213,10 @@ fn start_host() -> Result<RunningHost> {
     // Do not let bootstrap messages from the first prompt satisfy a later
     // lifecycle assertion.
     let capabilities = harness.event("capabilities", PTY_TIMEOUT)?;
+    ensure!(
+        capabilities["capabilities"]["command_metadata"] == true,
+        "missing metadata capability: {capabilities}"
+    );
     ensure!(
         capabilities["transport"] == transport,
         "requested transport was not active: {capabilities}"

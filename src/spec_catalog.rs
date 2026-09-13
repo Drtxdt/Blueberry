@@ -89,6 +89,7 @@ pub(crate) struct OptionDef {
     pub(crate) value_delimiter: Option<char>,
     pub(crate) append_space: bool,
     pub(crate) short_cluster: bool,
+    pub(crate) value_name: String,
     pub(crate) source: String,
 }
 
@@ -143,6 +144,7 @@ pub(crate) struct Node {
     pub(crate) children: Vec<String>,
     pub(crate) options: Vec<OptionDef>,
     pub(crate) examples: Vec<String>,
+    pub(crate) keywords: Vec<String>,
     pub(crate) provider: Option<String>,
     pub(crate) value_delimiter: Option<char>,
     pub(crate) source: String,
@@ -293,6 +295,8 @@ struct RawOptionSpec {
     append_space: Option<bool>,
     #[serde(default)]
     short_cluster: bool,
+    #[serde(default)]
+    value_name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -316,6 +320,7 @@ struct NodeSpec {
     #[serde(default)]
     options: Vec<RawOptionSpec>,
     examples: Option<Vec<String>>,
+    keywords: Option<Vec<String>>,
     provider: Option<String>,
     value_delimiter: Option<String>,
 }
@@ -343,6 +348,7 @@ pub(crate) struct StaticOption {
     pub(crate) value_delimiter: Option<char>,
     pub(crate) append_space: bool,
     pub(crate) short_cluster: bool,
+    pub(crate) value_name: &'static str,
 }
 
 #[derive(Debug)]
@@ -362,6 +368,7 @@ pub(crate) struct StaticNode {
     pub(crate) option_sets: &'static [&'static str],
     pub(crate) options: &'static [StaticOption],
     pub(crate) examples: &'static [&'static str],
+    pub(crate) keywords: &'static [&'static str],
     pub(crate) provider: Option<&'static str>,
     pub(crate) value_delimiter: Option<char>,
 }
@@ -385,6 +392,155 @@ pub(crate) fn builtin_descriptions() -> Vec<&'static str> {
 }
 
 impl Catalog {
+    /// Merge one entry-specific help page without replacing user-authored semantics.
+    pub fn apply_help(&mut self, record: &crate::knowledge::Record) {
+        if record.error.is_some() {
+            return;
+        }
+        let root = self
+            .canonical_command(&record.entry.command)
+            .unwrap_or_else(|| record.entry.command.clone());
+        let path = std::iter::once(root.as_str())
+            .chain(record.context.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let source = format!("help:{}", record.entry.path.display());
+        self.aliases
+            .insert(normalize_alias(&record.entry.command), root.clone());
+        let empty = |path: String, description: String| Node {
+            name: path.rsplit(' ').next().unwrap_or("").into(),
+            path,
+            description: description.clone(),
+            detail: description,
+            positional: ValueKind::Path,
+            children: Vec::new(),
+            options: Vec::new(),
+            examples: Vec::new(),
+            keywords: Vec::new(),
+            provider: None,
+            value_delimiter: None,
+            source: source.clone(),
+        };
+        let user_children: std::collections::HashSet<String> = self
+            .nodes
+            .values()
+            .filter(|n| n.source != "builtin" && !n.source.starts_with("help:"))
+            .map(|n| n.path.clone())
+            .collect();
+        let node = self
+            .nodes
+            .entry(path.clone())
+            .or_insert_with(|| empty(path.clone(), record.page.description.clone()));
+        let user_node = node.source != "builtin" && !node.source.starts_with("help:");
+        if record.page.complete && !user_node {
+            node.children.retain(|child| {
+                user_children.contains(child)
+                    || record
+                        .page
+                        .commands
+                        .iter()
+                        .any(|(name, _)| child == &format!("{path} {name}"))
+            });
+            node.options.retain(|option| {
+                option.source != "builtin" && !option.source.starts_with("help:")
+                    || record
+                        .page
+                        .options
+                        .iter()
+                        .any(|raw| raw.names.iter().any(|name| option.names.contains(name)))
+            });
+        }
+        for raw in &record.page.options {
+            if let Some(old) = node
+                .options
+                .iter_mut()
+                .find(|o| raw.names.iter().any(|n| o.names.contains(n)))
+            {
+                if old.source == "builtin" || old.source.starts_with("help:") {
+                    if record.page.complete {
+                        old.names = raw.names.clone();
+                        old.names.sort_by_key(|name| std::cmp::Reverse(name.len()));
+                    }
+                    if !raw.value_name.is_empty() {
+                        old.value_name = raw.value_name.clone();
+                        if old.value == ValueKind::None {
+                            old.value = ValueKind::Text;
+                        }
+                    } else if record.page.complete {
+                        old.value_name.clear();
+                        old.value = ValueKind::None;
+                    }
+                    if !raw.values.is_empty() {
+                        old.values = raw
+                            .values
+                            .iter()
+                            .map(|name| {
+                                old.values
+                                    .iter()
+                                    .find(|value| &value.name == name)
+                                    .cloned()
+                                    .unwrap_or_else(|| ValueDef {
+                                        name: name.clone(),
+                                        description: format!("选择 {name}"),
+                                        detail: String::new(),
+                                    })
+                            })
+                            .collect();
+                    }
+                    old.detail = format!("{}\n{}", old.description, raw.detail);
+                }
+                continue;
+            }
+            if user_node {
+                continue;
+            }
+            let mut names = raw.names.clone();
+            names.sort_by_key(|n| std::cmp::Reverse(n.len()));
+            node.options.push(OptionDef {
+                names,
+                description: raw.description.clone(),
+                detail: raw.detail.clone(),
+                value: if raw.value_name.is_empty() {
+                    ValueKind::None
+                } else {
+                    ValueKind::Text
+                },
+                values: raw
+                    .values
+                    .iter()
+                    .map(|v| ValueDef {
+                        name: v.clone(),
+                        description: format!("选择 {v}"),
+                        detail: String::new(),
+                    })
+                    .collect(),
+                optional_value: false,
+                repeatable: raw.repeatable,
+                conflicts: Vec::new(),
+                requires: Vec::new(),
+                positional: false,
+                provider: None,
+                value_delimiter: None,
+                append_space: true,
+                short_cluster: false,
+                value_name: raw.value_name.clone(),
+                source: source.clone(),
+            });
+        }
+        for (name, description) in &record.page.commands {
+            let child = format!("{path} {name}");
+            if !user_node && !node.children.contains(&child) {
+                node.children.push(child);
+            }
+            let _ = description;
+        }
+        for (name, description) in &record.page.commands {
+            let child = format!("{path} {name}");
+            self.nodes
+                .entry(child.clone())
+                .or_insert_with(|| empty(child, description.clone()));
+        }
+    }
     /// Name and schema version of the generated built-in catalog.
     pub fn builtin_metadata() -> (&'static str, &'static str) {
         (BUILTIN_CATALOG_NAME, BUILTIN_CATALOG_VERSION)
@@ -425,6 +581,7 @@ impl Catalog {
                         .map(|child| (*child).to_owned())
                         .collect(),
                     options,
+                    keywords: node.keywords.iter().map(|s| (*s).to_owned()).collect(),
                     examples: node
                         .examples
                         .iter()
@@ -650,9 +807,20 @@ impl Catalog {
             options_ended: parsed.options_ended,
             provider: effective_provider(parsed.node.provider.clone(), &root),
             value_delimiter: parsed.node.value_delimiter,
+            argument_hint: String::new(),
         };
 
         if let Some(option) = parsed.pending {
+            result.argument_hint = format!(
+                "{} {} {}",
+                result.context,
+                option.name(),
+                if option.value_name.is_empty() {
+                    "<VALUE>"
+                } else {
+                    &option.value_name
+                }
+            );
             result.path_values = option.value.is_path();
             result.directories_only = option.value.is_directory();
             result.provider = effective_provider(option.provider.clone(), &root);
@@ -664,6 +832,16 @@ impl Catalog {
             && let Some((option, inline_prefix)) =
                 self.find_inline_option(&parsed.node, prefix, insensitive)
         {
+            result.argument_hint = format!(
+                "{} {} {}",
+                result.context,
+                option.name(),
+                if option.value_name.is_empty() {
+                    "<VALUE>"
+                } else {
+                    &option.value_name
+                }
+            );
             result.path_values = option.value.is_path();
             result.directories_only = option.value.is_directory();
             result.provider = effective_provider(option.provider.clone(), &root);
@@ -691,7 +869,12 @@ impl Catalog {
                 result.candidates.push(SpecCandidate {
                     name,
                     description: option.description.clone(),
-                    detail: option.detail.clone(),
+                    detail: format!(
+                        "{}\n格式：{} {}",
+                        option.detail,
+                        option.name(),
+                        option.value_name
+                    ),
                     key: format!("{} {}", result.context, option.name()),
                     kind: CandidateKind::Option,
                     source: option.source.clone(),
@@ -710,7 +893,16 @@ impl Catalog {
                 result.candidates.push(SpecCandidate {
                     name: child.name.clone(),
                     description: child.description.clone(),
-                    detail: child.detail.clone(),
+                    detail: format!(
+                        "{}\n{}",
+                        child.detail,
+                        child
+                            .examples
+                            .iter()
+                            .map(|e| format!("示例：{e}"))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    ),
                     key: format!("{} {}", result.context, child.name),
                     kind: CandidateKind::Subcommand,
                     source: child.source.clone(),
@@ -734,6 +926,7 @@ impl Catalog {
             positional: ValueKind::Text,
             children: Vec::new(),
             options: Vec::new(),
+            keywords: Vec::new(),
             examples: Vec::new(),
             provider: None,
             value_delimiter: None,
@@ -865,11 +1058,15 @@ impl Catalog {
                 positional: ValueKind::Text,
                 children: Vec::new(),
                 options: Vec::new(),
+                keywords: Vec::new(),
                 examples: Vec::new(),
                 provider: None,
                 value_delimiter: None,
                 source: path.display().to_string(),
             });
+            if let Some(keywords) = &raw_node.keywords {
+                node.keywords = keywords.clone();
+            }
             if let Some(name) = &raw_node.name {
                 node.name = name.clone();
             }
@@ -1087,6 +1284,14 @@ fn validate_file(file: &CatalogFile) -> Result<(), String> {
 }
 
 fn validate_raw_option(option: &RawOptionSpec) -> Result<(), String> {
+    if !option.name.starts_with('-') || option.name == "undefined" {
+        return Err(format!("无效选项：{}", option.name));
+    }
+    if option.description.as_deref().is_some_and(|s| {
+        matches!(s.trim(), "参数选项" | "待定" | "undefined") || s.contains("用途暂未收录")
+    }) {
+        return Err(format!("占位说明：{}", option.name));
+    }
     if option.name.trim().is_empty() || option.name.chars().any(char::is_whitespace) {
         return Err(format!("option 名称无效: {}", option.name));
     }
@@ -1163,6 +1368,7 @@ fn option_from_static(option: &StaticOption) -> OptionDef {
         provider: option.provider.map(str::to_owned),
         value_delimiter: option.value_delimiter,
         append_space: option.append_space,
+        value_name: option.value_name.to_owned(),
         short_cluster: option.short_cluster,
         source: "builtin".to_owned(),
     }
@@ -1226,6 +1432,7 @@ fn option_from_raw(option: &RawOptionSpec, path: &Path) -> Result<OptionDef, Str
             .transpose()?
             .flatten(),
         append_space: option.append_space.unwrap_or(true),
+        value_name: option.value_name.to_owned(),
         short_cluster: option.short_cluster,
         source: path.display().to_string(),
     })

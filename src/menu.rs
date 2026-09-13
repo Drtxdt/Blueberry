@@ -24,6 +24,9 @@ pub struct MenuFrame {
 pub struct MenuState<'a> {
     pub incomplete: bool,
     pub details: bool,
+    pub detail_page: usize,
+    pub argument_hint: Option<&'a str>,
+    pub searching: bool,
     pub diagnostic: Option<&'a str>,
 }
 
@@ -41,7 +44,10 @@ pub fn render_with_state(
         completion: config.completion.clone(),
         ..Default::default()
     };
-    let footer_rows = usize::from(config.ui.status_bar) + if state.details { 4 } else { 0 };
+    let footer_rows = usize::from(config.ui.status_bar)
+        + usize::from(state.searching)
+        + usize::from(state.argument_hint.is_some_and(|s| !s.is_empty()))
+        + if state.details { 4 } else { 0 };
     let border_rows = if config.ui.border == "none" { 0 } else { 2 };
     if available_rows == 0 {
         return MenuFrame {
@@ -59,9 +65,7 @@ pub fn render_with_state(
     );
     let mut frame = render(candidates, selected, query, available_width, &adjusted);
     frame.lines.truncate(available_rows);
-    let Some(candidate) = candidates.get(selected) else {
-        return frame;
-    };
+    let candidate = candidates.get(selected);
     if frame.width == 0 {
         return frame;
     }
@@ -80,6 +84,22 @@ pub fn render_with_state(
                 &config.ui,
             ));
         }
+    };
+    if let Some(hint) = state.argument_hint.filter(|s| !s.is_empty()) {
+        push(hint);
+    }
+    if state.searching {
+        push(&format!(
+            "用途搜索 · Tab 插入 · Esc 退出{}",
+            candidates
+                .get(selected)
+                .filter(|c| !c.match_reason.is_empty())
+                .map(|c| format!(" · {}", c.match_reason))
+                .unwrap_or_default()
+        ));
+    }
+    let Some(candidate) = candidate else {
+        return frame;
     };
     if config.ui.status_bar {
         let source = if candidate.source.is_empty() {
@@ -105,7 +125,11 @@ pub fn render_with_state(
     }
     if state.details {
         push(&format!("{}：{}", candidate.label, candidate.description));
-        for line in candidate.detail.lines().take(3) {
+        for line in detail_lines(candidate, frame.width as usize)
+            .iter()
+            .skip(state.detail_page * 3)
+            .take(3)
+        {
             push(line);
         }
         if candidate.detail.is_empty() {
@@ -113,6 +137,30 @@ pub fn render_with_state(
         }
     }
     frame
+}
+
+pub fn detail_lines(candidate: &Candidate, width: usize) -> Vec<String> {
+    let full = format!(
+        "{}\n来源：{}\n说明来源：{}\n{}",
+        candidate.detail, candidate.source, candidate.description_source, candidate.match_reason
+    );
+    let mut rows = Vec::new();
+    for line in full.lines() {
+        let line = sanitize_text(line);
+        let mut row = String::new();
+        let mut cells = 0;
+        for grapheme in line.graphemes(true) {
+            let size = display_width(grapheme);
+            if cells + size > width.max(1) && !row.is_empty() {
+                rows.push(std::mem::take(&mut row));
+                cells = 0;
+            }
+            row.push_str(grapheme);
+            cells += size;
+        }
+        rows.push(row);
+    }
+    rows
 }
 
 /// Render a candidate list as a bounded, terminal-safe frame.
@@ -192,12 +240,25 @@ pub fn render(
         ));
     }
 
+    let label_column = candidates[page_start..page_start + page_rows]
+        .iter()
+        .map(|c| display_width(&c.label))
+        .max()
+        .unwrap_or(0)
+        .min(content_width.saturating_sub(8) / 2);
     for (index, candidate) in candidates[page_start..page_start + page_rows]
         .iter()
         .enumerate()
     {
         let is_selected = page_start + index == selected;
-        let row = render_candidate(candidate, is_selected, &query, content_width, &config.ui);
+        let row = render_candidate(
+            candidate,
+            is_selected,
+            &query,
+            content_width,
+            &config.ui,
+            label_column,
+        );
         if let Some(border) = border.filter(|_| bordered) {
             let mut line = String::new();
             line.push_str(&paint_fragment(
@@ -261,7 +322,16 @@ pub fn preview(config: &Config) -> String {
             ..Default::default()
         },
     ];
-    render(&candidates, 0, "Get-", 60, config).lines.join("\n")
+    let mut previews = Vec::new();
+    for style in ["unicode", "nerd"] {
+        let mut config = config.clone();
+        config.ui.icon_style = style.into();
+        previews.push(format!(
+            "{style}\n{}",
+            render(&candidates, 0, "Get-", 60, &config).lines.join("\n")
+        ));
+    }
+    previews.join("\n")
 }
 
 #[derive(Copy, Clone)]
@@ -299,6 +369,7 @@ fn border_chars(border: &str) -> Option<BorderChars> {
 #[derive(Copy, Clone)]
 enum FragmentRole {
     Base,
+    Icon(CandidateKind),
     Description,
     Match,
     Border,
@@ -310,6 +381,7 @@ fn render_candidate(
     query: &str,
     width: usize,
     ui: &UiConfig,
+    label_column: usize,
 ) -> String {
     let marker = if selected { "› " } else { "  " };
     let mut prefix = if display_width(marker) <= width {
@@ -319,7 +391,7 @@ fn render_candidate(
     };
 
     if ui.icons {
-        let with_icon = format!("{marker}{} ", kind_icon(&candidate.kind));
+        let with_icon = format!("{marker}{} ", kind_icon(&candidate.kind, &ui.icon_style));
         if display_width(&with_icon) <= width {
             prefix = with_icon;
         }
@@ -343,8 +415,14 @@ fn render_candidate(
         && text_width >= 24
     {
         let minimum_description_width = 3;
-        let label_budget = text_width.saturating_sub(separator_width + minimum_description_width);
+        let label_budget = label_column
+            .min(text_width.saturating_sub(separator_width + minimum_description_width));
         let label = truncate_to_width(&label, label_budget);
+        let label = format!(
+            "{}{}",
+            label,
+            " ".repeat(label_budget.saturating_sub(display_width(&label)))
+        );
         let remaining = text_width.saturating_sub(display_width(&label) + separator_width);
         let description = truncate_to_width(&description, remaining);
         if description.is_empty() {
@@ -359,7 +437,7 @@ fn render_candidate(
     let mut rendered = String::new();
     rendered.push_str(&paint_fragment(
         &prefix,
-        FragmentRole::Base,
+        FragmentRole::Icon(candidate.kind),
         selected,
         query,
         ui,
@@ -408,7 +486,21 @@ fn render_candidate(
     rendered
 }
 
-fn kind_icon(kind: &CandidateKind) -> &'static str {
+fn kind_icon(kind: &CandidateKind, style: &str) -> &'static str {
+    if style == "nerd" {
+        return match kind {
+            CandidateKind::Command => "\u{ea85}",
+            CandidateKind::Alias => "\u{eb15}",
+            CandidateKind::Function => "\u{ea8c}",
+            CandidateKind::Cmdlet => "\u{eb5f}",
+            CandidateKind::Subcommand => "\u{ea9c}",
+            CandidateKind::Option => "\u{eb52}",
+            CandidateKind::File => "\u{ea7b}",
+            CandidateKind::Directory => "\u{ea83}",
+            CandidateKind::Value => "\u{ea90}",
+        };
+    }
+
     match kind {
         CandidateKind::Command => "⌘",
         CandidateKind::Alias => "≈",
@@ -479,6 +571,31 @@ fn style_prefix(role: FragmentRole, selected: bool, ui: &UiConfig) -> String {
     let mut codes = Vec::new();
 
     match role {
+        FragmentRole::Icon(kind) => {
+            let color = match kind {
+                CandidateKind::Directory | CandidateKind::Subcommand => &ui.match_color,
+                CandidateKind::File | CandidateKind::Value => &ui.description_color,
+                _ => &ui.border_color,
+            };
+            push_color_code(
+                &mut codes,
+                38,
+                if selected {
+                    &ui.selected_foreground
+                } else {
+                    color
+                },
+            );
+            push_color_code(
+                &mut codes,
+                48,
+                if selected {
+                    &ui.selected_background
+                } else {
+                    &ui.background
+                },
+            );
+        }
         FragmentRole::Base => {
             push_color_code(
                 &mut codes,

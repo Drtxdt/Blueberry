@@ -88,7 +88,11 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
 fn start_host(cwd: &Path) -> Result<RunningHost> {
     let data_dir = tempdir().context("create host data directory")?;
     let config_path = data_dir.path().join("config.toml");
-    std::fs::write(&config_path, config::example()).context("write test config")?;
+    std::fs::write(
+        &config_path,
+        config::example().replace("icon_style = \"nerd\"", "icon_style = \"unicode\""),
+    )
+    .context("write test config")?;
     let program = PathBuf::from(env!("CARGO_BIN_EXE_shellsense"));
     let inherited_path = std::env::var_os("PATH").unwrap_or_default();
     let args = vec![

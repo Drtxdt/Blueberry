@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CandidateKind {
     Command,
@@ -21,6 +21,12 @@ pub struct Candidate {
     pub insert_text: String,
     pub description: String,
     pub kind: CandidateKind,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub description_source: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub language: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub match_reason: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub id: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -65,6 +71,8 @@ pub struct Completion {
     /// More command discovery batches are still pending.
     #[serde(default)]
     pub incomplete: bool,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub argument_hint: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

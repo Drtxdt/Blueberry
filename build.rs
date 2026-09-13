@@ -87,6 +87,8 @@ struct OptionSpec {
     append_space: bool,
     #[serde(default)]
     short_cluster: bool,
+    #[serde(default)]
+    value_name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +118,8 @@ struct NodeSpec {
     options: Vec<OptionSpec>,
     #[serde(default)]
     examples: Vec<String>,
+    #[serde(default)]
+    keywords: Vec<String>,
     provider: Option<String>,
     value_delimiter: Option<String>,
 }
@@ -156,6 +160,21 @@ fn validate(file: &CatalogFile) -> Result<(), String> {
             "schema_version {} is unsupported; expected {}",
             file.schema_version, SCHEMA_VERSION
         ));
+    }
+    for set in &file.option_sets {
+        if !file.nodes.iter().any(|n| n.option_sets.contains(&set.id)) {
+            return Err(format!("unreferenced option set: {}", set.id));
+        }
+    }
+    for node in &file.nodes {
+        if node.detail.contains("按 F1 查看") {
+            return Err(format!("placeholder detail: {}", node.path));
+        }
+        for example in &node.examples {
+            if example.trim().is_empty() || example.contains('\n') || example.contains('\x1b') {
+                return Err(format!("invalid example: {}", node.path));
+            }
+        }
     }
     let mut option_ids = BTreeSet::new();
     for set in &file.option_sets {
@@ -230,6 +249,14 @@ fn validate(file: &CatalogFile) -> Result<(), String> {
 }
 
 fn validate_option(option: &OptionSpec, where_: &str) -> Result<(), String> {
+    if !option.name.starts_with('-')
+        || option.description == "参数选项"
+        || option.detail.contains("按 F1 查看")
+    {
+        return Err(format!(
+            "{where_}: invalid option or placeholder documentation"
+        ));
+    }
     if option.name.trim().is_empty() || option.name.chars().any(char::is_whitespace) {
         return Err(format!(
             "{where_}: option name must be non-empty and contain no spaces"
@@ -368,7 +395,7 @@ fn option_static(out: &mut String, option: &OptionSpec) {
     values.push(']');
     let _ = writeln!(
         out,
-        "        StaticOption {{ names: {}, description: {}, detail: {}, value_kind: {}, values: {}, optional_value: {}, repeatable: {}, conflicts: {}, requires: {}, positional: {}, provider: {}, value_delimiter: {}, append_space: {}, short_cluster: {} }},",
+        "        StaticOption {{ names: {}, description: {}, detail: {}, value_kind: {}, values: {}, optional_value: {}, repeatable: {}, conflicts: {}, requires: {}, positional: {}, provider: {}, value_delimiter: {}, append_space: {}, short_cluster: {}, value_name: {} }},",
         rust_str_slice(&expand_names(option)),
         rust_str(&option.description),
         rust_str(&option.detail),
@@ -383,6 +410,7 @@ fn option_static(out: &mut String, option: &OptionSpec) {
         rust_opt_char(&delimiter),
         option.append_space,
         option.short_cluster,
+        rust_str(&option.value_name),
     );
 }
 
@@ -418,7 +446,7 @@ fn generate(file: &CatalogFile) -> String {
         let positional = rust_str(&node.positional);
         let _ = writeln!(
             out,
-            "    StaticNode {{ path: {}, name: {}, description: {}, detail: {}, positional: {}, children: {}, option_sets: {}, options: &[], examples: {}, provider: {}, value_delimiter: {} }},",
+            "    StaticNode {{ path: {}, name: {}, description: {}, detail: {}, positional: {}, children: {}, option_sets: {}, options: &[], examples: {}, keywords: {}, provider: {}, value_delimiter: {} }},",
             rust_str(&node.path),
             rust_str(&if node.name.is_empty() {
                 node.path
@@ -434,6 +462,7 @@ fn generate(file: &CatalogFile) -> String {
             rust_str_slice(&node.children),
             rust_str_slice(&node.option_sets),
             rust_str_slice(&node.examples),
+            rust_str_slice(&node.keywords),
             rust_opt_str(&node.provider),
             rust_opt_char(
                 &parse_delimiter(&node.value_delimiter, "generated node")

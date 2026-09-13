@@ -28,3 +28,5 @@ pub(crate) mod vt_input;
 
 #[cfg(windows)]
 pub(crate) mod windows_input;
+
+pub mod knowledge;

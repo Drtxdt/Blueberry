@@ -70,6 +70,8 @@ struct Query {
     usage: Option<Arc<UsageSnapshot>>,
     environment: Arc<BTreeMap<String, String>>,
     dynamic: bool,
+    searching: bool,
+    help_enabled: bool,
 }
 
 #[derive(Default)]
@@ -83,6 +85,7 @@ struct Work {
     source_updates: Vec<crate::sources::SourceUpdate>,
     cancel: bool,
     invalidate_sources: bool,
+    help_updates: Vec<crate::knowledge::Record>,
     catalog_path: Option<PathBuf>,
     catalog_snapshot: Option<Arc<crate::spec_catalog::Catalog>>,
 }
@@ -100,6 +103,24 @@ impl Worker {
         let shared = Arc::new((Mutex::new(Work::default()), Condvar::new()));
         let thread_shared = shared.clone();
         thread::spawn(move || {
+            let help_shared = thread_shared.clone();
+            let learner = crate::knowledge::Learner::new(
+                cache
+                    .parent()
+                    .unwrap_or(std::path::Path::new("."))
+                    .join("help"),
+                move |record| {
+                    let mut work = help_shared.0.lock().unwrap();
+                    work.help_updates.push(record);
+                    help_shared.1.notify_one();
+                },
+            );
+            let mut learned = Vec::<crate::knowledge::Record>::new();
+            let mut help_catalog: Option<(String, Arc<crate::spec_catalog::Catalog>)> = None;
+            let mut entry_cache = std::collections::HashMap::<
+                (String, PathBuf),
+                (Instant, Option<crate::knowledge::Entry>),
+            >::new();
             let mut catalog = Arc::new(crate::spec_catalog::Catalog::builtin().clone());
             match crate::spec_catalog::Catalog::load_user_dir(&catalog_path) {
                 Ok(loaded) if loaded.diagnostics().is_empty() => catalog = Arc::new(loaded),
@@ -145,6 +166,7 @@ impl Worker {
                             && work.commands.is_none()
                             && work.query.is_none()
                             && work.source_updates.is_empty()
+                            && work.help_updates.is_empty()
                             && !work.invalidate_sources
                             && !work.cancel
                             && work.catalog_path.is_none()
@@ -160,6 +182,8 @@ impl Worker {
                 let cancel = std::mem::take(&mut work.cancel);
                 let invalidate_sources = std::mem::take(&mut work.invalidate_sources);
                 let updates = std::mem::take(&mut work.source_updates);
+                let help_updates = std::mem::take(&mut work.help_updates);
+                let help_changed = !help_updates.is_empty();
                 let reload_catalog = work.catalog_path.take();
                 let commands = work.commands.take();
                 let commands_changed = commands.is_some();
@@ -170,11 +194,34 @@ impl Worker {
                 }
                 drop(work);
                 if cancel {
+                    learner.cancel();
                     prepared = None;
                     latest_query = None;
                     request = None;
                     parts = [None, None];
                     sources.cancel();
+                }
+                if help_changed || reload_catalog.is_some() || refresh {
+                    help_catalog = None;
+                    prepared = None;
+                }
+                if reload_catalog.is_some() || refresh {
+                    learner.invalidate();
+                    learned.retain(|r| r.entry.fingerprint == "session");
+                }
+                for record in help_updates {
+                    learned.retain(|r| {
+                        r.entry.fingerprint != record.entry.fingerprint
+                            || r.entry.command != record.entry.command
+                            || r.context != record.context
+                    });
+                    if learned.len() >= 512 {
+                        learned.remove(0);
+                    }
+                    learned.push(record);
+                }
+                if refresh {
+                    entry_cache.clear();
                 }
                 if let Some(path) = reload_catalog.as_ref() {
                     match crate::spec_catalog::Catalog::load_user_dir(path) {
@@ -256,12 +303,96 @@ impl Worker {
                 }
                 if let Some(q) = latest_query.as_ref().filter(|_| {
                     changed
+                        || help_changed
                         || query_changed
                         || !updates.is_empty()
                         || invalidate_sources
                         || refresh
                         || reload_catalog.is_some()
                 }) {
+                    let derived = index.input_context(&q.line, q.cursor);
+                    let context = q.context.as_ref().unwrap_or(&derived);
+                    let command = if context.command_position {
+                        context.prefix.as_str()
+                    } else {
+                        context.command.as_str()
+                    };
+                    let entry_key = (command.to_owned(), q.cwd.clone());
+                    if entry_cache
+                        .get(&entry_key)
+                        .is_none_or(|(time, _)| time.elapsed() > std::time::Duration::from_secs(1))
+                    {
+                        let found = index
+                            .executable(command)
+                            .and_then(|path| crate::knowledge::entry(command, &path, &q.cwd));
+                        if entry_cache.len() >= 256 {
+                            entry_cache.clear();
+                        }
+                        entry_cache.insert(entry_key.clone(), (Instant::now(), found));
+                    }
+                    let executable = entry_cache.get(&entry_key).and_then(|(_, e)| e.clone());
+                    let key = executable
+                        .as_ref()
+                        .map(|e| e.fingerprint.clone())
+                        .unwrap_or_default();
+                    if help_catalog.as_ref().is_none_or(|(old, _)| old != &key) {
+                        let mut effective = (*catalog).clone();
+                        for record in learned.iter().filter(|r| {
+                            r.entry.fingerprint == key || r.entry.fingerprint == "session"
+                        }) {
+                            effective.apply_help(record);
+                        }
+                        help_catalog = Some((key, Arc::new(effective)));
+                    }
+                    let catalog = help_catalog.as_ref().unwrap().1.clone();
+                    thread_shared.0.lock().unwrap().catalog_snapshot = Some(catalog.clone());
+                    if (query_changed || changed || refresh || reload_catalog.is_some())
+                        && let Some(mut entry) = executable
+                    {
+                        if !q.help_enabled {
+                            entry.trusted = false;
+                        }
+                        let context = catalog
+                            .lookup_unfiltered(command, &context.arguments, "")
+                            .map(|r| {
+                                r.context
+                                    .split_whitespace()
+                                    .skip(1)
+                                    .map(str::to_owned)
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        learner.submit(entry, context);
+                    }
+                    if q.searching {
+                        // Root purpose search can use knowledge from other installed tools,
+                        // but only after checking that their active entry is still the same.
+                        let mut search_catalog = (*catalog).clone();
+                        if context.command_position {
+                            for record in
+                                learned.iter().filter(|r| r.entry.fingerprint != "session")
+                            {
+                                if index
+                                    .executable(&record.entry.command)
+                                    .and_then(|p| std::fs::canonicalize(p).ok())
+                                    .is_some_and(|p| p == record.entry.path)
+                                    && crate::knowledge::current(record)
+                                {
+                                    search_catalog.apply_help(record);
+                                }
+                            }
+                        }
+                        let result = index.purpose_search(
+                            &search_catalog,
+                            &q.line,
+                            q.cursor,
+                            q.context.as_ref(),
+                            q.limit,
+                            &q.descriptions,
+                        );
+                        let _ = output.send(HostEvent::Completion(q.revision, result));
+                        continue;
+                    }
                     let started = Instant::now();
                     let (base, next) = if let Some((_, base, next)) =
                         prepared.as_ref().filter(|(revision, _, _)| {
@@ -543,6 +674,7 @@ struct State {
     repaint: bool,
     commands_snapshot: CommandSnapshot,
     commands_pending: bool,
+    commands_inflight: bool,
     commands_allowed: bool,
     trace: Trace,
     query_started: Option<Instant>,
@@ -554,11 +686,17 @@ struct State {
     pending_accept: Option<(u64, String, PathBuf)>,
     native_request: Option<u64>,
     native_ready: bool,
+    metadata_ready: bool,
+    metadata_active: bool,
+    metadata_pending: Option<String>,
+    metadata_seen: std::collections::HashSet<String>,
     paste_ready: bool,
     paste_sequence: u64,
     native_menu: bool,
     menu_focus: bool,
     details: bool,
+    detail_page: usize,
+    searching: bool,
     enter_ready: bool,
     shift_enter_ready: bool,
     native_queued: bool,
@@ -628,6 +766,42 @@ impl State {
         self.details = false;
         self.native_menu = false;
     }
+    fn schedule_metadata(&mut self) {
+        if !self.metadata_ready || !self.prompt {
+            return;
+        }
+        let derived = CommandIndex::default().input_context(&self.line, self.cursor);
+        let context = self.context.as_ref().unwrap_or(&derived);
+        if context.suppressed || self.line.contains(['\n', '\r']) {
+            return;
+        }
+        let name = if context.command_position {
+            &context.prefix
+        } else {
+            &context.command
+        };
+        let confirmed_name = !context.command_position
+            && !context.suppressed
+            && !name.is_empty()
+            && name.len() <= 128
+            && name
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_');
+        if (confirmed_name
+            || self
+                .commands_snapshot
+                .pending
+                .iter()
+                .chain(self.commands_snapshot.previous.iter())
+                .any(|c| {
+                    c.name.eq_ignore_ascii_case(name)
+                        && matches!(c.kind.as_str(), "function" | "cmdlet")
+                }))
+            && self.metadata_seen.insert(name.clone())
+        {
+            self.metadata_pending = Some(name.clone());
+        }
+    }
     fn message(&mut self, value: Value, _writer: &mut impl Write, worker: &Worker) -> Result<()> {
         match value["event"].as_str().unwrap_or("") {
             "capabilities" => {
@@ -642,6 +816,7 @@ impl State {
                 self.enter_ready = value["key_handlers"]["enter"] == true;
                 self.shift_enter_ready = value["key_handlers"]["shift_enter"] == true;
                 self.native_ready = value["key_handlers"]["native"] == true;
+                self.metadata_ready = value["capabilities"]["command_metadata"] == true;
                 self.paste_ready = value["key_handlers"]["paste"] == true;
                 self.ready = value["ready"] == true
                     && value["psreadline"] == true
@@ -670,9 +845,12 @@ impl State {
                 self.trace.event("prompt_end", None, None, None);
                 self.prompt = true;
                 self.commands_allowed = true;
+                self.metadata_seen.clear();
                 // ReadLine disposed the previous enumerator when execution
                 // began. Refresh the session snapshot after every new prompt.
                 self.commands_pending = self.ready;
+                self.commands_inflight = false;
+                self.metadata_pending = None;
                 if !self.ready && !self.adapter_diagnostic_shown {
                     self.diagnostic = Some("PowerShell adapter unavailable (PSReadLine or reserved key binding). Completion is disabled for this session.".into());
                     self.adapter_diagnostic_shown = true;
@@ -719,6 +897,8 @@ impl State {
                 self.invalidate();
                 self.native_request = None;
                 self.commands_pending = false;
+                self.commands_inflight = false;
+                self.metadata_pending = None;
             }
             "editing" if value["state"] == "continuation" => {
                 self.prompt = true;
@@ -728,9 +908,11 @@ impl State {
                 self.dismissed = false;
             }
             "commands" => {
+                self.commands_inflight = false;
                 if let Some((commands, complete)) = self.commands_snapshot.receive(&value) {
                     worker.update(|w| w.commands = Some(commands));
                     self.commands_pending = !complete;
+                    self.schedule_metadata();
                 }
             }
             "buffer" => {
@@ -776,10 +958,41 @@ impl State {
                             .then(|| self.learning.snapshot()),
                         environment: self.shell_environment.clone(),
                         dynamic: self.config.completion.dynamic,
+                        searching: self.searching,
+                        help_enabled: self.config.help.enabled,
                     };
+                    self.schedule_metadata();
                     worker.update(|w| w.query = Some(query));
                 }
                 self.explicit = false;
+            }
+            "command_metadata" => {
+                if request_number(&value["request_id"]) == self.native_request {
+                    self.native_request = None;
+                    self.metadata_active = false;
+                }
+                // Static metadata is session-scoped, independent of the edit revision.
+                if let (Some(command), Ok(page)) = (
+                    value["command"].as_str(),
+                    serde_json::from_value::<crate::knowledge::HelpPage>(value["page"].clone()),
+                ) {
+                    let record = crate::knowledge::Record {
+                        parser_version: 1,
+                        entry: crate::knowledge::Entry {
+                            command: command.into(),
+                            path: PathBuf::from("PowerShell 会话"),
+                            target: PathBuf::new(),
+                            fingerprint: "session".into(),
+                            trusted: false,
+                            script: None,
+                        },
+                        context: Vec::new(),
+                        page,
+                        fetched_at: 0,
+                        error: None,
+                    };
+                    worker.update(|w| w.help_updates.push(record));
+                }
             }
             "edit_result" => {
                 let id = request_number(&value["request_id"]);
@@ -862,10 +1075,10 @@ impl State {
                 for candidate in &mut candidates {
                     candidate.id = format!("native:{}", candidate.insert_text);
                     candidate.source = "PowerShell 原生补全".into();
-                    candidate.detail = std::mem::take(&mut candidate.description);
+                    crate::knowledge::native_description(candidate);
                     candidate.description = catalog
                         .describe_command(&candidate.label)
-                        .unwrap_or("用途暂未收录 · 原生补全")
+                        .unwrap_or(&candidate.description)
                         .into();
                     let mut description_key = candidate.label.clone();
                     if let Some(spec) = known.as_ref().and_then(|result| {
@@ -874,10 +1087,12 @@ impl State {
                         })
                     }) {
                         candidate.description = spec.description.clone();
+                        candidate.description_source = spec.source.clone();
                         description_key = spec.key.clone();
                     }
                     if let Some(custom) = self.descriptions.get(&description_key) {
                         candidate.description = custom.clone();
+                        candidate.description_source = "user".into();
                     }
                 }
                 self.line = line.into();
@@ -887,6 +1102,7 @@ impl State {
                     replace_end: end,
                     candidates,
                     incomplete: false,
+                    argument_hint: String::new(),
                 };
                 self.native_menu = true;
                 self.menu_focus = true;
@@ -943,6 +1159,7 @@ impl State {
 
     fn query(&mut self, writer: &mut impl Write) -> Result<()> {
         if self.native_queued
+            && !self.commands_inflight
             && self.ready
             && self.prompt
             && self.pending_query.is_none()
@@ -973,17 +1190,38 @@ impl State {
                 .event("query_sent", Some(self.revision), None, None);
             self.dirty = false;
         } else if self.reset_pending.is_some()
+            && !self.commands_inflight
             && self.ready
             && self.prompt
             && !self.nested_edit
             && self.pending_query.is_none()
             && self.native_request.is_none()
         {
+            self.commands_inflight = true;
             let public_keys = self.reset_pending.take().unwrap();
             self.write_payload("request", &json!({"id":self.revision.to_string(),"kind":"commands_reset","public_keys_json":public_keys}))?;
             writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'c'))?;
             writer.flush()?;
             self.commands_pending = false;
+        } else if self.metadata_pending.is_some()
+            && !self.commands_inflight
+            && self.metadata_ready
+            && self.prompt
+            && !self.nested_edit
+            && self.pending_query.is_none()
+            && self.native_request.is_none()
+        {
+            let name = self.metadata_pending.take().unwrap();
+            self.metadata_active = true;
+            // Share the adapter request gate with manual native completion so
+            // another request cannot overwrite the payload before it is consumed.
+            self.native_request = Some(self.revision);
+            self.write_payload(
+                "request",
+                &json!({"id":self.revision.to_string(),"kind":"command_metadata","command":name}),
+            )?;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
+            writer.flush()?;
         } else if self.commands_pending
             && self.commands_allowed
             && self.ready
@@ -992,6 +1230,7 @@ impl State {
             && self.pending_query.is_none()
             && self.native_request.is_none()
         {
+            self.commands_inflight = true;
             if self.pipe.is_some() {
                 self.write_payload(
                     "request",
@@ -1009,6 +1248,7 @@ impl State {
         let Some(candidate) = self.completion.candidates.get(self.selected) else {
             return Ok(());
         };
+        self.searching = false;
         let start = protocol::byte_to_utf16(&self.line, self.completion.replace_start);
         let end = protocol::byte_to_utf16(&self.line, self.completion.replace_end);
         let cursor = protocol::byte_to_utf16(&self.line, self.cursor);
@@ -1148,6 +1388,7 @@ impl State {
             self.notification = None;
             self.invalidate();
             self.prompt = false;
+            self.searching = false;
             self.dirty = false;
             self.native_queued = false;
             worker.update(|w| {
@@ -1162,11 +1403,46 @@ impl State {
             self.notification = None;
             self.commands_allowed = query_after && !self.nested_edit;
         }
+        if self.details
+            && self.prompt
+            && let Event::Key(key) = &event
+        {
+            use crossterm::event::KeyCode;
+            if matches!(key.code, KeyCode::PageDown | KeyCode::PageUp) {
+                let max = self
+                    .completion
+                    .candidates
+                    .get(self.selected)
+                    .map(|c| {
+                        crate::menu::detail_lines(
+                            c,
+                            (self.parser.screen().size().1 as usize).min(
+                                if self.config.ui.width == 0 {
+                                    100
+                                } else {
+                                    self.config.ui.width
+                                },
+                            ),
+                        )
+                        .len()
+                        .saturating_sub(1)
+                            / 3
+                    })
+                    .unwrap_or(0);
+                self.detail_page = if key.code == KeyCode::PageDown {
+                    (self.detail_page + 1).min(max)
+                } else {
+                    self.detail_page.saturating_sub(1)
+                };
+                return Ok(());
+            }
+        }
         let configured = if self.prompt && self.ready {
             input::configured(&event, &self.config.keys).filter(|input| {
                 let name = match input {
                     Input::Trigger => "trigger",
                     Input::Native => "native",
+                    Input::Search => "search",
                     Input::Details => "details",
                     Input::Refresh => "refresh",
                     Input::Reload => "reload",
@@ -1208,6 +1484,7 @@ impl State {
                 if visible && (self.menu_focus || !self.config.completion.up_arrow_history) =>
             {
                 self.selection_touched = true;
+                self.detail_page = 0;
                 self.selected = self
                     .selected
                     .checked_sub(1)
@@ -1217,6 +1494,7 @@ impl State {
             Input::BackTab if visible => {
                 self.menu_focus = true;
                 self.selection_touched = true;
+                self.detail_page = 0;
                 self.selected = self
                     .selected
                     .checked_sub(1)
@@ -1226,7 +1504,22 @@ impl State {
             Input::Next if visible => {
                 self.menu_focus = true;
                 self.selection_touched = true;
+                self.detail_page = 0;
                 self.selected = (self.selected + 1) % self.completion.candidates.len();
+                return Ok(());
+            }
+            Input::Search if self.prompt && self.ready => {
+                self.searching = !self.searching;
+                self.explicit = true;
+                self.dismissed = false;
+                self.dirty = true;
+                self.menu_focus = true;
+                return Ok(());
+            }
+            Input::Dismiss if self.searching => {
+                self.searching = false;
+                self.dismissed = true;
+                self.invalidate();
                 return Ok(());
             }
             Input::Dismiss if visible => {
@@ -1249,6 +1542,7 @@ impl State {
             }
             Input::Details if visible => {
                 self.details = !self.details;
+                self.detail_page = 0;
                 return Ok(());
             }
             Input::Native if self.prompt && self.ready => {
@@ -1256,9 +1550,10 @@ impl State {
                     self.diagnostic = Some("原生补全不可用；检查适配器版本和内部快捷键冲突".into());
                     return Ok(());
                 }
-                if self.native_request.is_some() {
+                if self.native_request.is_some() && !self.metadata_active {
                     return Ok(());
                 }
+                self.metadata_pending = None;
                 self.invalidate();
                 worker.update(|w| {
                     w.cancel = true;
@@ -1292,6 +1587,7 @@ impl State {
             Input::Refresh => b"\x1b\x03".to_vec(),
             Input::Reload => b"\x1b\x12".to_vec(),
             Input::Native => vec![0],
+            Input::Search => b"\x1b\x06".to_vec(),
             Input::Details => b"\x1bOP".to_vec(),
             Input::Bytes(bytes) => bytes,
         };
@@ -1304,6 +1600,7 @@ impl State {
                 self.dirty = self.prompt;
             } else {
                 self.prompt = false;
+                self.searching = false;
                 self.dirty = false;
                 worker.update(|w| {
                     w.cancel = true;
@@ -1544,6 +1841,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         adapter_diagnostic_shown: false,
         commands_snapshot: CommandSnapshot::default(),
         commands_pending: false,
+        commands_inflight: false,
         commands_allowed: false,
         trace: trace.clone(),
         query_started: None,
@@ -1555,11 +1853,17 @@ pub fn run(options: RunOptions) -> Result<u32> {
         pending_accept: None,
         native_request: None,
         native_ready: false,
+        metadata_ready: false,
+        metadata_active: false,
+        metadata_pending: None,
+        metadata_seen: Default::default(),
         paste_ready: false,
         paste_sequence: 0,
         native_menu: false,
         menu_focus: false,
         details: false,
+        detail_page: 0,
+        searching: false,
         enter_ready: false,
         shift_enter_ready: false,
         native_queued: false,
@@ -1631,9 +1935,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     );
                                 }
                                 let before = (state.revision, state.prompt, state.dismissed);
+                                let changes_menu = value["event"] == "native_completion";
                                 state.message(value, &mut writer, &worker)?;
-                                ui_dirty |=
-                                    before != (state.revision, state.prompt, state.dismissed);
+                                ui_dirty |= changes_menu
+                                    || before != (state.revision, state.prompt, state.dismissed);
                             }
                             Part::CursorQuery(private) => {
                                 let (row, col) = state.parser.screen().cursor_position();
@@ -1737,6 +2042,17 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     ..Default::default()
                 })
                 .or_else(|| {
+                    if !state.completion.argument_hint.is_empty() {
+                        Some(Candidate {
+                            label: state.completion.argument_hint.clone(),
+                            description: "请输入参数值".into(),
+                            ..Default::default()
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| {
                     state.completion.incomplete.then(|| Candidate {
                         label: "正在加载候选…".into(),
                         ..Default::default()
@@ -1761,7 +2077,17 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 crate::menu::MenuState {
                     incomplete: state.completion.incomplete,
                     details: state.details,
-                    diagnostic: state.notification.as_deref(),
+                    detail_page: state.detail_page,
+                    argument_hint: (!state.completion.candidates.is_empty())
+                        .then_some(state.completion.argument_hint.as_str()),
+                    searching: state.searching,
+                    diagnostic: state.notification.as_deref().or_else(|| {
+                        state
+                            .completion
+                            .candidates
+                            .is_empty()
+                            .then_some("提示 · 请继续输入")
+                    }),
                 },
             )?;
         } else if ui_dirty {

@@ -1339,7 +1339,11 @@ function ConvertFrom-ShellsenseRequestJson {
             return $null
         }
     }
+    $commandName = ''
+    $commandElement = [System.Text.Json.JsonElement]::new()
+    if ($rootValue.TryGetProperty('command', [ref]$commandElement) -and $commandElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String) { $commandName = $commandElement.GetString() }
     return [pscustomobject]@{
+        command          = $commandName
         id               = [string]$id
         kind             = [string]$kind
         public_keys_json = $publicKeysJson
@@ -1350,7 +1354,7 @@ function Read-ShellsenseRequest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('native', 'commands_reset', 'commands_next')]
+        [ValidateSet('native', 'command_metadata', 'commands_reset', 'commands_next')]
         [string[]]$ExpectedKind
     )
 
@@ -2432,12 +2436,93 @@ function Invoke-ShellsenseCommandsKeyHandler {
     }
 }
 
+function Get-ShellsenseCommandMetadata {
+    [CmdletBinding()]
+    param([string]$Name)
+    $options = [Collections.Generic.List[object]]::new()
+    $description = ''
+    if ($Name -notmatch '^[\p{L}\p{N}_-]{1,128}$') { return $null }
+    # Search loaded commands only. Do not use Get-Command or bind dynamic parameters.
+    $types = [Management.Automation.CommandTypes]::Cmdlet -bor [Management.Automation.CommandTypes]::Function
+    $commands = $ExecutionContext.InvokeCommand.GetCommands($Name, $types, $true)
+    foreach ($command in $commands) {
+        if ($command.Name -ine $Name) { continue }
+        if ($command -is [Management.Automation.FunctionInfo]) {
+            $ast = $command.ScriptBlock.Ast
+            $help = $ast.GetHelpContent()
+            if ($null -ne $help) { $description = [string]$help.Synopsis }
+            if ($ast -is [Management.Automation.Language.FunctionDefinitionAst]) { $ast = $ast.Body }
+            if ($null -ne $ast.ParamBlock) {
+                foreach ($parameter in $ast.ParamBlock.Parameters) {
+                    $parameterName = [string]$parameter.Name.VariablePath.UserPath
+                    $switch = $false
+                    $values = [Collections.Generic.List[string]]::new()
+                    foreach ($attribute in $parameter.Attributes) {
+                        if ($attribute.TypeName.FullName -in @('switch', 'switchparameter', 'System.Management.Automation.SwitchParameter')) { $switch = $true }
+                        if ($attribute -is [Management.Automation.Language.AttributeAst] -and $attribute.TypeName.FullName -eq 'ValidateSet') {
+                            foreach ($argument in $attribute.PositionalArguments) {
+                                if ($argument -is [Management.Automation.Language.StringConstantExpressionAst]) { $values.Add($argument.Value) }
+                            }
+                        }
+                    }
+                    $text = ''
+                    if ($null -ne $help -and $help.Parameters.ContainsKey($parameterName.ToUpperInvariant())) { $text = [string]$help.Parameters[$parameterName.ToUpperInvariant()] }
+                    $options.Add(@{ names = @('-' + $parameterName); description = $text; detail = $text; value_name = $(if ($switch) { '' } else { '<' + $parameterName + '>' }); values = @($values.ToArray()); repeatable = $false })
+                }
+            }
+        } elseif ($command -is [Management.Automation.CmdletInfo]) {
+            # Type metadata is static and cannot invoke a provider's dynamicparam callback.
+            $metadata = [Management.Automation.CommandMetadata]::new($command.ImplementingType)
+            foreach ($parameter in $metadata.Parameters.Values) {
+                $values = [Collections.Generic.List[string]]::new()
+                if ($parameter.ParameterType.IsEnum) { foreach ($v in [Enum]::GetNames($parameter.ParameterType)) { $values.Add($v) } }
+                $options.Add(@{ names = @('-' + $parameter.Name); description = '参数 ' + $parameter.Name; detail = [string]$parameter.ParameterType; value_name = $(if ($parameter.ParameterType -eq [Management.Automation.SwitchParameter]) { '' } else { '<' + $parameter.ParameterType.Name + '>' }); values = @($values.ToArray()); repeatable = $false })
+            }
+            # Read a bounded local MAML file, never Update-Help or an online URI.
+            $base = [IO.Path]::GetDirectoryName($command.DLL)
+            $helpName = [IO.Path]::GetFileName($command.HelpFile)
+            foreach ($culture in @([Globalization.CultureInfo]::CurrentUICulture.Name, 'en-US', '')) {
+                $helpPath = [IO.Path]::Combine($base, $culture, $helpName)
+                if ([IO.File]::Exists($helpPath) -and ([IO.FileInfo]::new($helpPath)).Length -le 1048576) {
+                    $xml = [Xml.XmlDocument]::new(); $xml.XmlResolver = $null
+                    $readerSettings = [Xml.XmlReaderSettings]::new(); $readerSettings.DtdProcessing = [Xml.DtdProcessing]::Prohibit
+                    $reader = [Xml.XmlReader]::Create($helpPath, $readerSettings)
+                    try { $xml.Load($reader) } finally { $reader.Dispose() }
+                    foreach ($node in $xml.SelectNodes("//*[local-name()='command']")) {
+                        $nameNode = $node.SelectSingleNode("*[local-name()='details']/*[local-name()='name']")
+                        if ($null -ne $nameNode -and $nameNode.InnerText -ieq $Name) {
+                            $synopsis = $node.SelectSingleNode("*[local-name()='details']/*[local-name()='description']")
+                            if ($null -ne $synopsis) { $description = $synopsis.InnerText }
+                            foreach ($option in $options) {
+                                foreach ($parameterNode in $node.SelectNodes("*[local-name()='parameters']/*[local-name()='parameter']")) {
+                                    $n = $parameterNode.SelectSingleNode("*[local-name()='name']")
+                                    $d = $parameterNode.SelectSingleNode("*[local-name()='description']")
+                                    if ($null -ne $n -and $null -ne $d -and ('-' + $n.InnerText) -ieq $option.names[0]) { $option.description = $d.InnerText; $option.detail = $d.InnerText }
+                                }
+                            }
+                        }
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($description)) { break }
+                }
+            }
+        }
+        return @{ description = $description; options = @($options.ToArray()); commands = @{}; complete = $false }
+    }
+    return $null
+}
+
 function Invoke-ShellsenseNativeKeyHandler {
     [CmdletBinding()]
     param()
-    $request = Read-ShellsenseRequest -ExpectedKind 'native'
+    $request = Read-ShellsenseRequest -ExpectedKind @('native', 'command_metadata')
     if ($null -ne $request) {
-        Get-ShellsenseNativeCompletion -RequestId ([string]$request.id)
+        if ($request.kind -eq 'command_metadata') {
+            $page = $null
+            $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
+            try { $page = Get-ShellsenseCommandMetadata -Name $request.command } catch { }
+            finally { $global:LASTEXITCODE = $savedLastExitCode }
+            Send-ShellsenseEvent -Event 'command_metadata' -Data @{ request_id = [string]$request.id; command = [string]$request.command; page = $page }
+        } else { Get-ShellsenseNativeCompletion -RequestId ([string]$request.id) }
     }
 }
 
@@ -2596,7 +2681,7 @@ function Get-ShellsensePublicKeyConfiguration {
         if ([string]::Equals([string]$version, '1', [StringComparison]::Ordinal)) {
             $fastConfiguration = [ordered]@{}
             $fastComplete = $true
-            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload')) {
+            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload', 'search')) {
                 $environmentName = 'SHELLSENSE_PUBLIC_KEY_' + $name.ToUpperInvariant()
                 $value = [Environment]::GetEnvironmentVariable($environmentName, 'Process')
                 if ([string]::IsNullOrWhiteSpace([string]$value)) {
@@ -2629,7 +2714,7 @@ function Get-ShellsensePublicKeyConfiguration {
         if ($document.RootElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
             $invalid = $true
         } else {
-            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload')) {
+            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload', 'search')) {
                 $property = [System.Text.Json.JsonElement]::new()
                 if (-not $document.RootElement.TryGetProperty($name, [ref]$property)) {
                     continue
@@ -2810,6 +2895,7 @@ function Send-ShellsenseCapabilities {
         multiline         = ([bool]$script:SHELLSENSE_KEY_HANDLERS.enter -or
             [bool]$script:SHELLSENSE_KEY_HANDLERS.shift_enter)
         manual_native     = $true
+        command_metadata  = [bool]$script:SHELLSENSE_KEY_HANDLERS.native
     }
     # Keep the field absent when the host did not opt into public-key
     # arbitration, preserving the alpha protocol shape for existing launchers.
