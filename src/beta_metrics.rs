@@ -441,7 +441,7 @@ pub fn run(
         "method": {
             "host": "每个样本都在真实 PowerShell + ShellSense + 外层 ConPTY 中测量",
             "observation": "只读取 Harness 的 viewport 行；输入回显和带候选图标的真实菜单行分别确认",
-            "dynamic": "动态结果必须同时出现目标候选且不含“正在加载”；静态场景只记录首个可用候选，不计作动态完成",
+            "dynamic": "计时前确认无旧输入/菜单；动态结果须出现目标候选和完整可见的 F1 状态行且无加载标记。诊断替代或裁切状态行不算完成；静态场景不计作动态完成",
             "ordering": "每场景每种 cache 模式使用 0..9 循环的十个唯一夹具候选",
             "initial_query": "每个 session 的首个查询单独等待完整动态结果；它不进入热态菜单统计。静态场景的首个查询只等待首个可用候选",
             "cache": "每个 session pair 先在全新空 data 目录测量 miss，再复用同一份已验证 complete=true 的 commands.json 测量 hit；hit 后检查文件时间未改变",
@@ -711,6 +711,10 @@ fn observe_query(
     expected: &str,
     dynamic: bool,
 ) -> Result<Observation> {
+    let before = harness.viewport_contents();
+    if has_input_echo(&before, line) || has_menu_row(&before) {
+        bail!("计时前仍有本次输入或旧菜单，拒绝使用陈旧画面作为样本；screen:\n{before}");
+    }
     let started = Instant::now();
     harness.send(line.as_bytes())?;
     let deadline = started + WAIT_TIMEOUT;
@@ -727,17 +731,20 @@ fn observe_query(
             if first_menu.is_none() && has_menu_row(&screen) {
                 first_menu = Some(milliseconds(started.elapsed()));
             }
-            if first_candidate_menu.is_none() && has_menu_row(&screen) && !has_loading(&screen) {
+            if first_candidate_menu.is_none()
+                && has_expected_menu_row(&screen, expected)
+                && (dynamic || has_complete_status(&screen))
+            {
                 first_candidate_menu = Some(milliseconds(started.elapsed()));
             }
             if dynamic {
                 if dynamic_complete_menu.is_none()
                     && has_expected_menu_row(&screen, expected)
-                    && !has_loading(&screen)
+                    && has_complete_status(&screen)
                 {
                     dynamic_complete_menu = Some(milliseconds(started.elapsed()));
                 }
-            } else if has_expected_menu_row(&screen, expected) && !has_loading(&screen) {
+            } else if has_expected_menu_row(&screen, expected) && has_complete_status(&screen) {
                 dynamic_complete_menu = Some(milliseconds(started.elapsed()));
             }
         }
@@ -745,8 +752,7 @@ fn observe_query(
         if complete {
             let input_echo = input_echo.context("当前输入没有在 viewport 中回显")?;
             let first_menu = first_menu.context("viewport 中没有真实候选菜单行")?;
-            let first_candidate_menu =
-                first_candidate_menu.context("候选菜单始终带有后台加载标记，未形成可用候选快照")?;
+            let first_candidate_menu = first_candidate_menu.context("目标候选尚未在菜单中出现")?;
             return Ok(Observation {
                 input_echo,
                 first_menu,
@@ -776,24 +782,23 @@ fn wait_for_prompt(harness: &mut Harness, timeout: Duration) -> Result<()> {
 }
 
 fn reset_line(harness: &mut Harness, previous_line: &str) -> Result<()> {
-    // Every benchmark query is ASCII. Move to the beginning and delete the
-    // known line length. This uses ordinary PSReadLine editing keys only;
+    // Every benchmark query is ASCII. SelectAll in Windows PSReadLine mode,
+    // then delete the known input. These are ordinary editing keys only;
     // sending Escape next to a control byte can be decoded by ConPTY as an
     // Alt chord and leaves part of the previous query in the buffer.
-    harness.send(b"\x01")?; // Ctrl+A / beginning of line
-    let bytes: Vec<u8> = std::iter::repeat_n(0x7f, previous_line.len()).collect();
-    if !bytes.is_empty() {
-        harness.send(&bytes)?;
-    }
+    harness.send(b"\x01\x7f")?; // SelectAll + Backspace in one input write.
     let deadline = Instant::now() + CLEANUP_TIMEOUT;
     while Instant::now() < deadline {
         let screen = harness.viewport_contents();
         if !has_menu_row(&screen) && !has_input_echo(&screen, previous_line) {
-            break;
+            return Ok(());
         }
         pump_brief(harness, deadline);
     }
-    Ok(())
+    bail!(
+        "未确认上一条性能夹具输入和菜单已清除，拒绝继续计时；screen:\n{}",
+        harness.viewport_contents()
+    )
 }
 
 fn pump_brief(harness: &mut Harness, deadline: Instant) {
@@ -837,8 +842,13 @@ fn has_expected_menu_row(screen: &str, expected: &str) -> bool {
         .any(|line| is_menu_row(line) && line.contains(expected))
 }
 
-fn has_loading(screen: &str) -> bool {
-    screen.contains("正在加载")
+fn has_complete_status(screen: &str) -> bool {
+    // The fixed benchmark layout reserves a visible status row. Requiring
+    // the complete footer rejects diagnostic replacement or clipped status;
+    // absence of a loading marker alone cannot prove provider completion.
+    screen.lines().any(|line| {
+        line.contains(" · ") && line.contains(" · F1 详情") && !line.contains("正在加载")
+    })
 }
 
 fn host_args(config: &Path, shell: &Path, data_dir: &Path, transport: &str) -> Vec<String> {
@@ -1126,6 +1136,24 @@ fn measure_pwsh_baseline(
         uuid::Uuid::new_v4().to_string(),
     )?;
     wait_for_prompt(&mut harness, WAIT_TIMEOUT)?;
+    let mut input_echo = Vec::with_capacity(10);
+    for index in 0..10 {
+        let line = format!("SS_ECHO_CONTROL_{index}");
+        let started = Instant::now();
+        harness.send(line.as_bytes())?;
+        let deadline = started + WAIT_TIMEOUT;
+        loop {
+            if has_input_echo(&harness.viewport_contents(), &line) {
+                input_echo.push(milliseconds(started.elapsed()));
+                break;
+            }
+            if Instant::now() >= deadline {
+                bail!("独立 pwsh 输入回显对照超时");
+            }
+            pump_brief(&mut harness, deadline);
+        }
+        reset_line(&mut harness, &line)?;
+    }
     let marker = format!("SHELLSENSE_BETA_BASELINE_DONE_{}", uuid::Uuid::new_v4());
     let command = format!(
         "Get-Content -Raw -LiteralPath '{}'; Write-Output '{}'",
@@ -1141,6 +1169,8 @@ fn measure_pwsh_baseline(
     harness.finish(WAIT_TIMEOUT)?;
     Ok(json!({
         "throughput": f64_stats(&[throughput], "bytes_per_second"),
+        "input_echo_control": f64_stats(&input_echo, "ms"),
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
         "profile_mode": "preserved",
         "shell": shell,
         "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",

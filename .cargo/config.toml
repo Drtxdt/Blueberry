@@ -1,0 +1,3 @@
+[target.x86_64-pc-windows-msvc]
+# Ship one executable without requiring a separate VC++ runtime installer.
+rustflags = ["-C", "target-feature=+crt-static"]

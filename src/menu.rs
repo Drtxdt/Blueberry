@@ -91,15 +91,15 @@ pub fn render_with_state(
             push(diagnostic);
         } else {
             push(&format!(
-                "{}/{} · {}{} · F1 详情",
+                "{}/{}{} · F1 详情 · {}",
                 selected + 1,
                 candidates.len(),
-                source,
                 if state.incomplete {
                     " · 正在加载"
                 } else {
                     ""
-                }
+                },
+                source,
             ));
         }
     }
@@ -871,5 +871,22 @@ mod tests {
         let plain = frame.lines.join("\n");
         assert!(plain.contains("正在加载"));
         assert!(plain.contains("格式：a,b"));
+        let mut long_source = candidate("cargo", "管理 Rust 项目");
+        long_source.source = "C:/very/long/path/".repeat(20);
+        let frame = render_with_state(
+            &[long_source],
+            0,
+            "",
+            50,
+            &config,
+            MenuState {
+                incomplete: true,
+                ..Default::default()
+            },
+            15,
+        );
+        let plain = frame.lines.join("\n");
+        assert!(plain.contains("正在加载"));
+        assert!(plain.contains("F1 详情"));
     }
 }
