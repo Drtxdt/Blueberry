@@ -93,7 +93,7 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/licenses.ps1 -OutputPath ./THIRD-PARTY-NOTICES.txt
-          $version = (Select-String Cargo.toml '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
           ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -OutputDirectory ./dist/ci
           ./scripts/test-release.ps1 -BlueberryExecutable ./target/release/blueberry.exe
           $package = (Get-ChildItem ./dist/ci/*.zip).FullName

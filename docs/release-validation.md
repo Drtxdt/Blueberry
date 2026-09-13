@@ -35,8 +35,9 @@
 ## 远程与人工验收
 
 - [首轮 GitHub Actions](https://github.com/Drtxdt/Blueberry/actions/runs/34767062275) 已于 2026-09-14 检查：格式通过，三平台构建通过；三平台 Clippy 和两项 PowerShell 5.1 交互任务失败，打包被跳过。
-- 本轮修复处理 Rust 1.98.1 的 match/return 检查、PSReadLine 自动加载版本冲突，以及旧版 ConPTY 中测试快捷键修饰键丢失。修复后本机 Rust 1.98.1 Clippy 和 144 项核心测试、5.1 配合 PSReadLine 2.0/2.4.5 的完整 OSC/pipe 回归通过；多版本并存的 2.0 定向回归通过。远程修复结果待推送后确认。
+- 本轮修复处理 Rust 1.98.1 的 match/return 检查、PSReadLine 自动加载版本冲突，以及旧版 ConPTY 中测试快捷键修饰键丢失。修复后本机 Rust 1.98.1 Clippy 和 144 项核心测试、5.1 配合 PSReadLine 2.0/2.4.5 的完整 OSC/pipe 回归通过；多版本并存的 2.0 定向回归通过。
 - [后续运行](https://github.com/Drtxdt/Blueberry/actions/runs/34768060171) 的 Clippy、Ubuntu 核心测试及命令刷新回归通过。剩余失败涉及用途搜索快捷键注入、Windows 大输出测试生成数据过慢、macOS 监听事件使用真实路径。对应修复统一终端测试的 CSI-u 输入、预生成大输出样本，并规范化监听路径；保留原有超时、输出预算和测试矩阵。新增 Unix 符号链接回归，本机 Linux 的三项监听测试通过。
+- [鼠标兼容修复后的运行](https://github.com/Drtxdt/Blueberry/actions/runs/34769112387) 中，格式、三平台核心、两版 PSReadLine 和新增原生鼠标检查共七项全部通过。Server 2022 验证 VT 鼠标，Server 2025 验证原生鼠标，两者均为打包前置条件。随后打包步骤暴露版本号读取的位置参数错误，已改用明确的 `-Path` / `-Pattern`。最新完整结果见 [main 的 Actions](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml?query=branch%3Amain)。
 - macOS 本机没有执行环境，交互支持列在 README 的未来展望中。
 - 发布者仍需在真实 Windows Terminal 按安装指南检查中文输入法、字体图标、窄窗口、缩放、F1 翻页和自动启动体验。
 - 首次公开 Release 后，在干净用户环境验证 README 一条命令安装及 PATH 生效。
