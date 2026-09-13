@@ -715,7 +715,12 @@ fn conpty_mouse_passthrough_for_external_program() -> Result<()> {
         .context("send SGR mouse down/up and helper sentinel")?;
     host.harness
         .wait_text("SS_MOUSE_DONE", PTY_TIMEOUT)
-        .context("wait for external mouse helper completion")?;
+        .with_context(|| {
+            format!(
+                "wait for external mouse helper completion; input records:\n{}",
+                fs::read_to_string(&log_path).unwrap_or_default()
+            )
+        })?;
     host.harness.event("prompt_end", PTY_TIMEOUT)?;
 
     let log = fs::read_to_string(&log_path).context("read mouse helper input log")?;
