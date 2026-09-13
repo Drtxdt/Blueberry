@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{Parser, Subcommand};
 use blueberry::{
     completion, config,
     engine::CommandIndex,
@@ -10,6 +9,7 @@ use blueberry::{
     sources,
     spec_catalog::{Catalog, CatalogLoadError, CheckReport, SpecDiagnostic},
 };
+use clap::{Parser, Subcommand};
 use std::{
     collections::BTreeMap,
     env,
@@ -21,7 +21,7 @@ use std::{
 #[derive(Parser)]
 #[command(
     version,
-    about = "Native PowerShell completion. Run without a subcommand to start pwsh."
+    about = "Native PowerShell completion. Run without a subcommand to start PowerShell."
 )]
 struct Cli {
     #[arg(long, global = true)]
@@ -34,7 +34,7 @@ struct Cli {
 enum Command {
     /// Measure six complete-host scenarios with profile and explicit cache states.
     BetaProbe {
-        #[arg(long, default_value = "pwsh.exe")]
+        #[arg(long, default_value_os_t = blueberry::pty::default_shell())]
         shell: PathBuf,
         #[arg(long, default_value_t = 300, value_parser=clap::value_parser!(u16).range(1..10001))]
         samples: u16,
@@ -49,7 +49,7 @@ enum Command {
     },
     /// Start one PowerShell session inside the native completion host.
     Run {
-        #[arg(long, default_value = "pwsh.exe")]
+        #[arg(long, default_value_os_t = blueberry::pty::default_shell())]
         shell: PathBuf,
         #[arg(long)]
         no_profile: bool,
@@ -93,6 +93,16 @@ enum Command {
     TerminalProfile,
     /// Print runtime and configuration diagnostics.
     Doctor,
+    /// Enable, disable, or inspect PowerShell profile startup hooks.
+    Startup {
+        #[arg(value_enum)]
+        action: StartupAction,
+        /// Operate on an explicit profile (useful for isolated environments).
+        #[arg(long)]
+        profile: Option<PathBuf>,
+        #[arg(long, hide = true)]
+        owned_only: bool,
+    },
     /// Manage local, hashed candidate selection statistics.
     Learning {
         #[command(subcommand)]
@@ -100,7 +110,7 @@ enum Command {
     },
     /// Exercise the real PowerShell adapter over ConPTY and report timings.
     Probe {
-        #[arg(long, default_value = "pwsh.exe")]
+        #[arg(long, default_value_os_t = blueberry::pty::default_shell())]
         shell: PathBuf,
         #[arg(long,default_value_t=3,value_parser=clap::value_parser!(u16).range(1..101))]
         iterations: u16,
@@ -122,6 +132,13 @@ enum Command {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+}
+
+#[derive(Clone, clap::ValueEnum)]
+enum StartupAction {
+    Enable,
+    Disable,
+    Status,
 }
 
 #[derive(Subcommand)]
@@ -759,7 +776,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
 fn execute() -> Result<u32> {
     let cli = Cli::parse();
     match cli.command.unwrap_or(Command::Run {
-        shell: "pwsh.exe".into(),
+        shell: blueberry::pty::default_shell(),
         no_profile: false,
         data_dir: None,
         trace: None,
@@ -779,6 +796,18 @@ fn execute() -> Result<u32> {
             trace_path: trace,
             transport,
         }),
+        Command::Startup {
+            action,
+            profile,
+            owned_only,
+        } => {
+            let action = match action {
+                StartupAction::Enable => "enable",
+                StartupAction::Disable => "disable",
+                StartupAction::Status => "status",
+            };
+            blueberry::startup::run(action, profile.as_deref(), owned_only)
+        }
         Command::Complete {
             line,
             cursor,

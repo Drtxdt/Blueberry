@@ -30,3 +30,5 @@ pub(crate) mod vt_input;
 pub(crate) mod windows_input;
 
 pub mod knowledge;
+
+pub mod startup;

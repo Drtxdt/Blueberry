@@ -5,8 +5,8 @@
 //! directories and disable PSReadLine history.
 
 use anyhow::{Context, Result, bail, ensure};
-use serde_json::{Value, json};
 use blueberry::{config, probe::Harness};
+use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
     fs,
@@ -415,7 +415,7 @@ fn accept_selected(harness: &mut Harness) -> Result<()> {
 
 fn buffer_probe_command(path: &Path) -> String {
     format!(
-        "Set-PSReadLineKeyHandler -Chord 'F10,b' -ScriptBlock {{ $line=$null; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); $state=[object][ordered]@{{line=$line;cursor=$cursor}}; $json=[System.Text.Json.JsonSerializer]::Serialize($state,[object],[System.Text.Json.JsonSerializerOptions]::new()); [IO.File]::WriteAllText({}, $json, [Text.UTF8Encoding]::new($false)) }}; Write-Output SS_BUFFER_READY",
+        "Set-PSReadLineKeyHandler -Chord 'F10,b' -ScriptBlock {{ $line=$null; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); $state=[object][ordered]@{{line=$line;cursor=$cursor}}; $json=($state | ConvertTo-Json -Compress -Depth 8); [IO.File]::WriteAllText({}, $json, [Text.UTF8Encoding]::new($false)) }}; Write-Output SS_BUFFER_READY",
         ps_quote(path)
     )
 }

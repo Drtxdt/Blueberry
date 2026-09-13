@@ -1320,6 +1320,25 @@ impl State {
                 query_after = false;
             }
         }
+        // PSReadLine 2.0 drops surrogate key events. Insert supplementary
+        // characters through the acknowledged literal-text bridge instead.
+        let event = match event {
+            Event::Key(key)
+                if self.ready
+                    && self.prompt
+                    && !self.nested_edit
+                    && self.paste_ready
+                    && key.modifiers.is_empty()
+                    && matches!(key.code, crossterm::event::KeyCode::Char(c) if c as u32 > 0xffff) =>
+            {
+                if let crossterm::event::KeyCode::Char(c) = key.code {
+                    Event::Paste(c.to_string())
+                } else {
+                    unreachable!()
+                }
+            }
+            event => event,
+        };
         if let Event::Paste(text) = &event
             && self.prompt
         {

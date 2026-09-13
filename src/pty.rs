@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use portable_pty::{Child, CommandBuilder, MasterPty, PtySize, native_pty_system};
+use std::path::PathBuf;
 use std::{
     collections::BTreeMap,
     io::{Read, Write},
@@ -81,17 +82,20 @@ pub fn spawn(
 
 pub fn ensure_integration(directory: &Path) -> Result<std::path::PathBuf> {
     std::fs::create_dir_all(directory)?;
-    let content = include_str!("../shell/integration.ps1");
+    let content = include_str!("../shell/integration.ps1").replace(
+        "([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'legacy-json.cs')))",
+        &format!("@'\n{}\n'@", include_str!("../shell/legacy-json.cs")),
+    );
     use std::hash::{Hash, Hasher};
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     content.hash(&mut hash);
     let path = directory.join(format!("integration-{:016x}.ps1", hash.finish()));
-    if std::fs::read_to_string(&path).ok().as_deref() != Some(content) {
+    if std::fs::read_to_string(&path).ok().as_deref() != Some(content.as_str()) {
         let temporary = directory.join(format!("integration.{}.tmp", uuid::Uuid::new_v4()));
-        std::fs::write(&temporary, content)?;
+        std::fs::write(&temporary, &content)?;
         if let Err(error) = std::fs::rename(&temporary, &path) {
             let _ = std::fs::remove_file(&temporary);
-            if std::fs::read_to_string(&path).ok().as_deref() != Some(content) {
+            if std::fs::read_to_string(&path).ok().as_deref() != Some(content.as_str()) {
                 return Err(error.into());
             }
         }
@@ -130,4 +134,25 @@ pub fn shell_args(integration: &Path, no_profile: bool) -> Vec<String> {
         ),
     ]);
     args
+}
+
+/// Prefer PowerShell 7 and fall back to the Windows inbox shell.
+pub fn default_shell() -> PathBuf {
+    if let Some(path) = std::env::var_os("BLUEBERRY_TEST_SHELL").filter(|path| !path.is_empty()) {
+        return path.into();
+    }
+    let name = if cfg!(windows) { "pwsh.exe" } else { "pwsh" };
+    if let Some(paths) = std::env::var_os("PATH") {
+        for directory in std::env::split_paths(&paths) {
+            let path = directory.join(name);
+            if path.is_file() {
+                return path;
+            }
+        }
+    }
+    #[cfg(windows)]
+    if let Some(root) = std::env::var_os("SystemRoot") {
+        return PathBuf::from(root).join("System32/WindowsPowerShell/v1.0/powershell.exe");
+    }
+    name.into()
 }

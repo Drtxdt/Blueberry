@@ -124,8 +124,7 @@ struct TemporaryDirectory {
 
 impl TemporaryDirectory {
     fn new() -> Result<Self> {
-        let path =
-            env::temp_dir().join(format!("blueberry-beta-metrics-{}", uuid::Uuid::new_v4()));
+        let path = env::temp_dir().join(format!("blueberry-beta-metrics-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&path)
             .with_context(|| format!("无法创建性能夹具目录 {}", path.display()))?;
         Ok(Self { path })
@@ -821,9 +820,12 @@ fn has_prompt(screen: &str) -> bool {
 }
 
 fn has_input_echo(screen: &str, expected_line: &str) -> bool {
+    // A long native prompt can wrap the ASCII control input onto another row.
     screen
         .lines()
-        .any(|line| !is_menu_row(line) && line.contains(expected_line))
+        .filter(|line| !is_menu_row(line))
+        .collect::<String>()
+        .contains(expected_line)
 }
 
 fn is_menu_row(line: &str) -> bool {
@@ -1148,7 +1150,10 @@ fn measure_pwsh_baseline(
                 break;
             }
             if Instant::now() >= deadline {
-                bail!("独立 pwsh 输入回显对照超时");
+                bail!(
+                    "独立 PowerShell 输入回显对照超时，样本 {index}；screen:\n{}",
+                    harness.viewport_contents()
+                );
             }
             pump_brief(&mut harness, deadline);
         }

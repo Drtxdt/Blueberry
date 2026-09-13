@@ -4,12 +4,13 @@ use blueberry::{
     model::{Candidate, CandidateKind},
     spec_catalog::Catalog,
 };
+#[cfg(windows)]
+use std::sync::atomic::AtomicBool;
 use std::{
     collections::BTreeMap,
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
-    sync::atomic::AtomicBool,
 };
 
 fn record(text: &str) -> Record {
@@ -221,7 +222,7 @@ fn tooltip_summary_retains_original_help_and_sources() {
 #[test]
 fn bounded_child_accepts_nonzero_help_exit_and_enforces_output_limit() {
     let dir = tempfile::tempdir().unwrap();
-    let shell = PathBuf::from("pwsh.exe");
+    let shell = blueberry::pty::default_shell();
     let args = [
         "-NoProfile",
         "-NonInteractive",

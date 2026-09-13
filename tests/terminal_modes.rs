@@ -14,8 +14,8 @@
 //! rather than only the deterministic `input::mouse_bytes` encoder.
 
 use anyhow::{Context, Result, bail, ensure};
-use serde_json::Value;
 use blueberry::{config, probe::Harness};
+use serde_json::Value;
 use std::{
     collections::BTreeMap,
     fs,
@@ -236,9 +236,9 @@ struct RunningHost {
 }
 
 fn selected_pwsh() -> PathBuf {
-    std::env::var_os("BLUEBERRY_PWSH_EXE")
+    std::env::var_os("BLUEBERRY_TEST_SHELL")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("pwsh.exe"))
+        .unwrap_or_else(blueberry::pty::default_shell)
 }
 
 fn ps_quote(path: &Path) -> String {

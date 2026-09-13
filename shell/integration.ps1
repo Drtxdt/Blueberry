@@ -1,4 +1,19 @@
-# Shellsense PowerShell integration.
+﻿$blueberryJsonInitialization = [Diagnostics.Stopwatch]::StartNew()
+# Select the native JSON implementation, or the inbox .NET Framework compatibility reader.
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    if ($null -eq ('Blueberry.LegacyJson.JsonSerializer' -as [type])) {
+        Add-Type -TypeDefinition ([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'legacy-json.cs'))) -ReferencedAssemblies @('System.Web.Extensions', 'System.Core', [System.Management.Automation.PSObject].Assembly.Location)
+    }
+    $blueberryJsonNamespace = 'Blueberry.LegacyJson'
+} else { $blueberryJsonNamespace = 'System.Text.Json' }
+foreach ($blueberryJsonType in @('JsonSerializerOptions', 'JsonSerializer', 'JsonDocument', 'JsonElement', 'JsonValueKind')) {
+    $ExecutionContext.SessionState.PSVariable.Set(('BLUEBERRY_' + $blueberryJsonType), (($blueberryJsonNamespace + '.' + $blueberryJsonType) -as [type]))
+}
+
+$script:BLUEBERRY_JSON_INITIALIZATION_MS = $blueberryJsonInitialization.Elapsed.TotalMilliseconds
+$blueberryJsonInitialization.Stop()
+
+# Blueberry PowerShell integration.
 #
 # This file is intended to be dot-sourced by the pwsh process owned by
 # blueberry.  It deliberately uses only the PowerShell and PSReadLine APIs
@@ -113,24 +128,24 @@ try {
     # during startup, and PowerShell reflects the direct environment change.
 }
 
-function Get-ShellsenseJsonOptions {
+function Get-BlueberryJsonOptions {
     [CmdletBinding()]
     param()
 
     if ($null -eq $script:BLUEBERRY_JSON_OPTIONS) {
-        $options = [System.Text.Json.JsonSerializerOptions]::new()
+        $options = $script:BLUEBERRY_JsonSerializerOptions::new()
         # JavaScriptEncoder.Default escapes all non-ASCII code points and
         # control characters. This keeps OSC transport ASCII, including a
         # non-BMP surrogate pair, while leaving JSON's structural characters
         # available in their compact form.
-        $options.Encoder = [System.Text.Encodings.Web.JavaScriptEncoder]::Default
+        if ($PSVersionTable.PSVersion.Major -ge 7) { $options.Encoder = [System.Text.Encodings.Web.JavaScriptEncoder]::Default }
         $options.WriteIndented = $false
         $script:BLUEBERRY_JSON_OPTIONS = $options
     }
     return $script:BLUEBERRY_JSON_OPTIONS
 }
 
-function Send-ShellsenseTrace {
+function Send-BlueberryTrace {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -162,7 +177,7 @@ function Send-ShellsenseTrace {
 
     $script:BLUEBERRY_TRACE_EMITTING = $true
     try {
-        Send-ShellsenseEvent -Event 'trace' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'trace' -Data ([ordered]@{
             stage       = $Stage
             duration_ms = [double]$DurationMs
         })
@@ -171,7 +186,7 @@ function Send-ShellsenseTrace {
     }
 }
 
-function ConvertTo-ShellsenseJson {
+function ConvertTo-BlueberryJson {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -188,19 +203,19 @@ function ConvertTo-ShellsenseJson {
         # selecting a generic overload that changes dictionary shape. The
         # cached options keep the first call from repeatedly constructing an
         # encoder and ensure the transport remains ASCII.
-        return [string][System.Text.Json.JsonSerializer]::Serialize(
+        return [string]$script:BLUEBERRY_JsonSerializer::Serialize(
             [object]$Payload,
             [object],
-            (Get-ShellsenseJsonOptions))
+            (Get-BlueberryJsonOptions))
     } finally {
         if ($null -ne $traceTimer) {
             $traceTimer.Stop()
-            Send-ShellsenseTrace -Stage 'serialize' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
+            Send-BlueberryTrace -Stage 'serialize' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
         }
     }
 }
 
-function Disable-ShellsensePipe {
+function Disable-BlueberryPipe {
     [CmdletBinding()]
     param()
 
@@ -216,7 +231,7 @@ function Disable-ShellsensePipe {
     }
 }
 
-function Initialize-ShellsensePipe {
+function Initialize-BlueberryPipe {
     [CmdletBinding()]
     param()
 
@@ -242,7 +257,7 @@ function Initialize-ShellsensePipe {
         $script:BLUEBERRY_PIPE_ENABLED = $true
         return $true
     } catch {
-        Disable-ShellsensePipe
+        Disable-BlueberryPipe
         return $false
     } finally {
         # The name is retained only in script state; user commands do not need
@@ -254,7 +269,7 @@ function Initialize-ShellsensePipe {
     }
 }
 
-function Send-ShellsenseOscPayload {
+function Send-BlueberryOscPayload {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -266,7 +281,7 @@ function Send-ShellsenseOscPayload {
         return $false
     }
     try {
-        $frame = ConvertTo-ShellsenseFrame -Token ([string]$script:BLUEBERRY_TOKEN) -Payload $Payload
+        $frame = ConvertTo-BlueberryFrame -Token ([string]$script:BLUEBERRY_TOKEN) -Payload $Payload
         # [Console]::Out avoids adding the frame to a PowerShell pipeline and
         # therefore avoids contaminating prompt text or command output.
         [Console]::Out.Write($frame)
@@ -277,7 +292,7 @@ function Send-ShellsenseOscPayload {
     }
 }
 
-function Send-ShellsensePipeEvent {
+function Send-BlueberryPipeEvent {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -294,14 +309,14 @@ function Send-ShellsensePipeEvent {
             sequence = $sequence
             payload  = $Payload
         }
-        $json = ConvertTo-ShellsenseJson -Payload $envelope
+        $json = ConvertTo-BlueberryJson -Payload $envelope
         $bytes = [Text.Encoding]::UTF8.GetBytes([string]::Concat($json, "`n"))
         if ($bytes.Length -gt 1048576) {
             return $false
         }
         $stream = $script:BLUEBERRY_PIPE_STREAM
         if (-not $stream.IsConnected) {
-            Disable-ShellsensePipe
+            Disable-BlueberryPipe
             return $false
         }
 
@@ -317,7 +332,7 @@ function Send-ShellsensePipeEvent {
                     $writeTask.Wait(50) | Out-Null
                 } catch {
                 }
-                Disable-ShellsensePipe
+                Disable-BlueberryPipe
                 return $false
             }
             $writeTask.GetAwaiter().GetResult()
@@ -328,21 +343,21 @@ function Send-ShellsensePipeEvent {
         # The OSC barrier is emitted only after the complete pipe write. The
         # host consumes the matching sequence and then reads the payload, so
         # terminal cursor/output ordering remains identical to OSC mode.
-        if (-not (Send-ShellsenseOscPayload -Payload ([ordered]@{
+        if (-not (Send-BlueberryOscPayload -Payload ([ordered]@{
                     event    = 'pipe'
                     sequence = $sequence
                 }))) {
-            Disable-ShellsensePipe
+            Disable-BlueberryPipe
             return $false
         }
         return $true
     } catch {
-        Disable-ShellsensePipe
+        Disable-BlueberryPipe
         return $false
     }
 }
 
-function Read-ShellsensePipeJson {
+function Read-BlueberryPipeJson {
     [CmdletBinding()]
     param()
 
@@ -352,7 +367,7 @@ function Read-ShellsensePipeJson {
     $stream = $script:BLUEBERRY_PIPE_STREAM
     try {
         if (-not $stream.IsConnected) {
-            Disable-ShellsensePipe
+            Disable-BlueberryPipe
             return $null
         }
         $bytes = $script:BLUEBERRY_PIPE_BUFFER
@@ -366,7 +381,7 @@ function Read-ShellsensePipeJson {
             if ($remaining -le 0) {
                 # A host frame is one message and is capped at the buffer
                 # size; accepting more would desynchronise the next key.
-                Disable-ShellsensePipe
+                Disable-BlueberryPipe
                 return $null
             }
             $cts = [Threading.CancellationTokenSource]::new(50)
@@ -378,7 +393,7 @@ function Read-ShellsensePipeJson {
                         $readTask.Wait(50) | Out-Null
                     } catch {
                     }
-                    Disable-ShellsensePipe
+                    Disable-BlueberryPipe
                     return $null
                 }
                 $read = $readTask.GetAwaiter().GetResult()
@@ -386,7 +401,7 @@ function Read-ShellsensePipeJson {
                 $cts.Dispose()
             }
             if ($read -le 0) {
-                Disable-ShellsensePipe
+                Disable-BlueberryPipe
                 return $null
             }
             $offset += $read
@@ -394,31 +409,31 @@ function Read-ShellsensePipeJson {
 
         $utf8Strict = [Text.UTF8Encoding]::new($false, $true)
         $json = $utf8Strict.GetString($bytes, 0, $offset).TrimEnd([char]13, [char]10)
-        return [System.Text.Json.JsonSerializer]::Deserialize(
+        return $script:BLUEBERRY_JsonSerializer::Deserialize(
             $json,
             [object],
-            (Get-ShellsenseJsonOptions))
+            (Get-BlueberryJsonOptions))
     } catch {
-        Disable-ShellsensePipe
+        Disable-BlueberryPipe
         return $null
     }
 }
 
-function Read-ShellsensePipeEnvelope {
+function Read-BlueberryPipeEnvelope {
     [CmdletBinding()]
     param()
 
-    $rootValue = Read-ShellsensePipeJson
-    if ($null -eq $rootValue -or $rootValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+    $rootValue = Read-BlueberryPipeJson
+    if ($null -eq $rootValue -or $rootValue.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
         return $null
     }
-    $kindElement = [System.Text.Json.JsonElement]::new()
-    $payloadElement = [System.Text.Json.JsonElement]::new()
+    $kindElement = $script:BLUEBERRY_JsonElement::new()
+    $payloadElement = $script:BLUEBERRY_JsonElement::new()
     if (-not $rootValue.TryGetProperty('kind', [ref]$kindElement) -or
         -not $rootValue.TryGetProperty('payload', [ref]$payloadElement) -or
-        $kindElement.ValueKind -ne [System.Text.Json.JsonValueKind]::String -or
-        $payloadElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
-        Disable-ShellsensePipe
+        $kindElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::String -or
+        $payloadElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
+        Disable-BlueberryPipe
         return $null
     }
     return [pscustomobject]@{
@@ -427,7 +442,7 @@ function Read-ShellsensePipeEnvelope {
     }
 }
 
-function ConvertTo-ShellsenseFrame {
+function ConvertTo-BlueberryFrame {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -439,16 +454,16 @@ function ConvertTo-ShellsenseFrame {
     )
 
     if ([string]::IsNullOrEmpty($Token)) {
-        throw 'Shellsense protocol token is empty.'
+        throw 'Blueberry protocol token is empty.'
     }
 
-    $json = ConvertTo-ShellsenseJson -Payload $Payload
+    $json = ConvertTo-BlueberryJson -Payload $Payload
     $escape = [char]27
     $bell = [char]7
     return [string]::Concat($escape, ']7776;', $Token, ';', $json, $bell)
 }
 
-function Send-ShellsenseEvent {
+function Send-BlueberryEvent {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -477,13 +492,13 @@ function Send-ShellsenseEvent {
     # Oversized events, unavailable pipes, and failed writes are sent as the
     # original OSC event so the default transport and failure path remain
     # compatible with older hosts.
-    if (Send-ShellsensePipeEvent -Payload $payload) {
+    if (Send-BlueberryPipeEvent -Payload $payload) {
         return
     }
-    [void](Send-ShellsenseOscPayload -Payload $payload)
+    [void](Send-BlueberryOscPayload -Payload $payload)
 }
 
-function Get-ShellsenseWorkingDirectory {
+function Get-BlueberryWorkingDirectory {
     [CmdletBinding()]
     param()
 
@@ -540,7 +555,7 @@ function Get-ShellsenseWorkingDirectory {
     return [string][Environment]::CurrentDirectory
 }
 
-function Get-ShellsenseEnvironmentSnapshot {
+function Get-BlueberryEnvironmentSnapshot {
     [CmdletBinding()]
     param()
 
@@ -559,12 +574,12 @@ function Get-ShellsenseEnvironmentSnapshot {
         }
     } catch {
         # A restricted host may deny environment enumeration. PATH and
-        # PATHEXT are still sent by Get-ShellsensePromptEndData.
+        # PATHEXT are still sent by Get-BlueberryPromptEndData.
     }
     return $snapshot
 }
 
-function Test-ShellsenseEnvironmentChanged {
+function Test-BlueberryEnvironmentChanged {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -584,16 +599,16 @@ function Test-ShellsenseEnvironmentChanged {
     return $false
 }
 
-function Get-ShellsensePromptEndData {
+function Get-BlueberryPromptEndData {
     [CmdletBinding()]
     param()
 
     $pathValue = [string]$env:PATH
     $pathExtValue = [string]$env:PATHEXT
-    $environmentSnapshot = Get-ShellsenseEnvironmentSnapshot
-    $environmentChanged = Test-ShellsenseEnvironmentChanged -Snapshot $environmentSnapshot
+    $environmentSnapshot = Get-BlueberryEnvironmentSnapshot
+    $environmentChanged = Test-BlueberryEnvironmentChanged -Snapshot $environmentSnapshot
     $data = [ordered]@{
-        cwd    = Get-ShellsenseWorkingDirectory
+        cwd    = Get-BlueberryWorkingDirectory
         path   = $pathValue
         pathext = $pathExtValue
         pid    = [int]$PID
@@ -607,7 +622,7 @@ function Get-ShellsensePromptEndData {
     return $data
 }
 
-function Test-ShellsenseComplexLine {
+function Test-BlueberryComplexLine {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -622,7 +637,7 @@ function Test-ShellsenseComplexLine {
     return [regex]::IsMatch($Line, '[\r\n''"`$(){}\[\]|;&<>#]')
 }
 
-function ConvertTo-ShellsenseDecodedPrefix {
+function ConvertTo-BlueberryDecodedPrefix {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -675,7 +690,7 @@ function ConvertTo-ShellsenseDecodedPrefix {
     return $builder.ToString()
 }
 
-function Convert-ShellsenseSafeAstValue {
+function Convert-BlueberrySafeAstValue {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -703,12 +718,12 @@ function Convert-ShellsenseSafeAstValue {
         return $true
     }
     if ($Ast -is [System.Management.Automation.Language.CommandExpressionAst]) {
-        return Convert-ShellsenseSafeAstValue -Ast $Ast.Expression -Value ([ref]$Value.Value)
+        return Convert-BlueberrySafeAstValue -Ast $Ast.Expression -Value ([ref]$Value.Value)
     }
     if ($Ast -is [System.Management.Automation.Language.CommandParameterAst]) {
         if ($null -ne $Ast.Argument) {
             $argumentValue = $null
-            if (-not (Convert-ShellsenseSafeAstValue -Ast $Ast.Argument -Value ([ref]$argumentValue))) {
+            if (-not (Convert-BlueberrySafeAstValue -Ast $Ast.Argument -Value ([ref]$argumentValue))) {
                 return $false
             }
         }
@@ -720,7 +735,7 @@ function Convert-ShellsenseSafeAstValue {
     return $false
 }
 
-function Convert-ShellsenseAstElementValue {
+function Convert-BlueberryAstElementValue {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -730,10 +745,10 @@ function Convert-ShellsenseAstElementValue {
         [ref]$Value
     )
 
-    return Convert-ShellsenseSafeAstValue -Ast $Ast -Value $Value
+    return Convert-BlueberrySafeAstValue -Ast $Ast -Value $Value
 }
 
-function Get-ShellsenseAstBufferContext {
+function Get-BlueberryAstBufferContext {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -753,7 +768,7 @@ function Get-ShellsenseAstBufferContext {
         [System.Management.Automation.Language.ParseError[]]$ParseErrors
     )
 
-    if (-not (Test-ShellsenseComplexLine -Line $Line)) {
+    if (-not (Test-BlueberryComplexLine -Line $Line)) {
         return $null
     }
 
@@ -768,7 +783,7 @@ function Get-ShellsenseAstBufferContext {
         command_position = $false
     }
     if ($Cursor -lt 0 -or $Cursor -gt $Line.Length -or
-        -not (Test-ShellsenseUtf16Range -Line $Line -Start $Cursor -Length 0)) {
+        -not (Test-BlueberryUtf16Range -Line $Line -Start $Cursor -Length 0)) {
         $context.suppressed = $true
         return $context
     }
@@ -847,7 +862,7 @@ function Get-ShellsenseAstBufferContext {
             $lineBeforeCursor,
             '(?i)(?<![\p{L}\p{Nd}_])\$env:(?:[A-Za-z_][A-Za-z0-9_]*)?$')
         if ($environmentMatch.Success) {
-            $context.prefix = ConvertTo-ShellsenseDecodedPrefix -Raw $environmentMatch.Value
+            $context.prefix = ConvertTo-BlueberryDecodedPrefix -Raw $environmentMatch.Value
             $context.replace_start = [int]$environmentMatch.Index
             $context.replace_end = [int]$Cursor
             # An environment variable is a value expression, not an
@@ -893,12 +908,12 @@ function Get-ShellsenseAstBufferContext {
     if ($currentEnd -lt $Cursor) {
         $currentEnd = $Cursor
     }
-    if (-not (Test-ShellsenseUtf16Range -Line $Line -Start $currentStart -Length ($currentEnd - $currentStart))) {
+    if (-not (Test-BlueberryUtf16Range -Line $Line -Start $currentStart -Length ($currentEnd - $currentStart))) {
         $context.suppressed = $true
         return $context
     }
 
-    $context.prefix = ConvertTo-ShellsenseDecodedPrefix -Raw $Line.Substring($currentStart, $Cursor - $currentStart)
+    $context.prefix = ConvertTo-BlueberryDecodedPrefix -Raw $Line.Substring($currentStart, $Cursor - $currentStart)
     $context.replace_start = [int]$currentStart
     # Carry the full token extent. The host calculates the accepted suffix
     # from cursor..replace_end, so a completion in the middle of a token does
@@ -916,7 +931,7 @@ function Get-ShellsenseAstBufferContext {
     }
 
     $commandValue = $null
-    if (-not (Convert-ShellsenseAstElementValue -Ast $elements[0] -Value ([ref]$commandValue))) {
+    if (-not (Convert-BlueberryAstElementValue -Ast $elements[0] -Value ([ref]$commandValue))) {
         $context.suppressed = $true
         $context.command_position = $false
         return $context
@@ -928,7 +943,7 @@ function Get-ShellsenseAstBufferContext {
     $arguments = [System.Collections.Generic.List[string]]::new()
     for ($index = 1; $index -lt $currentIndex; $index++) {
         $argumentValue = $null
-        if (-not (Convert-ShellsenseAstElementValue -Ast $elements[$index] -Value ([ref]$argumentValue))) {
+        if (-not (Convert-BlueberryAstElementValue -Ast $elements[$index] -Value ([ref]$argumentValue))) {
             $context.suppressed = $true
             $context.arguments = @($arguments.ToArray())
             return $context
@@ -960,7 +975,7 @@ function Get-ShellsenseAstBufferContext {
             return $context
         }
         $currentValue = $null
-        if (-not (Convert-ShellsenseAstElementValue -Ast $elements[$currentIndex] -Value ([ref]$currentValue))) {
+        if (-not (Convert-BlueberryAstElementValue -Ast $elements[$currentIndex] -Value ([ref]$currentValue))) {
             $context.suppressed = $true
         }
     }
@@ -973,7 +988,7 @@ function Get-ShellsenseAstBufferContext {
     return $context
 }
 
-function Send-ShellsenseBuffer {
+function Send-BlueberryBuffer {
     [CmdletBinding()]
     param()
 
@@ -985,7 +1000,7 @@ function Send-ShellsenseBuffer {
             line   = [string]$line
             cursor = [int]$cursor
         }
-        if (Test-ShellsenseComplexLine -Line ([string]$line)) {
+        if (Test-BlueberryComplexLine -Line ([string]$line)) {
             $ast = $null
             $tokens = $null
             $parseErrors = $null
@@ -1004,23 +1019,23 @@ function Send-ShellsenseBuffer {
                 # lack the AST overload. It still applies the same safe-value
                 # checks and never evaluates user expressions.
             }
-            $context = Get-ShellsenseAstBufferContext `
+            $context = Get-BlueberryAstBufferContext `
                 -Line ([string]$line) -Cursor ([int]$cursor) `
                 -Ast $ast -Tokens $tokens -ParseErrors $parseErrors
             if ($null -ne $context) {
                 $data.context = $context
             }
         }
-        Send-ShellsenseEvent -Event 'buffer' -Data $data
+        Send-BlueberryEvent -Event 'buffer' -Data $data
     } catch {
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'buffer_unavailable'
             message = 'PSReadLine could not provide the current buffer.'
         })
     }
 }
 
-function Test-ShellsenseUtf16Range {
+function Test-BlueberryUtf16Range {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1058,7 +1073,7 @@ function Test-ShellsenseUtf16Range {
     return $true
 }
 
-function Test-ShellsenseNonNegativeInteger {
+function Test-BlueberryNonNegativeInteger {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1089,7 +1104,7 @@ function Test-ShellsenseNonNegativeInteger {
     return $true
 }
 
-function Test-ShellsenseEditPayload {
+function Test-BlueberryEditPayload {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1134,22 +1149,22 @@ function Test-ShellsenseEditPayload {
     $expectedCursor = [int64]0
     $start = [int64]0
     $length = [int64]0
-    if (-not (Test-ShellsenseNonNegativeInteger -Value $Payload.expectedCursor -Result ([ref]$expectedCursor))) {
+    if (-not (Test-BlueberryNonNegativeInteger -Value $Payload.expectedCursor -Result ([ref]$expectedCursor))) {
         return $false
     }
-    if (-not (Test-ShellsenseNonNegativeInteger -Value $Payload.start -Result ([ref]$start))) {
+    if (-not (Test-BlueberryNonNegativeInteger -Value $Payload.start -Result ([ref]$start))) {
         return $false
     }
-    if (-not (Test-ShellsenseNonNegativeInteger -Value $Payload.length -Result ([ref]$length))) {
+    if (-not (Test-BlueberryNonNegativeInteger -Value $Payload.length -Result ([ref]$length))) {
         return $false
     }
     if ($expectedCursor -ne [int64]$CurrentCursor) {
         return $false
     }
-    if (-not (Test-ShellsenseUtf16Range -Line $CurrentLine -Start ([int64]$CurrentCursor) -Length 0)) {
+    if (-not (Test-BlueberryUtf16Range -Line $CurrentLine -Start ([int64]$CurrentCursor) -Length 0)) {
         return $false
     }
-    if (-not (Test-ShellsenseUtf16Range -Line $CurrentLine -Start $start -Length $length)) {
+    if (-not (Test-BlueberryUtf16Range -Line $CurrentLine -Start $start -Length $length)) {
         return $false
     }
 
@@ -1170,7 +1185,7 @@ function Test-ShellsenseEditPayload {
     return $true
 }
 
-function Get-ShellsenseConsumedEditPath {
+function Get-BlueberryConsumedEditPath {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1185,18 +1200,18 @@ function Get-ShellsenseConsumedEditPath {
     return [IO.Path]::Combine($directory, ('.' + $leaf + '.consumed.' + [Guid]::NewGuid().ToString('N')))
 }
 
-function Convert-ShellsenseJsonElementValue {
+function Convert-BlueberryJsonElementValue {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [System.Text.Json.JsonElement]$Element
+        [object]$Element
     )
 
     switch ($Element.ValueKind) {
-        ([System.Text.Json.JsonValueKind]::String) {
+        ($script:BLUEBERRY_JsonValueKind::String) {
             return $Element.GetString()
         }
-        ([System.Text.Json.JsonValueKind]::Number) {
+        ($script:BLUEBERRY_JsonValueKind::Number) {
             $integer = [int64]0
             if ($Element.TryGetInt64([ref]$integer)) {
                 return $integer
@@ -1211,13 +1226,13 @@ function Convert-ShellsenseJsonElementValue {
             }
             return $Element.ToString()
         }
-        ([System.Text.Json.JsonValueKind]::True) {
+        ($script:BLUEBERRY_JsonValueKind::True) {
             return $true
         }
-        ([System.Text.Json.JsonValueKind]::False) {
+        ($script:BLUEBERRY_JsonValueKind::False) {
             return $false
         }
-        ([System.Text.Json.JsonValueKind]::Null) {
+        ($script:BLUEBERRY_JsonValueKind::Null) {
             return $null
         }
         default {
@@ -1229,7 +1244,16 @@ function Convert-ShellsenseJsonElementValue {
     }
 }
 
-function ConvertFrom-ShellsenseEditJson {
+function Test-BlueberryJsonFields {
+    param([object]$Root, [string[]]$Allowed)
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($property in $Root.EnumerateObject()) {
+        if ($property.Name -cnotin $Allowed -or -not $seen.Add([string]$property.Name)) { return $false }
+    }
+    return $true
+}
+
+function ConvertFrom-BlueberryEditJson {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1239,26 +1263,28 @@ function ConvertFrom-ShellsenseEditJson {
 
     # Deserialize to JsonElement first so a valid JSON array/null can be
     # rejected by the normal edit-payload validator, while malformed JSON
-    # still follows Invoke-ShellsenseApplyEdit's existing failure path.
-    $rootValue = [System.Text.Json.JsonSerializer]::Deserialize(
+    # still follows Invoke-BlueberryApplyEdit's existing failure path.
+    $rootValue = $script:BLUEBERRY_JsonSerializer::Deserialize(
         $Json,
         [object],
-        (Get-ShellsenseJsonOptions))
-    if ($null -eq $rootValue -or $rootValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+        (Get-BlueberryJsonOptions))
+    if ($null -eq $rootValue -or $rootValue.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
         return $null
     }
+    if (-not (Test-BlueberryJsonFields $rootValue @('id','expectedLine','expectedCursor','start','length','text'))) { return $null }
+
 
     $payload = [ordered]@{}
     foreach ($propertyName in @('id', 'expectedLine', 'expectedCursor', 'start', 'length', 'text')) {
-        $property = [System.Text.Json.JsonElement]::new()
+        $property = $script:BLUEBERRY_JsonElement::new()
         if ($rootValue.TryGetProperty($propertyName, [ref]$property)) {
-            $payload[$propertyName] = Convert-ShellsenseJsonElementValue -Element $property
+            $payload[$propertyName] = Convert-BlueberryJsonElementValue -Element $property
         }
     }
     return [pscustomobject]$payload
 }
 
-function Get-ShellsenseRequestPath {
+function Get-BlueberryRequestPath {
     [CmdletBinding()]
     param()
 
@@ -1276,7 +1302,7 @@ function Get-ShellsenseRequestPath {
     }
 }
 
-function ConvertFrom-ShellsenseRequestJson {
+function ConvertFrom-BlueberryRequestJson {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1284,25 +1310,27 @@ function ConvertFrom-ShellsenseRequestJson {
         [string]$Json
     )
 
-    $rootValue = [System.Text.Json.JsonSerializer]::Deserialize(
+    $rootValue = $script:BLUEBERRY_JsonSerializer::Deserialize(
         $Json,
         [object],
-        (Get-ShellsenseJsonOptions))
-    if ($null -eq $rootValue -or $rootValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+        (Get-BlueberryJsonOptions))
+    if ($null -eq $rootValue -or $rootValue.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
         return $null
     }
+    if (-not (Test-BlueberryJsonFields $rootValue @('id','kind','public_keys_json','public_keys','command'))) { return $null }
 
-    $idElement = [System.Text.Json.JsonElement]::new()
-    $kindElement = [System.Text.Json.JsonElement]::new()
+
+    $idElement = $script:BLUEBERRY_JsonElement::new()
+    $kindElement = $script:BLUEBERRY_JsonElement::new()
     if (-not $rootValue.TryGetProperty('id', [ref]$idElement) -or
         -not $rootValue.TryGetProperty('kind', [ref]$kindElement) -or
-        ($idElement.ValueKind -ne [System.Text.Json.JsonValueKind]::String -and
-            $idElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Number) -or
-        $kindElement.ValueKind -ne [System.Text.Json.JsonValueKind]::String) {
+        ($idElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::String -and
+            $idElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Number) -or
+        $kindElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::String) {
         return $null
     }
     $id = $null
-    if ($idElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String) {
+    if ($idElement.ValueKind -eq $script:BLUEBERRY_JsonValueKind::String) {
         $id = $idElement.GetString()
     } else {
         $numericId = [int64]0
@@ -1321,27 +1349,27 @@ function ConvertFrom-ShellsenseRequestJson {
     # compact string (the host's preferred form) and an object for callers that
     # construct protocol messages directly.
     $publicKeysJson = $null
-    $publicKeysElement = [System.Text.Json.JsonElement]::new()
+    $publicKeysElement = $script:BLUEBERRY_JsonElement::new()
     if ($rootValue.TryGetProperty('public_keys_json', [ref]$publicKeysElement)) {
-        if ($publicKeysElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String) {
+        if ($publicKeysElement.ValueKind -eq $script:BLUEBERRY_JsonValueKind::String) {
             $publicKeysJson = $publicKeysElement.GetString()
         } else {
             return $null
         }
     }
-    $publicKeysElement = [System.Text.Json.JsonElement]::new()
+    $publicKeysElement = $script:BLUEBERRY_JsonElement::new()
     if ($rootValue.TryGetProperty('public_keys', [ref]$publicKeysElement)) {
-        if ($publicKeysElement.ValueKind -eq [System.Text.Json.JsonValueKind]::Object) {
+        if ($publicKeysElement.ValueKind -eq $script:BLUEBERRY_JsonValueKind::Object) {
             $publicKeysJson = $publicKeysElement.GetRawText()
-        } elseif ($publicKeysElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String) {
+        } elseif ($publicKeysElement.ValueKind -eq $script:BLUEBERRY_JsonValueKind::String) {
             $publicKeysJson = $publicKeysElement.GetString()
         } else {
             return $null
         }
     }
     $commandName = ''
-    $commandElement = [System.Text.Json.JsonElement]::new()
-    if ($rootValue.TryGetProperty('command', [ref]$commandElement) -and $commandElement.ValueKind -eq [System.Text.Json.JsonValueKind]::String) { $commandName = $commandElement.GetString() }
+    $commandElement = $script:BLUEBERRY_JsonElement::new()
+    if ($rootValue.TryGetProperty('command', [ref]$commandElement) -and $commandElement.ValueKind -eq $script:BLUEBERRY_JsonValueKind::String) { $commandName = $commandElement.GetString() }
     return [pscustomobject]@{
         command          = $commandName
         id               = [string]$id
@@ -1350,7 +1378,7 @@ function ConvertFrom-ShellsenseRequestJson {
     }
 }
 
-function Read-ShellsenseRequest {
+function Read-BlueberryRequest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1361,25 +1389,25 @@ function Read-ShellsenseRequest {
     # In pipe mode the host publishes the payload before sending the known
     # internal chord. This is the only place a request is read; no background
     # reader or speculative timeout is introduced into PSReadLine.
-    $pipeEnvelope = Read-ShellsensePipeEnvelope
+    $pipeEnvelope = Read-BlueberryPipeEnvelope
     if ($null -ne $pipeEnvelope) {
         if (-not [string]::Equals([string]$pipeEnvelope.kind, 'request', [StringComparison]::Ordinal)) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code    = 'request_kind_mismatch'
                 message = 'The named-pipe request envelope is not a request.'
             })
             return $null
         }
-        $request = ConvertFrom-ShellsenseRequestJson -Json ([string]$pipeEnvelope.payload)
+        $request = ConvertFrom-BlueberryRequestJson -Json ([string]$pipeEnvelope.payload)
         if ($null -eq $request) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code    = 'request_rejected'
                 message = 'The named-pipe request is not a valid v2 request.'
             })
             return $null
         }
         if ($ExpectedKind -notcontains [string]$request.kind) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code        = 'request_kind_mismatch'
                 request_id  = [string]$request.id
                 message     = ('Expected a {0} request.' -f ($ExpectedKind -join ' or '))
@@ -1395,7 +1423,7 @@ function Read-ShellsenseRequest {
         return $null
     }
 
-    $path = Get-ShellsenseRequestPath
+    $path = Get-BlueberryRequestPath
     if ([string]::IsNullOrEmpty([string]$path) -or -not [IO.File]::Exists($path)) {
         return $null
     }
@@ -1404,20 +1432,20 @@ function Read-ShellsenseRequest {
     try {
         # Rename first so a writer can publish the next request while this
         # request is being processed. A consumed name also prevents replay.
-        $consumedPath = Get-ShellsenseConsumedEditPath -Path $path
+        $consumedPath = Get-BlueberryConsumedEditPath -Path $path
         [IO.File]::Move($path, $consumedPath)
         $utf8Strict = [Text.UTF8Encoding]::new($false, $true)
         $json = [IO.File]::ReadAllText($consumedPath, $utf8Strict)
-        $request = ConvertFrom-ShellsenseRequestJson -Json $json
+        $request = ConvertFrom-BlueberryRequestJson -Json $json
         if ($null -eq $request) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code    = 'request_rejected'
                 message = 'The Blueberry request is not a valid v2 request.'
             })
             return $null
         }
         if ($ExpectedKind -notcontains [string]$request.kind) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code        = 'request_kind_mismatch'
                 request_id  = [string]$request.id
                 message     = ('Expected a {0} request.' -f ($ExpectedKind -join ' or '))
@@ -1426,7 +1454,7 @@ function Read-ShellsenseRequest {
         }
         return $request
     } catch {
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'request_failed'
             message = 'The Blueberry request could not be read.'
         })
@@ -1441,7 +1469,7 @@ function Read-ShellsenseRequest {
     }
 }
 
-function Send-ShellsenseEditResult {
+function Send-BlueberryEditResult {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -1451,13 +1479,13 @@ function Send-ShellsenseEditResult {
         [bool]$Applied
     )
 
-    Send-ShellsenseEvent -Event 'edit_result' -Data ([ordered]@{
+    Send-BlueberryEvent -Event 'edit_result' -Data ([ordered]@{
         request_id = $RequestId
         applied    = [bool]$Applied
     })
 }
 
-function Invoke-ShellsenseApplyEdit {
+function Invoke-BlueberryApplyEdit {
     [CmdletBinding()]
     param()
 
@@ -1470,16 +1498,16 @@ function Invoke-ShellsenseApplyEdit {
         # Pipe mode publishes the edit payload before the known apply chord.
         # Read it first so no stale file can be selected while the pipe is
         # connected. A failed/disposed pipe falls through to the legacy file.
-        $pipeEnvelope = Read-ShellsensePipeEnvelope
+        $pipeEnvelope = Read-BlueberryPipeEnvelope
         if ($null -ne $pipeEnvelope) {
             if (-not [string]::Equals([string]$pipeEnvelope.kind, 'edit', [StringComparison]::Ordinal)) {
-                Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+                Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                     code    = 'edit_kind_mismatch'
                     message = 'The named-pipe envelope is not an edit payload.'
                 })
                 return
             }
-            $payload = ConvertFrom-ShellsenseEditJson -Json ([string]$pipeEnvelope.payload)
+            $payload = ConvertFrom-BlueberryEditJson -Json ([string]$pipeEnvelope.payload)
         } elseif ($script:BLUEBERRY_PIPE_ENABLED) {
             # The host sends the pipe frame before its internal key. Do not
             # guess by reading a file if a connected pipe has no frame yet.
@@ -1488,14 +1516,14 @@ function Invoke-ShellsenseApplyEdit {
 
         if ($null -eq $payload) {
             if ([string]::IsNullOrEmpty($path)) {
-                Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+                Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                     code    = 'edit_path_unavailable'
                     message = 'BLUEBERRY_EDIT_PATH is not configured.'
                 })
                 return
             }
             if (-not [IO.File]::Exists($path)) {
-                Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+                Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                     code    = 'edit_payload_missing'
                     message = 'No pending edit payload is available.'
                 })
@@ -1505,20 +1533,20 @@ function Invoke-ShellsenseApplyEdit {
             # Rename first so a payload written while this handler is running
             # is left for the next invocation. The consumed name prevents
             # replay.
-            $consumedPath = Get-ShellsenseConsumedEditPath -Path $path
+            $consumedPath = Get-BlueberryConsumedEditPath -Path $path
             [IO.File]::Move($path, $consumedPath)
 
             $utf8Strict = [Text.UTF8Encoding]::new($false, $true)
             $json = [IO.File]::ReadAllText($consumedPath, $utf8Strict)
-            $payload = ConvertFrom-ShellsenseEditJson -Json $json
+            $payload = ConvertFrom-BlueberryEditJson -Json $json
         }
 
         $line = $null
         $cursor = 0
         [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
         $edit = $null
-        if (-not (Test-ShellsenseEditPayload -Payload $payload -CurrentLine ([string]$line) -CurrentCursor ([int]$cursor) -Edit ([ref]$edit))) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        if (-not (Test-BlueberryEditPayload -Payload $payload -CurrentLine ([string]$line) -CurrentCursor ([int]$cursor) -Edit ([ref]$edit))) {
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code    = 'edit_payload_rejected'
                 message = 'The edit payload does not match the current UTF-16 buffer.'
             })
@@ -1540,17 +1568,17 @@ function Invoke-ShellsenseApplyEdit {
         } catch {
             $replaceError = $_
         }
-        Send-ShellsenseEditResult -RequestId $editRequestId -Applied $replaceApplied
-        Send-ShellsenseBuffer
+        Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied
+        Send-BlueberryBuffer
         if ($null -ne $replaceError) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code        = 'edit_failed'
                 request_id  = $editRequestId
                 message     = 'The pending edit could not be applied.'
             })
         }
     } catch {
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'edit_failed'
             message = 'The pending edit could not be applied.'
         })
@@ -1564,7 +1592,7 @@ function Invoke-ShellsenseApplyEdit {
     }
 }
 
-function Get-ShellsensePasteDirectory {
+function Get-BlueberryPasteDirectory {
     [CmdletBinding()]
     param()
 
@@ -1583,7 +1611,7 @@ function Get-ShellsensePasteDirectory {
     }
 }
 
-function ConvertTo-ShellsensePasteText {
+function ConvertTo-BlueberryPasteText {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1597,7 +1625,7 @@ function ConvertTo-ShellsensePasteText {
     return $Text.Replace("`r`n", "`n").Replace("`r", "`n")
 }
 
-function Test-ShellsensePastePayload {
+function Test-BlueberryPastePayload {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -1626,7 +1654,7 @@ function Test-ShellsensePastePayload {
             return $false
         }
 
-        $text = ConvertTo-ShellsensePasteText -Text ([string]$textProperty.Value)
+        $text = ConvertTo-BlueberryPasteText -Text ([string]$textProperty.Value)
         $utf8 = [Text.UTF8Encoding]::new($false, $true)
         if ($utf8.GetByteCount($text) -gt 1048576) {
             return $false
@@ -1643,7 +1671,7 @@ function Test-ShellsensePastePayload {
     }
 }
 
-function ConvertFrom-ShellsensePasteJson {
+function ConvertFrom-BlueberryPasteJson {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1652,12 +1680,12 @@ function ConvertFrom-ShellsensePasteJson {
     )
 
     try {
-        $rootValue = [System.Text.Json.JsonSerializer]::Deserialize(
+        $rootValue = $script:BLUEBERRY_JsonSerializer::Deserialize(
             $Json,
             [object],
-            (Get-ShellsenseJsonOptions))
+            (Get-BlueberryJsonOptions))
         if ($null -eq $rootValue -or
-            $rootValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+            $rootValue.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
             return $null
         }
 
@@ -1676,12 +1704,12 @@ function ConvertFrom-ShellsensePasteJson {
             return $null
         }
 
-        $idElement = [System.Text.Json.JsonElement]::new()
-        $textElement = [System.Text.Json.JsonElement]::new()
+        $idElement = $script:BLUEBERRY_JsonElement::new()
+        $textElement = $script:BLUEBERRY_JsonElement::new()
         if (-not $rootValue.TryGetProperty('id', [ref]$idElement) -or
             -not $rootValue.TryGetProperty('text', [ref]$textElement) -or
-            $idElement.ValueKind -ne [System.Text.Json.JsonValueKind]::String -or
-            $textElement.ValueKind -ne [System.Text.Json.JsonValueKind]::String) {
+            $idElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::String -or
+            $textElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::String) {
             return $null
         }
 
@@ -1704,7 +1732,7 @@ function ConvertFrom-ShellsensePasteJson {
     }
 }
 
-function Get-ShellsensePasteFiles {
+function Get-BlueberryPasteFiles {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1751,7 +1779,7 @@ function Get-ShellsensePasteFiles {
     }
 }
 
-function Send-ShellsensePasteError {
+function Send-BlueberryPasteError {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -1764,13 +1792,13 @@ function Send-ShellsensePasteError {
 
     # Keep paste text and raw payloads out of diagnostics. The host only needs
     # a stable code/message pair to explain why safe insertion was unavailable.
-    Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+    Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
         code    = $Code
         message = $Message
     })
 }
 
-function Send-ShellsensePasteResult {
+function Send-BlueberryPasteResult {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -1780,28 +1808,28 @@ function Send-ShellsensePasteResult {
         [bool]$Applied
     )
 
-    Send-ShellsenseEvent -Event 'paste_result' -Data ([ordered]@{
+    Send-BlueberryEvent -Event 'paste_result' -Data ([ordered]@{
         request_id = $RequestId
         applied    = [bool]$Applied
     })
 }
 
-function Invoke-ShellsensePasteKeyHandler {
+function Invoke-BlueberryPasteKeyHandler {
     [CmdletBinding()]
     param()
 
     $consumedPath = $null
     try {
-        $directory = Get-ShellsensePasteDirectory
+        $directory = Get-BlueberryPasteDirectory
         if ([string]::IsNullOrEmpty([string]$directory)) {
-            Send-ShellsensePasteError -Code 'paste_failed' `
+            Send-BlueberryPasteError -Code 'paste_failed' `
                 -Message 'The Blueberry paste directory is unavailable.'
             return
         }
 
-        $candidateFiles = @(Get-ShellsensePasteFiles -Directory $directory)
+        $candidateFiles = @(Get-BlueberryPasteFiles -Directory $directory)
         if ($candidateFiles.Count -eq 0) {
-            Send-ShellsensePasteError -Code 'paste_failed' `
+            Send-BlueberryPasteError -Code 'paste_failed' `
                 -Message 'No pending Blueberry paste payload is available.'
             return
         }
@@ -1812,7 +1840,7 @@ function Invoke-ShellsensePasteKeyHandler {
         foreach ($candidate in $candidateFiles) {
             $candidateConsumedPath = $null
             try {
-                $candidateConsumedPath = Get-ShellsenseConsumedEditPath -Path $candidate.FullName
+                $candidateConsumedPath = Get-BlueberryConsumedEditPath -Path $candidate.FullName
                 [IO.File]::Move($candidate.FullName, $candidateConsumedPath)
                 $consumedPath = $candidateConsumedPath
                 break
@@ -1826,20 +1854,20 @@ function Invoke-ShellsensePasteKeyHandler {
             }
         }
         if ($null -eq $consumedPath) {
-            Send-ShellsensePasteError -Code 'paste_failed' `
+            Send-BlueberryPasteError -Code 'paste_failed' `
                 -Message 'The pending Blueberry paste payload could not be consumed.'
             return
         }
 
         $consumedAttributes = [IO.File]::GetAttributes($consumedPath)
         if (($consumedAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+            Send-BlueberryPasteError -Code 'paste_payload_rejected' `
                 -Message 'The Blueberry paste payload is not a regular file.'
             return
         }
         $consumedInfo = [IO.FileInfo]::new($consumedPath)
         if ($consumedInfo.Length -gt 1048576) {
-            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+            Send-BlueberryPasteError -Code 'paste_payload_rejected' `
                 -Message 'The Blueberry paste payload exceeds the 1 MiB limit.'
             return
         }
@@ -1847,19 +1875,19 @@ function Invoke-ShellsensePasteKeyHandler {
         try {
             $json = [IO.File]::ReadAllText($consumedPath, $utf8Strict)
         } catch [Text.DecoderFallbackException] {
-            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+            Send-BlueberryPasteError -Code 'paste_payload_rejected' `
                 -Message 'The Blueberry paste payload is not valid UTF-8.'
             return
         } catch {
-            Send-ShellsensePasteError -Code 'paste_failed' `
+            Send-BlueberryPasteError -Code 'paste_failed' `
                 -Message 'The Blueberry paste payload could not be read.'
             return
         }
-        $payload = ConvertFrom-ShellsensePasteJson -Json $json
+        $payload = ConvertFrom-BlueberryPasteJson -Json $json
         $paste = $null
         if ($null -eq $payload -or
-            -not (Test-ShellsensePastePayload -Payload $payload -Paste ([ref]$paste))) {
-            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+            -not (Test-BlueberryPastePayload -Payload $payload -Paste ([ref]$paste))) {
+            Send-BlueberryPasteError -Code 'paste_payload_rejected' `
                 -Message 'The Blueberry paste payload is invalid.'
             return
         }
@@ -1885,14 +1913,14 @@ function Invoke-ShellsensePasteKeyHandler {
         } catch {
             $applyError = $_
         }
-        Send-ShellsensePasteResult -RequestId $requestId -Applied $applied
-        Send-ShellsenseBuffer
+        Send-BlueberryPasteResult -RequestId $requestId -Applied $applied
+        Send-BlueberryBuffer
         if ($null -ne $applyError) {
-            Send-ShellsensePasteError -Code 'paste_failed' `
+            Send-BlueberryPasteError -Code 'paste_failed' `
                 -Message 'The Blueberry paste payload could not be inserted.'
         }
     } catch {
-        Send-ShellsensePasteError -Code 'paste_failed' `
+        Send-BlueberryPasteError -Code 'paste_failed' `
             -Message 'The Blueberry paste operation failed.'
     } finally {
         if ($null -ne $consumedPath) {
@@ -1904,7 +1932,7 @@ function Invoke-ShellsensePasteKeyHandler {
     }
 }
 
-function Get-ShellsenseLoadedCommands {
+function Get-BlueberryLoadedCommands {
     [CmdletBinding()]
     param()
 
@@ -1921,7 +1949,7 @@ function Get-ShellsenseLoadedCommands {
     return ,$ExecutionContext.InvokeCommand.GetCommands('*', $commandTypes, $true)
 }
 
-function Get-ShellsenseEnumerator {
+function Get-BlueberryEnumerator {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -1962,7 +1990,7 @@ function Get-ShellsenseEnumerator {
     throw 'The command sequence does not expose an enumerator.'
 }
 
-function Get-ShellsenseCommandEnumerator {
+function Get-BlueberryCommandEnumerator {
     [CmdletBinding()]
     param(
         # This optional provider keeps snapshot tests deterministic without
@@ -1974,17 +2002,17 @@ function Get-ShellsenseCommandEnumerator {
 
     if ($null -ne $CommandProvider) {
         $provided = & $CommandProvider
-        return Get-ShellsenseEnumerator -Sequence $provided
+        return Get-BlueberryEnumerator -Sequence $provided
     }
 
     $commandTypes = [System.Management.Automation.CommandTypes]::Alias -bor
         [System.Management.Automation.CommandTypes]::Function -bor
         [System.Management.Automation.CommandTypes]::Cmdlet
     $sequence = $ExecutionContext.InvokeCommand.GetCommands('*', $commandTypes, $true)
-    return Get-ShellsenseEnumerator -Sequence $sequence
+    return Get-BlueberryEnumerator -Sequence $sequence
 }
 
-function ConvertTo-ShellsenseCommandRecord {
+function ConvertTo-BlueberryCommandRecord {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -2021,7 +2049,7 @@ function ConvertTo-ShellsenseCommandRecord {
     }
 }
 
-function Reset-ShellsenseCommandSnapshot {
+function Reset-BlueberryCommandSnapshot {
     [CmdletBinding()]
     param()
 
@@ -2041,7 +2069,7 @@ function Reset-ShellsenseCommandSnapshot {
     $script:BLUEBERRY_COMMAND_REQUEST_ID = $null
 }
 
-function Start-ShellsenseCommandSnapshot {
+function Start-BlueberryCommandSnapshot {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -2051,7 +2079,7 @@ function Start-ShellsenseCommandSnapshot {
         [string]$RequestId
     )
 
-    $enumerator = Get-ShellsenseCommandEnumerator -CommandProvider $CommandProvider
+    $enumerator = Get-BlueberryCommandEnumerator -CommandProvider $CommandProvider
     $snapshotId = [Guid]::NewGuid().ToString()
     $script:BLUEBERRY_COMMAND_ENUMERATOR = $enumerator
     # Keep this legacy state name as a reference to the enumerator rather than
@@ -2064,7 +2092,7 @@ function Start-ShellsenseCommandSnapshot {
     $script:BLUEBERRY_COMMAND_REQUEST_ID = $RequestId
 }
 
-function Get-ShellsenseImportedCommands {
+function Get-BlueberryImportedCommands {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -2084,11 +2112,11 @@ function Get-ShellsenseImportedCommands {
     }
     try {
         if ($Reset) {
-            Reset-ShellsenseCommandSnapshot
+            Reset-BlueberryCommandSnapshot
         }
         $snapshotId = [string]$script:BLUEBERRY_COMMAND_SNAPSHOT_ID
         if ([string]::IsNullOrEmpty($snapshotId) -or $null -eq $script:BLUEBERRY_COMMAND_ENUMERATOR) {
-            Start-ShellsenseCommandSnapshot -CommandProvider $CommandProvider -RequestId $RequestId
+            Start-BlueberryCommandSnapshot -CommandProvider $CommandProvider -RequestId $RequestId
             $snapshotId = [string]$script:BLUEBERRY_COMMAND_SNAPSHOT_ID
         }
 
@@ -2109,7 +2137,7 @@ function Get-ShellsenseImportedCommands {
                     break
                 }
                 $inspected++
-                $record = ConvertTo-ShellsenseCommandRecord -Command $script:BLUEBERRY_COMMAND_ENUMERATOR.Current
+                $record = ConvertTo-BlueberryCommandRecord -Command $script:BLUEBERRY_COMMAND_ENUMERATOR.Current
                 if ($null -ne $record) {
                     [void]$batch.Add($record)
                 }
@@ -2132,42 +2160,42 @@ function Get-ShellsenseImportedCommands {
             $eventData.request_id = [string]$script:BLUEBERRY_COMMAND_REQUEST_ID
             $script:BLUEBERRY_COMMAND_REQUEST_ID = $null
         }
-        Send-ShellsenseEvent -Event 'commands' -Data $eventData
+        Send-BlueberryEvent -Event 'commands' -Data $eventData
 
         if ($failed) {
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code    = 'commands_unavailable'
                 message = 'Loaded command enumeration failed before the snapshot completed.'
             })
-            Reset-ShellsenseCommandSnapshot
+            Reset-BlueberryCommandSnapshot
         } elseif ($complete) {
-            Reset-ShellsenseCommandSnapshot
+            Reset-BlueberryCommandSnapshot
         }
     } catch {
         # Do not let an exception turn the last partial page into a complete
         # snapshot. Preserve a diagnostic and reset before a later retry.
         $snapshotId = [string]$script:BLUEBERRY_COMMAND_SNAPSHOT_ID
         if (-not [string]::IsNullOrEmpty($snapshotId)) {
-            Send-ShellsenseEvent -Event 'commands' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'commands' -Data ([ordered]@{
                 snapshot = $snapshotId
                 complete = $false
                 commands = @()
             })
         }
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'commands_unavailable'
             message = 'Loaded command enumeration failed before the snapshot completed.'
         })
-        Reset-ShellsenseCommandSnapshot
+        Reset-BlueberryCommandSnapshot
     } finally {
         if ($null -ne $traceTimer) {
             $traceTimer.Stop()
-            Send-ShellsenseTrace -Stage 'command_snapshot' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
+            Send-BlueberryTrace -Stage 'command_snapshot' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
         }
     }
 }
 
-function ConvertTo-ShellsenseNativeCandidateKind {
+function ConvertTo-BlueberryNativeCandidateKind {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -2195,7 +2223,7 @@ function ConvertTo-ShellsenseNativeCandidateKind {
     }
 }
 
-function Get-ShellsenseNativeCompletion {
+function Get-BlueberryNativeCompletion {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -2234,7 +2262,7 @@ function Get-ShellsenseNativeCompletion {
                 if ($null -ne $native) {
                     $replaceStart = [int]$native.ReplacementIndex
                     $replaceEnd = $replaceStart + [int]$native.ReplacementLength
-                    if (-not (Test-ShellsenseUtf16Range -Line $line -Start $replaceStart -Length ($replaceEnd - $replaceStart))) {
+                    if (-not (Test-BlueberryUtf16Range -Line $line -Start $replaceStart -Length ($replaceEnd - $replaceStart))) {
                         $status = 'error'
                         # Error responses still carry a valid UTF-16 range so
                         # the host cannot accidentally slice at a sentinel
@@ -2254,7 +2282,7 @@ function Get-ShellsenseNativeCompletion {
                                 label       = $label
                                 insert_text = [string]$match.CompletionText
                                 description = [string]$match.ToolTip
-                                kind        = ConvertTo-ShellsenseNativeCandidateKind -ResultType ([string]$match.ResultType)
+                                kind        = ConvertTo-BlueberryNativeCandidateKind -ResultType ([string]$match.ResultType)
                             })
                         }
                     }
@@ -2268,7 +2296,7 @@ function Get-ShellsenseNativeCompletion {
                 $replaceEnd = $cursor
             }
         }
-        if (Test-ShellsenseComplexLine -Line $line) {
+        if (Test-BlueberryComplexLine -Line $line) {
             $ast = $null
             $tokens = $null
             $parseErrors = $null
@@ -2281,7 +2309,7 @@ function Get-ShellsenseNativeCompletion {
                     [ref]$astCursor)
             } catch {
             }
-            $context = Get-ShellsenseAstBufferContext `
+            $context = Get-BlueberryAstBufferContext `
                 -Line $line -Cursor $cursor -Ast $ast -Tokens $tokens -ParseErrors $parseErrors
         }
     } finally {
@@ -2302,10 +2330,10 @@ function Get-ShellsenseNativeCompletion {
     if ($null -ne $context) {
         $data.context = $context
     }
-    Send-ShellsenseEvent -Event 'native_completion' -Data $data
+    Send-BlueberryEvent -Event 'native_completion' -Data $data
 }
 
-function Get-ShellsenseCurrentBufferState {
+function Get-BlueberryCurrentBufferState {
     [CmdletBinding()]
     param()
 
@@ -2318,7 +2346,7 @@ function Get-ShellsenseCurrentBufferState {
     }
 }
 
-function Test-ShellsenseConfirmedContinuation {
+function Test-BlueberryConfirmedContinuation {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -2342,72 +2370,72 @@ function Test-ShellsenseConfirmedContinuation {
     return $Line -match '[\r\n]'
 }
 
-function Invoke-ShellsenseEnterKeyHandler {
+function Invoke-BlueberryEnterKeyHandler {
     [CmdletBinding()]
     param()
 
     $previous = $null
     try {
-        $previous = Get-ShellsenseCurrentBufferState
+        $previous = Get-BlueberryCurrentBufferState
         $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
         try {
             [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine($null, $null)
         } finally {
             $global:LASTEXITCODE = $savedLastExitCode
         }
-        $current = Get-ShellsenseCurrentBufferState
-        if (Test-ShellsenseConfirmedContinuation -Line $current.line -PreviousLine $previous.line) {
-            Send-ShellsenseEvent -Event 'editing' -Data ([ordered]@{ state = 'continuation' })
+        $current = Get-BlueberryCurrentBufferState
+        if (Test-BlueberryConfirmedContinuation -Line $current.line -PreviousLine $previous.line) {
+            Send-BlueberryEvent -Event 'editing' -Data ([ordered]@{ state = 'continuation' })
         }
     } catch {
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'enter_handler_failed'
             message = 'The known PSReadLine Enter handler could not be invoked.'
         })
     }
 }
 
-function Invoke-ShellsenseShiftEnterKeyHandler {
+function Invoke-BlueberryShiftEnterKeyHandler {
     [CmdletBinding()]
     param()
 
     $previous = $null
     try {
-        $previous = Get-ShellsenseCurrentBufferState
+        $previous = Get-BlueberryCurrentBufferState
         $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
         try {
             [Microsoft.PowerShell.PSConsoleReadLine]::AddLine($null, $null)
         } finally {
             $global:LASTEXITCODE = $savedLastExitCode
         }
-        $current = Get-ShellsenseCurrentBufferState
-        if (Test-ShellsenseConfirmedContinuation -Line $current.line -PreviousLine $previous.line -AddLine) {
-            Send-ShellsenseEvent -Event 'editing' -Data ([ordered]@{ state = 'continuation' })
+        $current = Get-BlueberryCurrentBufferState
+        if (Test-BlueberryConfirmedContinuation -Line $current.line -PreviousLine $previous.line -AddLine) {
+            Send-BlueberryEvent -Event 'editing' -Data ([ordered]@{ state = 'continuation' })
         }
     } catch {
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'shift_enter_handler_failed'
             message = 'The known PSReadLine Shift+Enter handler could not be invoked.'
         })
     }
 }
 
-function Invoke-ShellsenseBufferKeyHandler {
+function Invoke-BlueberryBufferKeyHandler {
     [CmdletBinding()]
     param()
-    Send-ShellsenseBuffer
+    Send-BlueberryBuffer
 }
 
-function Invoke-ShellsenseApplyKeyHandler {
+function Invoke-BlueberryApplyKeyHandler {
     [CmdletBinding()]
     param()
-    Invoke-ShellsenseApplyEdit
+    Invoke-BlueberryApplyEdit
 }
 
-function Invoke-ShellsenseCommandsKeyHandler {
+function Invoke-BlueberryCommandsKeyHandler {
     [CmdletBinding()]
     param()
-    $request = Read-ShellsenseRequest -ExpectedKind @('commands_reset', 'commands_next')
+    $request = Read-BlueberryRequest -ExpectedKind @('commands_reset', 'commands_next')
     if ($null -ne $request) {
         if ([string]::Equals([string]$request.kind, 'commands_reset', [StringComparison]::Ordinal)) {
             # Host key reloads are serialized with the command reset request.
@@ -2418,25 +2446,25 @@ function Invoke-ShellsenseCommandsKeyHandler {
             # previous behaviour.
             $publicKeysProperty = $request.PSObject.Properties['public_keys_json']
             if ($null -ne $publicKeysProperty -and $null -ne $publicKeysProperty.Value) {
-                Update-ShellsensePublicKeyCapabilities -JsonOverride ([string]$publicKeysProperty.Value)
-                Send-ShellsenseCapabilities
+                Update-BlueberryPublicKeyCapabilities -JsonOverride ([string]$publicKeysProperty.Value)
+                Send-BlueberryCapabilities
             }
-            Get-ShellsenseImportedCommands -Reset -RequestId ([string]$request.id)
+            Get-BlueberryImportedCommands -Reset -RequestId ([string]$request.id)
         } else {
             # In pipe mode every continuation batch has an explicit request so
             # the server and child remain in lockstep without a request file.
-            Get-ShellsenseImportedCommands -RequestId ([string]$request.id)
+            Get-BlueberryImportedCommands -RequestId ([string]$request.id)
         }
     } else {
         # OSC mode historically triggered the next batch without a request
         # file. Preserve that compact path when no pipe is connected.
         if (-not $script:BLUEBERRY_PIPE_ENABLED) {
-            Get-ShellsenseImportedCommands
+            Get-BlueberryImportedCommands
         }
     }
 }
 
-function Get-ShellsenseCommandMetadata {
+function Get-BlueberryCommandMetadata {
     [CmdletBinding()]
     param([string]$Name)
     $options = [Collections.Generic.List[object]]::new()
@@ -2511,22 +2539,22 @@ function Get-ShellsenseCommandMetadata {
     return $null
 }
 
-function Invoke-ShellsenseNativeKeyHandler {
+function Invoke-BlueberryNativeKeyHandler {
     [CmdletBinding()]
     param()
-    $request = Read-ShellsenseRequest -ExpectedKind @('native', 'command_metadata')
+    $request = Read-BlueberryRequest -ExpectedKind @('native', 'command_metadata')
     if ($null -ne $request) {
         if ($request.kind -eq 'command_metadata') {
             $page = $null
             $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
-            try { $page = Get-ShellsenseCommandMetadata -Name $request.command } catch { }
+            try { $page = Get-BlueberryCommandMetadata -Name $request.command } catch { }
             finally { $global:LASTEXITCODE = $savedLastExitCode }
-            Send-ShellsenseEvent -Event 'command_metadata' -Data @{ request_id = [string]$request.id; command = [string]$request.command; page = $page }
-        } else { Get-ShellsenseNativeCompletion -RequestId ([string]$request.id) }
+            Send-BlueberryEvent -Event 'command_metadata' -Data @{ request_id = [string]$request.id; command = [string]$request.command; page = $page }
+        } else { Get-BlueberryNativeCompletion -RequestId ([string]$request.id) }
     }
 }
 
-function Test-ShellsenseInteractiveHost {
+function Test-BlueberryInteractiveHost {
     [CmdletBinding()]
     param()
 
@@ -2550,7 +2578,7 @@ function Test-ShellsenseInteractiveHost {
     }
 }
 
-function Get-ShellsenseKeyBinding {
+function Get-BlueberryKeyBinding {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -2589,7 +2617,7 @@ function Get-ShellsenseKeyBinding {
     }
 }
 
-function Get-ShellsenseKeyHandlerSnapshot {
+function Get-BlueberryKeyHandlerSnapshot {
     [CmdletBinding()]
     param()
 
@@ -2636,7 +2664,7 @@ function Get-ShellsenseKeyHandlerSnapshot {
     }
 }
 
-function ConvertTo-ShellsensePublicKeyChord {
+function ConvertTo-BlueberryPublicKeyChord {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -2657,7 +2685,7 @@ function ConvertTo-ShellsensePublicKeyChord {
     return [regex]::Replace($value, '(?i)(^|\+)Space($|\+)', '$1Spacebar$2')
 }
 
-function Get-ShellsensePublicKeyConfiguration {
+function Get-BlueberryPublicKeyConfiguration {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -2710,16 +2738,16 @@ function Get-ShellsensePublicKeyConfiguration {
     $invalid = $false
     $document = $null
     try {
-        $document = [System.Text.Json.JsonDocument]::Parse([string]$raw)
-        if ($document.RootElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+        $document = $script:BLUEBERRY_JsonDocument::Parse([string]$raw)
+        if ($document.RootElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
             $invalid = $true
         } else {
             foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload', 'search')) {
-                $property = [System.Text.Json.JsonElement]::new()
+                $property = $script:BLUEBERRY_JsonElement::new()
                 if (-not $document.RootElement.TryGetProperty($name, [ref]$property)) {
                     continue
                 }
-                if ($property.ValueKind -ne [System.Text.Json.JsonValueKind]::String -or
+                if ($property.ValueKind -ne $script:BLUEBERRY_JsonValueKind::String -or
                     [string]::IsNullOrWhiteSpace([string]$property.GetString())) {
                     $invalid = $true
                     continue
@@ -2741,7 +2769,7 @@ function Get-ShellsensePublicKeyConfiguration {
     return $configuration
 }
 
-function Update-ShellsensePublicKeyCapabilities {
+function Update-BlueberryPublicKeyCapabilities {
     [CmdletBinding()]
     param(
         [AllowNull()]
@@ -2752,25 +2780,25 @@ function Update-ShellsensePublicKeyCapabilities {
     )
 
     if ($PSBoundParameters.ContainsKey('JsonOverride')) {
-        $configuration = Get-ShellsensePublicKeyConfiguration -JsonOverride $JsonOverride
+        $configuration = Get-BlueberryPublicKeyConfiguration -JsonOverride $JsonOverride
     } else {
-        $configuration = Get-ShellsensePublicKeyConfiguration
+        $configuration = Get-BlueberryPublicKeyConfiguration
     }
     if ($null -eq $configuration) {
         return
     }
 
     if ($null -eq $KeySnapshot) {
-        $KeySnapshot = Get-ShellsenseKeyHandlerSnapshot
+        $KeySnapshot = Get-BlueberryKeyHandlerSnapshot
     }
 
     $status = [ordered]@{}
     foreach ($name in $configuration.Keys) {
         $configuredChord = [string]$configuration[$name]
-        $psReadLineChord = ConvertTo-ShellsensePublicKeyChord -Chord $configuredChord
+        $psReadLineChord = ConvertTo-BlueberryPublicKeyChord -Chord $configuredChord
         $bindings = @()
         if (-not [string]::IsNullOrEmpty([string]$psReadLineChord)) {
-            $bindings = @(Get-ShellsenseKeyBinding -Chord $psReadLineChord -Snapshot $KeySnapshot)
+            $bindings = @(Get-BlueberryKeyBinding -Chord $psReadLineChord -Snapshot $KeySnapshot)
         }
 
         $safe = $false
@@ -2802,7 +2830,7 @@ function Update-ShellsensePublicKeyCapabilities {
                 $boundFunction = [string]$bindings[0].Function
             }
             $suggestion = 'Change the Blueberry public key in the host key settings and start a new session.'
-            Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+            Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code          = 'public_key_collision'
                 name          = $name
                 chord         = $configuredChord
@@ -2814,7 +2842,7 @@ function Update-ShellsensePublicKeyCapabilities {
     }
     $script:BLUEBERRY_PUBLIC_KEY_STATUS = $status
     if ($script:BLUEBERRY_PUBLIC_KEY_CONFIG_ERROR) {
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code       = 'public_key_config_invalid'
             message    = 'BLUEBERRY_PUBLIC_KEYS must be a JSON object with string key chords.'
             suggestion = 'Remove the variable or provide trigger/native/details/refresh/reload chord strings.'
@@ -2822,7 +2850,7 @@ function Update-ShellsensePublicKeyCapabilities {
     }
 }
 
-function Get-ShellsenseAlternativeKeyPrefix {
+function Get-BlueberryAlternativeKeyPrefix {
     [CmdletBinding()]
     param()
 
@@ -2834,7 +2862,7 @@ function Get-ShellsenseAlternativeKeyPrefix {
     return 'F5'
 }
 
-function Register-ShellsenseKeyHandler {
+function Register-BlueberryKeyHandler {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -2849,9 +2877,9 @@ function Register-ShellsenseKeyHandler {
         [switch]$SkipCollisionCheck
     )
 
-    if (-not $SkipCollisionCheck -and @(Get-ShellsenseKeyBinding -Chord $Chord).Count -gt 0) {
-        $collisionSuggestion = ('Choose another protocol prefix (F5-F12) in the next session, for example set BLUEBERRY_KEY_PREFIX={0}.' -f (Get-ShellsenseAlternativeKeyPrefix))
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+    if (-not $SkipCollisionCheck -and @(Get-BlueberryKeyBinding -Chord $Chord).Count -gt 0) {
+        $collisionSuggestion = ('Choose another protocol prefix (F5-F12) in the next session, for example set BLUEBERRY_KEY_PREFIX={0}.' -f (Get-BlueberryAlternativeKeyPrefix))
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'key_chord_collision'
             chord   = $Chord
             suggestion = $collisionSuggestion
@@ -2864,11 +2892,11 @@ function Register-ShellsenseKeyHandler {
         [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
             [string[]]@($Chord),
             $ScriptBlock,
-            ('Shellsense ' + $Name),
+            ('Blueberry ' + $Name),
             ('Report blueberry ' + $Name + ' state.'))
         return $true
     } catch {
-        Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
             code    = 'key_handler_registration_failed'
             chord   = $Chord
             message = ('Reserved chord {0} could not be registered.' -f $Chord)
@@ -2877,7 +2905,7 @@ function Register-ShellsenseKeyHandler {
     }
 }
 
-function Send-ShellsenseCapabilities {
+function Send-BlueberryCapabilities {
     [CmdletBinding()]
     param()
 
@@ -2902,7 +2930,8 @@ function Send-ShellsenseCapabilities {
     if ($null -ne $script:BLUEBERRY_PUBLIC_KEY_STATUS) {
         $capabilityMap.public_keys = $script:BLUEBERRY_PUBLIC_KEY_STATUS
     }
-    Send-ShellsenseEvent -Event 'capabilities' -Data ([ordered]@{
+    Send-BlueberryEvent -Event 'capabilities' -Data ([ordered]@{
+        json_initialization_ms = [double]$script:BLUEBERRY_JSON_INITIALIZATION_MS
         protocol_version = 2
         protocol         = 2
         version          = 2
@@ -2914,7 +2943,7 @@ function Send-ShellsenseCapabilities {
         psreadline   = [bool]$script:BLUEBERRY_PSREADLINE_AVAILABLE
         key_handlers = $script:BLUEBERRY_KEY_HANDLERS
         edit_path    = (-not [string]::IsNullOrEmpty([string]$script:BLUEBERRY_EDIT_PATH))
-        request_path = (-not [string]::IsNullOrEmpty([string](Get-ShellsenseRequestPath)))
+        request_path = (-not [string]::IsNullOrEmpty([string](Get-BlueberryRequestPath)))
         key_prefix   = [string]$script:BLUEBERRY_KEY_PREFIX
         # Report the transport that actually accepted this event. A failed
         # named-pipe connection is reflected as OSC here, so host A/B probes
@@ -2924,7 +2953,7 @@ function Send-ShellsenseCapabilities {
     })
 }
 
-function Initialize-ShellsenseReadLine {
+function Initialize-BlueberryReadLine {
     [CmdletBinding()]
     param(
         [switch]$DeferImport
@@ -2946,7 +2975,7 @@ function Initialize-ShellsenseReadLine {
             shift_enter = $false
         }
 
-    $interactive = Test-ShellsenseInteractiveHost
+    $interactive = Test-BlueberryInteractiveHost
     $readLineModule = Get-Module -Name PSReadLine -ErrorAction SilentlyContinue
     # Looking up a PSReadLine command can trigger module auto-loading. Avoid
     # that lookup entirely for a noninteractive process unless a caller has
@@ -3000,8 +3029,8 @@ function Initialize-ShellsenseReadLine {
                     # Continuation AddLine calls remain inside ReadLine and do not
                     # reach this marker, so the host cannot query an external
                     # program while the user is still entering a multiline line.
-                    Reset-ShellsenseCommandSnapshot
-                    Send-ShellsenseEvent -Event 'execute'
+                    Reset-BlueberryCommandSnapshot
+                    Send-BlueberryEvent -Event 'execute'
                     return $acceptedLine
                 } finally {
                     # PSReadLine's original function may intentionally update the
@@ -3014,7 +3043,7 @@ function Initialize-ShellsenseReadLine {
     } finally {
         if ($null -ne $readLineWrapTimer) {
             $readLineWrapTimer.Stop()
-            Send-ShellsenseTrace -Stage 'readline_wrap' -DurationMs $readLineWrapTimer.Elapsed.TotalMilliseconds
+            Send-BlueberryTrace -Stage 'readline_wrap' -DurationMs $readLineWrapTimer.Elapsed.TotalMilliseconds
         }
     }
 
@@ -3029,11 +3058,11 @@ function Initialize-ShellsenseReadLine {
     }
     $keySnapshot = $null
     try {
-        $keySnapshot = Get-ShellsenseKeyHandlerSnapshot
+        $keySnapshot = Get-BlueberryKeyHandlerSnapshot
     } finally {
         if ($null -ne $keySnapshotTimer) {
             $keySnapshotTimer.Stop()
-            Send-ShellsenseTrace -Stage 'key_snapshot' -DurationMs $keySnapshotTimer.Elapsed.TotalMilliseconds
+            Send-BlueberryTrace -Stage 'key_snapshot' -DurationMs $keySnapshotTimer.Elapsed.TotalMilliseconds
         }
     }
 
@@ -3062,10 +3091,10 @@ function Initialize-ShellsenseReadLine {
         }
     } else {
         try {
-            $knownEnter = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('Enter'))) |
+            $knownEnter = @(Get-BlueberryKeyBinding -Chord 'Enter' -Snapshot $keySnapshot) |
                 Where-Object { [string]::Equals([string]$_.Function, 'AcceptLine', [StringComparison]::OrdinalIgnoreCase) } |
                 Select-Object -First 1 | ForEach-Object { $true }
-            $knownShiftEnter = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('Shift+Enter'))) |
+            $knownShiftEnter = @(Get-BlueberryKeyBinding -Chord 'Shift+Enter' -Snapshot $keySnapshot) |
                 Where-Object { [string]::Equals([string]$_.Function, 'AddLine', [StringComparison]::OrdinalIgnoreCase) } |
                 Select-Object -First 1 | ForEach-Object { $true }
         } catch {
@@ -3082,11 +3111,11 @@ function Initialize-ShellsenseReadLine {
         $publicKeyTimer = [Diagnostics.Stopwatch]::StartNew()
     }
     try {
-        Update-ShellsensePublicKeyCapabilities -KeySnapshot $keySnapshot
+        Update-BlueberryPublicKeyCapabilities -KeySnapshot $keySnapshot
     } finally {
         if ($null -ne $publicKeyTimer) {
             $publicKeyTimer.Stop()
-            Send-ShellsenseTrace -Stage 'public_keys' -DurationMs $publicKeyTimer.Elapsed.TotalMilliseconds
+            Send-BlueberryTrace -Stage 'public_keys' -DurationMs $publicKeyTimer.Elapsed.TotalMilliseconds
         }
     }
     $reservedChords = [ordered]@{
@@ -3117,7 +3146,7 @@ function Initialize-ShellsenseReadLine {
         # Preserve the compatibility path, but do not invoke it for a valid
         # empty result from the static API.
         foreach ($reservedName in $reservedChords.Keys) {
-            $existingByName[$reservedName] = @(Get-ShellsenseKeyBinding -Chord $reservedChords[$reservedName]).Count -gt 0
+            $existingByName[$reservedName] = @(Get-BlueberryKeyBinding -Chord $reservedChords[$reservedName]).Count -gt 0
         }
     } else {
         # A bare prefix occupies every child chord. The case-insensitive map
@@ -3138,8 +3167,8 @@ function Initialize-ShellsenseReadLine {
     try {
         foreach ($reservedName in $reservedChords.Keys) {
             if ([bool]$existingByName[$reservedName]) {
-                $collisionSuggestion = ('Choose another protocol prefix (F5-F12) in the next session, for example set BLUEBERRY_KEY_PREFIX={0}.' -f (Get-ShellsenseAlternativeKeyPrefix))
-                Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+                $collisionSuggestion = ('Choose another protocol prefix (F5-F12) in the next session, for example set BLUEBERRY_KEY_PREFIX={0}.' -f (Get-BlueberryAlternativeKeyPrefix))
+                Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                     code    = 'key_chord_collision'
                     chord   = $reservedChords[$reservedName]
                     suggestion = $collisionSuggestion
@@ -3149,38 +3178,38 @@ function Initialize-ShellsenseReadLine {
             }
             switch ($reservedName) {
                 'buffer' {
-                    $script:BLUEBERRY_KEY_HANDLERS.buffer = Register-ShellsenseKeyHandler `
-                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseBufferKeyHandler} `
+                    $script:BLUEBERRY_KEY_HANDLERS.buffer = Register-BlueberryKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-BlueberryBufferKeyHandler} `
                         -Name 'buffer' -SkipCollisionCheck
                 }
                 'apply' {
-                    $script:BLUEBERRY_KEY_HANDLERS.apply = Register-ShellsenseKeyHandler `
-                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseApplyKeyHandler} `
+                    $script:BLUEBERRY_KEY_HANDLERS.apply = Register-BlueberryKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-BlueberryApplyKeyHandler} `
                         -Name 'apply' -SkipCollisionCheck
                 }
                 'commands' {
-                    $script:BLUEBERRY_KEY_HANDLERS.commands = Register-ShellsenseKeyHandler `
-                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseCommandsKeyHandler} `
+                    $script:BLUEBERRY_KEY_HANDLERS.commands = Register-BlueberryKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-BlueberryCommandsKeyHandler} `
                         -Name 'commands' -SkipCollisionCheck
                 }
                 'native' {
-                    $script:BLUEBERRY_KEY_HANDLERS.native = Register-ShellsenseKeyHandler `
-                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseNativeKeyHandler} `
+                    $script:BLUEBERRY_KEY_HANDLERS.native = Register-BlueberryKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-BlueberryNativeKeyHandler} `
                         -Name 'native' -SkipCollisionCheck
                 }
                 'paste' {
-                    $script:BLUEBERRY_KEY_HANDLERS.paste = Register-ShellsenseKeyHandler `
-                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsensePasteKeyHandler} `
+                    $script:BLUEBERRY_KEY_HANDLERS.paste = Register-BlueberryKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-BlueberryPasteKeyHandler} `
                         -Name 'paste' -SkipCollisionCheck
                 }
                 'enter' {
-                    $script:BLUEBERRY_KEY_HANDLERS.enter = Register-ShellsenseKeyHandler `
-                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseEnterKeyHandler} `
+                    $script:BLUEBERRY_KEY_HANDLERS.enter = Register-BlueberryKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-BlueberryEnterKeyHandler} `
                         -Name 'enter' -SkipCollisionCheck
                 }
                 'shift_enter' {
-                    $script:BLUEBERRY_KEY_HANDLERS.shift_enter = Register-ShellsenseKeyHandler `
-                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseShiftEnterKeyHandler} `
+                    $script:BLUEBERRY_KEY_HANDLERS.shift_enter = Register-BlueberryKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-BlueberryShiftEnterKeyHandler} `
                         -Name 'shift_enter' -SkipCollisionCheck
                 }
             }
@@ -3188,18 +3217,18 @@ function Initialize-ShellsenseReadLine {
     } finally {
         if ($null -ne $keyRegisterTimer) {
             $keyRegisterTimer.Stop()
-            Send-ShellsenseTrace -Stage 'key_register' -DurationMs $keyRegisterTimer.Elapsed.TotalMilliseconds
+            Send-BlueberryTrace -Stage 'key_register' -DurationMs $keyRegisterTimer.Elapsed.TotalMilliseconds
         }
     }
     } finally {
         if ($null -ne $traceTimer) {
             $traceTimer.Stop()
-            Send-ShellsenseTrace -Stage 'readline_init' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
+            Send-BlueberryTrace -Stage 'readline_init' -DurationMs $traceTimer.Elapsed.TotalMilliseconds
         }
     }
 }
 
-function Initialize-ShellsensePrompt {
+function Initialize-BlueberryPrompt {
     [CmdletBinding()]
     param()
 
@@ -3246,18 +3275,18 @@ function Initialize-ShellsensePrompt {
         # was absent during bootstrap; this keeps the common launch path from
         # paying the module import cost twice while still handling hosts that
         # do not perform that automatic load.
-        if (-not $script:BLUEBERRY_PSREADLINE_AVAILABLE -and (Test-ShellsenseInteractiveHost)) {
-            Initialize-ShellsenseReadLine
+        if (-not $script:BLUEBERRY_PSREADLINE_AVAILABLE -and (Test-BlueberryInteractiveHost)) {
+            Initialize-BlueberryReadLine
             if ($script:BLUEBERRY_PSREADLINE_AVAILABLE -and -not $script:BLUEBERRY_CAPABILITIES_REFRESHED) {
-                Send-ShellsenseCapabilities
+                Send-BlueberryCapabilities
                 $script:BLUEBERRY_CAPABILITIES_REFRESHED = $true
             }
         }
 
-        Send-ShellsenseEvent -Event 'prompt_start' -Data ([ordered]@{
-            cwd = Get-ShellsenseWorkingDirectory
+        Send-BlueberryEvent -Event 'prompt_start' -Data ([ordered]@{
+            cwd = Get-BlueberryWorkingDirectory
         })
-        Send-ShellsenseEvent -Event 'prompt_end' -Data (Get-ShellsensePromptEndData)
+        Send-BlueberryEvent -Event 'prompt_end' -Data (Get-BlueberryPromptEndData)
 
         $global:LASTEXITCODE = $promptState.lastExitCode
         if ($null -ne $promptState.error) {
@@ -3299,13 +3328,13 @@ if ($script:BLUEBERRY_TRACE_ENABLED) {
     $blueberryBootstrapTraceTimer = [Diagnostics.Stopwatch]::StartNew()
 }
 try {
-    Initialize-ShellsensePipe | Out-Null
-    Initialize-ShellsensePrompt
-    Initialize-ShellsenseReadLine -DeferImport
-    Send-ShellsenseCapabilities
+    Initialize-BlueberryPipe | Out-Null
+    Initialize-BlueberryPrompt
+    Initialize-BlueberryReadLine -DeferImport
+    Send-BlueberryCapabilities
 } finally {
     if ($null -ne $blueberryBootstrapTraceTimer) {
         $blueberryBootstrapTraceTimer.Stop()
-        Send-ShellsenseTrace -Stage 'adapter_bootstrap' -DurationMs $blueberryBootstrapTraceTimer.Elapsed.TotalMilliseconds
+        Send-BlueberryTrace -Stage 'adapter_bootstrap' -DurationMs $blueberryBootstrapTraceTimer.Elapsed.TotalMilliseconds
     }
 }
