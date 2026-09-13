@@ -36,6 +36,8 @@ struct ReloadPaths {
 
 impl ReloadPaths {
     fn new(config: PathBuf, specs: PathBuf) -> Self {
+        let config = watch_path(&config);
+        let specs = watch_path(&specs);
         let config_pending_parent = config
             .parent()
             .filter(|parent| !parent.is_dir())
@@ -79,8 +81,9 @@ impl Monitor {
             }
             let paths = checked.lock().unwrap();
             if event.paths.iter().any(|p| {
-                event_targets_path(p, &paths.config, paths.config_pending_parent.as_deref())
-                    || event_targets_path(p, &paths.specs, paths.specs_pending_parent.as_deref())
+                let p = watch_path(p);
+                event_targets_path(&p, &paths.config, paths.config_pending_parent.as_deref())
+                    || event_targets_path(&p, &paths.specs, paths.specs_pending_parent.as_deref())
                     || (p.starts_with(&paths.specs)
                         && p.extension()
                             .is_some_and(|ext| ext.eq_ignore_ascii_case("toml")))
@@ -103,9 +106,13 @@ impl Monitor {
         self.dirty.swap(false, Ordering::AcqRel)
     }
     pub fn update(&mut self, config: &Config, path: Option<&Path>) {
-        let config_path = path.map(PathBuf::from).unwrap_or_else(config::default_path);
-        let specs = config::specs_dir(config, path);
-        *self.paths.lock().unwrap() = ReloadPaths::new(config_path.clone(), specs.clone());
+        let paths = ReloadPaths::new(
+            path.map(PathBuf::from).unwrap_or_else(config::default_path),
+            config::specs_dir(config, path),
+        );
+        let config_path = paths.config.clone();
+        let specs = paths.specs.clone();
+        *self.paths.lock().unwrap() = paths;
         let Some(watcher) = self.watcher.as_mut() else {
             return;
         };
@@ -158,6 +165,33 @@ impl Monitor {
         } else {
             false
         }
+    }
+}
+
+/// FSEvents reports real paths, including `/private/var` for `/var` on macOS.
+/// Resolve the existing prefix even when the configured file does not exist.
+fn watch_path(path: &Path) -> PathBuf {
+    let mut prefix = path;
+    let mut missing = Vec::new();
+    loop {
+        if let Ok(mut resolved) = prefix.canonicalize() {
+            for component in missing.iter().rev() {
+                resolved.push(component);
+            }
+            return resolved;
+        }
+        let Some(name) = prefix.file_name() else {
+            return path.to_path_buf();
+        };
+        missing.push(name.to_os_string());
+        let Some(parent) = prefix.parent() else {
+            return path.to_path_buf();
+        };
+        prefix = if parent.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            parent
+        };
     }
 }
 
@@ -268,5 +302,27 @@ mod tests {
 
         fs::write(&config_path, "[ui]\nwidth = 80\n").unwrap();
         wait_for_change(&monitor, &receiver);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_parent_matches_real_event_paths_for_missing_targets() {
+        let root = tempfile::tempdir().unwrap();
+        let actual = root.path().join("actual");
+        fs::create_dir(&actual).unwrap();
+        let alias = root.path().join("alias");
+        std::os::unix::fs::symlink(&actual, &alias).unwrap();
+        let paths = ReloadPaths::new(alias.join("late/config.toml"), alias.join("specs"));
+        let event = actual.canonicalize().unwrap().join("late");
+        assert!(event_targets_path(
+            &event,
+            &paths.config,
+            paths.config_pending_parent.as_deref()
+        ));
+        assert!(!event_targets_path(
+            &actual.join("unrelated"),
+            &paths.config,
+            paths.config_pending_parent.as_deref()
+        ));
     }
 }

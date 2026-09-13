@@ -175,7 +175,7 @@ impl Harness {
                 // A cancelled empty line need not emit another prompt. Clear
                 // the edit and confirm the real buffer before typing exit.
                 self.send(b"\x01\x7f")?;
-                self.send(b"\x1b[32;57;0;1;8;1_\x1b[32;57;0;0;8;1_")?;
+                self.send(b"\x1b[32;5u")?;
                 loop {
                     let buffer =
                         self.event("buffer", deadline.saturating_duration_since(Instant::now()))?;

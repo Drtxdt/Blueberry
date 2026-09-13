@@ -1316,12 +1316,16 @@ if /I "%FAKE_GIT_MODE%"=="timeout" (
   exit /b 0
 )
 if /I "%FAKE_GIT_MODE%"=="large" (
-  for /L %%G in (1,1,70000) do @echo 0123456789012345678901234567890123456789 refs/heads/fake%%G
+  type "%FAKE_GIT_OUTPUT%"
   exit /b 0
 )
 exit /b 0
 "#;
     fs::write(bin.join("git.cmd"), script).unwrap();
+    // Generate the fixture before the provider deadline starts. A cmd.exe
+    // echo loop can hit the time budget before the byte budget on CI runners.
+    let output = root.path().join("large-output.txt");
+    fs::write(&output, vec![b'x'; 3 * 1024 * 1024]).unwrap();
     let path = std::env::var_os("PATH").unwrap_or_default();
     let path = format!("{};{}", bin.display(), path.to_string_lossy());
 
@@ -1335,6 +1339,10 @@ exit /b 0
         request.environment.insert(
             "FAKE_GIT_LOG".to_owned(),
             log.to_string_lossy().into_owned(),
+        );
+        request.environment.insert(
+            "FAKE_GIT_OUTPUT".to_owned(),
+            output.to_string_lossy().into_owned(),
         );
         request
     };
@@ -1356,7 +1364,9 @@ exit /b 0
         large_result
             .diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.contains("输出超过预算"))
+            .any(|diagnostic| diagnostic.contains("输出超过预算")),
+        "expected output budget failure, got: {:?}",
+        large_result.diagnostics
     );
 
     let invocation_log = fs::read_to_string(log).unwrap();

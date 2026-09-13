@@ -49,16 +49,13 @@ fn psreadline_chord(function_key: u8, suffix: char) -> Vec<u8> {
 }
 
 fn ctrl_alt_space_records() -> &'static [u8] {
-    // ConPTY's Windows console input encoding for Ctrl+Alt+Space:
-    // VK_SPACE=32, scan code=57, control character=0, Ctrl|Alt=10.
-    b"\x1b[32;57;0;1;10;1_\x1b[32;57;0;0;10;1_"
+    // CSI-u retains both modifiers through Windows Server 2022 ConPTY.
+    b"\x1b[32;7u"
 }
 
 fn ctrl_space_records() -> &'static [u8] {
-    // VK_SPACE=32, scan code=57, Ctrl only (control state 8). Sending the
-    // actual Windows console records is required; a bare NUL is rendered as
-    // the literal character `2` by the outer ConPTY input path.
-    b"\x1b[32;57;0;1;8;1_\x1b[32;57;0;0;8;1_"
+    // Use CSI-u instead of ambiguous NUL or version-specific Win32 records.
+    b"\x1b[32;5u"
 }
 
 #[test]
@@ -76,8 +73,7 @@ fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion
     clear_line(&mut host.harness)?;
     host.harness.send("查看分支".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "查看分支")?;
-    host.harness
-        .send(b"\x1b[70;33;6;1;10;1_\x1b[70;33;6;0;10;1_")?;
+    host.harness.send(b"\x1b[102;7u")?;
     host.harness.wait_text("git branch", PTY_TIMEOUT)?;
     accept_selected(&mut host.harness)?;
     let buffer = read_real_buffer(

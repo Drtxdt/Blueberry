@@ -261,9 +261,8 @@ fn selected_transport() -> Result<String> {
 }
 
 fn ctrl_space_records() -> &'static [u8] {
-    // VK_SPACE=32, scan code=57, Ctrl only (control state 8). A bare NUL is
-    // rendered as a literal `2` by the outer ConPTY instead of a shortcut.
-    b"\x1b[32;57;0;1;8;1_\x1b[32;57;0;0;8;1_"
+    // Use CSI-u instead of ambiguous NUL or version-specific Win32 records.
+    b"\x1b[32;5u"
 }
 
 fn start_host() -> Result<RunningHost> {
