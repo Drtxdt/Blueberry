@@ -8,11 +8,10 @@
 //! external `pwsh -NoProfile -File` fixture. The tests intentionally do not
 //! modify a profile, global settings, or a real repository.
 //!
-//! ConPTY does not provide a portable way for this integration test to inject
-//! a mouse event while preserving the host's current Windows console input
-//! mode. Mouse forwarding therefore remains covered by the deterministic
-//! `input::mouse_bytes` unit tests; this file does not claim an end-to-end
-//! mouse pass.
+//! The mouse case launches the ignored helper below inside the host's nested
+//! PowerShell ConPTY.  The helper reads the resulting Windows console input
+//! records directly, so the test covers the real outer-ConPTY-to-child path
+//! rather than only the deterministic `input::mouse_bytes` encoder.
 
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::Value;
@@ -20,12 +19,213 @@ use shellsense::{config, probe::Harness};
 use std::{
     collections::BTreeMap,
     fs,
+    io::{self, Write},
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 use tempfile::{TempDir, tempdir};
+use windows_sys::Win32::{
+    Foundation::{HANDLE, INVALID_HANDLE_VALUE},
+    System::Console::{
+        ENABLE_ECHO_INPUT, ENABLE_EXTENDED_FLAGS, ENABLE_LINE_INPUT, ENABLE_MOUSE_INPUT,
+        ENABLE_PROCESSED_INPUT, ENABLE_QUICK_EDIT_MODE, ENABLE_VIRTUAL_TERMINAL_INPUT,
+        ENABLE_WINDOW_INPUT, GetConsoleMode, INPUT_RECORD, KEY_EVENT, MOUSE_EVENT,
+        ReadConsoleInputW, SetConsoleMode,
+    },
+};
 
 const PTY_TIMEOUT: Duration = Duration::from_secs(20);
+const MOUSE_HELPER_LOG_ENV: &str = "SHELLSENSE_MOUSE_HELPER_LOG";
+const MOUSE_COLUMN: i16 = 11;
+const MOUSE_ROW: i16 = 6;
+const VK_F12: u16 = 0x7b;
+const VK_Q: u16 = 0x51;
+const FROM_LEFT_1ST_BUTTON_PRESSED: u32 = 0x0001;
+
+unsafe extern "system" {
+    fn CreateFileW(
+        lp_file_name: *const u16,
+        desired_access: u32,
+        share_mode: u32,
+        security_attributes: *const core::ffi::c_void,
+        creation_disposition: u32,
+        flags_and_attributes: u32,
+        template_file: HANDLE,
+    ) -> HANDLE;
+    fn CloseHandle(handle: HANDLE) -> i32;
+}
+
+fn open_console_input() -> Result<HANDLE> {
+    let name: Vec<u16> = "CONIN$\0".encode_utf16().collect();
+    let input = unsafe {
+        CreateFileW(
+            name.as_ptr(),
+            0x8000_0000 | 0x4000_0000,
+            0x0000_0001 | 0x0000_0002,
+            std::ptr::null(),
+            3,
+            0,
+            std::ptr::null_mut(),
+        )
+    };
+    if input.is_null() || input == INVALID_HANDLE_VALUE {
+        bail!("无法打开 CONIN$：{}", std::io::Error::last_os_error());
+    }
+    Ok(input)
+}
+
+struct ConsoleModeGuard {
+    input: HANDLE,
+    original: u32,
+}
+
+impl Drop for ConsoleModeGuard {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = SetConsoleMode(self.input, self.original);
+            let _ = CloseHandle(self.input);
+        }
+    }
+}
+
+/// This ignored test is intentionally run as a child of the real host test.
+/// Keeping it in this integration binary means no helper executable or fake
+/// product needs to be built or checked into the repository.
+#[test]
+#[ignore = "launched by conpty_mouse_passthrough_for_external_program"]
+fn conpty_mouse_input_record_helper() -> Result<()> {
+    let log_path = std::env::var_os(MOUSE_HELPER_LOG_ENV)
+        .map(PathBuf::from)
+        .context("missing helper log path")?;
+    let mut log = fs::File::create(&log_path).context("create mouse helper log")?;
+    let input = open_console_input()?;
+    let mut original = 0u32;
+    if unsafe { GetConsoleMode(input, &mut original) } == 0 {
+        unsafe { CloseHandle(input) };
+        bail!(
+            "GetConsoleMode(CONIN$) 失败：{}",
+            std::io::Error::last_os_error()
+        );
+    }
+    let _mode_guard = ConsoleModeGuard { input, original };
+    let mode = (original
+        & !(ENABLE_LINE_INPUT
+            | ENABLE_ECHO_INPUT
+            | ENABLE_PROCESSED_INPUT
+            | ENABLE_QUICK_EDIT_MODE
+            | ENABLE_VIRTUAL_TERMINAL_INPUT))
+        | ENABLE_EXTENDED_FLAGS
+        | ENABLE_WINDOW_INPUT
+        | ENABLE_MOUSE_INPUT;
+    if unsafe { SetConsoleMode(input, mode) } == 0 {
+        bail!(
+            "SetConsoleMode(CONIN$) 失败：{}",
+            std::io::Error::last_os_error()
+        );
+    }
+
+    writeln!(log, "READY")?;
+    log.flush()?;
+    {
+        let mut stdout = io::stdout().lock();
+        // SGR (1006) is enabled after the legacy tracking mode (1000), just
+        // as a real full-screen terminal application does.
+        stdout.write_all(b"\x1b[?1000h\x1b[?1006hSS_MOUSE_READY\r\n")?;
+        stdout.flush()?;
+    }
+
+    let mut records = vec![INPUT_RECORD::default(); 32];
+    let mut saw_down = false;
+    let mut saw_up = false;
+    let mut saw_sentinel = false;
+    let mut saw_f12 = false;
+    'read: for batch in 0..256 {
+        let mut count = 0u32;
+        if unsafe {
+            ReadConsoleInputW(
+                input,
+                records.as_mut_ptr(),
+                records.len() as u32,
+                &mut count,
+            )
+        } == 0
+        {
+            bail!(
+                "ReadConsoleInputW 失败：{}",
+                std::io::Error::last_os_error()
+            );
+        }
+        for record in records.iter().take(count as usize) {
+            match record.EventType as u32 {
+                KEY_EVENT => {
+                    let key = unsafe { record.Event.KeyEvent };
+                    let unicode = unsafe { key.uChar.UnicodeChar };
+                    writeln!(
+                        log,
+                        "KEY batch={batch} vk={} down={} repeat={} unicode={} ctrl=0x{:08x}",
+                        key.wVirtualKeyCode,
+                        key.bKeyDown,
+                        key.wRepeatCount,
+                        unicode,
+                        key.dwControlKeyState,
+                    )?;
+                    if key.bKeyDown != 0 && key.wVirtualKeyCode == VK_F12 {
+                        saw_f12 = true;
+                    }
+                    if key.bKeyDown != 0 && (key.wVirtualKeyCode == VK_Q || unicode == b'q' as u16)
+                    {
+                        saw_sentinel = true;
+                    }
+                }
+                MOUSE_EVENT => {
+                    let mouse = unsafe { record.Event.MouseEvent };
+                    writeln!(
+                        log,
+                        "MOUSE batch={batch} x={} y={} buttons=0x{:08x} ctrl=0x{:08x} flags=0x{:08x}",
+                        mouse.dwMousePosition.X,
+                        mouse.dwMousePosition.Y,
+                        mouse.dwButtonState,
+                        mouse.dwControlKeyState,
+                        mouse.dwEventFlags,
+                    )?;
+                    if mouse.dwMousePosition.X == MOUSE_COLUMN
+                        && mouse.dwMousePosition.Y == MOUSE_ROW
+                        && mouse.dwEventFlags == 0
+                        && mouse.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED != 0
+                    {
+                        saw_down = true;
+                    }
+                    if mouse.dwMousePosition.X == MOUSE_COLUMN
+                        && mouse.dwMousePosition.Y == MOUSE_ROW
+                        && mouse.dwEventFlags == 0
+                        && mouse.dwButtonState == 0
+                    {
+                        saw_up = true;
+                    }
+                }
+                event_type => {
+                    writeln!(log, "OTHER batch={batch} event_type={event_type}")?;
+                }
+            }
+        }
+        log.flush()?;
+        if saw_sentinel {
+            break 'read;
+        }
+    }
+    ensure!(saw_down, "helper 未收到期望的左键按下记录");
+    ensure!(saw_up, "helper 未收到期望的左键释放记录");
+    ensure!(saw_sentinel, "helper 未收到退出哨兵 q");
+    writeln!(log, "DONE f12={}", u8::from(saw_f12))?;
+    log.flush()?;
+    {
+        let mut stdout = io::stdout().lock();
+        stdout.write_all(b"\x1b[?1006l\x1b[?1000lSS_MOUSE_DONE\r\n")?;
+        stdout.flush()?;
+    }
+    ensure!(!saw_f12, "helper 收到了不应注入的 F12");
+    Ok(())
+}
 
 struct RunningHost {
     harness: Harness,
@@ -42,6 +242,12 @@ fn selected_pwsh() -> PathBuf {
 
 fn ps_quote(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "''"))
+}
+
+fn startup_event(harness: &mut Harness, name: &str, phase: &str) -> Result<Value> {
+    harness
+        .event(name, PTY_TIMEOUT)
+        .with_context(|| format!("startup phase {phase}: waiting for {name} event"))
 }
 
 fn ctrl_space_records() -> &'static [u8] {
@@ -92,17 +298,23 @@ fn start_host() -> Result<RunningHost> {
         .with_context(|| format!("start {}", program.display()))?;
     harness
         .wait_text("PS ", PTY_TIMEOUT)
-        .context("wait for initial PowerShell prompt")?;
-    // Drain bootstrap capability metadata before prompt_end. Harness::event
-    // consumes intervening messages, so waiting for the prompt first could
-    // discard the commands snapshot and make the completion barrier hang.
-    harness.event("capabilities", PTY_TIMEOUT)?;
-    harness.event("prompt_end", PTY_TIMEOUT)?;
+        .context("startup phase initial prompt: waiting for PowerShell prompt")?;
+    // The bootstrap path can publish an intentionally incomplete capability
+    // frame before ConsoleHost loads PSReadLine. The first prompt publishes a
+    // ready frame after registration. Harness::event consumes intervening
+    // messages, so select the ready frame before consuming prompt_end; this
+    // prevents a stale capability from making the command barrier wait on a
+    // host that has not actually enabled its key handlers.
+    let mut capabilities = startup_event(&mut harness, "capabilities", "capabilities")?;
+    while capabilities["ready"] != true {
+        capabilities = startup_event(&mut harness, "capabilities", "ready capabilities")?;
+    }
+    startup_event(&mut harness, "prompt_end", "first prompt")?;
     // Terminal-mode checks are interaction tests, rather than startup
     // benchmarks. Let the lazy command snapshot finish before the first
     // query, so a later partial page cannot change the row being navigated.
     loop {
-        if harness.event("commands", PTY_TIMEOUT)?["complete"] == true {
+        if startup_event(&mut harness, "commands", "command snapshot")?["complete"] == true {
             break;
         }
     }
@@ -447,6 +659,81 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
         .wait_text("SS_RESIZE_GIT_OK", PTY_TIMEOUT)
         .context("execute accepted Git after resize/output")?;
     host.harness.event("prompt_end", PTY_TIMEOUT)?;
+    host.harness.finish(PTY_TIMEOUT)?;
+    Ok(())
+}
+
+#[test]
+fn conpty_mouse_passthrough_for_external_program() -> Result<()> {
+    let mut host = start_host()?;
+    let helper_executable = std::env::current_exe().context("locate terminal-modes test exe")?;
+    let log_path = host._cwd.path().join("mouse-input-records.log");
+    let command = format!(
+        "$env:{MOUSE_HELPER_LOG_ENV} = {}; & {} --exact --ignored --nocapture conpty_mouse_input_record_helper",
+        ps_quote(&log_path),
+        ps_quote(&helper_executable),
+    );
+
+    clear_line_and_send(
+        &mut host.harness,
+        format!("{command}\r").as_bytes(),
+        "external mouse helper",
+    )?;
+    host.harness.event("execute", PTY_TIMEOUT)?;
+    host.harness
+        .wait_text("SS_MOUSE_READY", PTY_TIMEOUT)
+        .context("wait for external mouse helper readiness")?;
+
+    // The bytes enter the same outer ConPTY input stream as a terminal
+    // emulator's SGR mouse report.  ShellSense must decode them as a mouse
+    // event, encode them for the nested child, and avoid its private F12
+    // protocol chord while the child owns mouse mode.
+    host.harness
+        .send(b"\x1b[<0;12;7M\x1b[<0;12;7mq")
+        .context("send SGR mouse down/up and helper sentinel")?;
+    host.harness
+        .wait_text("SS_MOUSE_DONE", PTY_TIMEOUT)
+        .context("wait for external mouse helper completion")?;
+    host.harness.event("prompt_end", PTY_TIMEOUT)?;
+
+    let log = fs::read_to_string(&log_path).context("read mouse helper input log")?;
+    ensure!(
+        log.lines().any(|line| {
+            line.contains("MOUSE")
+                && line.contains("x=11 y=6")
+                && line.contains("buttons=0x00000001")
+                && line.contains("flags=0x00000000")
+        }),
+        "helper did not receive expected left-button down at SGR (12,7):\n{log}"
+    );
+    ensure!(
+        log.lines().any(|line| {
+            line.contains("MOUSE")
+                && line.contains("x=11 y=6")
+                && line.contains("buttons=0x00000000")
+                && line.contains("flags=0x00000000")
+        }),
+        "helper did not receive expected left-button release at SGR (12,7):\n{log}"
+    );
+    ensure!(
+        !log.lines()
+            .any(|line| line.starts_with("KEY") && line.contains("vk=123")),
+        "ShellSense injected F12 into the external helper:\n{log}"
+    );
+    ensure!(
+        log.contains("DONE f12=0"),
+        "external helper did not report a clean mouse-mode exit:\n{log}"
+    );
+
+    // The helper restored its console mode and disabled mouse tracking before
+    // returning. A normal PowerShell command must still run at the same
+    // prompt afterwards.
+    run_and_wait_for_marker(
+        &mut host.harness,
+        "Write-Output SS_MOUSE_AFTER",
+        "SS_MOUSE_AFTER",
+        "PowerShell after external mouse helper",
+    )?;
     host.harness.finish(PTY_TIMEOUT)?;
     Ok(())
 }

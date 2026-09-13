@@ -8,7 +8,7 @@ use crate::{
 };
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap},
     path::PathBuf,
     sync::{
         Arc, Condvar, Mutex,
@@ -47,6 +47,7 @@ pub struct SourceUpdate {
     pub elapsed: std::time::Duration,
     pub generation: u64,
     pub watch_paths: Vec<PathBuf>,
+    pub recursive_watch_paths: Vec<PathBuf>,
 }
 impl SourceUpdate {
     fn empty(revision: u64, kind: SourceKind) -> Self {
@@ -60,6 +61,7 @@ impl SourceUpdate {
             elapsed: std::time::Duration::ZERO,
             generation: 0,
             watch_paths: Vec::new(),
+            recursive_watch_paths: Vec::new(),
         }
     }
 }
@@ -76,8 +78,12 @@ pub struct Sources {
     epoch: Arc<AtomicU64>,
     last: Option<SourceRequest>,
     _watcher: Option<RecommendedWatcher>,
-    watched: Option<PathBuf>,
-    project_watches: HashSet<PathBuf>,
+    watched_cwd: Option<PathBuf>,
+    /// Paths currently registered with notify and whether each registration
+    /// is recursive. Keeping the mode lets a later provider upgrade a
+    /// non-recursive watch (for example the request cwd) without being
+    /// incorrectly skipped as an already-watched path.
+    watch_modes: HashMap<PathBuf, bool>,
     generation: u64,
 }
 
@@ -122,8 +128,8 @@ impl Sources {
             epoch,
             last: None,
             _watcher: watcher,
-            watched: None,
-            project_watches: HashSet::new(),
+            watched_cwd: None,
+            watch_modes: HashMap::new(),
             generation: 0,
         }
     }
@@ -138,23 +144,19 @@ impl Sources {
         if force {
             self.epoch.fetch_add(1, Ordering::Relaxed);
         }
-        if self.watched.as_ref() != Some(&request.cwd)
-            && let Some(watcher) = self._watcher.as_mut()
-        {
-            if let Some(old) = self.watched.take() {
-                let _ = watcher.unwatch(&old);
-            }
-            for old in self.project_watches.drain() {
-                let _ = watcher.unwatch(&old);
-            }
+        if self.watched_cwd.as_ref() != Some(&request.cwd) {
+            self.clear_watches();
             // Watch current directory non-recursively. Project roots and
             // Git directories are added when a provider identifies them.
-            if watcher
-                .watch(&request.cwd, RecursiveMode::NonRecursive)
-                .is_ok()
-            {
-                self.watched = Some(request.cwd.clone());
+            if self.watch_path(&request.cwd, false) {
+                self.watched_cwd = Some(request.cwd.clone());
             }
+        } else if force || self.last.as_ref() != Some(&request) {
+            // A changed query can stop producing a project snapshot (or move
+            // to a different provider root). Drop the previous provider
+            // registrations before the new result arrives so they cannot
+            // accumulate during that gap.
+            self.clear_provider_watches();
         }
         for lane in &self.lanes {
             let (lock, wake) = &**lane;
@@ -175,55 +177,115 @@ impl Sources {
         self.last = Some(request);
     }
     pub fn watch_project(&mut self, root: &std::path::Path) {
-        if let Some(watcher) = self._watcher.as_mut() {
-            // Manifests are in the root; Git metadata is watched separately.
-            // Do not recursively subscribe to build outputs or dependencies.
-            if self.watched.as_deref() != Some(root)
-                && !self.project_watches.contains(root)
-                && watcher.watch(root, RecursiveMode::NonRecursive).is_ok()
-            {
-                self.project_watches.insert(root.into());
-            }
-            let git = root.join(".git");
-            let git = if git.is_file() {
-                std::fs::read_to_string(&git).ok().and_then(|s| {
-                    s.trim()
-                        .strip_prefix("gitdir:")
-                        .map(|p| root.join(p.trim()))
-                })
-            } else {
-                Some(git)
-            };
-            if let Some(git) = git.filter(|p| p.is_dir()) {
-                if !self.project_watches.contains(&git)
-                    && watcher.watch(&git, RecursiveMode::Recursive).is_ok()
-                {
-                    self.project_watches.insert(git.clone());
-                }
-                if let Ok(common) = std::fs::read_to_string(git.join("commondir")) {
-                    let common = git.join(common.trim());
-                    if !self.project_watches.contains(&common)
-                        && watcher.watch(&common, RecursiveMode::Recursive).is_ok()
-                    {
-                        self.project_watches.insert(common);
-                    }
-                }
+        // Replace the registrations for every new project snapshot.  This
+        // also removes a recursive status watch when the next query only
+        // needs refs, while still retaining the request cwd below.
+        self.clear_provider_watches();
+        // Manifests are in the root; Git metadata is watched separately.
+        // Do not recursively subscribe to build outputs or dependencies.
+        self.watch_path(root, false);
+        let git = root.join(".git");
+        let git = if git.is_file() {
+            std::fs::read_to_string(&git).ok().and_then(|s| {
+                s.trim()
+                    .strip_prefix("gitdir:")
+                    .map(|p| root.join(p.trim()))
+            })
+        } else {
+            Some(git)
+        };
+        if let Some(git) = git.filter(|p| p.is_dir()) {
+            self.watch_path(&git, true);
+            if let Ok(common) = std::fs::read_to_string(git.join("commondir")) {
+                let common = git.join(common.trim());
+                self.watch_path(&common, true);
             }
         }
     }
     pub fn watch_paths(&mut self, paths: &[PathBuf]) {
-        let Some(watcher) = self._watcher.as_mut() else {
-            return;
-        };
         for path in paths {
-            if self.watched.as_ref() == Some(path) || self.project_watches.contains(path) {
-                continue;
+            self.watch_path(path, false);
+        }
+    }
+    pub fn watch_recursive_paths(&mut self, paths: &[PathBuf]) {
+        for path in paths {
+            self.watch_path(path, true);
+        }
+    }
+
+    fn watch_path(&mut self, path: &std::path::Path, recursive: bool) -> bool {
+        if path.as_os_str().is_empty() {
+            return false;
+        }
+        if let Some(existing) = self.watch_modes.get(path).copied() {
+            if existing || !recursive {
+                return true;
             }
-            if watcher.watch(path, RecursiveMode::NonRecursive).is_ok() {
-                self.project_watches.insert(path.clone());
+            // notify does not reliably replace a registration in place. Drop
+            // the old non-recursive registration before upgrading it.
+            if let Some(watcher) = self._watcher.as_mut() {
+                let _ = watcher.unwatch(path);
+            }
+            self.watch_modes.remove(path);
+        }
+        let Some(watcher) = self._watcher.as_mut() else {
+            return false;
+        };
+        let mode = if recursive {
+            RecursiveMode::Recursive
+        } else {
+            RecursiveMode::NonRecursive
+        };
+        if watcher.watch(path, mode).is_ok() {
+            self.watch_modes.insert(path.to_path_buf(), recursive);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn clear_watches(&mut self) {
+        if let Some(watcher) = self._watcher.as_mut() {
+            for path in self.watch_modes.keys() {
+                let _ = watcher.unwatch(path);
+            }
+        }
+        self.watch_modes.clear();
+        self.watched_cwd = None;
+    }
+
+    fn clear_provider_watches(&mut self) {
+        let cwd = self.watched_cwd.clone();
+        let provider_paths = self
+            .watch_modes
+            .keys()
+            .filter(|path| cwd.as_ref() != Some(*path))
+            .cloned()
+            .collect::<Vec<_>>();
+        if let Some(watcher) = self._watcher.as_mut() {
+            for path in &provider_paths {
+                let _ = watcher.unwatch(path);
+            }
+        }
+        for path in provider_paths {
+            self.watch_modes.remove(&path);
+        }
+        // A status query can upgrade the cwd itself when it is also the
+        // project root. Keep the cwd registration, but restore its precise
+        // non-recursive mode before the next provider snapshot is attached.
+        if let Some(cwd) = cwd
+            && self.watch_modes.get(&cwd) == Some(&true)
+        {
+            if let Some(watcher) = self._watcher.as_mut() {
+                let _ = watcher.unwatch(&cwd);
+            }
+            self.watch_modes.remove(&cwd);
+            if !self.watch_path(&cwd, false) {
+                self.watched_cwd = None;
             }
         }
     }
+
     pub fn cancel(&mut self) {
         self.last = None;
         for lane in &self.lanes {
@@ -363,6 +425,7 @@ fn collect_lane(
         update.diagnostics = result.diagnostics;
         update.project_root = result.project_root;
         update.watch_paths = result.watch_paths;
+        update.recursive_watch_paths = result.recursive_watch_paths;
     } else if index == 1 && request.paths {
         let result = paths.complete(
             &request.line,
@@ -384,6 +447,35 @@ fn collect_lane(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        fs,
+        sync::mpsc::{self, Receiver},
+        time::{Duration, Instant},
+    };
+
+    fn wait_for_invalidated(receiver: &Receiver<SourceUpdate>) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            assert!(!remaining.is_zero(), "notify did not invalidate sources");
+            if receiver
+                .recv_timeout(remaining)
+                .is_ok_and(|update| update.kind == SourceKind::Invalidated)
+            {
+                return;
+            }
+        }
+    }
+
+    fn drain_invalidations(receiver: &Receiver<SourceUpdate>) {
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while Instant::now() < deadline {
+            while receiver.try_recv().is_ok() {}
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        while receiver.try_recv().is_ok() {}
+    }
+
     #[test]
     fn latest_request_gets_complete_directory_snapshot_and_cancel_stops_followups() {
         let root = tempfile::tempdir().unwrap();
@@ -437,5 +529,54 @@ mod tests {
                 break;
             }
         }
+    }
+
+    #[test]
+    fn recursive_provider_watch_invalidates_nested_files_and_prunes_old_roots() {
+        let base = tempfile::tempdir().unwrap();
+        let first = base.path().join("first");
+        let second = base.path().join("second");
+        let first_nested = first.join("nested");
+        fs::create_dir_all(&first_nested).unwrap();
+        fs::create_dir_all(&second).unwrap();
+        let (send, receiver) = mpsc::channel();
+        let mut sources = Sources::new(move |update| {
+            if update.kind == SourceKind::Invalidated {
+                let _ = send.send(update);
+            }
+        });
+        let request = SourceRequest {
+            revision: 1,
+            line: String::new(),
+            cursor: 0,
+            context: InputContext::default(),
+            cwd: base.path().to_path_buf(),
+            environment: Arc::new(BTreeMap::new()),
+            paths: false,
+            directories_only: false,
+            project: false,
+            provider: None,
+            fuzzy: false,
+        };
+        sources.submit(request, false);
+        sources.watch_project(&first);
+        // watch_project starts with a precise root watch. The recursive
+        // provider request must upgrade that registration for nested status
+        // paths rather than being skipped as a duplicate.
+        sources.watch_recursive_paths(std::slice::from_ref(&first));
+
+        fs::write(first_nested.join("changed.txt"), "changed").unwrap();
+        wait_for_invalidated(&receiver);
+        drain_invalidations(&receiver);
+
+        sources.watch_project(&second);
+        fs::write(first_nested.join("after-prune.txt"), "stale").unwrap();
+        assert!(
+            receiver.recv_timeout(Duration::from_millis(400)).is_err(),
+            "an old provider root remained watched after moving worktrees"
+        );
+
+        fs::write(second.join("manifest.toml"), "new").unwrap();
+        wait_for_invalidated(&receiver);
     }
 }

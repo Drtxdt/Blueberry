@@ -11,11 +11,12 @@ use crate::{
     trace::Trace,
 };
 use anyhow::{Context, Result};
-use crossterm::{
-    event::{self, Event},
-    terminal,
-};
+#[cfg(not(windows))]
+use crossterm::event;
+use crossterm::{event::Event, terminal};
 use serde_json::{Value, json};
+#[cfg(not(windows))]
+use std::time::Duration;
 use std::{
     collections::BTreeMap,
     ffi::OsStr,
@@ -26,7 +27,7 @@ use std::{
         mpsc::{self, SyncSender},
     },
     thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 pub struct RunOptions {
@@ -303,6 +304,7 @@ impl Worker {
                             sources.watch_project(root);
                         }
                         sources.watch_paths(&update.watch_paths);
+                        sources.watch_recursive_paths(&update.recursive_watch_paths);
                         let slot = usize::from(update.kind == crate::sources::SourceKind::Paths);
                         trace.event(
                             "dynamic_ready",
@@ -400,6 +402,7 @@ impl RawMode {
                         | ENABLE_QUICK_EDIT_MODE))
                     | ENABLE_WINDOW_INPUT
                     | ENABLE_MOUSE_INPUT
+                    | ENABLE_VIRTUAL_TERMINAL_INPUT
                     | ENABLE_EXTENDED_FLAGS;
                 if SetConsoleMode(handle, mode) == 0 {
                     return Err(std::io::Error::last_os_error());
@@ -424,7 +427,7 @@ impl Drop for RawMode {
         }
         #[cfg(not(windows))]
         let _ = terminal::disable_raw_mode();
-        let _ = std::io::stdout().write_all(b"\x1b[0m\x1b[?25h");
+        let _ = std::io::stdout().write_all(b"\x1b[0m\x1b[?25h\x1b[?2004l");
     }
 }
 
@@ -435,6 +438,23 @@ impl Drop for ChildGuard {
     }
 }
 
+fn plain_directory(path: &std::path::Path) -> bool {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
+        return false;
+    };
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        if metadata.file_attributes() & 0x400 != 0 {
+            return false;
+        }
+    }
+    true
+}
+
 struct SessionFiles(PathBuf);
 impl Drop for SessionFiles {
     fn drop(&mut self) {
@@ -442,6 +462,19 @@ impl Drop for SessionFiles {
         let _ = std::fs::remove_file(self.0.join("request.json"));
         let _ = std::fs::remove_file(self.0.join("adapter.json"));
         let _ = std::fs::remove_file(self.0.join("adapter.tmp"));
+        let _ = std::fs::remove_file(self.0.join("data-sources.json"));
+        let _ = std::fs::remove_file(self.0.join("data-sources.tmp"));
+        let paste = self.0.join("paste");
+        if plain_directory(&paste)
+            && let Ok(entries) = std::fs::read_dir(&paste)
+        {
+            for entry in entries.flatten() {
+                if entry.file_type().is_ok_and(|kind| kind.is_file()) {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+        let _ = std::fs::remove_dir(paste);
         let _ = std::fs::remove_dir(&self.0);
     }
 }
@@ -521,6 +554,8 @@ struct State {
     pending_accept: Option<(u64, String, PathBuf)>,
     native_request: Option<u64>,
     native_ready: bool,
+    paste_ready: bool,
+    paste_sequence: u64,
     native_menu: bool,
     menu_focus: bool,
     details: bool,
@@ -607,6 +642,7 @@ impl State {
                 self.enter_ready = value["key_handlers"]["enter"] == true;
                 self.shift_enter_ready = value["key_handlers"]["shift_enter"] == true;
                 self.native_ready = value["key_handlers"]["native"] == true;
+                self.paste_ready = value["key_handlers"]["paste"] == true;
                 self.ready = value["ready"] == true
                     && value["psreadline"] == true
                     && value["key_handlers"]["buffer"] == true
@@ -628,6 +664,7 @@ impl State {
                 self.dirty = false;
             }
             "prompt_end" => {
+                self.learning.refresh();
                 worker.update(|w| w.invalidate_sources = true);
                 self.native_queued = false;
                 self.trace.event("prompt_end", None, None, None);
@@ -1043,6 +1080,47 @@ impl State {
                 query_after = false;
             }
         }
+        if let Event::Paste(text) = &event
+            && self.prompt
+        {
+            if !self.ready || !self.paste_ready {
+                self.diagnostic = Some("安全粘贴不可用：PSReadLine 或内部粘贴快捷键存在冲突，请检查 doctor 并更换内部快捷键前缀".into());
+                return Ok(());
+            }
+            // The shell processes this private key in the same input stream
+            // as surrounding keystrokes. Insert(string) treats newlines as
+            // editable text instead of AcceptLine/execute key events.
+            let directory = self
+                .edit_path
+                .parent()
+                .context("session directory")?
+                .join("paste");
+            self.paste_sequence = self
+                .paste_sequence
+                .checked_add(1)
+                .context("paste sequence exhausted")?;
+            let id = self.paste_sequence.to_string();
+            let payload = serde_json::to_vec(&json!({"id": id, "text": text}))?;
+            if payload.len() > 1024 * 1024 {
+                self.diagnostic = Some("粘贴内容超过单次 1 MiB 的协议上限，请分段粘贴".into());
+                return Ok(());
+            }
+            std::fs::create_dir_all(&directory)?;
+            anyhow::ensure!(
+                plain_directory(&directory),
+                "paste directory must not be a link or reparse point"
+            );
+            let temporary = directory.join(format!("{:020}.tmp", self.paste_sequence));
+            let pending = directory.join(format!("{:020}.json", self.paste_sequence));
+            std::fs::write(&temporary, payload)?;
+            std::fs::rename(&temporary, &pending)?;
+            self.invalidate();
+            self.dismissed = false;
+            self.dirty = true;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'p'))?;
+            writer.flush()?;
+            return Ok(());
+        }
         let paste = matches!(event, Event::Paste(_));
         let edit_enter = if let Event::Key(key) = &event {
             use crossterm::event::{KeyCode, KeyModifiers};
@@ -1378,17 +1456,36 @@ pub fn run(options: RunOptions) -> Result<u32> {
     });
     let input_tx = tx.clone();
     thread::spawn(move || {
+        #[cfg(windows)]
+        let mut input_reader = match crate::windows_input::Reader::new() {
+            Ok(reader) => reader,
+            Err(error) => {
+                let _ = input_tx.send(HostEvent::Error(error.to_string()));
+                return;
+            }
+        };
         loop {
-            match event::read() {
-                Ok(event) => {
-                    let mut events = vec![event];
-                    // Drain only keys already available; never wait to fill a batch.
-                    while events.len() < 64 && event::poll(Duration::ZERO).unwrap_or(false) {
-                        match event::read() {
-                            Ok(event) => events.push(event),
-                            Err(_) => break,
-                        }
+            #[cfg(windows)]
+            let result = input_reader.read_batch(64);
+            #[cfg(windows)]
+            if input_reader.take_paste_rejection().is_some() {
+                let _ = input_tx.send(HostEvent::Diagnostic(
+                    "粘贴内容超过单次 1 MiB 上限，已完整丢弃；请分段粘贴".into(),
+                ));
+            }
+            #[cfg(not(windows))]
+            let result = event::read().map(|event| {
+                let mut events = vec![event];
+                while events.len() < 64 && event::poll(Duration::ZERO).unwrap_or(false) {
+                    match event::read() {
+                        Ok(event) => events.push(event),
+                        Err(_) => break,
                     }
+                }
+                events
+            });
+            match result {
+                Ok(events) => {
                     if input_tx.send(HostEvent::Input(events)).is_err() {
                         break;
                     }
@@ -1458,6 +1555,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
         pending_accept: None,
         native_request: None,
         native_ready: false,
+        paste_ready: false,
+        paste_sequence: 0,
         native_menu: false,
         menu_focus: false,
         details: false,
@@ -1553,6 +1652,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }
                 }
                 HostEvent::Input(inputs) => {
+                    // One native read can contain an entire paste marker or
+                    // several key records. Preserve their order in one write
+                    // to the child instead of flushing after every key. Query
+                    // injection stays after the outer event batch so queued
+                    // protocol replies are handled before a new request.
+                    let mut input_frame = Vec::with_capacity(inputs.len() * 8);
                     for input in inputs {
                         ui_dirty |= matches!(&input, Event::Resize(..) | Event::Paste(_))
                             || matches!(&input, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release);
@@ -1560,7 +1665,11 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         if matches!(&input, Event::Resize(..)) {
                             state.overlay.erase(state.parser.screen(), &mut frame)?;
                         }
-                        state.input(input, &mut writer, master.as_ref(), &worker)?;
+                        state.input(input, &mut input_frame, master.as_ref(), &worker)?;
+                    }
+                    if !input_frame.is_empty() {
+                        writer.write_all(&input_frame)?;
+                        writer.flush()?;
                     }
                 }
                 HostEvent::Completion(revision, completion)
@@ -1665,6 +1774,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 Some(repaint_start.elapsed()),
                 Some(frame.len() - bytes_before),
             );
+        }
+        if ui_dirty {
+            // Keep the outer terminal in paste-aware mode while editing,
+            // even when this PSReadLine version does not advertise it. For
+            // external applications retain their own requested mode.
+            frame.extend_from_slice(if state.prompt || state.parser.screen().bracketed_paste() {
+                b"\x1b[?2004h"
+            } else {
+                b"\x1b[?2004l"
+            });
         }
         if !frame.is_empty() {
             let started = Instant::now();

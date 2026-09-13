@@ -22,3 +22,9 @@ pub mod spec_catalog;
 pub mod specs;
 pub mod status;
 pub mod trace;
+
+#[cfg(windows)]
+pub(crate) mod vt_input;
+
+#[cfg(windows)]
+pub(crate) mod windows_input;

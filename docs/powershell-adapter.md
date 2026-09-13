@@ -9,7 +9,7 @@ pwsh -NoLogo -NoExit -Command ". 'C:\path\to\integration.ps1'"
 
 The host supplies `SHELLSENSE_TOKEN` and `SHELLSENSE_EDIT_PATH` in the child
 environment. It may also provide `SHELLSENSE_REQUEST_PATH` and
-`SHELLSENSE_KEY_PREFIX` (`F5` through `F12`; the alpha default is `F12`). For
+`SHELLSENSE_KEY_PREFIX` (`F5` through `F12`; the default is `F12`). For
 public shortcut arbitration it may provide `SHELLSENSE_PUBLIC_KEYS` as a JSON
 object with `trigger`, `native`, `details`, `refresh`, and `reload` chord
 strings. The adapter reads the token once and removes it from the process
@@ -29,8 +29,11 @@ one UTF-8 message-mode frame with the envelope
 short OSC barrier `{"event":"pipe","sequence":N}`. The host consumes the
 matching sequence before processing the payload, preserving output and cursor
 ordering. A frame larger than 1 MiB or any pipe write failure is sent as the
-original OSC event after disposing the client stream. The default transport is
-still OSC, and this experiment does not claim a performance improvement.
+original OSC event after disposing the client stream. Authenticated OSC frames
+allow up to 32 MiB because ASCII JSON encoding and the compact syntax context
+can expand a permitted 1 MiB paste; unrelated OSC retains a 1 MiB bound. The
+default transport is still OSC, and this experiment does not claim a
+performance improvement.
 
 Host requests and edits use the opposite pipe direction as one frame of the
 form `{"kind":"request"|"edit","payload":{...}}`; the known `${prefix},n`,
@@ -45,13 +48,14 @@ events:
 
 | Event | Additional properties |
 | --- | --- |
-| `capabilities` | `protocol_version: 2`, legacy `ready`/`psreadline`/`key_handlers`/`edit_path`, `key_prefix`, actual `transport` (`osc` or `pipe`), request-path state, and a v2 `capabilities` map. `key_handlers` includes `native` and optional `enter`/`shift_enter`; when `SHELLSENSE_PUBLIC_KEYS` is set, `capabilities.public_keys` reports each shortcut's safe-to-intercept status. |
+| `capabilities` | `protocol_version: 2`, legacy `ready`/`psreadline`/`key_handlers`/`edit_path`, `key_prefix`, actual `transport` (`osc` or `pipe`), request-path state, and a v2 `capabilities` map. `key_handlers` includes `native`, `paste`, and optional `enter`/`shift_enter`; when `SHELLSENSE_PUBLIC_KEYS` is set, `capabilities.public_keys` reports each shortcut's safe-to-intercept status. |
 | `prompt_start` | `cwd` |
 | `prompt_end` | `cwd`, `path`, `pathext`, `pid`, and a transient `environment` map when it changes |
 | `buffer` | `line`, `cursor` (UTF-16 code-unit offset); complex lines additionally carry a compact `context` (see below) |
 | `editing` | `state: continuation`, only after a known PSReadLine `AcceptLine`/`AddLine` action leaves a live continuation buffer |
 | `execute` | Emitted only when the wrapped `PSConsoleHostReadLine` actually returns an accepted command |
 | `edit_result` | `request_id` (nullable for legacy payloads), `applied` after `PSConsoleReadLine.Replace` succeeds or fails |
+| `paste_result` | String `request_id`, `applied` after an entire paste is inserted or rejected; successful insertion is followed by a live `buffer` event |
 | `native_completion` | `request_id`, live `line`/`cursor`, UTF-16 `replace_start`/`replace_end`, `candidates`, and `status` |
 | `commands` | `snapshot` UUID, `complete` boolean, and a batch of at most 64 records or roughly 2 ms of same-runspace enumeration. Each record has `name`, `kind`, and `definition` (aliases include their target). |
 | `trace` | Optional fixed `stage` and numeric `duration_ms`; enabled only by the host trace switch. Startup stages include `adapter_bootstrap`, `readline_init`, `key_snapshot`, `key_register`, `public_keys`, and `readline_wrap`; runtime stages include `command_snapshot` and `serialize` |
@@ -63,7 +67,8 @@ handlers from that first prompt and sends one refreshed capabilities frame.
 
 When PSReadLine is available, `${prefix},s` reports its current buffer,
 `${prefix},a` applies one pending edit, `${prefix},c` reports the loaded aliases,
-functions, and cmdlets, and `${prefix},n` requests native completion. The
+functions, and cmdlets, `${prefix},n` requests native completion, and
+`${prefix},p` inserts the next queued paste. The
 optional `${prefix},e` and `${prefix},l` chords are installed only when Enter
 and Shift+Enter still use PSReadLine's built-in `AcceptLine` and `AddLine`
 handlers. A custom binding is preserved and reported as an unavailable
@@ -76,6 +81,20 @@ surrogate pair. An optional string `id` is echoed as `request_id` in
 method and is never evaluated as PowerShell. The acknowledgement is emitted
 before the follow-up live `buffer` event, and is emitted only after Replace has
 returned or thrown.
+
+Bracketed paste is decoded incrementally from Windows console input records,
+including markers split across native read batches. The host queues the entire
+paste in a session-private `paste/<20-digit-sequence>.json` file containing
+`{"id":"...","text":"..."}` and invokes `${prefix},p` in input order. This
+FIFO file path is also used with pipe transport. The adapter requires the
+`paste_insert` capability and a registered paste handler; it consumes only
+regular, non-reparse files using strict UTF-8 and a 1 MiB serialized limit.
+CRLF and lone CR normalize to LF. A selected range is replaced, otherwise the
+whole string is inserted through PSReadLine without executing it. Oversized
+input is consumed through its end marker and rejected as a whole. Payloads are
+removed after handling and the host cleans remaining session files on exit.
+ShellSense does not persist paste text in trace or learning statistics; normal
+PSReadLine history policy still applies when the user later executes the line.
 
 Native completion is manual-only. The adapter reads a request object such as
 `{"id":"req-17","kind":"native"}` from `request.json`, calls

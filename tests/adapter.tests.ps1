@@ -73,11 +73,13 @@ $capabilities = ConvertFrom-Json -InputObject $capabilityJson
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.ready) -Expected $false -Message 'readiness is false without the PSReadLine surface'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.psreadline) -Expected $false -Message 'noninteractive bootstrap does not load PSReadLine'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.key_handlers.buffer) -Expected $false -Message 'noninteractive bootstrap has no buffer key handler'
+Assert-ShellsenseEqual -Actual ([bool]$capabilities.key_handlers.paste) -Expected $false -Message 'noninteractive bootstrap has no paste key handler'
 Assert-ShellsenseEqual -Actual ([int]$capabilities.protocol_version) -Expected 2 -Message 'bootstrap advertises protocol v2'
 Assert-ShellsenseEqual -Actual ([int]$capabilities.protocol) -Expected 2 -Message 'legacy protocol version alias is retained'
 Assert-ShellsenseEqual -Actual ([string]$capabilities.key_prefix) -Expected 'F12' -Message 'default protocol prefix is F12'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.manual_native) -Expected $true -Message 'native completion is manual-only'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.command_position) -Expected $true -Message 'context command-position capability is advertised'
+Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.paste_insert) -Expected $false -Message 'noninteractive bootstrap does not advertise paste insertion'
 Assert-ShellsenseTrue -Condition ([string]$script:SHELLSENSE_REQUEST_PATH -match '(?i)[\\/]request\.json$') -Message 'request path defaults beside edit path'
 
 # Frame construction must JSON-escape terminal-sensitive text rather than
@@ -181,6 +183,22 @@ Assert-ShellsenseTrue -Condition (Test-ShellsenseEditPayload -Payload $decodedEd
 Assert-ShellsenseEqual -Actual $decodedEdit.text -Expected 'X' -Message 'decoded edit text'
 Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsenseEditJson -Json '[1,2,3]')) -Message 'non-object edit payload is rejected'
 
+# Bracketed paste payloads use their own strict, bounded protocol object. The
+# adapter normalizes all newline spellings before passing the text to the
+# PSReadLine editing API, while rejecting coercible JSON values and unknown
+# fields.
+$pastePayload = ConvertFrom-ShellsensePasteJson -Json '{"id":"paste-1","text":"first\nsecond\rthird\r\nfourth"}'
+$normalizedPaste = $null
+Assert-ShellsenseTrue -Condition (Test-ShellsensePastePayload -Payload $pastePayload -Paste ([ref]$normalizedPaste)) -Message 'valid paste payload is accepted'
+Assert-ShellsenseEqual -Actual ([string]$normalizedPaste.id) -Expected 'paste-1' -Message 'paste request id is preserved'
+Assert-ShellsenseEqual -Actual ([string]$normalizedPaste.text) -Expected "first`nsecond`nthird`nfourth" -Message 'paste newlines normalize to LF'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsensePasteJson -Json '[{"id":"paste-1","text":"x"}]')) -Message 'paste arrays are rejected'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsensePasteJson -Json '{"id":42,"text":"x"}')) -Message 'numeric paste ids are rejected'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsensePasteJson -Json '{"id":"paste-1","text":42}')) -Message 'numeric paste text is rejected'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsensePasteJson -Json '{"id":"paste-1","text":"x","extra":true}')) -Message 'unknown paste fields are rejected'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsensePasteJson -Json '{"id":"   ","text":"x"}')) -Message 'blank paste ids are rejected'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsensePasteJson -Json '{"id":"paste-1","text":"x","text":"y"}')) -Message 'duplicate paste fields are rejected'
+
 # Complex context comes from the live PSReadLine AST in production and from
 # the same parser fallback in this isolated test.  Only safe preceding
 # arguments are returned, and the replacement range stops at the cursor so
@@ -271,7 +289,7 @@ function Get-ShellsenseCapturedEvents {
 
 # Collision discovery uses PSReadLine's static APIs so initialization does
 # not need three cmdlet calls for the reserved chords. A child chord reserves
-# only itself; a bare F12 reserves all three children because it owns the
+# only itself; a bare F12 reserves all children because it owns the
 # prefix. Exercise both cases and restore adapter state before the remaining
 # helper tests run.
 Import-Module PSReadLine -ErrorAction Stop
@@ -288,6 +306,7 @@ function Reset-ShellsenseReadLineTestState {
         apply       = $false
         commands    = $false
         native      = $false
+        paste       = $false
         enter       = $false
         shift_enter = $false
     }
@@ -312,6 +331,23 @@ try {
     } finally {
         [Console]::SetOut($consoleWriter)
     }
+    # The wrapper must preserve the original ReadLine function's deliberate
+    # native exit-code update, while suppressing only adapter side effects.
+    $exitCodeBeforeReadLineTest = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
+    $readLineBeforeExitCodeTest = $script:SHELLSENSE_ORIGINAL_READLINE
+    try {
+        $script:SHELLSENSE_ORIGINAL_READLINE = { $global:LASTEXITCODE = 23; 'Write-Output test' }
+        $global:LASTEXITCODE = 7
+        [Console]::SetOut($collisionCapture)
+        $acceptedByWrapper = PSConsoleHostReadLine
+        Assert-ShellsenseEqual -Actual $acceptedByWrapper -Expected 'Write-Output test' -Message 'ReadLine wrapper keeps accepted input'
+        Assert-ShellsenseEqual -Actual $global:LASTEXITCODE -Expected 23 -Message 'ReadLine wrapper keeps original function exit-code update'
+    } finally {
+        [Console]::SetOut($consoleWriter)
+        $script:SHELLSENSE_ORIGINAL_READLINE = $readLineBeforeExitCodeTest
+        $global:LASTEXITCODE = $exitCodeBeforeReadLineTest
+    }
+
     Assert-ShellsenseTrue -Condition ([bool]$script:SHELLSENSE_KEY_HANDLERS.buffer) -Message 'existing child does not falsely reserve F12,s'
     Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS.apply) -Expected $false -Message 'existing F12,a remains reserved'
     Assert-ShellsenseTrue -Condition ([bool]$script:SHELLSENSE_KEY_HANDLERS.commands) -Message 'existing child does not falsely reserve F12,c'
@@ -350,11 +386,12 @@ try {
     foreach ($handlerName in @('buffer', 'apply', 'commands')) {
         Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS[$handlerName]) -Expected $false -Message ('bare F12 preserves the parent binding for ' + $handlerName)
     }
+    Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS.paste) -Expected $false -Message 'bare F12 preserves the parent binding for paste'
     $parentCollisionEvents = @(
         Get-ShellsenseCapturedEvents -Raw $parentCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN) |
             Where-Object { $_.event -eq 'error' -and $_.code -eq 'key_chord_collision' }
     )
-    Assert-ShellsenseEqual -Actual $parentCollisionEvents.Count -Expected 6 -Message 'bare F12 reports all reserved child and lifecycle collisions'
+    Assert-ShellsenseEqual -Actual $parentCollisionEvents.Count -Expected 7 -Message 'bare F12 reports all reserved child and lifecycle collisions'
     Assert-ShellsenseTrue -Condition ([string]$parentCollisionEvents[0].suggestion -match 'SHELLSENSE_KEY_PREFIX=F(?:5|6|7|8|9|10|11)\.' -and
         [string]$parentCollisionEvents[0].suggestion -notmatch 'SHELLSENSE_KEY_PREFIX=F12') -Message 'collision suggests a different configurable protocol prefix'
     $existingParent = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('F12')))

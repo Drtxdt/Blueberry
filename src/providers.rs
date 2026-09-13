@@ -127,6 +127,12 @@ pub struct ProviderResult {
     /// the project cache which supplied the candidates.
     #[serde(default)]
     pub watch_paths: Vec<PathBuf>,
+    /// Work-tree or other directories which must be watched recursively for
+    /// this snapshot to stay current.  This is deliberately separate from
+    /// `watch_paths`: only providers which need nested filesystem changes
+    /// (currently Git status paths) should request recursive watching.
+    #[serde(default)]
+    pub recursive_watch_paths: Vec<PathBuf>,
 }
 
 impl ProviderResult {
@@ -148,6 +154,8 @@ impl ProviderResult {
             .dedup_by(|left, right| left.value == right.value && left.kind == right.kind);
         self.watch_paths.sort();
         self.watch_paths.dedup();
+        self.recursive_watch_paths.sort();
+        self.recursive_watch_paths.dedup();
         self
     }
 }
@@ -488,6 +496,10 @@ impl ProviderCache {
                     let watch = lexical_normalize(watch);
                     watch.starts_with(&path) || path.starts_with(&watch)
                 })
+                || result.recursive_watch_paths.iter().any(|watch| {
+                    let watch = lexical_normalize(watch);
+                    watch.starts_with(&path) || path.starts_with(&watch)
+                })
         };
         self.entries
             .retain(|key, result| !affected(&key.cwd, result));
@@ -676,6 +688,16 @@ fn add_watch_path(result: &mut ProviderResult, path: &Path) {
     }
 }
 
+fn add_recursive_watch_path(result: &mut ProviderResult, path: &Path) {
+    if path.as_os_str().is_empty() {
+        return;
+    }
+    let path = lexical_normalize(path);
+    if !result.recursive_watch_paths.contains(&path) {
+        result.recursive_watch_paths.push(path);
+    }
+}
+
 fn record_watch_path(paths: &mut Vec<PathBuf>, path: &Path) {
     if path.as_os_str().is_empty() {
         return;
@@ -683,6 +705,25 @@ fn record_watch_path(paths: &mut Vec<PathBuf>, path: &Path) {
     let path = lexical_normalize(path);
     if !paths.contains(&path) {
         paths.push(path);
+    }
+}
+
+/// Record the nearest existing directory for a path which may not exist yet.
+/// Workspace globs and optional target directories need this parent watched
+/// so that creating the missing child invalidates a cached project snapshot.
+fn record_existing_watch_ancestor(paths: &mut Vec<PathBuf>, path: &Path) {
+    if path.as_os_str().is_empty() {
+        return;
+    }
+    let mut current = path.to_path_buf();
+    loop {
+        if current.is_dir() {
+            record_watch_path(paths, &current);
+            return;
+        }
+        if !current.pop() {
+            return;
+        }
     }
 }
 
@@ -805,9 +846,11 @@ fn expand_project_pattern(
     pattern: &str,
     manifest_name: &str,
     cancelled_flag: Option<&AtomicBool>,
+    watch_paths: &mut Vec<PathBuf>,
 ) -> (Vec<PathBuf>, bool) {
     let raw_pattern = pattern.trim().trim_matches('"').trim_matches('\'');
     let path = Path::new(raw_pattern);
+    record_existing_watch_ancestor(watch_paths, base);
     let (mut paths, parts) = if path.is_absolute() {
         let mut anchor = PathBuf::new();
         let mut wildcard_seen = false;
@@ -861,6 +904,7 @@ fn expand_project_pattern(
                     }
                     std::thread::yield_now();
                 }
+                record_existing_watch_ancestor(watch_paths, &directory);
                 next.push(directory.clone());
                 let entries = match fs::read_dir(&directory) {
                     Ok(entries) => entries,
@@ -895,6 +939,7 @@ fn expand_project_pattern(
             }
         } else if has_wildcard(part) {
             for directory in &paths {
+                record_existing_watch_ancestor(watch_paths, directory);
                 let entries = match fs::read_dir(directory) {
                     Ok(entries) => entries,
                     Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
@@ -919,7 +964,9 @@ fn expand_project_pattern(
             }
         } else {
             for directory in paths {
-                next.push(directory.join(part));
+                let candidate = directory.join(part);
+                record_existing_watch_ancestor(watch_paths, &candidate);
+                next.push(candidate);
             }
         }
         paths = next;
@@ -1925,7 +1972,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
         project_root: git_project_root(&ctx),
         ..ProviderResult::default()
     };
-    git_watch_paths(&ctx, &mut result);
+    git_watch_paths(&ctx, &mut result, needs.status_paths);
     if ctx.subcommand.is_empty()
         || (!needs.refs && !needs.remotes && !needs.worktrees && !needs.status_paths)
     {
@@ -2068,9 +2115,15 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
     result.finish()
 }
 
-fn git_watch_paths(ctx: &GitContext, result: &mut ProviderResult) {
+fn git_watch_paths(ctx: &GitContext, result: &mut ProviderResult, watch_work_tree: bool) {
     if let Some(work_tree) = &ctx.work_tree {
-        add_watch_path(result, work_tree);
+        if watch_work_tree {
+            add_recursive_watch_path(result, work_tree);
+        } else {
+            add_watch_path(result, work_tree);
+        }
+    } else if watch_work_tree && let Some(root) = result.project_root.clone() {
+        add_recursive_watch_path(result, &root);
     }
     let git_dir = ctx.git_dir.clone().or_else(|| {
         let root = git_project_root(ctx)?;
@@ -2567,8 +2620,13 @@ fn load_cargo_project(
             diagnostics.push("Cargo 工作区扫描已取消".to_owned());
             break;
         }
-        let (paths, scan_incomplete) =
-            expand_project_pattern(root, &member, "Cargo.toml", Some(cancelled_flag));
+        let (paths, scan_incomplete) = expand_project_pattern(
+            root,
+            &member,
+            "Cargo.toml",
+            Some(cancelled_flag),
+            &mut project.watch_paths,
+        );
         incomplete |= scan_incomplete;
         if scan_incomplete {
             diagnostics.push("Cargo 工作区路径扫描未完成，结果不完整".to_owned());
@@ -3127,8 +3185,13 @@ fn load_node_project(
             incomplete = true;
             break;
         }
-        let (paths, scan_incomplete) =
-            expand_project_pattern(&root_dir, &pattern, "package.json", Some(cancelled_flag));
+        let (paths, scan_incomplete) = expand_project_pattern(
+            &root_dir,
+            &pattern,
+            "package.json",
+            Some(cancelled_flag),
+            &mut project.watch_paths,
+        );
         incomplete |= scan_incomplete;
         if scan_incomplete {
             diagnostics.push("JavaScript 工作区路径扫描未完成，结果不完整".to_owned());

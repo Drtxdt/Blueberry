@@ -96,6 +96,10 @@ fn git_provider_reads_branches_tags_remotes_and_status_paths() {
             .iter()
             .any(|path| path == &root.path().join(".git"))
     );
+    assert!(
+        branches.recursive_watch_paths.is_empty(),
+        "ref-only Git queries must not subscribe to the whole worktree"
+    );
     let tags = collect(&query("git", &["tag", "-d"], "v1", root.path()), &cancelled);
     assert!(
         tags.candidates
@@ -121,6 +125,13 @@ fn git_provider_reads_branches_tags_remotes_and_status_paths() {
             .candidates
             .iter()
             .all(|candidate| candidate.kind == CandidateKind::File)
+    );
+    assert!(
+        paths
+            .recursive_watch_paths
+            .iter()
+            .any(|path| path == root.path()),
+        "Git status paths need recursive worktree invalidation"
     );
 }
 
@@ -1135,6 +1146,13 @@ fn cargo_nested_workspace_updates_and_invalid_manifests_are_reported() {
             .iter()
             .any(|candidate| candidate.value == "nested-app")
     );
+    assert!(
+        initial
+            .watch_paths
+            .iter()
+            .any(|path| path == &root.path().join("crates")),
+        "Cargo workspace globs must watch their expansion parent"
+    );
 
     let mut cache = ProviderCache::default();
     assert!(cache.insert_project(
@@ -1231,6 +1249,13 @@ fn npm_nested_workspace_updates_and_invalid_manifests_are_reported() {
             .candidates
             .iter()
             .any(|candidate| candidate.value == "tool:check")
+    );
+    assert!(
+        initial
+            .watch_paths
+            .iter()
+            .any(|path| path == &app.join("sub")),
+        "npm workspace globs must watch their expansion parent"
     );
 
     let mut cache = ProviderCache::default();

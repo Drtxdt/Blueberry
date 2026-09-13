@@ -10,6 +10,7 @@ pub enum Part {
 
 pub struct Decoder {
     token: String,
+    private_prefix: Vec<u8>,
     pending: Vec<u8>,
     state: u8,
 }
@@ -17,6 +18,7 @@ pub struct Decoder {
 impl Decoder {
     pub fn new(token: String) -> Self {
         Self {
+            private_prefix: format!("\x1b]7776;{token};").into_bytes(),
             token,
             pending: Vec::new(),
             state: 0,
@@ -85,8 +87,15 @@ impl Decoder {
                         }
                         self.pending.clear();
                         self.state = 0;
-                    } else if self.pending.len() > 1_048_576 {
-                        // A malformed/unbounded OSC cannot grow the process without limit.
+                    } else if self.pending.len() > 1_048_576
+                        && (!self.pending.starts_with(&self.private_prefix)
+                            || self.pending.len() > 32 * 1_048_576)
+                    {
+                        // A 1 MiB UTF-8 paste can expand several times under
+                        // PowerShell's ASCII JSON encoder, and buffer.context
+                        // may repeat the current token. Pipe frames exceeding
+                        // 1 MiB fall back to this authenticated OSC path.
+                        // Unknown OSC retains the smaller defensive bound.
                         plain.append(&mut self.pending);
                         self.state = 0;
                     }
@@ -145,6 +154,26 @@ mod tests {
             assert_eq!(output, b"beforeafter");
             assert_eq!(messages[0]["line"], "a;b");
         }
+    }
+    #[test]
+    fn ascii_escaped_unicode_paste_survives_the_pipe_fallback_frame_size() {
+        let mut frame = b"\x1b]7776;secret;{\"event\":\"buffer\",\"line\":\"".to_vec();
+        for _ in 0..200_000 {
+            frame.extend_from_slice(b"\\u4f60");
+        }
+        frame.extend_from_slice(b"\",\"cursor\":200000}\x07");
+        let mut decoder = Decoder::new("secret".into());
+        let mut messages = Vec::new();
+        for chunk in frame.chunks(16_384) {
+            for part in decoder.feed(chunk) {
+                match part {
+                    Part::Message(value) => messages.push(value),
+                    _ => panic!("private Unicode frame escaped into terminal output"),
+                }
+            }
+        }
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0]["line"].as_str().unwrap(), "你".repeat(200_000));
     }
     #[test]
     fn unrelated_osc_is_unchanged() {

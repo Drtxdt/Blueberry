@@ -605,6 +605,100 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
 }
 
 #[test]
+fn terminal_beta_paste_and_unfocused_up_arrow_preserve_psreadline_editing() -> Result<()> {
+    let mut host = start_host()?;
+    send_command(
+        &mut host.harness,
+        &buffer_probe_command(&host.buffer_marker),
+        "SS_BUFFER_READY",
+    )?;
+    send_command(
+        &mut host.harness,
+        "Write-Output SS_UP_HISTORY",
+        "SS_UP_HISTORY",
+    )?;
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"gi")?;
+    wait_until(&mut host.harness, "automatic menu", PTY_TIMEOUT, |screen| {
+        screen.contains("› ")
+    })?;
+    host.harness.send(b"\x1b[A")?;
+    let history = read_real_buffer(
+        &mut host.harness,
+        &host.buffer_marker,
+        "unfocused Up history",
+    )?;
+    ensure!(
+        history["line"] == "Write-Output SS_UP_HISTORY",
+        "automatic menu stole Up history: {history}"
+    );
+    clear_line(&mut host.harness)?;
+    let pasted = "Write-Output '粘贴😀 与空格'";
+    host.harness
+        .send(format!("\x1b[200~{pasted}\x1b[201~").as_bytes())?;
+    let actual = read_real_buffer(&mut host.harness, &host.buffer_marker, "bracketed paste")?;
+    ensure!(
+        actual["line"] == pasted,
+        "bracketed paste changed input: {actual}"
+    );
+    host.harness.send(b"\r")?;
+    host.harness.event("execute", PTY_TIMEOUT)?;
+    host.harness.event("prompt_end", PTY_TIMEOUT)?;
+    host.harness.wait_line("粘贴😀 与空格", PTY_TIMEOUT)?;
+    clear_line(&mut host.harness)?;
+    let multiline = "Write-Output '第一行😀'\nWrite-Output '第二行😀'";
+    host.harness
+        .send(format!("\x1b[200~{multiline}\x1b[201~").as_bytes())?;
+    let actual = read_real_buffer(
+        &mut host.harness,
+        &host.buffer_marker,
+        "multiline bracketed paste",
+    )?;
+    ensure!(
+        actual["line"] == multiline,
+        "multiline paste executed or changed text before Enter: {actual}"
+    );
+    host.harness.send(b"\r")?;
+    host.harness.event("execute", PTY_TIMEOUT)?;
+    host.harness.event("prompt_end", PTY_TIMEOUT)?;
+    host.harness.wait_line("第一行😀", PTY_TIMEOUT)?;
+    host.harness.wait_line("第二行😀", PTY_TIMEOUT)?;
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"old selection")?;
+    host.harness.send(b"\x01")?;
+    host.harness.send(b"\x1b[200~one\r\ntwo\x1b[201~")?;
+    let selected = read_real_buffer(
+        &mut host.harness,
+        &host.buffer_marker,
+        "paste replaces selection",
+    )?;
+    ensure!(
+        selected["line"] == "one\ntwo",
+        "selection paste did not normalize and replace: {selected}"
+    );
+    host.harness.send(b"\x1a")?;
+    let undone = read_real_buffer(&mut host.harness, &host.buffer_marker, "paste undo")?;
+    ensure!(
+        undone["line"] == "old selection",
+        "paste undo changed earlier text: {undone}"
+    );
+    clear_line(&mut host.harness)?;
+    host.harness
+        .send(b"\x1b[200~first \x1b[201~\x1b[200~second\x1b[201~")?;
+    let queued = read_real_buffer(
+        &mut host.harness,
+        &host.buffer_marker,
+        "consecutive paste order",
+    )?;
+    ensure!(
+        queued["line"] == "first second",
+        "consecutive paste payloads were overwritten: {queued}"
+    );
+    host.harness.finish(PTY_TIMEOUT)?;
+    Ok(())
+}
+
+#[test]
 fn terminal_beta_learning_records_only_an_applied_edit() -> Result<()> {
     let mut host = start_host()?;
     let usage_path = host.data_dir.path().join("probe-usage.json");

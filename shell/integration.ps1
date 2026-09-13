@@ -28,7 +28,7 @@ $shellsenseStateDefaults = [ordered]@{
     SHELLSENSE_ORIGINAL_READLINE   = $null
     SHELLSENSE_READLINE_WRAPPED    = $false
     SHELLSENSE_PSREADLINE_AVAILABLE = $false
-    SHELLSENSE_KEY_HANDLERS        = [ordered]@{ buffer = $false; apply = $false; commands = $false; native = $false; enter = $false; shift_enter = $false }
+    SHELLSENSE_KEY_HANDLERS        = [ordered]@{ buffer = $false; apply = $false; commands = $false; native = $false; paste = $false; enter = $false; shift_enter = $false }
     SHELLSENSE_CAPABILITIES_REFRESHED = $false
     SHELLSENSE_COMMAND_SNAPSHOT_ID = $null
     SHELLSENSE_COMMAND_SNAPSHOT = $null
@@ -1560,6 +1560,346 @@ function Invoke-ShellsenseApplyEdit {
     }
 }
 
+function Get-ShellsensePasteDirectory {
+    [CmdletBinding()]
+    param()
+
+    if ([string]::IsNullOrEmpty([string]$script:SHELLSENSE_EDIT_PATH)) {
+        return $null
+    }
+    try {
+        $editPath = [IO.Path]::GetFullPath([string]$script:SHELLSENSE_EDIT_PATH)
+        $directory = [IO.Path]::GetDirectoryName($editPath)
+        if ([string]::IsNullOrEmpty([string]$directory)) {
+            return $null
+        }
+        return [IO.Path]::Combine($directory, 'paste')
+    } catch {
+        return $null
+    }
+}
+
+function ConvertTo-ShellsensePasteText {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Text
+    )
+
+    # PSReadLine's public Insert API stores continuation lines as LF and only
+    # converts CRLF while processing the insertion. Replace stores its text
+    # directly, so normalize both paths to the same LF representation first.
+    return $Text.Replace("`r`n", "`n").Replace("`r", "`n")
+}
+
+function Test-ShellsensePastePayload {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object]$Payload,
+
+        [Parameter(Mandatory = $true)]
+        [ref]$Paste
+    )
+
+    $Paste.Value = $null
+    if ($null -eq $Payload) {
+        return $false
+    }
+
+    try {
+        $properties = @($Payload.PSObject.Properties)
+        if ($properties.Count -ne 2) {
+            return $false
+        }
+        $idProperty = $Payload.PSObject.Properties['id']
+        $textProperty = $Payload.PSObject.Properties['text']
+        if ($null -eq $idProperty -or $null -eq $textProperty -or
+            $idProperty.Value -isnot [string] -or
+            $textProperty.Value -isnot [string] -or
+            [string]::IsNullOrWhiteSpace([string]$idProperty.Value)) {
+            return $false
+        }
+
+        $text = ConvertTo-ShellsensePasteText -Text ([string]$textProperty.Value)
+        $utf8 = [Text.UTF8Encoding]::new($false, $true)
+        if ($utf8.GetByteCount($text) -gt 1048576) {
+            return $false
+        }
+
+        $Paste.Value = [pscustomobject]@{
+            id   = [string]$idProperty.Value
+            text = $text
+        }
+        return $true
+    } catch {
+        $Paste.Value = $null
+        return $false
+    }
+}
+
+function ConvertFrom-ShellsensePasteJson {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Json
+    )
+
+    try {
+        $rootValue = [System.Text.Json.JsonSerializer]::Deserialize(
+            $Json,
+            [object],
+            (Get-ShellsenseJsonOptions))
+        if ($null -eq $rootValue -or
+            $rootValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+            return $null
+        }
+
+        # The host publishes exactly {id:string,text:string}. Reject unknown
+        # and duplicate properties instead of letting JsonElement's last
+        # property win silently.
+        $seen = [System.Collections.Generic.HashSet[string]]::new(
+            [StringComparer]::Ordinal)
+        foreach ($property in $rootValue.EnumerateObject()) {
+            if ($property.Name -cnotin @('id', 'text') -or
+                -not $seen.Add([string]$property.Name)) {
+                return $null
+            }
+        }
+        if ($seen.Count -ne 2) {
+            return $null
+        }
+
+        $idElement = [System.Text.Json.JsonElement]::new()
+        $textElement = [System.Text.Json.JsonElement]::new()
+        if (-not $rootValue.TryGetProperty('id', [ref]$idElement) -or
+            -not $rootValue.TryGetProperty('text', [ref]$textElement) -or
+            $idElement.ValueKind -ne [System.Text.Json.JsonValueKind]::String -or
+            $textElement.ValueKind -ne [System.Text.Json.JsonValueKind]::String) {
+            return $null
+        }
+
+        $id = $idElement.GetString()
+        $text = $textElement.GetString()
+        if ([string]::IsNullOrWhiteSpace([string]$id) -or $null -eq $text) {
+            return $null
+        }
+
+        $utf8 = [Text.UTF8Encoding]::new($false, $true)
+        if ($utf8.GetByteCount($text) -gt 1048576) {
+            return $null
+        }
+        return [pscustomobject]@{
+            id   = [string]$id
+            text = [string]$text
+        }
+    } catch {
+        return $null
+    }
+}
+
+function Get-ShellsensePasteFiles {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Directory
+    )
+
+    try {
+        if (-not [IO.Directory]::Exists($Directory)) {
+            return @()
+        }
+        $directoryAttributes = [IO.File]::GetAttributes($Directory)
+        if (($directoryAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            return @()
+        }
+
+        $files = [System.Collections.Generic.List[IO.FileInfo]]::new()
+        $directoryInfo = [IO.DirectoryInfo]::new($Directory)
+        foreach ($file in $directoryInfo.EnumerateFiles()) {
+            # Host payloads are committed under a zero-padded 20-digit name;
+            # temporary files, arbitrary JSON, and links are never consumed.
+            if ($file.Name -cnotmatch '^[0-9]{20}\.json$') {
+                continue
+            }
+            try {
+                if (($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                    continue
+                }
+            } catch {
+                continue
+            }
+            [void]$files.Add($file)
+        }
+
+        # Numeric-only fixed-width names have the same ordering under every
+        # culture, but compare explicitly with Ordinal to keep FIFO semantics
+        # independent of the user's PowerShell culture.
+        $files.Sort([System.Comparison[IO.FileInfo]]{
+                param($left, $right)
+                return [StringComparer]::Ordinal.Compare($left.Name, $right.Name)
+            })
+        return $files.ToArray()
+    } catch {
+        return @()
+    }
+}
+
+function Send-ShellsensePasteError {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('paste_payload_rejected', 'paste_failed')]
+        [string]$Code,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    # Keep paste text and raw payloads out of diagnostics. The host only needs
+    # a stable code/message pair to explain why safe insertion was unavailable.
+    Send-ShellsenseEvent -Event 'error' -Data ([ordered]@{
+        code    = $Code
+        message = $Message
+    })
+}
+
+function Send-ShellsensePasteResult {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$RequestId,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$Applied
+    )
+
+    Send-ShellsenseEvent -Event 'paste_result' -Data ([ordered]@{
+        request_id = $RequestId
+        applied    = [bool]$Applied
+    })
+}
+
+function Invoke-ShellsensePasteKeyHandler {
+    [CmdletBinding()]
+    param()
+
+    $consumedPath = $null
+    try {
+        $directory = Get-ShellsensePasteDirectory
+        if ([string]::IsNullOrEmpty([string]$directory)) {
+            Send-ShellsensePasteError -Code 'paste_failed' `
+                -Message 'The ShellSense paste directory is unavailable.'
+            return
+        }
+
+        $candidateFiles = @(Get-ShellsensePasteFiles -Directory $directory)
+        if ($candidateFiles.Count -eq 0) {
+            Send-ShellsensePasteError -Code 'paste_failed' `
+                -Message 'No pending ShellSense paste payload is available.'
+            return
+        }
+
+        # Rename before opening the file. A host paste arriving during this
+        # handler remains queued under its own sequence number and cannot be
+        # replayed by a second invocation.
+        foreach ($candidate in $candidateFiles) {
+            $candidateConsumedPath = $null
+            try {
+                $candidateConsumedPath = Get-ShellsenseConsumedEditPath -Path $candidate.FullName
+                [IO.File]::Move($candidate.FullName, $candidateConsumedPath)
+                $consumedPath = $candidateConsumedPath
+                break
+            } catch {
+                if ($null -ne $candidateConsumedPath -and [IO.File]::Exists($candidateConsumedPath)) {
+                    try {
+                        [IO.File]::Delete($candidateConsumedPath)
+                    } catch {
+                    }
+                }
+            }
+        }
+        if ($null -eq $consumedPath) {
+            Send-ShellsensePasteError -Code 'paste_failed' `
+                -Message 'The pending ShellSense paste payload could not be consumed.'
+            return
+        }
+
+        $consumedAttributes = [IO.File]::GetAttributes($consumedPath)
+        if (($consumedAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+                -Message 'The ShellSense paste payload is not a regular file.'
+            return
+        }
+        $consumedInfo = [IO.FileInfo]::new($consumedPath)
+        if ($consumedInfo.Length -gt 1048576) {
+            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+                -Message 'The ShellSense paste payload exceeds the 1 MiB limit.'
+            return
+        }
+        $utf8Strict = [Text.UTF8Encoding]::new($false, $true)
+        try {
+            $json = [IO.File]::ReadAllText($consumedPath, $utf8Strict)
+        } catch [Text.DecoderFallbackException] {
+            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+                -Message 'The ShellSense paste payload is not valid UTF-8.'
+            return
+        } catch {
+            Send-ShellsensePasteError -Code 'paste_failed' `
+                -Message 'The ShellSense paste payload could not be read.'
+            return
+        }
+        $payload = ConvertFrom-ShellsensePasteJson -Json $json
+        $paste = $null
+        if ($null -eq $payload -or
+            -not (Test-ShellsensePastePayload -Payload $payload -Paste ([ref]$paste))) {
+            Send-ShellsensePasteError -Code 'paste_payload_rejected' `
+                -Message 'The ShellSense paste payload is invalid.'
+            return
+        }
+
+        $requestId = [string]$paste.id
+        $applied = $false
+        $applyError = $null
+        try {
+            $selectionStart = 0
+            $selectionLength = 0
+            [Microsoft.PowerShell.PSConsoleReadLine]::GetSelectionState(
+                [ref]$selectionStart,
+                [ref]$selectionLength)
+            if ($selectionLength -gt 0) {
+                [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+                    [int]$selectionStart,
+                    [int]$selectionLength,
+                    [string]$paste.text)
+            } else {
+                [Microsoft.PowerShell.PSConsoleReadLine]::Insert([string]$paste.text)
+            }
+            $applied = $true
+        } catch {
+            $applyError = $_
+        }
+        Send-ShellsensePasteResult -RequestId $requestId -Applied $applied
+        Send-ShellsenseBuffer
+        if ($null -ne $applyError) {
+            Send-ShellsensePasteError -Code 'paste_failed' `
+                -Message 'The ShellSense paste payload could not be inserted.'
+        }
+    } catch {
+        Send-ShellsensePasteError -Code 'paste_failed' `
+            -Message 'The ShellSense paste operation failed.'
+    } finally {
+        if ($null -ne $consumedPath) {
+            try {
+                [IO.File]::Delete($consumedPath)
+            } catch {
+            }
+        }
+    }
+}
+
 function Get-ShellsenseLoadedCommands {
     [CmdletBinding()]
     param()
@@ -2464,6 +2804,7 @@ function Send-ShellsenseCapabilities {
         context           = $true
         command_position  = $true
         native_completion = [bool]$script:SHELLSENSE_KEY_HANDLERS.native
+        paste_insert      = [bool]$script:SHELLSENSE_KEY_HANDLERS.paste
         edit_ack          = $true
         command_batches   = $true
         multiline         = ([bool]$script:SHELLSENSE_KEY_HANDLERS.enter -or
@@ -2514,6 +2855,7 @@ function Initialize-ShellsenseReadLine {
             apply       = $false
             commands    = $false
             native      = $false
+            paste       = $false
             enter       = $false
             shift_enter = $false
         }
@@ -2567,6 +2909,7 @@ function Initialize-ShellsenseReadLine {
                 $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
                 try {
                     $acceptedLine = & $script:SHELLSENSE_ORIGINAL_READLINE @args
+                    $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
                     # ReadLine returned only after PSReadLine accepted the command.
                     # Continuation AddLine calls remain inside ReadLine and do not
                     # reach this marker, so the host cannot query an external
@@ -2665,6 +3008,7 @@ function Initialize-ShellsenseReadLine {
         apply    = ([string]$script:SHELLSENSE_KEY_PREFIX + ',a')
         commands = ([string]$script:SHELLSENSE_KEY_PREFIX + ',c')
         native   = ([string]$script:SHELLSENSE_KEY_PREFIX + ',n')
+        paste    = ([string]$script:SHELLSENSE_KEY_PREFIX + ',p')
     }
     if ($knownEnter) {
         $reservedChords.enter = ([string]$script:SHELLSENSE_KEY_PREFIX + ',e')
@@ -2677,6 +3021,7 @@ function Initialize-ShellsenseReadLine {
         apply       = $false
         commands    = $false
         native      = $false
+        paste       = $false
         enter       = $false
         shift_enter = $false
     }
@@ -2736,6 +3081,11 @@ function Initialize-ShellsenseReadLine {
                     $script:SHELLSENSE_KEY_HANDLERS.native = Register-ShellsenseKeyHandler `
                         -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsenseNativeKeyHandler} `
                         -Name 'native' -SkipCollisionCheck
+                }
+                'paste' {
+                    $script:SHELLSENSE_KEY_HANDLERS.paste = Register-ShellsenseKeyHandler `
+                        -Chord $reservedChords[$reservedName] -ScriptBlock ${function:Invoke-ShellsensePasteKeyHandler} `
+                        -Name 'paste' -SkipCollisionCheck
                 }
                 'enter' {
                     $script:SHELLSENSE_KEY_HANDLERS.enter = Register-ShellsenseKeyHandler `
