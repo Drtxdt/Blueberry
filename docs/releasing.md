@@ -46,6 +46,7 @@ cargo build --release --locked
 
 - 三平台 core 工作检查编译、规则引擎和非交互 CLI。
 - PowerShell 5.1 工作固定 PSReadLine 版本，执行真实 ConPTY 回归。
+- Windows Server 2022 覆盖 VT 鼠标透传。原生 Win32 鼠标记录另由 `windows-2025` 任务验证，两种传输均需通过才允许打包。旧版系统的原生鼠标支持受系统 ConPTY 限制，参见 [微软跟踪记录](https://github.com/microsoft/terminal/issues/376)。本机验证脚本在 Windows 11 及更新系统上也会运行该项。
 - package 工作验证 ZIP 与安装、升级、回滚、卸载。
 - PowerShell 7 本机回归和 Windows Terminal 视觉验收由发布者记录。
 

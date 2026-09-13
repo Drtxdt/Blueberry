@@ -61,8 +61,26 @@ jobs:
       - name: Adapter, startup and ConPTY regressions
         shell: pwsh
         run: ./scripts/verify-local.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -SkipCore
+  native-mouse:
+    name: Native ConPTY mouse / windows-2025
+    runs-on: windows-2025
+    env:
+      BLUEBERRY_NO_HISTORY: '1'
+      BLUEBERRY_TEST_SHELL: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Native mouse records through nested ConPTY
+        shell: pwsh
+        run: |
+          foreach ($transport in @('osc', 'pipe')) {
+            $env:BLUEBERRY_TEST_TRANSPORT = $transport
+            cargo test --locked --test terminal_modes conpty_native_mouse_passthrough_for_external_program -- --exact --ignored --nocapture
+            if ($LASTEXITCODE -ne 0) { throw "$transport native mouse regression failed" }
+          }
   package:
-    needs: [format, core, powershell-51]
+    needs: [format, core, powershell-51, native-mouse]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4

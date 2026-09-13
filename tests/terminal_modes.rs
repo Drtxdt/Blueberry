@@ -10,7 +10,7 @@
 //!
 //! The mouse case launches the ignored helper below inside the host's nested
 //! PowerShell ConPTY.  The helper reads the resulting Windows console input
-//! records directly, so the test covers the real outer-ConPTY-to-child path
+//! records directly in VT and native mouse modes, covering the outer-to-child path
 //! rather than only the deterministic `input::mouse_bytes` encoder.
 
 use anyhow::{Context, Result, bail, ensure};
@@ -29,13 +29,14 @@ use windows_sys::Win32::{
     System::Console::{
         ENABLE_ECHO_INPUT, ENABLE_EXTENDED_FLAGS, ENABLE_LINE_INPUT, ENABLE_MOUSE_INPUT,
         ENABLE_PROCESSED_INPUT, ENABLE_QUICK_EDIT_MODE, ENABLE_VIRTUAL_TERMINAL_INPUT,
-        ENABLE_WINDOW_INPUT, GetConsoleMode, INPUT_RECORD, KEY_EVENT, MOUSE_EVENT,
-        ReadConsoleInputW, SetConsoleMode,
+        ENABLE_VIRTUAL_TERMINAL_PROCESSING, ENABLE_WINDOW_INPUT, GetConsoleMode, INPUT_RECORD,
+        KEY_EVENT, MOUSE_EVENT, ReadConsoleInputW, SetConsoleMode,
     },
 };
 
 const PTY_TIMEOUT: Duration = Duration::from_secs(20);
 const MOUSE_HELPER_LOG_ENV: &str = "BLUEBERRY_MOUSE_HELPER_LOG";
+const MOUSE_HELPER_MODE_ENV: &str = "BLUEBERRY_MOUSE_HELPER_MODE";
 const TEST_TRANSPORT_ENV: &str = "BLUEBERRY_TEST_TRANSPORT";
 const MOUSE_COLUMN: i16 = 11;
 const MOUSE_ROW: i16 = 6;
@@ -56,8 +57,8 @@ unsafe extern "system" {
     fn CloseHandle(handle: HANDLE) -> i32;
 }
 
-fn open_console_input() -> Result<HANDLE> {
-    let name: Vec<u16> = "CONIN$\0".encode_utf16().collect();
+fn open_console(name: &str) -> Result<HANDLE> {
+    let name: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
     let input = unsafe {
         CreateFileW(
             name.as_ptr(),
@@ -99,7 +100,8 @@ fn conpty_mouse_input_record_helper() -> Result<()> {
         .map(PathBuf::from)
         .context("missing helper log path")?;
     let mut log = fs::File::create(&log_path).context("create mouse helper log")?;
-    let input = open_console_input()?;
+    let native = std::env::var(MOUSE_HELPER_MODE_ENV).as_deref() == Ok("native");
+    let input = open_console("CONIN$")?;
     let mut original = 0u32;
     if unsafe { GetConsoleMode(input, &mut original) } == 0 {
         unsafe { CloseHandle(input) };
@@ -109,7 +111,7 @@ fn conpty_mouse_input_record_helper() -> Result<()> {
         );
     }
     let _mode_guard = ConsoleModeGuard { input, original };
-    let mode = (original
+    let mut mode = (original
         & !(ENABLE_LINE_INPUT
             | ENABLE_ECHO_INPUT
             | ENABLE_PROCESSED_INPUT
@@ -118,6 +120,9 @@ fn conpty_mouse_input_record_helper() -> Result<()> {
         | ENABLE_EXTENDED_FLAGS
         | ENABLE_WINDOW_INPUT
         | ENABLE_MOUSE_INPUT;
+    if !native {
+        mode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
+    }
     if unsafe { SetConsoleMode(input, mode) } == 0 {
         bail!(
             "SetConsoleMode(CONIN$) 失败：{}",
@@ -125,7 +130,20 @@ fn conpty_mouse_input_record_helper() -> Result<()> {
         );
     }
 
-    writeln!(log, "READY")?;
+    let output = open_console("CONOUT$")?;
+    let mut output_mode = 0;
+    ensure!(unsafe { GetConsoleMode(output, &mut output_mode) } != 0);
+    let _output_guard = ConsoleModeGuard {
+        input: output,
+        original: output_mode,
+    };
+    ensure!(
+        unsafe { SetConsoleMode(output, output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) } != 0
+    );
+    writeln!(
+        log,
+        "READY native={native} input_mode=0x{mode:x} output_mode=0x{output_mode:x}"
+    )?;
     log.flush()?;
     {
         let mut stdout = io::stdout().lock();
@@ -140,6 +158,7 @@ fn conpty_mouse_input_record_helper() -> Result<()> {
     let mut saw_up = false;
     let mut saw_sentinel = false;
     let mut saw_f12 = false;
+    let mut vt_input = String::new();
     'read: for batch in 0..256 {
         let mut count = 0u32;
         if unsafe {
@@ -161,6 +180,13 @@ fn conpty_mouse_input_record_helper() -> Result<()> {
                 KEY_EVENT => {
                     let key = unsafe { record.Event.KeyEvent };
                     let unicode = unsafe { key.uChar.UnicodeChar };
+                    if !native && key.bKeyDown != 0 && unicode != 0 {
+                        if let Some(ch) = char::from_u32(u32::from(unicode)) {
+                            vt_input.push(ch);
+                        }
+                        saw_down |= vt_input.contains("\x1b[<0;12;7M");
+                        saw_up |= vt_input.contains("\x1b[<0;12;7m");
+                    }
                     writeln!(
                         log,
                         "KEY batch={batch} vk={} down={} repeat={} unicode={} ctrl=0x{:08x}",
@@ -213,6 +239,10 @@ fn conpty_mouse_input_record_helper() -> Result<()> {
         if saw_sentinel {
             break 'read;
         }
+    }
+    if !native {
+        writeln!(log, "VT {vt_input:?}")?;
+        log.flush()?;
     }
     ensure!(saw_down, "helper 未收到期望的左键按下记录");
     ensure!(saw_up, "helper 未收到期望的左键释放记录");
@@ -687,12 +717,23 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
 
 #[test]
 fn conpty_mouse_passthrough_for_external_program() -> Result<()> {
+    mouse_passthrough(false)
+}
+
+#[test]
+#[ignore = "requires Windows 11 / Server 2025 native ConPTY mouse support; CI runs explicitly"]
+fn conpty_native_mouse_passthrough_for_external_program() -> Result<()> {
+    mouse_passthrough(true)
+}
+
+fn mouse_passthrough(native: bool) -> Result<()> {
     let mut host = start_host()?;
     let helper_executable = std::env::current_exe().context("locate terminal-modes test exe")?;
     let log_path = host._cwd.path().join("mouse-input-records.log");
     let command = format!(
-        "$env:{MOUSE_HELPER_LOG_ENV} = {}; & {} --exact --ignored --nocapture conpty_mouse_input_record_helper",
+        "$env:{MOUSE_HELPER_LOG_ENV} = {}; $env:{MOUSE_HELPER_MODE_ENV} = '{}'; & {} --exact --ignored --nocapture conpty_mouse_input_record_helper",
         ps_quote(&log_path),
+        if native { "native" } else { "vt" },
         ps_quote(&helper_executable),
     );
 
@@ -724,24 +765,31 @@ fn conpty_mouse_passthrough_for_external_program() -> Result<()> {
     host.harness.event("prompt_end", PTY_TIMEOUT)?;
 
     let log = fs::read_to_string(&log_path).context("read mouse helper input log")?;
-    ensure!(
-        log.lines().any(|line| {
-            line.contains("MOUSE")
-                && line.contains("x=11 y=6")
-                && line.contains("buttons=0x00000001")
-                && line.contains("flags=0x00000000")
-        }),
-        "helper did not receive expected left-button down at SGR (12,7):\n{log}"
-    );
-    ensure!(
-        log.lines().any(|line| {
-            line.contains("MOUSE")
-                && line.contains("x=11 y=6")
-                && line.contains("buttons=0x00000000")
-                && line.contains("flags=0x00000000")
-        }),
-        "helper did not receive expected left-button release at SGR (12,7):\n{log}"
-    );
+    if native {
+        ensure!(
+            log.lines().any(|line| {
+                line.contains("MOUSE")
+                    && line.contains("x=11 y=6")
+                    && line.contains("buttons=0x00000001")
+                    && line.contains("flags=0x00000000")
+            }),
+            "helper did not receive expected left-button down at SGR (12,7):\n{log}"
+        );
+        ensure!(
+            log.lines().any(|line| {
+                line.contains("MOUSE")
+                    && line.contains("x=11 y=6")
+                    && line.contains("buttons=0x00000000")
+                    && line.contains("flags=0x00000000")
+            }),
+            "helper did not receive expected left-button release at SGR (12,7):\n{log}"
+        );
+    } else {
+        ensure!(
+            log.contains(r"\u{1b}[<0;12;7M") && log.contains(r"\u{1b}[<0;12;7m"),
+            "helper did not receive both SGR mouse reports:\n{log}"
+        );
+    }
     ensure!(
         !log.lines()
             .any(|line| line.starts_with("KEY") && line.contains("vk=123")),

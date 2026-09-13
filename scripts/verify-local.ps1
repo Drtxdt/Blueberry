@@ -27,6 +27,12 @@ try {
         $env:BLUEBERRY_TEST_TRANSPORT = $transport
         cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes -- --test-threads=1
         if ($LASTEXITCODE -ne 0) { throw "$transport terminal regressions failed" }
+        if ([Environment]::OSVersion.Version.Build -ge 22000) {
+            cargo test --locked --test terminal_modes conpty_native_mouse_passthrough_for_external_program -- --exact --ignored --nocapture
+            if ($LASTEXITCODE -ne 0) { throw "$transport native mouse regression failed" }
+        } else {
+            Write-Host 'VT mouse checked. Native ConPTY mouse requires Windows 11 / Server 2025; covered by the dedicated CI job.'
+        }
     }
     Write-Host 'Automated validation passed. See docs/installation.md for the Windows Terminal visual checklist.'
 } finally {
