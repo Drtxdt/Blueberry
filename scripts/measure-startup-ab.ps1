@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     # When omitted, look for the release executable in the repository and then
     # for a blueberry application on PATH.  Formal measurements never fall

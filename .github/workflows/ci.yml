@@ -1,0 +1,92 @@
+name: Blueberry CI
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+  core:
+    name: Core / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Core tests (no interactive shell)
+        run: cargo test --locked --lib --test cli --test engine --test providers --test specs --test knowledge -- --test-threads=1
+      - run: cargo run --locked -- --version
+      - run: cargo run --locked -- specs check
+  powershell-51:
+    name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        psreadline: ['2.0.0', '2.4.5']
+    env:
+      BLUEBERRY_NO_HISTORY: '1'
+      BLUEBERRY_TEST_SHELL: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Select exact PSReadLine version
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
+          Save-Module PSReadLine -RequiredVersion '${{ matrix.psreadline }}' -Path $root -Repository PSGallery -Force
+          $manifest = Join-Path $root 'PSReadLine/${{ matrix.psreadline }}/PSReadLine.psd1'
+          "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
+          & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -Command "Import-Module '$manifest' -Force; if ((Get-Module PSReadLine).Version.ToString() -ne '${{ matrix.psreadline }}') { exit 1 }; Get-Module PSReadLine | Select Name,Version,Path"
+          if ($LASTEXITCODE -ne 0) { throw 'PSReadLine version mismatch' }
+      - name: Adapter, startup and ConPTY regressions
+        shell: pwsh
+        run: ./scripts/verify-local.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -SkipCore
+  package:
+    needs: [format, core, powershell-51]
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked
+      - name: Package and validate installation
+        shell: pwsh
+        run: |
+          ./scripts/licenses.ps1 -OutputPath ./THIRD-PARTY-NOTICES.txt
+          $version = (Select-String Cargo.toml '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -OutputDirectory ./dist/ci
+          ./scripts/test-release.ps1 -BlueberryExecutable ./target/release/blueberry.exe
+          $package = (Get-ChildItem ./dist/ci/*.zip).FullName
+          ./scripts/test-install-51.ps1 -PackagePath $package
+          ./scripts/test-download.ps1 -PackagePath $package
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-download.ps1 -PackagePath $package
+          if ($LASTEXITCODE -ne 0) { throw '5.1 download selection tests failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blueberry-windows-x64
+          path: |
+            dist/ci/*.zip
+            dist/ci/*.sha256
+            dist/ci/*-release.json
+            install.ps1
+          if-no-files-found: error

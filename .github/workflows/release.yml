@@ -1,0 +1,56 @@
+name: Blueberry release draft
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+  draft:
+    needs: validate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate tag and main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, re, tomllib
+          from pathlib import Path
+          with open('Cargo.toml', 'rb') as f: version = tomllib.load(f)['package']['version']
+          assert os.environ['RELEASE_TAG'] == 'v' + version, 'Tag must match Cargo.toml'
+          section = re.search(r'^## ' + re.escape(version) + r'\s*\n(.*?)(?=^## |\Z)', Path('CHANGELOG.md').read_text(), re.M | re.S)
+          assert section, 'Missing release notes'
+          Path('release-notes.md').write_text('# Blueberry ' + version + '\n\n' + section[1].strip() + '\n')
+          PY
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/download-artifact@v4
+        with:
+          name: blueberry-windows-x64
+          path: release-assets
+      - name: Create or update unpublished draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft > release-state.json 2>/dev/null; then
+            python3 -c 'import json; assert json.load(open("release-state.json"))["isDraft"], "Published releases are immutable"'
+          else
+            options=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then options+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" --verify-tag --draft "${options[@]}" --title "Blueberry $RELEASE_TAG" --notes-file release-notes.md
+          fi
+          find release-assets -type f -print0 | while IFS= read -r -d '' asset; do
+            gh release upload "$RELEASE_TAG" "$asset" --clobber
+          done
