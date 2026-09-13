@@ -136,6 +136,66 @@ function Assert-ManifestFilesIntact {
     }
 }
 
+function Assert-PerformanceArtifactsPackaged {
+    param([Parameter(Mandatory = $true)][string]$PackagePath)
+    $zip = [IO.Compression.ZipFile]::OpenRead($PackagePath)
+    try {
+        $manifestEntry = $zip.GetEntry('release.json')
+        Assert-Test ($null -ne $manifestEntry) 'ZIP 包含 release.json'
+        $reader = [IO.StreamReader]::new($manifestEntry.Open(), [Text.Encoding]::UTF8, $true)
+        try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json }
+        finally { $reader.Dispose() }
+        $performanceProperty = @($manifest.PSObject.Properties | Where-Object { $_.Name -eq 'performance_artifacts' })
+        Assert-Test ($performanceProperty.Count -eq 1) 'release.json 声明 performance_artifacts'
+        $declared = @($manifest.performance_artifacts | ForEach-Object { [string]$_ })
+        $records = @{}
+        foreach ($record in @($manifest.files)) { $records[[string]$record.path] = $record }
+        $declaredSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($path in $declared) {
+            $extension = [IO.Path]::GetExtension($path).ToLowerInvariant()
+            Assert-Test ($path.StartsWith('docs/benchmarks/v0.5/', [StringComparison]::OrdinalIgnoreCase) -and
+                ($extension -eq '.json' -or $extension -eq '.md')) "性能原始文件路径受限: $path"
+            Assert-Test $declaredSet.Add($path) "性能原始文件无重复声明: $path"
+            $entry = $zip.GetEntry($path)
+            Assert-Test ($null -ne $entry -and -not $entry.FullName.EndsWith('/')) "ZIP 包含性能原始文件: $path"
+            Assert-Test $records.ContainsKey($path) "性能原始文件具有清单记录: $path"
+            Assert-Test ([int64]$records[$path].bytes -eq $entry.Length) "性能原始文件长度沿用清单: $path"
+            $stream = $entry.Open()
+            $algorithm = [Security.Cryptography.SHA256]::Create()
+            try { $hash = ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToUpperInvariant() }
+            finally { $algorithm.Dispose(); $stream.Dispose() }
+            Assert-Test ($hash -eq ([string]$records[$path].sha256).ToUpperInvariant()) "性能原始文件哈希沿用清单: $path"
+        }
+        $historicalPaths = @(
+            'docs/performance-v0.2.md',
+            'docs/benchmarks/v0.2-perf-summary.md',
+            'docs/benchmarks/adapter-windows-x64.json',
+            'docs/benchmarks/host-windows-x64.json',
+            'docs/benchmarks/v0.1-adapter-recomputed.json',
+            'docs/benchmarks/v0.1-host-recomputed.json',
+            'docs/benchmarks/v0.2-final-adapter.json',
+            'docs/benchmarks/v0.2-final-profile.json',
+            'docs/benchmarks/v0.2-final-host.json',
+            'docs/benchmarks/v0.2-final-host-no-descriptions.json',
+            'docs/benchmarks/v0.2-trace/miss-0.jsonl',
+            'docs/benchmarks/v0.2-trace/hit-0.jsonl',
+            'docs/testing-v0.2.md',
+            'docs/benchmarks/v0.2-release.json'
+        )
+        foreach ($path in $historicalPaths) {
+            $entry = $zip.GetEntry($path)
+            Assert-Test ($null -ne $entry -and -not $entry.FullName.EndsWith('/') -and $entry.Length -gt 0) "ZIP 包含历史性能文件: $path"
+            Assert-Test $records.ContainsKey($path) "历史性能文件具有清单记录: $path"
+            Assert-Test ([int64]$records[$path].bytes -eq $entry.Length) "历史性能文件长度沿用清单: $path"
+        }
+        $rawEntries = @($zip.Entries | Where-Object {
+                -not $_.FullName.EndsWith('/') -and $_.FullName.StartsWith('docs/benchmarks/v0.5/', [StringComparison]::OrdinalIgnoreCase)
+            })
+        Assert-Test ($rawEntries.Count -eq $declaredSet.Count) 'ZIP 未携带未由性能报告声明的原始文件'
+    }
+    finally { $zip.Dispose() }
+}
+
 try {
     [IO.Directory]::CreateDirectory($tempRoot) | Out-Null
     $currentExe = (Get-Item -LiteralPath $ShellSenseExecutable -Force).FullName
@@ -176,6 +236,7 @@ try {
     $packageOne = Join-Path $outputOne "shellsense-v$firstVersion-windows-x64.zip"
     Assert-Test (Test-Path -LiteralPath $packageOne -PathType Leaf) '第一版 ZIP 已生成'
     Assert-Test (Test-Path -LiteralPath "$packageOne.sha256" -PathType Leaf) '第一版外部 SHA-256 已生成'
+    Assert-PerformanceArtifactsPackaged -PackagePath $packageOne
 
     $releaseTwoParameters = @{
         ExePath = $currentExe; Version = $currentVersion; OutputDirectory = $outputTwo; LicenseNoticesPath = $licenseNoticesPath
@@ -184,6 +245,7 @@ try {
     Invoke-TestScript -Path $releaseScript -Parameters $releaseTwoParameters
     $packageTwo = Join-Path $outputTwo "shellsense-v$currentVersion-windows-x64.zip"
     Assert-Test (Test-Path -LiteralPath $packageTwo -PathType Leaf) '第二版 ZIP 已生成'
+    Assert-PerformanceArtifactsPackaged -PackagePath $packageTwo
 
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'Install'; PackagePath = $packageOne; InstallRoot = $installRoot }
     Assert-Test ((Get-Content -LiteralPath (Join-Path $installRoot 'VERSION.txt') -Raw) -match [regex]::Escape($firstVersion)) '安装版本正确'

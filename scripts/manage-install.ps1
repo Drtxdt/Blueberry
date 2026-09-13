@@ -187,6 +187,101 @@ function Assert-SafeRelativePath {
     return ($normalized.Replace('\', '/'))
 }
 
+function Get-MarkdownLinkTargets {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $item = Get-RegularFileRecord -Path $Path -Label '性能报告'
+    try {
+        $text = [Text.UTF8Encoding]::new($false, $true).GetString([IO.File]::ReadAllBytes($item.FullName))
+    }
+    catch {
+        throw "性能报告不是有效的 UTF-8 文本: $Path"
+    }
+    # Links in fenced examples are documentation text, not declared release assets.
+    $text = [Text.RegularExpressions.Regex]::Replace(
+        $text, '(?ms)^[ \t]{0,3}```.*?^[ \t]{0,3}```[ \t]*$', '')
+    $targets = [Collections.Generic.List[string]]::new()
+    $inlinePattern = '(?<!\!)\[[^\]\r\n]+\]\(\s*(?:<([^>\r\n]+)>|([^\s)\r\n]+))'
+    foreach ($match in [Text.RegularExpressions.Regex]::Matches($text, $inlinePattern)) {
+        $target = if ($match.Groups[1].Success) { $match.Groups[1].Value } else { $match.Groups[2].Value }
+        if (-not [string]::IsNullOrWhiteSpace($target)) { [void]$targets.Add($target.Trim()) }
+    }
+    $referencePattern = '(?m)^[ \t]{0,3}\[[^\]\r\n]+\]:\s*(?:<([^>\r\n]+)>|([^\s\r\n]+))'
+    foreach ($match in [Text.RegularExpressions.Regex]::Matches($text, $referencePattern)) {
+        $target = if ($match.Groups[1].Success) { $match.Groups[1].Value } else { $match.Groups[2].Value }
+        if (-not [string]::IsNullOrWhiteSpace($target)) { [void]$targets.Add($target.Trim()) }
+    }
+    return @($targets.ToArray())
+}
+
+function Get-PerformanceArtifactPaths {
+    param([Parameter(Mandatory = $true)][string]$ReportPath)
+    $reportItem = Get-RegularFileRecord -Path $ReportPath -Label '性能报告'
+    $prefix = 'benchmarks/v0.5'
+    $paths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($target in (Get-MarkdownLinkTargets -Path $reportItem.FullName)) {
+        $normalized = ([string]$target).Trim().Replace('\', '/')
+        if ([string]::IsNullOrWhiteSpace($normalized)) { continue }
+        if ($normalized -match '^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)') { continue }
+        while ($normalized.StartsWith('./', [StringComparison]::Ordinal)) { $normalized = $normalized.Substring(2) }
+        $inScope = $normalized -ieq $prefix -or $normalized.StartsWith("$prefix/", [StringComparison]::OrdinalIgnoreCase)
+        if (-not $inScope) { continue }
+        if ($normalized -ieq $prefix) { throw "性能报告链接必须指向 benchmarks/v0.5 下的 .json 或 .md 文件: $target" }
+        if ($normalized.Contains('?') -or $normalized.Contains('#')) {
+            throw "性能原始文件链接不能含查询或片段: $target"
+        }
+        $safe = Assert-SafeRelativePath $normalized
+        $extension = [IO.Path]::GetExtension($safe).ToLowerInvariant()
+        if ($extension -ne '.json' -and $extension -ne '.md') {
+            throw "性能原始文件只能是 .json 或 .md: $target"
+        }
+        [void]$paths.Add((Assert-SafeRelativePath ("docs/$safe")))
+    }
+    return @($paths | Sort-Object)
+}
+
+function Assert-PerformanceArtifactSet {
+    param(
+        [Parameter(Mandatory = $true)][string]$PackageRoot,
+        [Parameter(Mandatory = $true)]$PackageFiles,
+        [Parameter(Mandatory = $true)][Collections.IDictionary]$ReleaseManifest,
+        [Parameter(Mandatory = $true)][Collections.Generic.HashSet[string]]$Seen
+    )
+    $reportPath = Join-Path $PackageRoot 'docs\performance-v0.5.md'
+    $linked = @(Get-PerformanceArtifactPaths -ReportPath $reportPath)
+    $linkedSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $linked) {
+        [void]$linkedSet.Add($path)
+        if (-not $Seen.Contains($path)) { throw "发布包缺少性能原始文件或其清单记录: $path" }
+        [void](Get-RegularFileRecord -Path (Join-Path $PackageRoot ($path.Replace('/', '\'))) -Label "性能原始文件 $path")
+    }
+
+    $declared = [Collections.Generic.List[string]]::new()
+    $declaredSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    if ($ReleaseManifest.ContainsKey('performance_artifacts')) {
+        foreach ($value in (Convert-ToArray $ReleaseManifest.performance_artifacts)) {
+            $path = Assert-SafeRelativePath ([string]$value)
+            $extension = [IO.Path]::GetExtension($path).ToLowerInvariant()
+            if (-not $path.StartsWith('docs/benchmarks/v0.5/', [StringComparison]::OrdinalIgnoreCase) -or
+                ($extension -ne '.json' -and $extension -ne '.md') -or -not $declaredSet.Add($path)) {
+                throw "发布包 performance_artifacts 路径无效或重复: $path"
+            }
+            [void]$declared.Add($path)
+        }
+        if ($declaredSet.Count -ne $linkedSet.Count) { throw '发布包 performance_artifacts 与性能报告链接不一致' }
+        foreach ($path in $linkedSet) {
+            if (-not $declaredSet.Contains($path)) { throw "发布包 performance_artifacts 缺少报告链接: $path" }
+        }
+    } elseif ($linkedSet.Count -gt 0) {
+        throw '发布包缺少 performance_artifacts 清单；性能报告包含未声明的原始文件'
+    }
+
+    foreach ($record in $PackageFiles) {
+        if ([string]$record.path -like 'docs/benchmarks/v0.5/*' -and -not $linkedSet.Contains([string]$record.path)) {
+            throw "发布包包含性能报告未明确列出的原始文件: $($record.path)"
+        }
+    }
+}
+
 function Get-ManagedPath {
     param(
         [Parameter(Mandatory = $true)][string]$Root,
@@ -494,6 +589,7 @@ function Read-Package {
             $requiredItem = Get-RegularFileRecord -Path $requiredPath -Label "必要资产 $required"
             if ($requiredItem.Length -le 0) { throw "必要资产不能为空: $required" }
         }
+        Assert-PerformanceArtifactSet -PackageRoot $stage -PackageFiles $files -ReleaseManifest $releaseManifest -Seen $seen
         $stageFiles = @(Get-ChildItem -LiteralPath $stage -File -Recurse -Force)
         $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         [void]$allowed.Add('release.json')

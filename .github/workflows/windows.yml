@@ -121,7 +121,7 @@ jobs:
         shell: pwsh
         run: |
           $env:SHELLSENSE_TEST_TRANSPORT = 'pipe'
-          cargo test --locked --test terminal_beta -- --test-threads=1
+          cargo test --locked --test terminal_beta --test terminal_modes -- --test-threads=1
           if ($LASTEXITCODE -ne 0) { throw 'Private pipe terminal regressions failed' }
       - name: PowerShell adapter tests
         shell: pwsh

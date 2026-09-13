@@ -36,6 +36,7 @@ use windows_sys::Win32::{
 
 const PTY_TIMEOUT: Duration = Duration::from_secs(20);
 const MOUSE_HELPER_LOG_ENV: &str = "SHELLSENSE_MOUSE_HELPER_LOG";
+const TEST_TRANSPORT_ENV: &str = "SHELLSENSE_TEST_TRANSPORT";
 const MOUSE_COLUMN: i16 = 11;
 const MOUSE_ROW: i16 = 6;
 const VK_F12: u16 = 0x7b;
@@ -250,6 +251,15 @@ fn startup_event(harness: &mut Harness, name: &str, phase: &str) -> Result<Value
         .with_context(|| format!("startup phase {phase}: waiting for {name} event"))
 }
 
+fn selected_transport() -> Result<String> {
+    let transport = std::env::var(TEST_TRANSPORT_ENV).unwrap_or_else(|_| "osc".to_owned());
+    ensure!(
+        matches!(transport.as_str(), "osc" | "pipe"),
+        "{TEST_TRANSPORT_ENV} must be `osc` or `pipe`, got {transport:?}"
+    );
+    Ok(transport)
+}
+
 fn ctrl_space_records() -> &'static [u8] {
     // VK_SPACE=32, scan code=57, Ctrl only (control state 8). A bare NUL is
     // rendered as a literal `2` by the outer ConPTY instead of a shortcut.
@@ -257,6 +267,7 @@ fn ctrl_space_records() -> &'static [u8] {
 }
 
 fn start_host() -> Result<RunningHost> {
+    let transport = selected_transport()?;
     let cwd = tempdir().context("create terminal-modes working directory")?;
     fs::write(
         cwd.path().join("git.cmd"),
@@ -288,6 +299,8 @@ fn start_host() -> Result<RunningHost> {
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
         "run".to_owned(),
+        "--transport".to_owned(),
+        transport.clone(),
         "--shell".to_owned(),
         shell.to_string_lossy().into_owned(),
         "--no-profile".to_owned(),
@@ -300,15 +313,21 @@ fn start_host() -> Result<RunningHost> {
         .wait_text("PS ", PTY_TIMEOUT)
         .context("startup phase initial prompt: waiting for PowerShell prompt")?;
     // The bootstrap path can publish an intentionally incomplete capability
-    // frame before ConsoleHost loads PSReadLine. The first prompt publishes a
-    // ready frame after registration. Harness::event consumes intervening
-    // messages, so select the ready frame before consuming prompt_end; this
-    // prevents a stale capability from making the command barrier wait on a
-    // host that has not actually enabled its key handlers.
+    // frame before ConsoleHost loads PSReadLine. The first prompt may publish
+    // a ready frame after registration. Explicitly consume capability frames
+    // until the test observes ready=true, then use phase-specific context for
+    // prompt and command waits. Harness::event consumes intervening messages;
+    // this keeps startup readiness an explicit test assertion and makes a
+    // missing frame report the phase that timed out. It does not infer the
+    // cause of any host-side event ordering.
     let mut capabilities = startup_event(&mut harness, "capabilities", "capabilities")?;
-    while capabilities["ready"] != true {
+    while capabilities["ready"].as_bool() != Some(true) {
         capabilities = startup_event(&mut harness, "capabilities", "ready capabilities")?;
     }
+    ensure!(
+        capabilities["transport"].as_str() == Some(transport.as_str()),
+        "requested transport was not active: requested={transport}, capabilities={capabilities}"
+    );
     startup_event(&mut harness, "prompt_end", "first prompt")?;
     // Terminal-mode checks are interaction tests, rather than startup
     // benchmarks. Let the lazy command snapshot finish before the first
