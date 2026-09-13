@@ -86,6 +86,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueberry"
+version = "0.5.0-beta.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "crossterm",
+ "notify",
+ "portable-pty",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "toml",
+ "unicode-segmentation",
+ "unicode-width",
+ "uuid",
+ "vt100",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -752,27 +773,6 @@ name = "shell-words"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
-
-[[package]]
-name = "blueberry"
-version = "0.5.0-beta.2"
-dependencies = [
- "anyhow",
- "clap",
- "crossterm",
- "notify",
- "portable-pty",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "toml",
- "unicode-segmentation",
- "unicode-width",
- "uuid",
- "vt100",
- "windows-sys 0.61.2",
-]
 
 [[package]]
 name = "signal-hook"

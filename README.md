@@ -3,9 +3,11 @@
 [![CI](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml/badge.svg)](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Drtxdt/Blueberry?include_prereleases)](https://github.com/Drtxdt/Blueberry/releases)
 
-Blueberry 为 PowerShell 提供带中文说明的命令补全菜单。输入命令后，可以查看参数、浏览路径、阅读帮助，或按用途查找命令。
+Blueberry 是一个使用rust主要构建的高性能终端IDE风格补全工具，可以为 PowerShell 提供带中文说明的命令补全菜单。输入命令后，可以查看参数、浏览路径、阅读帮助，或按用途查找命令。
 
-使用 Rust 编写，交互运行环境为 **Windows x64、Windows PowerShell 5.1 / PowerShell 7、PSReadLine 2.0 及以上**。推荐在 Windows Terminal 中使用。
+使用 Rust 编写，目前交互运行环境为 **Windows x64、Windows PowerShell 5.1 / PowerShell 7、PSReadLine 2.0 及以上**。未来计划支持更多类型的终端。
+
+本项目的灵感来源来自：[microsoft/inshellisense: IDE style command line auto complete](https://github.com/microsoft/inshellisense)
 
 ## 安装
 
@@ -21,11 +23,13 @@ irm https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1 | iex
 
 ## 快速开始
 
+在你的终端中输入：
+
 ```powershell
 blueberry
 ```
 
-进入会话后，试着输入：
+进入会话后，试着输入你常用的命令，例如：
 
 ```powershell
 git log --
@@ -104,6 +108,8 @@ blueberry doctor
 icons = true
 icon_style = "nerd"
 ```
+
+[什么是Nerd Font?](https://www.nerdfonts.com/)
 
 完整选项见 [配置示例](config.example.toml)。使用独立配置或指定 PowerShell：
 
