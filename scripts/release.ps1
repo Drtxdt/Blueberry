@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$ExePath,
@@ -22,11 +22,21 @@ Set-StrictMode -Version Latest
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $requiredPayload = @(
-    'blueberry.exe', 'VERSION.txt', 'README.md', 'LICENSE',
-    'THIRD-PARTY-NOTICES.txt', 'RELEASE-NOTES.md', 'config.example.toml',
-    'docs/beta-installation.md', 'docs/release-checklist.md', 'docs/specifications.md',
-    'docs/beta-progress.md', 'docs/performance.md', 'docs/performance-v0.5.md', 'docs/powershell-adapter.md',
-    'specs/builtin.toml', 'manage-install.ps1'
+    'blueberry.exe',
+    'VERSION.txt',
+    'README.md',
+    'LICENSE',
+    'THIRD-PARTY-NOTICES.txt',
+    'RELEASE-NOTES.md',
+    'config.example.toml',
+    'docs/installation.md',
+    'docs/releasing.md',
+    'docs/specifications.md',
+    'docs/powershell-adapter.md',
+    'specs/builtin.toml',
+    'manage-install.ps1',
+    'install-common.ps1',
+    'install.ps1'
 )
 
 function Get-FullPath {
@@ -390,37 +400,16 @@ try {
         @{ Source = (Join-Path $repoRoot 'README.md'); Destination = 'README.md' },
         @{ Source = (Join-Path $repoRoot 'LICENSE'); Destination = 'LICENSE' },
         @{ Source = (Join-Path $repoRoot 'config.example.toml'); Destination = 'config.example.toml' },
-        @{ Source = (Join-Path $repoRoot 'docs\beta-installation.md'); Destination = 'docs/beta-installation.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\release-checklist.md'); Destination = 'docs/release-checklist.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\specifications.md'); Destination = 'docs/specifications.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\beta-progress.md'); Destination = 'docs/beta-progress.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\performance.md'); Destination = 'docs/performance.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\performance-v0.2.md'); Destination = 'docs/performance-v0.2.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-perf-summary.md'); Destination = 'docs/benchmarks/v0.2-perf-summary.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\adapter-windows-x64.json'); Destination = 'docs/benchmarks/adapter-windows-x64.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\host-windows-x64.json'); Destination = 'docs/benchmarks/host-windows-x64.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.1-adapter-recomputed.json'); Destination = 'docs/benchmarks/v0.1-adapter-recomputed.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.1-host-recomputed.json'); Destination = 'docs/benchmarks/v0.1-host-recomputed.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-final-adapter.json'); Destination = 'docs/benchmarks/v0.2-final-adapter.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-final-profile.json'); Destination = 'docs/benchmarks/v0.2-final-profile.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-final-host.json'); Destination = 'docs/benchmarks/v0.2-final-host.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-final-host-no-descriptions.json'); Destination = 'docs/benchmarks/v0.2-final-host-no-descriptions.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-trace\miss-0.jsonl'); Destination = 'docs/benchmarks/v0.2-trace/miss-0.jsonl' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-trace\hit-0.jsonl'); Destination = 'docs/benchmarks/v0.2-trace/hit-0.jsonl' },
-        @{ Source = (Join-Path $repoRoot 'docs\testing-v0.2.md'); Destination = 'docs/testing-v0.2.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\benchmarks\v0.2-release.json'); Destination = 'docs/benchmarks/v0.2-release.json' },
-        @{ Source = (Join-Path $repoRoot 'docs\performance-v0.5.md'); Destination = 'docs/performance-v0.5.md' },
-        @{ Source = (Join-Path $repoRoot 'docs\powershell-adapter.md'); Destination = 'docs/powershell-adapter.md' },
-        @{ Source = (Join-Path $repoRoot 'specs\builtin.toml'); Destination = 'specs/builtin.toml' },
-        @{ Source = (Join-Path $PSScriptRoot 'manage-install.ps1'); Destination = 'manage-install.ps1' }
+        @{ Source = (Join-Path $repoRoot 'docs/installation.md'); Destination = 'docs/installation.md' },
+        @{ Source = (Join-Path $repoRoot 'docs/releasing.md'); Destination = 'docs/releasing.md' },
+        @{ Source = (Join-Path $repoRoot 'docs/specifications.md'); Destination = 'docs/specifications.md' },
+        @{ Source = (Join-Path $repoRoot 'docs/powershell-adapter.md'); Destination = 'docs/powershell-adapter.md' },
+        @{ Source = (Join-Path $repoRoot 'specs/builtin.toml'); Destination = 'specs/builtin.toml' },
+        @{ Source = (Join-Path $repoRoot 'scripts/manage-install.ps1'); Destination = 'manage-install.ps1' },
+        @{ Source = (Join-Path $repoRoot 'scripts/install-common.ps1'); Destination = 'install-common.ps1' },
+        @{ Source = (Join-Path $repoRoot 'install.ps1'); Destination = 'install.ps1' }
     )
     foreach ($required in $requiredFiles) { Copy-ToStage -Source $required.Source -Stage $stagePayload -RelativePath $required.Destination }
-
-    $performanceReportSource = Join-Path $repoRoot 'docs\performance-v0.5.md'
-    $performanceArtifactFiles = @(Resolve-PerformanceArtifactFiles -ReportPath $performanceReportSource)
-    foreach ($artifact in $performanceArtifactFiles) {
-        Copy-ToStage -Source $artifact.Source -Stage $stagePayload -RelativePath $artifact.RelativePath
-    }
 
     $noticeCandidates = @(
         (Join-Path $repoRoot 'THIRD-PARTY-NOTICES.txt'), (Join-Path $repoRoot 'docs\third-party-notices.txt'),
@@ -433,7 +422,14 @@ try {
     $notesCandidates = @((Join-Path $repoRoot 'CHANGELOG.md'), (Join-Path $repoRoot 'docs\release-notes.md'))
     $notesSource = Resolve-OptionalInput -Requested $ReleaseNotesPath -Candidates $notesCandidates -Label '版本说明'
     if ($notesSource) {
-        Copy-ToStage -Source $notesSource -Stage $stagePayload -RelativePath 'RELEASE-NOTES.md'
+        if (-not $ReleaseNotesPath -and [IO.Path]::GetFileName($notesSource) -eq 'CHANGELOG.md') {
+            $changelog = [IO.File]::ReadAllText($notesSource)
+            $section = [regex]::Match($changelog, '(?ms)^## ' + [regex]::Escape($Version) + '\s*\r?\n(.*?)(?=^## |\z)')
+            if (-not $section.Success) { throw "CHANGELOG.md lacks a section for $Version" }
+            Write-Utf8NoBom -Path (Join-Path $stagePayload 'RELEASE-NOTES.md') -Content ("# Blueberry $Version`n`n" + $section.Groups[1].Value.Trim() + "`n")
+        } else {
+            Copy-ToStage -Source $notesSource -Stage $stagePayload -RelativePath 'RELEASE-NOTES.md'
+        }
     } else {
         $notes = "# Blueberry $Version`n`n这是 Windows x64 的 Blueberry Beta 本地交付包。该构建未签名（unsigned）。`n"
         Write-Utf8NoBom -Path (Join-Path $stagePayload 'RELEASE-NOTES.md') -Content $notes

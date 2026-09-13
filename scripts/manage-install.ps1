@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet('Install', 'Upgrade', 'Uninstall', 'Rollback', 'PreviewSettings', 'ApplySettings')]
@@ -17,10 +17,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'install-common.ps1')
 
 $script:ManifestFileName = 'install.json'
 $script:InstallManifestSchemaVersion = 2
-$script:BlueberryProfileGuid = '{7B5D8D4E-8A14-4CFB-9F39-7A7A7C2E0C51}'
+$script:BlueberryProfileGuid = '{28E40931-78EB-4F61-8932-DAB5CB555972}'
 $script:RequiredPackageFiles = @(
     'blueberry.exe',
     'VERSION.txt',
@@ -29,15 +30,14 @@ $script:RequiredPackageFiles = @(
     'THIRD-PARTY-NOTICES.txt',
     'RELEASE-NOTES.md',
     'config.example.toml',
-    'docs/beta-installation.md',
-    'docs/release-checklist.md',
+    'docs/installation.md',
+    'docs/releasing.md',
     'docs/specifications.md',
-    'docs/beta-progress.md',
-    'docs/performance.md',
-    'docs/performance-v0.5.md',
     'docs/powershell-adapter.md',
     'specs/builtin.toml',
-    'manage-install.ps1'
+    'manage-install.ps1',
+    'install-common.ps1',
+    'install.ps1'
 )
 
 function Get-DefaultInstallRoot {
@@ -45,7 +45,7 @@ function Get-DefaultInstallRoot {
     if ([string]::IsNullOrWhiteSpace($localAppData)) {
         throw '无法确定 LocalAppData；请显式传入 -InstallRoot'
     }
-    return [IO.Path]::Combine($localAppData, 'Blueberry')
+    return [IO.Path]::Combine($localAppData, 'Blueberry', 'bin')
 }
 
 function Get-FullPath {
@@ -213,75 +213,6 @@ function Get-MarkdownLinkTargets {
     return @($targets.ToArray())
 }
 
-function Get-PerformanceArtifactPaths {
-    param([Parameter(Mandatory = $true)][string]$ReportPath)
-    $reportItem = Get-RegularFileRecord -Path $ReportPath -Label '性能报告'
-    $prefix = 'benchmarks/v0.5'
-    $paths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($target in (Get-MarkdownLinkTargets -Path $reportItem.FullName)) {
-        $normalized = ([string]$target).Trim().Replace('\', '/')
-        if ([string]::IsNullOrWhiteSpace($normalized)) { continue }
-        if ($normalized -match '^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)') { continue }
-        while ($normalized.StartsWith('./', [StringComparison]::Ordinal)) { $normalized = $normalized.Substring(2) }
-        $inScope = $normalized -ieq $prefix -or $normalized.StartsWith("$prefix/", [StringComparison]::OrdinalIgnoreCase)
-        if (-not $inScope) { continue }
-        if ($normalized -ieq $prefix) { throw "性能报告链接必须指向 benchmarks/v0.5 下的 .json 或 .md 文件: $target" }
-        if ($normalized.Contains('?') -or $normalized.Contains('#')) {
-            throw "性能原始文件链接不能含查询或片段: $target"
-        }
-        $safe = Assert-SafeRelativePath $normalized
-        $extension = [IO.Path]::GetExtension($safe).ToLowerInvariant()
-        if ($extension -ne '.json' -and $extension -ne '.md') {
-            throw "性能原始文件只能是 .json 或 .md: $target"
-        }
-        [void]$paths.Add((Assert-SafeRelativePath ("docs/$safe")))
-    }
-    return @($paths | Sort-Object)
-}
-
-function Assert-PerformanceArtifactSet {
-    param(
-        [Parameter(Mandatory = $true)][string]$PackageRoot,
-        [Parameter(Mandatory = $true)]$PackageFiles,
-        [Parameter(Mandatory = $true)][Collections.IDictionary]$ReleaseManifest,
-        [Parameter(Mandatory = $true)][Collections.Generic.HashSet[string]]$Seen
-    )
-    $reportPath = Join-Path $PackageRoot 'docs\performance-v0.5.md'
-    $linked = @(Get-PerformanceArtifactPaths -ReportPath $reportPath)
-    $linkedSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($path in $linked) {
-        [void]$linkedSet.Add($path)
-        if (-not $Seen.Contains($path)) { throw "发布包缺少性能原始文件或其清单记录: $path" }
-        [void](Get-RegularFileRecord -Path (Join-Path $PackageRoot ($path.Replace('/', '\'))) -Label "性能原始文件 $path")
-    }
-
-    $declared = [Collections.Generic.List[string]]::new()
-    $declaredSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    if ($ReleaseManifest.ContainsKey('performance_artifacts')) {
-        foreach ($value in (Convert-ToArray $ReleaseManifest.performance_artifacts)) {
-            $path = Assert-SafeRelativePath ([string]$value)
-            $extension = [IO.Path]::GetExtension($path).ToLowerInvariant()
-            if (-not $path.StartsWith('docs/benchmarks/v0.5/', [StringComparison]::OrdinalIgnoreCase) -or
-                ($extension -ne '.json' -and $extension -ne '.md') -or -not $declaredSet.Add($path)) {
-                throw "发布包 performance_artifacts 路径无效或重复: $path"
-            }
-            [void]$declared.Add($path)
-        }
-        if ($declaredSet.Count -ne $linkedSet.Count) { throw '发布包 performance_artifacts 与性能报告链接不一致' }
-        foreach ($path in $linkedSet) {
-            if (-not $declaredSet.Contains($path)) { throw "发布包 performance_artifacts 缺少报告链接: $path" }
-        }
-    } elseif ($linkedSet.Count -gt 0) {
-        throw '发布包缺少 performance_artifacts 清单；性能报告包含未声明的原始文件'
-    }
-
-    foreach ($record in $PackageFiles) {
-        if ([string]$record.path -like 'docs/benchmarks/v0.5/*' -and -not $linkedSet.Contains([string]$record.path)) {
-            throw "发布包包含性能报告未明确列出的原始文件: $($record.path)"
-        }
-    }
-}
-
 function Get-ManagedPath {
     param(
         [Parameter(Mandatory = $true)][string]$Root,
@@ -388,7 +319,7 @@ function Test-VersionString {
 function Read-JsonHashtable {
     param([Parameter(Mandatory = $true)][string]$Path)
     try {
-        $value = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+        $value = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-BlueberryInstallJson
     }
     catch {
         throw "无法解析 JSON 文件 $Path：$($_.Exception.Message)"
@@ -410,7 +341,7 @@ function Get-ManifestIntegrityHash {
         }
     }
     if (-not $copy.Contains('metadata_sha256')) { $copy['metadata_sha256'] = '' }
-    $json = $copy | ConvertTo-Json -Depth 50
+    $json = ConvertTo-BlueberryCanonicalJson $copy
     return Get-ByteSha256 -Bytes ([Text.UTF8Encoding]::new($false).GetBytes("$json`n"))
 }
 
@@ -430,7 +361,7 @@ function Write-Utf8JsonAtomic {
         }
         $json = $Value | ConvertTo-Json -Depth 50
         [IO.File]::WriteAllText($temporary, "$json`n", [Text.UTF8Encoding]::new($false))
-        [IO.File]::Move($temporary, $Path, $true)
+        Move-BlueberryFile $temporary $Path
     }
     finally {
         if (Test-Path -LiteralPath $temporary) {
@@ -589,13 +520,12 @@ function Read-Package {
             $requiredItem = Get-RegularFileRecord -Path $requiredPath -Label "必要资产 $required"
             if ($requiredItem.Length -le 0) { throw "必要资产不能为空: $required" }
         }
-        Assert-PerformanceArtifactSet -PackageRoot $stage -PackageFiles $files -ReleaseManifest $releaseManifest -Seen $seen
         $stageFiles = @(Get-ChildItem -LiteralPath $stage -File -Recurse -Force)
         $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         [void]$allowed.Add('release.json')
         foreach ($record in $files) { [void]$allowed.Add($record.path) }
         foreach ($file in $stageFiles) {
-            $relative = [IO.Path]::GetRelativePath($stage, $file.FullName).Replace('\', '/')
+            $relative = (Get-BlueberryRelativePath $stage $file.FullName).Replace('\', '/')
             if (-not $allowed.Contains($relative)) { throw "发布包包含未列入 release.json 的文件: $relative" }
         }
         foreach ($zipFile in $zipFiles) {
@@ -645,7 +575,7 @@ function Copy-FileAtomic {
         Copy-Item -LiteralPath $sourceItem.FullName -Destination $temporary -Force
         $actual = Get-Sha256 $temporary
         if ($actual -ne $ExpectedHash.ToUpperInvariant()) { throw "复制后 SHA-256 不匹配: $RelativePath" }
-        [IO.File]::Move($temporary, $Destination, $true)
+        Move-BlueberryFile $temporary $Destination
     }
     finally {
         if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
@@ -668,7 +598,7 @@ function Copy-BytesAtomic {
     $temporary = "$Destination.new-$([Guid]::NewGuid().ToString('N'))"
     try {
         [IO.File]::WriteAllBytes($temporary, $Bytes)
-        [IO.File]::Move($temporary, $Destination, $true)
+        Move-BlueberryFile $temporary $Destination
     }
     finally {
         if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
@@ -1295,6 +1225,23 @@ function Invoke-Rollback {
 
 function Invoke-Uninstall {
     param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)]$State)
+    $registrationPath = Join-Path $Root 'registration.json'
+    if ([IO.File]::Exists($registrationPath)) {
+        $registration = Read-JsonHashtable $registrationPath
+        if (-not (Test-SamePath ([string]$registration.root) $Root)) { throw 'Installation registration root mismatch' }
+        $exePath = Join-Path $Root 'blueberry.exe'
+        if ([IO.File]::Exists($exePath) -and (Get-Sha256 $exePath) -eq $State.managed_hashes['blueberry.exe']) {
+            & $exePath startup disable --owned-only
+            if ($LASTEXITCODE -ne 0) { throw 'Could not remove owned startup hooks; installation preserved' }
+        }
+        if ($registration.path_added) {
+            $currentPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+            $remainingPath = @($currentPath -split ';' | Where-Object { $_.TrimEnd('\') -ine $Root.TrimEnd('\') }) -join ';'
+            [Environment]::SetEnvironmentVariable('Path', $remainingPath, 'User')
+            $env:Path = @($env:Path -split ';' | Where-Object { $_.TrimEnd('\') -ine $Root.TrimEnd('\') }) -join ';'
+        }
+        [IO.File]::Delete($registrationPath)
+    }
     $changed = [Collections.Generic.List[string]]::new()
     $missing = [Collections.Generic.List[string]]::new()
     $deleteErrors = [Collections.Generic.List[string]]::new()
@@ -1469,7 +1416,7 @@ function Read-SettingsPlan {
     $raw = [Text.UTF8Encoding]::new($false, $false).GetString($bytes)
     $isJsonc = Test-JsoncMarkers $raw
     $parseText = if ($isJsonc) { Convert-JsoncForPreview $raw } else { $raw }
-    try { $settings = $parseText | ConvertFrom-Json -AsHashtable }
+    try { $settings = $parseText | ConvertFrom-BlueberryInstallJson }
     catch { Write-ManualProfile -Executable $Executable -Name $Name; throw "Windows Terminal settings 无法解析；原文件未修改: $($_.Exception.Message)" }
     if (-not ($settings -is [Collections.IDictionary]) -or -not $settings.ContainsKey('profiles') -or
         -not ($settings.profiles -is [Collections.IDictionary]) -or -not $settings.profiles.ContainsKey('list')) {
@@ -1492,7 +1439,7 @@ function Read-SettingsPlan {
     $settings.profiles.list = @($newList.ToArray())
     return [pscustomobject]@{
         path = $settingsPath; original = $bytes; raw = $raw; is_jsonc = $isJsonc
-        before = $parseText | ConvertFrom-Json -AsHashtable; after = $settings; executable = $Executable; name = $Name
+        before = $parseText | ConvertFrom-BlueberryInstallJson; after = $settings; executable = $Executable; name = $Name
     }
 }
 
@@ -1535,7 +1482,7 @@ function Invoke-ApplySettings {
     try {
         $json = $plan.after | ConvertTo-Json -Depth 30
         [IO.File]::WriteAllText($temporary, "$json`n", [Text.UTF8Encoding]::new($false))
-        [IO.File]::Move($temporary, $plan.path, $true)
+        Move-BlueberryFile $temporary $plan.path
         Write-Host "已应用 Blueberry profile；原 settings 字节备份为 $backupPath"
     }
     finally {

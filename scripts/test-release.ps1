@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [Alias('ExePath')]
@@ -166,32 +166,8 @@ function Assert-PerformanceArtifactsPackaged {
             finally { $algorithm.Dispose(); $stream.Dispose() }
             Assert-Test ($hash -eq ([string]$records[$path].sha256).ToUpperInvariant()) "性能原始文件哈希沿用清单: $path"
         }
-        $historicalPaths = @(
-            'docs/performance-v0.2.md',
-            'docs/benchmarks/v0.2-perf-summary.md',
-            'docs/benchmarks/adapter-windows-x64.json',
-            'docs/benchmarks/host-windows-x64.json',
-            'docs/benchmarks/v0.1-adapter-recomputed.json',
-            'docs/benchmarks/v0.1-host-recomputed.json',
-            'docs/benchmarks/v0.2-final-adapter.json',
-            'docs/benchmarks/v0.2-final-profile.json',
-            'docs/benchmarks/v0.2-final-host.json',
-            'docs/benchmarks/v0.2-final-host-no-descriptions.json',
-            'docs/benchmarks/v0.2-trace/miss-0.jsonl',
-            'docs/benchmarks/v0.2-trace/hit-0.jsonl',
-            'docs/testing-v0.2.md',
-            'docs/benchmarks/v0.2-release.json'
-        )
-        foreach ($path in $historicalPaths) {
-            $entry = $zip.GetEntry($path)
-            Assert-Test ($null -ne $entry -and -not $entry.FullName.EndsWith('/') -and $entry.Length -gt 0) "ZIP 包含历史性能文件: $path"
-            Assert-Test $records.ContainsKey($path) "历史性能文件具有清单记录: $path"
-            Assert-Test ([int64]$records[$path].bytes -eq $entry.Length) "历史性能文件长度沿用清单: $path"
-        }
-        $rawEntries = @($zip.Entries | Where-Object {
-                -not $_.FullName.EndsWith('/') -and $_.FullName.StartsWith('docs/benchmarks/v0.5/', [StringComparison]::OrdinalIgnoreCase)
-            })
-        Assert-Test ($rawEntries.Count -eq $declaredSet.Count) 'ZIP 未携带未由性能报告声明的原始文件'
+        Assert-Test ($declared.Count -eq 0) 'Public package excludes historical benchmark artifacts'
+
     }
     finally { $zip.Dispose() }
 }
@@ -295,8 +271,8 @@ try {
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'PreviewSettings'; SettingsPath = $settingsPath; InstallRoot = $installRoot }
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'ApplySettings'; SettingsPath = $settingsPath; InstallRoot = $installRoot }
     $updatedSettings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
-    Assert-Test ((@($updatedSettings.profiles.list) | Where-Object { $_.guid -eq '{7B5D8D4E-8A14-4CFB-9F39-7A7A7C2E0C51}' }).Count -eq 1) '应用 Blueberry profile'
-    Assert-Test ((@($updatedSettings.profiles.list) | Where-Object { $_.guid -eq '{OTHER}' }).Count -eq 1) '保留其他 profile'
+    Assert-Test (@($updatedSettings.profiles.list | Where-Object { $_.guid -eq '{28E40931-78EB-4F61-8932-DAB5CB555972}' }).Count -eq 1) '应用 Blueberry profile'
+    Assert-Test (@($updatedSettings.profiles.list | Where-Object { $_.guid -eq '{OTHER}' }).Count -eq 1) '保留其他 profile'
     Assert-Test (@(Get-ChildItem -LiteralPath $tempRoot -Filter 'settings.json.*.bak').Count -ge 1) 'Apply 创建原字节备份'
 
     $jsoncText = @'
