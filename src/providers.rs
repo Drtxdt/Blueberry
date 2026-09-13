@@ -1444,15 +1444,14 @@ fn git_needs(ctx: &GitContext, forced_scope: Option<&str>) -> GitNeeds {
                 "remove" | "rm" | "lock" | "unlock" | "move" | "repair" | "list" => {
                     needs.worktrees = true;
                 }
-                "add" => {
+                "add"
                     if positionals.len() >= 2
-                        && !matches!(active.as_deref(), Some("-b" | "-B" | "--orphan"))
-                    {
-                        needs.refs = true;
-                        needs.branches = true;
-                        needs.remote_branches = true;
-                        needs.tags = true;
-                    }
+                        && !matches!(active.as_deref(), Some("-b" | "-B" | "--orphan")) =>
+                {
+                    needs.refs = true;
+                    needs.branches = true;
+                    needs.remote_branches = true;
+                    needs.tags = true;
                 }
                 _ => {}
             }

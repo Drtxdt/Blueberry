@@ -65,6 +65,27 @@ pub fn spawn(
     for (key, value) in env {
         command.env(key, value);
     }
+    // ConsoleHost can load PSReadLine before -Command runs. Put the selected
+    // test module first in discovery instead of attempting to replace an
+    // already loaded binary module with Import-Module -Force.
+    if (std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1")
+        || env.get("BLUEBERRY_NO_HISTORY").map(String::as_str) == Some("1"))
+        && let Some(module) =
+            std::env::var_os("BLUEBERRY_TEST_PSREADLINE_MODULE").filter(|module| !module.is_empty())
+    {
+        let module = PathBuf::from(module);
+        if let Some(base) = module.parent().and_then(Path::parent) {
+            let root = if base.file_name().is_some_and(|name| name == "PSReadLine") {
+                base.parent().unwrap_or(base)
+            } else {
+                base
+            };
+            let inherited = std::env::var_os("PSModulePath").unwrap_or_default();
+            let mut paths = vec![root.to_owned()];
+            paths.extend(std::env::split_paths(&inherited));
+            command.env("PSModulePath", std::env::join_paths(paths)?);
+        }
+    }
     let child = pair
         .slave
         .spawn_command(command)
@@ -117,7 +138,10 @@ pub fn shell_args(integration: &Path, no_profile: bool) -> Vec<String> {
         None
     };
     let mut module_import = module
-        .map(|path| format!("Import-Module '{}' -Force; ", path.replace('\'', "''")))
+        .map(|path| {
+            let path = path.replace('\'', "''");
+            format!("if (-not (Get-Module PSReadLine)) {{ Import-Module '{path}' -ErrorAction Stop }}; if ((Get-Module PSReadLine).ModuleBase -ine (Split-Path -LiteralPath '{path}')) {{ throw 'Unexpected PSReadLine version loaded' }}; ")
+        })
         .unwrap_or_default();
     if isolated {
         // Keep a malformed development adapter from falling through to a

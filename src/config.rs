@@ -380,7 +380,7 @@ fn config_root() -> PathBuf {
                 .join("Application Support")
                 .join("Blueberry");
         }
-        return PathBuf::from("blueberry");
+        PathBuf::from("blueberry")
     }
 
     #[cfg(not(any(windows, target_os = "macos")))]

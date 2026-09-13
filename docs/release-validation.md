@@ -34,7 +34,8 @@
 
 ## 远程与人工验收
 
-- GitHub Actions 尚未运行；Windows 2022、Ubuntu 24.04、macOS 15 ARM64 的远程结果待推送后确认。
+- [首轮 GitHub Actions](https://github.com/Drtxdt/Blueberry/actions/runs/34767062275) 已于 2026-09-14 检查：格式通过，三平台构建通过；三平台 Clippy 和两项 PowerShell 5.1 交互任务失败，打包被跳过。
+- 本轮修复处理 Rust 1.98.1 的 match/return 检查、PSReadLine 自动加载版本冲突，以及旧版 ConPTY 中测试快捷键修饰键丢失。修复后本机 Rust 1.98.1 Clippy 和 144 项核心测试、5.1 配合 PSReadLine 2.0/2.4.5 的完整 OSC/pipe 回归通过；多版本并存的 2.0 定向回归通过。远程修复结果待推送后确认。
 - macOS 本机没有执行环境，交互支持列在 README 的未来展望中。
 - 发布者仍需在真实 Windows Terminal 按安装指南检查中文输入法、字体图标、窄窗口、缩放、F1 翻页和自动启动体验。
 - 首次公开 Release 后，在干净用户环境验证 README 一条命令安装及 PATH 生效。

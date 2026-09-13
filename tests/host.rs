@@ -32,8 +32,8 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
         .descriptions
         .insert("git log --oneline".into(), "自定义精简历史".into());
     std::fs::write(&config_path, toml::to_string(&settings)?)?;
-    // Ctrl+Alt+R in the Windows console input encoding used by the host.
-    let reload = b"\x1b[82;19;18;1;10;1_\x1b[82;19;18;0;10;1_";
+    // CSI-u preserves Ctrl+Alt through Windows Server 2022 ConPTY.
+    let reload = b"\x1b[114;7u";
     host.harness.send(reload)?;
     host.harness.wait_text("自定义精简历史", PTY_TIMEOUT)?;
     settings
@@ -45,6 +45,8 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
     // Invalid reload preserves the last usable settings and current text.
     std::fs::write(&config_path, "[descriptions]\n\"git\" = \"\"\n")?;
     host.harness.send(reload)?;
+    host.harness
+        .wait_text("配置无效，保留上次有效设置", PTY_TIMEOUT)?;
     host.harness.send(b"\t")?;
     wait_until(
         &mut host.harness,
@@ -528,10 +530,9 @@ fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()>
     run_and_wait_for_output(&mut host.harness,
         b"1..700 | ForEach-Object { Set-Alias ('ssfixture{0:D4}' -f $_) Write-Output }; Write-Output SNAPSHOT_CREATED\r",
         "SNAPSHOT_CREATED", "create session aliases")?;
-    // Encode the actual Windows Ctrl+Alt+C key, including VK/scan code.
-    // ESC + ETX can be interpreted as literal Ctrl+C with no physical C key.
-    host.harness
-        .send(b"\x1b[67;46;3;1;10;1_\x1b[67;46;3;0;10;1_")?;
+    // CSI-u keeps Ctrl+Alt+C intact across older ConPTY versions.
+    // Win32 CSI_ injection can arrive as plain Ctrl+C on Server 2022.
+    host.harness.send(b"\x1b[99;7u")?;
     host.harness.send(b"ssfixture070")?;
     host.harness.wait_text("≈ ssfixture0700", PTY_TIMEOUT)?;
     host.harness.send(b"\t SNAPSHOT_ALIAS_OK\r")?;
@@ -548,8 +549,7 @@ fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()>
     run_and_wait_for_output(&mut host.harness,
         b"Remove-Item Alias:ssfixture0700; Set-Alias ssfixture070x Write-Output; Write-Output SNAPSHOT_CHANGED\r",
         "SNAPSHOT_CHANGED", "replace one session alias")?;
-    host.harness
-        .send(b"\x1b[67;46;3;1;10;1_\x1b[67;46;3;0;10;1_ssfixture070")?;
+    host.harness.send(b"\x1b[99;7ussfixture070")?;
     wait_until(
         &mut host.harness,
         "removed alias absent from completed snapshot",
