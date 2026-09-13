@@ -1,8 +1,8 @@
 [package]
 name = "shellsense"
-version = "0.2.0"
+version = "0.4.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.94"
 description = "A native, low-latency completion host for PowerShell"
 license = "MIT"
 
@@ -18,12 +18,18 @@ unicode-width = "0.2"
 unicode-segmentation = "1"
 vt100 = "0.16.2"
 uuid = { version = "1", features = ["v4"] }
+sha2 = "0.10"
+notify = "8.2"
 
 [dev-dependencies]
 tempfile = "3"
 
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_System_Console"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_System_Console", "Win32_System_Pipes"] }
 
 [profile.release]
 lto = "thin"

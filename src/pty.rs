@@ -13,6 +13,29 @@ pub struct Session {
     pub child: Box<dyn Child + Send + Sync>,
 }
 
+/// Keep startup key configuration identical for the host and paired probe.
+/// JSON remains available for older adapters; the five checked strings avoid
+/// cold JSON parsing solely for initial key arbitration in current adapters.
+pub fn key_environment(keys: &crate::config::KeyBindings) -> BTreeMap<String, String> {
+    let mut environment = BTreeMap::from([
+        ("SHELLSENSE_PUBLIC_KEYS_VERSION".into(), "1".into()),
+        (
+            "SHELLSENSE_PUBLIC_KEYS".into(),
+            serde_json::to_string(keys).expect("key strings serialize"),
+        ),
+    ]);
+    for (name, value) in [
+        ("TRIGGER", &keys.trigger),
+        ("NATIVE", &keys.native),
+        ("DETAILS", &keys.details),
+        ("REFRESH", &keys.refresh),
+        ("RELOAD", &keys.reload),
+    ] {
+        environment.insert(format!("SHELLSENSE_PUBLIC_KEY_{name}"), value.clone());
+    }
+    environment
+}
+
 pub fn spawn(
     program: &Path,
     args: &[String],
@@ -81,9 +104,30 @@ pub fn shell_args(integration: &Path, no_profile: bool) -> Vec<String> {
     if no_profile {
         args.push("-NoProfile".into());
     }
+    let isolated = std::env::var("SHELLSENSE_NO_HISTORY").as_deref() == Ok("1");
+    let module = if isolated {
+        std::env::var("SHELLSENSE_TEST_PSREADLINE_MODULE")
+            .ok()
+            .filter(|s| !s.is_empty())
+    } else {
+        None
+    };
+    let mut module_import = module
+        .map(|path| format!("Import-Module '{}' -Force; ", path.replace('\'', "''")))
+        .unwrap_or_default();
+    if isolated {
+        // Keep a malformed development adapter from falling through to a
+        // shell that writes a real user's history during isolated tests.
+        module_import.push_str(
+            "Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; ",
+        );
+    }
     args.extend([
         "-Command".into(),
-        format!(". '{}'", integration.to_string_lossy().replace('\'', "''")),
+        format!(
+            "{module_import}. '{}'",
+            integration.to_string_lossy().replace('\'', "''")
+        ),
     ]);
     args
 }

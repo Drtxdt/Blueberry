@@ -45,6 +45,28 @@ impl Overlay {
         query: &str,
         config: &Config,
     ) -> io::Result<()> {
+        self.draw_with_state(
+            screen,
+            output,
+            candidates,
+            selected,
+            query,
+            config,
+            menu::MenuState::default(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_with_state(
+        &mut self,
+        screen: &vt100::Screen,
+        output: &mut impl Write,
+        candidates: &[Candidate],
+        selected: usize,
+        query: &str,
+        config: &Config,
+        state: menu::MenuState,
+    ) -> io::Result<()> {
         if candidates.is_empty() || screen.alternate_screen() {
             return self.erase(screen, output);
         }
@@ -63,6 +85,7 @@ impl Overlay {
             ui: config.ui.clone(),
             completion: config.completion.clone(),
             descriptions: Default::default(),
+            ..Default::default()
         };
         let border_rows = if config.ui.border == "none" { 0 } else { 2 };
         config.ui.max_rows = config
@@ -70,7 +93,15 @@ impl Overlay {
             .max_rows
             .min(usize::from(available).saturating_sub(border_rows))
             .max(1);
-        let frame = menu::render(candidates, selected, query, cols - 1, &config);
+        let frame = menu::render_with_state(
+            candidates,
+            selected,
+            query,
+            cols - 1,
+            &config,
+            state,
+            available.into(),
+        );
         let height = frame.lines.len() as u16;
         if height > available || height == 0 {
             return self.erase(screen, output);
@@ -89,6 +120,35 @@ impl Overlay {
             frame,
         };
         if self.painted.as_ref() == Some(&painted) {
+            return Ok(());
+        }
+        if let Some(previous) = self.painted.as_ref().filter(|previous| {
+            previous.top == painted.top
+                && previous.left == painted.left
+                && previous.size == painted.size
+                && previous.frame.width == painted.frame.width
+                && previous.frame.lines.len() == painted.frame.lines.len()
+        }) {
+            write!(output, "\x1b[?25l")?;
+            for (i, (before, after)) in previous
+                .frame
+                .lines
+                .iter()
+                .zip(&painted.frame.lines)
+                .enumerate()
+            {
+                if before != after {
+                    write!(
+                        output,
+                        "\x1b[{};{}H\x1b[0m{}",
+                        usize::from(top) + i + 1,
+                        left + 1,
+                        after
+                    )?;
+                }
+            }
+            restore_cursor(screen, output)?;
+            self.painted = Some(painted);
             return Ok(());
         }
         self.erase(screen, output)?;
@@ -129,6 +189,7 @@ mod tests {
                 insert_text: name.into(),
                 description: "source control".into(),
                 kind: CandidateKind::Command,
+                ..Default::default()
             })
             .collect();
         let mut overlay = Overlay::default();
@@ -197,6 +258,7 @@ mod tests {
             insert_text: "git".into(),
             description: "source control".into(),
             kind: CandidateKind::Command,
+            ..Default::default()
         };
         let mut overlay = Overlay::default();
         let mut bytes = Vec::new();

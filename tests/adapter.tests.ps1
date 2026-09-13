@@ -43,6 +43,17 @@ Assert-ShellsenseTrue -Condition ([IO.File]::Exists($adapterPath)) -Message 'ada
 # PSReadLine merely because its commands are discoverable.
 $env:SHELLSENSE_TOKEN = 'adapter-test-token'
 $env:SHELLSENSE_EDIT_PATH = Join-Path ([IO.Path]::GetTempPath()) ('shellsense-adapter-test-' + [Guid]::NewGuid().ToString('N') + '.json')
+$env:SHELLSENSE_REQUEST_PATH = $null
+$env:SHELLSENSE_KEY_PREFIX = $null
+$env:SHELLSENSE_PUBLIC_KEYS = $null
+$env:SHELLSENSE_PUBLIC_KEYS_VERSION = $null
+foreach ($publicKeyName in @('TRIGGER', 'NATIVE', 'DETAILS', 'REFRESH', 'RELOAD')) {
+    [Environment]::SetEnvironmentVariable(
+        ('SHELLSENSE_PUBLIC_KEY_' + $publicKeyName),
+        $null,
+        'Process')
+}
+$env:SHELLSENSE_NO_HISTORY = '1'
 $capturedWriter = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
 $consoleWriter = [Console]::Out
 [Console]::SetOut($capturedWriter)
@@ -62,6 +73,12 @@ $capabilities = ConvertFrom-Json -InputObject $capabilityJson
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.ready) -Expected $false -Message 'readiness is false without the PSReadLine surface'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.psreadline) -Expected $false -Message 'noninteractive bootstrap does not load PSReadLine'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.key_handlers.buffer) -Expected $false -Message 'noninteractive bootstrap has no buffer key handler'
+Assert-ShellsenseEqual -Actual ([int]$capabilities.protocol_version) -Expected 2 -Message 'bootstrap advertises protocol v2'
+Assert-ShellsenseEqual -Actual ([int]$capabilities.protocol) -Expected 2 -Message 'legacy protocol version alias is retained'
+Assert-ShellsenseEqual -Actual ([string]$capabilities.key_prefix) -Expected 'F12' -Message 'default protocol prefix is F12'
+Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.manual_native) -Expected $true -Message 'native completion is manual-only'
+Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.command_position) -Expected $true -Message 'context command-position capability is advertised'
+Assert-ShellsenseTrue -Condition ([string]$script:SHELLSENSE_REQUEST_PATH -match '(?i)[\\/]request\.json$') -Message 'request path defaults beside edit path'
 
 # Frame construction must JSON-escape terminal-sensitive text rather than
 # writing it as raw control data.
@@ -138,6 +155,19 @@ Assert-ShellsenseTrue -Condition (-not (Test-ShellsenseEditPayload -Payload $bad
 $fallbackCwd = Get-ShellsenseWorkingDirectory
 Assert-ShellsenseTrue -Condition ([IO.Directory]::Exists($fallbackCwd)) -Message 'cwd is a filesystem directory'
 
+$savedEnvironmentSnapshot = $script:SHELLSENSE_ENVIRONMENT_SNAPSHOT
+try {
+    $script:SHELLSENSE_ENVIRONMENT_SNAPSHOT = $null
+    $firstPromptEnd = Get-ShellsensePromptEndData
+    $secondPromptEnd = Get-ShellsensePromptEndData
+    Assert-ShellsenseTrue -Condition $firstPromptEnd.Contains('environment') -Message 'first prompt end carries the environment snapshot'
+    Assert-ShellsenseTrue -Condition ($firstPromptEnd.environment.Count -gt 0) -Message 'environment snapshot contains process names'
+    Assert-ShellsenseTrue -Condition ($firstPromptEnd.Contains('path') -and $firstPromptEnd.Contains('pathext') -and $firstPromptEnd.Contains('pid')) -Message 'prompt end retains legacy process fields'
+    Assert-ShellsenseTrue -Condition (-not $secondPromptEnd.Contains('environment')) -Message 'unchanged environment is not resent'
+} finally {
+    $script:SHELLSENSE_ENVIRONMENT_SNAPSHOT = $savedEnvironmentSnapshot
+}
+
 $transportText = "中文$([char]0xD83D)$([char]0xDE00)"
 $transportJson = ConvertTo-ShellsenseJson -Payload @{ line = $transportText }
 Assert-ShellsenseTrue -Condition (-not ($transportJson.ToCharArray() | Where-Object { [int]$_ -gt 127 })) -Message 'JSON transport is ASCII under legacy console code pages'
@@ -150,6 +180,69 @@ $decodedEdit = $null
 Assert-ShellsenseTrue -Condition (Test-ShellsenseEditPayload -Payload $decodedEditPayload -CurrentLine $unicodeLine -CurrentCursor 3 -Edit ([ref]$decodedEdit)) -Message 'System.Text.Json edit payload preserves UTF-16 values'
 Assert-ShellsenseEqual -Actual $decodedEdit.text -Expected 'X' -Message 'decoded edit text'
 Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsenseEditJson -Json '[1,2,3]')) -Message 'non-object edit payload is rejected'
+
+# Complex context comes from the live PSReadLine AST in production and from
+# the same parser fallback in this isolated test.  Only safe preceding
+# arguments are returned, and the replacement range stops at the cursor so
+# text to the right of an in-word cursor remains untouched.
+Assert-ShellsenseTrue -Condition ($null -eq (Get-ShellsenseAstBufferContext `
+        -Line 'git sw' -Cursor 6 -Ast $null -Tokens $null -ParseErrors $null)) -Message 'simple lines omit compact context'
+$quotedContext = Get-ShellsenseAstBufferContext `
+    -Line "git switch 'fea" -Cursor 15 -Ast $null -Tokens $null -ParseErrors $null
+Assert-ShellsenseEqual -Actual ([string]$quotedContext.command) -Expected 'git' -Message 'quoted context resolves command'
+Assert-ShellsenseEqual -Actual ([string]$quotedContext.arguments[0]) -Expected 'switch' -Message 'preceding argument is retained'
+Assert-ShellsenseEqual -Actual ([string]$quotedContext.prefix) -Expected 'fea' -Message 'quoted prefix is decoded'
+Assert-ShellsenseEqual -Actual ([int]$quotedContext.replace_start) -Expected 11 -Message 'quoted replacement starts at token extent'
+Assert-ShellsenseEqual -Actual ([int]$quotedContext.replace_end) -Expected 15 -Message 'replacement ends at the UTF-16 cursor'
+Assert-ShellsenseEqual -Actual ([bool]$quotedContext.suppressed) -Expected $false -Message 'open safe quote remains completable'
+Assert-ShellsenseEqual -Actual ([bool]$quotedContext.complex) -Expected $true -Message 'complex context marks its protocol shape'
+
+$middleLine = "git switch 'fea-tail"
+$middleCursor = $middleLine.IndexOf('fea', [StringComparison]::Ordinal) + 2
+$middleContext = Get-ShellsenseAstBufferContext `
+    -Line $middleLine -Cursor $middleCursor -Ast $null -Tokens $null -ParseErrors $null
+Assert-ShellsenseEqual -Actual ([string]$middleContext.prefix) -Expected 'fe' -Message 'cursor-in-word prefix is limited to text before cursor'
+Assert-ShellsenseEqual -Actual ([int]$middleContext.replace_start) -Expected 11 -Message 'cursor-in-word start is exact'
+Assert-ShellsenseEqual -Actual ([int]$middleContext.replace_end) -Expected $middleLine.Length -Message 'cursor-in-word suffix is preserved'
+
+$commentContext = Get-ShellsenseAstBufferContext `
+    -Line 'git switch # comment' -Cursor 20 -Ast $null -Tokens $null -ParseErrors $null
+Assert-ShellsenseEqual -Actual ([bool]$commentContext.suppressed) -Expected $true -Message 'comment text suppresses context'
+$expressionContext = Get-ShellsenseAstBufferContext `
+    -Line 'git switch $(Get-Date)' -Cursor 22 -Ast $null -Tokens $null -ParseErrors $null
+Assert-ShellsenseEqual -Actual ([bool]$expressionContext.suppressed) -Expected $true -Message 'unknown expression suppresses context'
+
+$environmentContext = Get-ShellsenseAstBufferContext `
+    -Line '$env:Pa' -Cursor 7 -Ast $null -Tokens $null -ParseErrors $null
+Assert-ShellsenseEqual -Actual ([string]$environmentContext.prefix) -Expected '$env:Pa' -Message 'environment namespace stays in prefix'
+Assert-ShellsenseEqual -Actual ([int]$environmentContext.replace_start) -Expected 0 -Message 'standalone environment prefix starts at variable'
+Assert-ShellsenseEqual -Actual ([int]$environmentContext.replace_end) -Expected 7 -Message 'environment range uses UTF-16 cursor'
+Assert-ShellsenseEqual -Actual ([bool]$environmentContext.command_position) -Expected $false -Message 'environment variable is a value expression'
+Assert-ShellsenseEqual -Actual ([bool]$environmentContext.suppressed) -Expected $false -Message 'environment names are safe to complete'
+$quotedEnvironmentLine = [string]::Concat('Write-Output ', [char]34, '$env:Pa')
+$quotedEnvironmentContext = Get-ShellsenseAstBufferContext `
+    -Line $quotedEnvironmentLine -Cursor $quotedEnvironmentLine.Length -Ast $null -Tokens $null -ParseErrors $null
+Assert-ShellsenseEqual -Actual ([string]$quotedEnvironmentContext.prefix) -Expected '$env:Pa' -Message 'double-quoted environment prefix is decoded'
+Assert-ShellsenseEqual -Actual ([bool]$quotedEnvironmentContext.suppressed) -Expected $false -Message 'double-quoted environment names remain safe'
+
+Assert-ShellsenseEqual -Actual (Test-ShellsenseConfirmedContinuation -Line 'Get-Item' -PreviousLine 'Get-Item') -Expected $false -Message 'complete Enter does not report continuation'
+Assert-ShellsenseEqual -Actual (Test-ShellsenseConfirmedContinuation -Line "Get-Item`r`n" -PreviousLine 'Get-Item') -Expected $true -Message 'confirmed multiline Enter reports continuation'
+Assert-ShellsenseEqual -Actual (Test-ShellsenseConfirmedContinuation -Line 'Get-Item ' -PreviousLine 'Get-Item' -AddLine) -Expected $true -Message 'known AddLine reports a changed buffer'
+Assert-ShellsenseEqual -Actual (ConvertTo-ShellsenseNativeCandidateKind -ResultType 'ParameterName') -Expected 'option' -Message 'native parameter kind maps to protocol option'
+Assert-ShellsenseEqual -Actual (ConvertTo-ShellsenseNativeCandidateKind -ResultType 'ProviderContainer') -Expected 'directory' -Message 'native provider container maps to directory'
+Assert-ShellsenseEqual -Actual (ConvertTo-ShellsenseNativeCandidateKind -ResultType 'Method') -Expected 'value' -Message 'unknown native kind remains valid'
+
+$nativeRequest = ConvertFrom-ShellsenseRequestJson -Json '{"id":"native-1","kind":"native"}'
+Assert-ShellsenseEqual -Actual ([string]$nativeRequest.id) -Expected 'native-1' -Message 'native request id is parsed'
+Assert-ShellsenseEqual -Actual ([string]$nativeRequest.kind) -Expected 'native' -Message 'native request kind is parsed'
+$numericRequest = ConvertFrom-ShellsenseRequestJson -Json '{"id":42,"kind":"native"}'
+Assert-ShellsenseEqual -Actual ([string]$numericRequest.id) -Expected '42' -Message 'numeric request ids remain interoperable'
+$publicObjectRequest = ConvertFrom-ShellsenseRequestJson -Json '{"id":"keys-1","kind":"commands_reset","public_keys":{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space"}}'
+Assert-ShellsenseEqual -Actual ([string]$publicObjectRequest.public_keys_json) -Expected '{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space"}' -Message 'commands reset accepts an object public-key map'
+$publicStringRequest = ConvertFrom-ShellsenseRequestJson -Json '{"id":"keys-2","kind":"commands_reset","public_keys_json":"{\"details\":\"F1\"}"}'
+Assert-ShellsenseEqual -Actual ([string]$publicStringRequest.public_keys_json) -Expected '{"details":"F1"}' -Message 'commands reset accepts a serialized public-key map'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsenseRequestJson -Json '{"id":"native-1"}')) -Message 'request without kind is rejected'
+Assert-ShellsenseTrue -Condition ($null -eq (ConvertFrom-ShellsenseRequestJson -Json '[{"id":"native-1","kind":"native"}]')) -Message 'request arrays are rejected'
 
 # Command snapshots are intentionally fed by a deterministic in-memory
 # provider. This exercises the >512 path without creating functions or
@@ -191,9 +284,12 @@ function Reset-ShellsenseReadLineTestState {
     $script:SHELLSENSE_READLINE_WRAPPED = $false
     $script:SHELLSENSE_ORIGINAL_READLINE = $null
     $script:SHELLSENSE_KEY_HANDLERS = [ordered]@{
-        buffer   = $false
-        apply    = $false
-        commands = $false
+        buffer      = $false
+        apply       = $false
+        commands    = $false
+        native      = $false
+        enter       = $false
+        shift_enter = $false
     }
 }
 $collisionChords = @('F12', 'F12,s', 'F12,a', 'F12,c')
@@ -228,6 +324,12 @@ try {
     $existingApply = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('F12,a')))
     Assert-ShellsenseEqual -Actual $existingApply.Count -Expected 1 -Message 'existing F12,a binding remains installed'
     Assert-ShellsenseEqual -Actual ([string]$existingApply[0].Function) -Expected 'existing apply' -Message 'existing F12,a binding is not overwritten'
+    $childSnapshot = Get-ShellsenseKeyHandlerSnapshot
+    Assert-ShellsenseTrue -Condition ($childSnapshot.by_chord -is [System.Collections.Hashtable]) -Message 'key snapshot uses a case-insensitive hashtable'
+    Assert-ShellsenseTrue -Condition ($childSnapshot.by_chord['f12,a'] -is [array]) -Message 'key snapshot chord bucket uses an object array'
+    $mappedChild = @(Get-ShellsenseKeyBinding -Chord 'F12,A' -Snapshot $childSnapshot)
+    Assert-ShellsenseEqual -Actual $mappedChild.Count -Expected 1 -Message 'case-insensitive chord lookup finds exact child binding'
+    Assert-ShellsenseEqual -Actual ([string]$mappedChild[0].Function) -Expected 'existing apply' -Message 'mapped child lookup preserves binding metadata'
 
     foreach ($chord in $collisionChords) {
         [Microsoft.PowerShell.PSConsoleReadLine]::RemoveKeyHandler([string[]]@($chord))
@@ -252,7 +354,9 @@ try {
         Get-ShellsenseCapturedEvents -Raw $parentCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN) |
             Where-Object { $_.event -eq 'error' -and $_.code -eq 'key_chord_collision' }
     )
-    Assert-ShellsenseEqual -Actual $parentCollisionEvents.Count -Expected 3 -Message 'bare F12 reports all reserved child collisions'
+    Assert-ShellsenseEqual -Actual $parentCollisionEvents.Count -Expected 6 -Message 'bare F12 reports all reserved child and lifecycle collisions'
+    Assert-ShellsenseTrue -Condition ([string]$parentCollisionEvents[0].suggestion -match 'SHELLSENSE_KEY_PREFIX=F(?:5|6|7|8|9|10|11)\.' -and
+        [string]$parentCollisionEvents[0].suggestion -notmatch 'SHELLSENSE_KEY_PREFIX=F12') -Message 'collision suggests a different configurable protocol prefix'
     $existingParent = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('F12')))
     Assert-ShellsenseEqual -Actual $existingParent.Count -Expected 1 -Message 'existing bare F12 binding remains installed'
     Assert-ShellsenseEqual -Actual ([string]$existingParent[0].Function) -Expected 'existing parent' -Message 'existing bare F12 binding is not overwritten'
@@ -268,6 +372,127 @@ try {
     $script:SHELLSENSE_ORIGINAL_READLINE = $savedOriginalReadLine
     $script:SHELLSENSE_KEY_HANDLERS = $savedKeyHandlers
 }
+
+# Public host shortcuts are optional. When configured, the standard
+# PSReadLine MenuComplete binding is safe to supersede, while F1's built-in
+# ShowCommandHelp and any user ScriptBlock remain owned by the user.
+$publicKeyValues = [ordered]@{
+    trigger = 'Ctrl+Space'
+    native  = 'Ctrl+Alt+Space'
+    details = 'F1'
+    refresh = 'Ctrl+Alt+C'
+    reload  = 'Ctrl+Alt+R'
+}
+$env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
+$env:SHELLSENSE_PUBLIC_KEYS_VERSION = '1'
+foreach ($publicKeyName in $publicKeyValues.Keys) {
+    [Environment]::SetEnvironmentVariable(
+        ('SHELLSENSE_PUBLIC_KEY_' + $publicKeyName.ToUpperInvariant()),
+        [string]$publicKeyValues[$publicKeyName],
+        'Process')
+}
+$fastPublicConfiguration = Get-ShellsensePublicKeyConfiguration
+Assert-ShellsenseEqual -Actual ([string]$fastPublicConfiguration.trigger) -Expected 'Ctrl+Space' -Message 'validated public-key environment fast path is used'
+Assert-ShellsenseEqual -Actual $fastPublicConfiguration.Count -Expected 5 -Message 'validated public-key fast path exposes all keys'
+$env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"F7","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
+$env:SHELLSENSE_PUBLIC_KEY_RELOAD = $null
+$fallbackPublicConfiguration = Get-ShellsensePublicKeyConfiguration
+Assert-ShellsenseEqual -Actual ([string]$fallbackPublicConfiguration.trigger) -Expected 'F7' -Message 'missing validated key falls back to the original JSON'
+$env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
+[Environment]::SetEnvironmentVariable('SHELLSENSE_PUBLIC_KEY_RELOAD', $publicKeyValues.reload, 'Process')
+Reset-ShellsenseReadLineTestState
+$publicCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+[Console]::SetOut($publicCapture)
+try {
+    Initialize-ShellsenseReadLine
+    Send-ShellsenseCapabilities
+} finally {
+    [Console]::SetOut($consoleWriter)
+}
+$publicEvents = @(Get-ShellsenseCapturedEvents -Raw $publicCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN))
+$publicCapabilities = @($publicEvents | Where-Object { $_.event -eq 'capabilities' } | Select-Object -Last 1)
+Assert-ShellsenseEqual -Actual $publicCapabilities.Count -Expected 1 -Message 'public-key capabilities are advertised when configured'
+Assert-ShellsenseEqual -Actual ([bool]$publicCapabilities[0].capabilities.public_keys.trigger) -Expected $true -Message 'standard trigger binding is safe to supersede'
+Assert-ShellsenseEqual -Actual ([bool]$publicCapabilities[0].capabilities.public_keys.native) -Expected $true -Message 'unbound native shortcut is available'
+Assert-ShellsenseEqual -Actual ([bool]$publicCapabilities[0].capabilities.public_keys.details) -Expected $true -Message 'standard F1 help binding can coexist with menu details'
+Assert-ShellsenseEqual -Actual ([bool]$publicCapabilities[0].capabilities.public_keys.refresh) -Expected $true -Message 'unbound refresh shortcut is available'
+Assert-ShellsenseEqual -Actual ([bool]$publicCapabilities[0].capabilities.public_keys.reload) -Expected $true -Message 'unbound reload shortcut is available'
+
+$customTriggerHandler = { }
+[Microsoft.PowerShell.PSConsoleReadLine]::RemoveKeyHandler([string[]]@('Ctrl+Spacebar'))
+[Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+    [string[]]@('Ctrl+Spacebar'),
+    $customTriggerHandler,
+    'custom trigger test handler',
+    'custom trigger test handler')
+Reset-ShellsenseReadLineTestState
+$customPublicCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+[Console]::SetOut($customPublicCapture)
+try {
+    Initialize-ShellsenseReadLine
+    Send-ShellsenseCapabilities
+} finally {
+    [Console]::SetOut($consoleWriter)
+}
+$customPublicEvents = @(Get-ShellsenseCapturedEvents -Raw $customPublicCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN))
+$customPublicCapabilities = @($customPublicEvents | Where-Object { $_.event -eq 'capabilities' } | Select-Object -Last 1)
+Assert-ShellsenseEqual -Actual ([bool]$customPublicCapabilities[0].capabilities.public_keys.trigger) -Expected $false -Message 'custom trigger binding is reported as a conflict'
+$customTriggerBindings = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('Ctrl+Spacebar')))
+Assert-ShellsenseEqual -Actual ([string]$customTriggerBindings[0].Function) -Expected 'custom trigger test handler' -Message 'custom trigger binding remains installed'
+$env:SHELLSENSE_PUBLIC_KEYS = $null
+$env:SHELLSENSE_PUBLIC_KEYS_VERSION = $null
+foreach ($publicKeyName in @('TRIGGER', 'NATIVE', 'DETAILS', 'REFRESH', 'RELOAD')) {
+    [Environment]::SetEnvironmentVariable(
+        ('SHELLSENSE_PUBLIC_KEY_' + $publicKeyName),
+        $null,
+        'Process')
+}
+Get-ShellsensePublicKeyConfiguration | Out-Null
+
+# A custom Enter binding must remain untouched.  The lifecycle override is
+# only safe when PSReadLine still reports its built-in AcceptLine handler.
+$customEnterHandler = { }
+[Microsoft.PowerShell.PSConsoleReadLine]::RemoveKeyHandler([string[]]@('Enter'))
+[Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+    [string[]]@('Enter'),
+    $customEnterHandler,
+    'custom Enter test handler',
+    'custom Enter test handler')
+Reset-ShellsenseReadLineTestState
+$customEnterCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+[Console]::SetOut($customEnterCapture)
+try {
+    Initialize-ShellsenseReadLine
+} finally {
+    [Console]::SetOut($consoleWriter)
+}
+Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS.enter) -Expected $false -Message 'custom Enter leaves lifecycle override unavailable'
+$customEnterBindings = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('Enter')))
+Assert-ShellsenseEqual -Actual $customEnterBindings.Count -Expected 1 -Message 'custom Enter binding remains installed'
+Assert-ShellsenseEqual -Actual ([string]$customEnterBindings[0].Function) -Expected 'custom Enter test handler' -Message 'custom Enter function is preserved'
+
+# Native completion is reachable only from its manual request key.  A
+# redirected/noninteractive runspace cannot provide a real PSReadLine buffer;
+# it must still return a diagnostic status and a safe zero-width UTF-16 range.
+$savedNativeToken = [string]$script:SHELLSENSE_TOKEN
+$nativeToken = 'adapter-native-token'
+$nativeCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+[Console]::SetOut($nativeCapture)
+try {
+    $script:SHELLSENSE_TOKEN = $nativeToken
+    Get-ShellsenseNativeCompletion -RequestId 'native-error-1'
+} finally {
+    $script:SHELLSENSE_TOKEN = $savedNativeToken
+    [Console]::SetOut($consoleWriter)
+}
+$nativeEvents = @(Get-ShellsenseCapturedEvents -Raw $nativeCapture.ToString() -Token $nativeToken)
+Assert-ShellsenseEqual -Actual $nativeEvents.Count -Expected 1 -Message 'native failure still returns one protocol frame'
+Assert-ShellsenseEqual -Actual ([string]$nativeEvents[0].event) -Expected 'native_completion' -Message 'native failure event type'
+Assert-ShellsenseEqual -Actual ([string]$nativeEvents[0].request_id) -Expected 'native-error-1' -Message 'native failure request id'
+Assert-ShellsenseTrue -Condition ([string]$nativeEvents[0].status -in @('error', 'unavailable')) -Message 'native failure returns a diagnostic status'
+Assert-ShellsenseEqual -Actual ([int]$nativeEvents[0].replace_start) -Expected 0 -Message 'native failure has a safe replacement start'
+Assert-ShellsenseEqual -Actual ([int]$nativeEvents[0].replace_end) -Expected 0 -Message 'native failure has a safe replacement end'
+Assert-ShellsenseEqual -Actual (@($nativeEvents[0].candidates).Count) -Expected 0 -Message 'native failure has no candidates'
 
 # Trace is opt-in and must emit one bounded numeric stage event without
 # recursively tracing the trace frame itself or copying user payload fields.
@@ -334,7 +559,7 @@ $fixtureNamesBefore = @($ExecutionContext.InvokeCommand.GetCommands('shellsenseF
 $commandToken = 'adapter-commands-token'
 $savedCommandToken = [string]$script:SHELLSENSE_TOKEN
 $commandCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
-$commandProvider = { $fixtureCommands }
+$commandProvider = { return ,$fixtureCommands }
 [Console]::SetOut($commandCapture)
 try {
     $script:SHELLSENSE_TOKEN = $commandToken
@@ -361,7 +586,7 @@ try {
         Assert-ShellsenseEqual -Actual ([string]$event.event) -Expected 'commands' -Message 'snapshot event type'
         Assert-ShellsenseEqual -Actual ([string]$event.snapshot) -Expected $firstSnapshotId -Message 'all batches share one snapshot id'
         $batch = @($event.commands)
-        Assert-ShellsenseTrue -Condition ($batch.Count -le 128) -Message 'snapshot batch is bounded at 128 entries'
+        Assert-ShellsenseTrue -Condition ($batch.Count -le 64) -Message 'snapshot batch is bounded at 64 entries'
         $totalCommands += $batch.Count
         foreach ($command in $batch) {
             if ([string]$command.name -eq 'shellsenseDuplicate') {
@@ -391,18 +616,93 @@ try {
     $secondEvents = @(Get-ShellsenseCapturedEvents -Raw $secondCapture.ToString() -Token $commandToken)
     Assert-ShellsenseEqual -Actual $secondEvents.Count -Expected 1 -Message 'new snapshot starts with one batch'
     Assert-ShellsenseTrue -Condition (-not [string]::Equals([string]$secondEvents[0].snapshot, $firstSnapshotId, [StringComparison]::Ordinal)) -Message 'new snapshot receives a new UUID'
-    Assert-ShellsenseEqual -Actual (@($secondEvents[0].commands).Count) -Expected 128 -Message 'new snapshot starts at batch zero'
+    Assert-ShellsenseTrue -Condition ((@($secondEvents[0].commands).Count -gt 0) -and (@($secondEvents[0].commands).Count -le 64)) -Message 'new snapshot starts with a bounded non-empty batch'
     # Drain the second fixture snapshot before leaving the test so later
     # adapter calls start from a clean cursor as well.
     while ($null -ne $script:SHELLSENSE_COMMAND_SNAPSHOT_ID) {
         Get-ShellsenseImportedCommands -CommandProvider $commandProvider
     }
+
+    # A commands_reset request must discard the old enumerator and publish a
+    # new snapshot id, with the request id attached to its first batch.
+    $seedCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    [Console]::SetOut($seedCapture)
+    Get-ShellsenseImportedCommands -CommandProvider $commandProvider
+    [Console]::SetOut($consoleWriter)
+    $seedEvents = @(Get-ShellsenseCapturedEvents -Raw $seedCapture.ToString() -Token $commandToken)
+    Assert-ShellsenseEqual -Actual $seedEvents.Count -Expected 1 -Message 'reset test seeds one command batch'
+    $seedSnapshotId = [string]$seedEvents[0].snapshot
+
+    $resetRequestPath = Get-ShellsenseRequestPath
+    [IO.File]::WriteAllText(
+        $resetRequestPath,
+        '{"id":"commands-reset-1","kind":"commands_reset"}',
+        [Text.UTF8Encoding]::new($false))
+    $resetCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    [Console]::SetOut($resetCapture)
+    try {
+        Invoke-ShellsenseCommandsKeyHandler
+    } finally {
+        [Console]::SetOut($consoleWriter)
+        Remove-Item -LiteralPath $resetRequestPath -Force -ErrorAction SilentlyContinue
+    }
+    $resetEvents = @(Get-ShellsenseCapturedEvents -Raw $resetCapture.ToString() -Token $commandToken)
+    Assert-ShellsenseEqual -Actual $resetEvents.Count -Expected 1 -Message 'commands_reset returns one fresh batch'
+    Assert-ShellsenseTrue -Condition (-not [string]::Equals([string]$resetEvents[0].snapshot, $seedSnapshotId, [StringComparison]::Ordinal)) -Message 'commands_reset replaces the previous snapshot id'
+    Assert-ShellsenseEqual -Actual ([string]$resetEvents[0].request_id) -Expected 'commands-reset-1' -Message 'commands_reset request id is acknowledged on the batch'
+
+    # A host reload can carry its new public shortcut map in the same reset
+    # request. Start from the custom Ctrl+Space collision installed above,
+    # then switch trigger to an unbound chord and require a fresh capability
+    # frame before the replacement command batch.
+    $env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"Ctrl+Space"}'
+    Update-ShellsensePublicKeyCapabilities
+    Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_PUBLIC_KEY_STATUS.trigger) -Expected $false -Message 'pre-reset public trigger is still colliding'
+    $env:SHELLSENSE_PUBLIC_KEYS = $null
+    $rebindRequestPath = Get-ShellsenseRequestPath
+    [IO.File]::WriteAllText(
+        $rebindRequestPath,
+        '{"id":"commands-reset-keys","kind":"commands_reset","public_keys_json":"{\"trigger\":\"Ctrl+Alt+Space\"}"}',
+        [Text.UTF8Encoding]::new($false))
+    $rebindCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    [Console]::SetOut($rebindCapture)
+    try {
+        Invoke-ShellsenseCommandsKeyHandler
+    } finally {
+        [Console]::SetOut($consoleWriter)
+        Remove-Item -LiteralPath $rebindRequestPath -Force -ErrorAction SilentlyContinue
+    }
+    $rebindEvents = @(Get-ShellsenseCapturedEvents -Raw $rebindCapture.ToString() -Token $commandToken)
+    $rebindCapabilities = @($rebindEvents | Where-Object { $_.event -eq 'capabilities' })
+    Assert-ShellsenseEqual -Actual $rebindCapabilities.Count -Expected 1 -Message 'public-key reset emits fresh capabilities'
+    Assert-ShellsenseEqual -Actual ([bool]$rebindCapabilities[0].capabilities.public_keys.trigger) -Expected $true -Message 'public-key reset re-arbitrates the new trigger chord'
+    $script:SHELLSENSE_PUBLIC_KEY_STATUS = $null
+    Reset-ShellsenseCommandSnapshot
 } finally {
     $script:SHELLSENSE_TOKEN = $savedCommandToken
     [Console]::SetOut($consoleWriter)
 }
 $fixtureNamesAfter = @($ExecutionContext.InvokeCommand.GetCommands('shellsenseFixture*', $commandTypes, $true))
 Assert-ShellsenseEqual -Actual $fixtureNamesAfter.Count -Expected $fixtureNamesBefore.Count -Message 'fixture provider does not pollute loaded commands'
+
+# Production command discovery must hand the lazy GetCommands sequence to the
+# enumerator without first routing it through a PowerShell pipeline.  A direct
+# assignment therefore remains a non-array IEnumerable.
+$loadedSequence = Get-ShellsenseLoadedCommands
+Assert-ShellsenseTrue -Condition ($loadedSequence -is [System.Collections.IEnumerable] -and $loadedSequence -isnot [array]) -Message 'loaded command sequence remains lazy'
+$loadedEnumerator = Get-ShellsenseEnumerator -Sequence $loadedSequence
+Assert-ShellsenseTrue -Condition ($loadedEnumerator -is [System.Collections.IEnumerator]) -Message 'lazy sequence exposes an enumerator'
+$realGiRecord = $null
+while ($loadedEnumerator.MoveNext()) {
+    if ([string]::Equals([string]$loadedEnumerator.Current.Name, 'gi', [StringComparison]::OrdinalIgnoreCase)) {
+        $realGiRecord = ConvertTo-ShellsenseCommandRecord -Command $loadedEnumerator.Current
+        break
+    }
+}
+Assert-ShellsenseTrue -Condition ($null -ne $realGiRecord) -Message 'real same-runspace command enumeration includes gi alias'
+Assert-ShellsenseEqual -Actual ([string]$realGiRecord.kind) -Expected 'alias' -Message 'real gi record retains alias kind'
+Assert-ShellsenseEqual -Actual ([string]$realGiRecord.definition) -Expected 'Get-Item' -Message 'real gi record retains alias target'
+Reset-ShellsenseCommandSnapshot
 
 # Preserve the prior command status seen by a user's actual Prompt.
 Remove-Variable LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue

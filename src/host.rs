@@ -3,10 +3,11 @@ use crate::{
     config::{self, Config},
     engine::{CommandIndex, Discovery},
     input::{self, Input},
-    model::{Completion, ShellCommand},
+    model::{Candidate, Completion, InputContext, ShellCommand},
     overlay::Overlay,
     protocol::{self, Decoder, Part},
     pty,
+    ranking::{Learning, UsageSnapshot},
     trace::Trace,
 };
 use anyhow::{Context, Result};
@@ -28,16 +29,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-const QUERY: &[u8] = b"\x1b[24~s";
-const ACCEPT: &[u8] = b"\x1b[24~a";
-const COMMANDS: &[u8] = b"\x1b[24~c";
-
 pub struct RunOptions {
     pub shell: PathBuf,
     pub no_profile: bool,
     pub config_path: Option<PathBuf>,
     pub data_dir: PathBuf,
     pub trace_path: Option<PathBuf>,
+    pub transport: Transport,
+}
+
+#[derive(Clone, Copy, Default, clap::ValueEnum)]
+pub enum Transport {
+    #[default]
+    Osc,
+    Pipe,
 }
 
 enum HostEvent {
@@ -47,6 +52,8 @@ enum HostEvent {
     Exit(u32),
     Error(String),
     Completion(u64, Completion),
+    Diagnostic(String),
+    Reload,
 }
 
 #[derive(Clone)]
@@ -57,6 +64,11 @@ struct Query {
     cwd: PathBuf,
     limit: usize,
     descriptions: Arc<BTreeMap<String, String>>,
+    context: Option<InputContext>,
+    fuzzy: bool,
+    usage: Option<Arc<UsageSnapshot>>,
+    environment: Arc<BTreeMap<String, String>>,
+    dynamic: bool,
 }
 
 #[derive(Default)]
@@ -67,21 +79,62 @@ struct Work {
     commands: Option<Vec<ShellCommand>>,
     query: Option<Query>,
     environment: Option<(String, String)>,
+    source_updates: Vec<crate::sources::SourceUpdate>,
+    cancel: bool,
+    invalidate_sources: bool,
+    catalog_path: Option<PathBuf>,
+    catalog_snapshot: Option<Arc<crate::spec_catalog::Catalog>>,
 }
 
 struct Worker(Arc<(Mutex<Work>, Condvar)>);
 
 impl Worker {
-    fn new(cache: PathBuf, output: SyncSender<HostEvent>, trace: Trace) -> Self {
+    fn new(
+        cache: PathBuf,
+        catalog_path: PathBuf,
+        source_status_path: PathBuf,
+        output: SyncSender<HostEvent>,
+        trace: Trace,
+    ) -> Self {
         let shared = Arc::new((Mutex::new(Work::default()), Condvar::new()));
         let thread_shared = shared.clone();
         thread::spawn(move || {
+            let mut catalog = Arc::new(crate::spec_catalog::Catalog::builtin().clone());
+            match crate::spec_catalog::Catalog::load_user_dir(&catalog_path) {
+                Ok(loaded) if loaded.diagnostics().is_empty() => catalog = Arc::new(loaded),
+                Ok(_) => {
+                    let _ = output.send(HostEvent::Diagnostic(
+                        "用户规格无效，暂时使用内置规格；运行 specs check 查看原因".into(),
+                    ));
+                }
+                Err(error) => {
+                    let _ =
+                        output.send(HostEvent::Diagnostic(format!("加载用户规格失败：{error}")));
+                }
+            }
+            thread_shared.0.lock().unwrap().catalog_snapshot = Some(catalog.clone());
+            let source_shared = thread_shared.clone();
+            let mut sources = crate::sources::Sources::new(move |update| {
+                let (lock, condition) = &*source_shared;
+                let mut work = lock.lock().unwrap();
+                if update.kind == crate::sources::SourceKind::Invalidated {
+                    work.invalidate_sources = true;
+                } else {
+                    work.source_updates.push(update);
+                }
+                condition.notify_one();
+            });
+            let mut request: Option<crate::sources::SourceRequest> = None;
+            let mut parts: [Option<crate::sources::SourceUpdate>; 2] = [None, None];
             let cache_writer = CacheWriter::new(cache.clone(), trace.clone());
+            let source_status = crate::status::StatusWriter::new(source_status_path);
+            let mut last_source_status = Value::Null;
             let mut index: Option<CommandIndex> = None;
             let mut discovery: Option<Discovery> = None;
             let mut environment: Option<(String, String)> = None;
             let mut shell_commands = Vec::new();
             let mut latest_query: Option<Query> = None;
+            let mut prepared: Option<(u64, Completion, crate::sources::SourceRequest)> = None;
             loop {
                 let (lock, condition) = &*thread_shared;
                 let mut work = lock.lock().unwrap();
@@ -90,6 +143,10 @@ impl Worker {
                         || (!work.refresh
                             && work.commands.is_none()
                             && work.query.is_none()
+                            && work.source_updates.is_empty()
+                            && !work.invalidate_sources
+                            && !work.cancel
+                            && work.catalog_path.is_none()
                             && index.is_some()
                             && discovery.is_none()))
                 {
@@ -99,6 +156,10 @@ impl Worker {
                     break;
                 }
                 let refresh = std::mem::take(&mut work.refresh);
+                let cancel = std::mem::take(&mut work.cancel);
+                let invalidate_sources = std::mem::take(&mut work.invalidate_sources);
+                let updates = std::mem::take(&mut work.source_updates);
+                let reload_catalog = work.catalog_path.take();
                 let commands = work.commands.take();
                 let commands_changed = commands.is_some();
                 let query = work.query.take();
@@ -107,6 +168,32 @@ impl Worker {
                     environment = Some(env);
                 }
                 drop(work);
+                if cancel {
+                    prepared = None;
+                    latest_query = None;
+                    request = None;
+                    parts = [None, None];
+                    sources.cancel();
+                }
+                if let Some(path) = reload_catalog.as_ref() {
+                    match crate::spec_catalog::Catalog::load_user_dir(path) {
+                        Ok(loaded) if loaded.diagnostics().is_empty() => {
+                            catalog = Arc::new(loaded);
+                            thread_shared.0.lock().unwrap().catalog_snapshot =
+                                Some(catalog.clone());
+                        }
+                        Ok(_) => {
+                            let _ = output.send(HostEvent::Diagnostic(
+                                "用户规格校验失败，保留上次有效规格；运行 specs check 查看原因"
+                                    .into(),
+                            ));
+                        }
+                        Err(error) => {
+                            let _ = output
+                                .send(HostEvent::Diagnostic(format!("规格重载失败：{error}")));
+                        }
+                    }
+                }
                 if let Some(commands) = commands {
                     shell_commands = commands;
                 }
@@ -166,12 +253,87 @@ impl Worker {
                 if changed {
                     index.replace_shell_commands(shell_commands.clone());
                 }
-                if let Some(q) = latest_query.as_ref().filter(|_| changed || query_changed) {
+                if let Some(q) = latest_query.as_ref().filter(|_| {
+                    changed
+                        || query_changed
+                        || !updates.is_empty()
+                        || invalidate_sources
+                        || refresh
+                        || reload_catalog.is_some()
+                }) {
                     let started = Instant::now();
-                    let result = index.complete_with_descriptions(
-                        &q.line,
-                        q.cursor,
-                        &q.cwd,
+                    let (base, next) = if let Some((_, base, next)) =
+                        prepared.as_ref().filter(|(revision, _, _)| {
+                            *revision == q.revision
+                                && !changed
+                                && !query_changed
+                                && reload_catalog.is_none()
+                        }) {
+                        (base.clone(), next.clone())
+                    } else {
+                        let result = crate::completion::plan(
+                            index,
+                            &catalog,
+                            &q.line,
+                            q.cursor,
+                            &q.cwd,
+                            q.context.as_ref(),
+                            q.revision,
+                            q.environment.clone(),
+                            q.fuzzy,
+                            q.dynamic,
+                            &q.descriptions,
+                        );
+                        prepared = Some((q.revision, result.0.clone(), result.1.clone()));
+                        result
+                    };
+                    let force = invalidate_sources || refresh || reload_catalog.is_some();
+                    if request.as_ref() != Some(&next) || force {
+                        parts = [None, None];
+                        sources.submit(next.clone(), force);
+                        request = Some(next);
+                    }
+                    for update in updates {
+                        if update.revision != q.revision
+                            || update.generation != sources.generation()
+                        {
+                            continue;
+                        }
+                        if let Some(root) = update.project_root.as_ref() {
+                            sources.watch_project(root);
+                        }
+                        sources.watch_paths(&update.watch_paths);
+                        let slot = usize::from(update.kind == crate::sources::SourceKind::Paths);
+                        trace.event(
+                            "dynamic_ready",
+                            Some(q.revision),
+                            Some(update.elapsed),
+                            Some(update.candidates.len()),
+                        );
+                        parts[slot] = Some(update);
+                    }
+                    // Report the most recently returned provider snapshots.
+                    // Unchanged hot queries do not cause another disk write.
+                    let provider_state = json!({
+                        "provider": request.as_ref().and_then(|r| r.provider.as_deref()),
+                        "lanes": parts.iter().enumerate().map(|(slot, part)| {
+                            part.as_ref().map(|p| json!({
+                                "kind": if slot == 0 { "project" } else { "paths" },
+                                "complete": !p.incomplete,
+                                "candidates": p.candidates.len(),
+                                "diagnostics": p.diagnostics,
+                            }))
+                        }).collect::<Vec<_>>()
+                    });
+                    if parts.iter().all(Option::is_some) && provider_state != last_source_status {
+                        source_status.update(provider_state.clone());
+                        last_source_status = provider_state;
+                    }
+                    let result = crate::completion::merge(
+                        base,
+                        request.as_ref().unwrap(),
+                        [parts[0].as_ref(), parts[1].as_ref()],
+                        q.usage.as_deref(),
                         q.limit,
                         &q.descriptions,
                     );
@@ -232,8 +394,13 @@ impl RawMode {
                     return Err(std::io::Error::last_os_error());
                 }
                 let mode = (original
-                    & !(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT))
-                    | ENABLE_WINDOW_INPUT;
+                    & !(ENABLE_LINE_INPUT
+                        | ENABLE_ECHO_INPUT
+                        | ENABLE_PROCESSED_INPUT
+                        | ENABLE_QUICK_EDIT_MODE))
+                    | ENABLE_WINDOW_INPUT
+                    | ENABLE_MOUSE_INPUT
+                    | ENABLE_EXTENDED_FLAGS;
                 if SetConsoleMode(handle, mode) == 0 {
                     return Err(std::io::Error::last_os_error());
                 }
@@ -272,6 +439,9 @@ struct SessionFiles(PathBuf);
 impl Drop for SessionFiles {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(self.0.join("edit.json"));
+        let _ = std::fs::remove_file(self.0.join("request.json"));
+        let _ = std::fs::remove_file(self.0.join("adapter.json"));
+        let _ = std::fs::remove_file(self.0.join("adapter.tmp"));
         let _ = std::fs::remove_dir(&self.0);
     }
 }
@@ -310,6 +480,7 @@ impl CommandSnapshot {
 }
 
 struct State {
+    pipe: Option<crate::pipe::PipeServer>,
     parser: vt100::Parser,
     decoder: Decoder,
     overlay: Overlay,
@@ -342,18 +513,100 @@ struct State {
     commands_allowed: bool,
     trace: Trace,
     query_started: Option<Instant>,
+    request_path: PathBuf,
+    protocol_prefix: String,
+    context: Option<InputContext>,
+    shell_environment: Arc<BTreeMap<String, String>>,
+    learning: Arc<Learning>,
+    pending_accept: Option<(u64, String, PathBuf)>,
+    native_request: Option<u64>,
+    native_ready: bool,
+    native_menu: bool,
+    menu_focus: bool,
+    details: bool,
+    enter_ready: bool,
+    shift_enter_ready: bool,
+    native_queued: bool,
+    monitor: crate::reload::Monitor,
+    notification: Option<String>,
+    public_keys: BTreeMap<String, bool>,
+    reset_pending: Option<String>,
+    status_writer: crate::status::StatusWriter,
 }
 
 impl State {
+    fn write_payload(&mut self, kind: &str, payload: &Value) -> Result<()> {
+        if let Some(pipe) = self.pipe.as_mut() {
+            if pipe
+                .write_json(&json!({"kind":kind,"payload":payload}))
+                .is_ok()
+            {
+                return Ok(());
+            }
+            pipe.disable();
+            self.pipe = None;
+            self.diagnostic = Some("管道不可用，已回退 OSC 和本地编辑载荷".into());
+        }
+        let path = if kind == "edit" {
+            &self.edit_path
+        } else {
+            &self.request_path
+        };
+        std::fs::write(path, serde_json::to_vec(payload)?)?;
+        Ok(())
+    }
+    fn reload(&mut self, worker: &Worker) {
+        match config::load(self.config_path.as_deref()) {
+            Ok(mut config) => {
+                if serde_json::to_string(&self.config.keys).ok()
+                    != serde_json::to_string(&config.keys).ok()
+                {
+                    self.reset_pending = serde_json::to_string(&config.keys).ok();
+                }
+                self.descriptions = Arc::new(std::mem::take(&mut config.descriptions));
+                self.config = config;
+                self.monitor
+                    .update(&self.config, self.config_path.as_deref());
+                worker.update(|w| {
+                    w.catalog_path =
+                        Some(config::specs_dir(&self.config, self.config_path.as_deref()))
+                });
+                if self.config.keys.protocol_prefix != self.protocol_prefix {
+                    self.diagnostic = Some("内部快捷键前缀将在下次启动生效".into());
+                }
+                self.invalidate();
+                self.dirty = self.prompt;
+                self.explicit = true;
+                self.dismissed = false;
+            }
+            Err(error) => {
+                self.diagnostic = Some(format!("配置无效，保留上次有效设置：{error}"));
+            }
+        }
+    }
     fn invalidate(&mut self) {
         self.revision += 1;
         self.completion = Completion::default();
         self.selected = 0;
         self.selection_touched = false;
+        self.menu_focus = false;
+        self.details = false;
+        self.native_menu = false;
     }
-    fn message(&mut self, value: Value, writer: &mut impl Write, worker: &Worker) -> Result<()> {
+    fn message(&mut self, value: Value, _writer: &mut impl Write, worker: &Worker) -> Result<()> {
         match value["event"].as_str().unwrap_or("") {
             "capabilities" => {
+                self.status_writer.update(value.clone());
+                self.public_keys = serde_json::from_value(
+                    value
+                        .get("public_keys")
+                        .unwrap_or(&value["capabilities"]["public_keys"])
+                        .clone(),
+                )
+                .unwrap_or_default();
+                self.enter_ready = value["key_handlers"]["enter"] == true;
+                self.shift_enter_ready = value["key_handlers"]["shift_enter"] == true;
+                self.native_ready = value["key_handlers"]["native"] == true;
                 self.ready = value["ready"] == true
                     && value["psreadline"] == true
                     && value["key_handlers"]["buffer"] == true
@@ -364,20 +617,37 @@ impl State {
                 }
             }
             "prompt_start" => {
+                self.notification = None;
+                worker.update(|w| {
+                    w.cancel = true;
+                    w.query = None;
+                });
                 self.prompt = false;
                 self.invalidate();
                 self.pending_query = None;
                 self.dirty = false;
             }
             "prompt_end" => {
+                worker.update(|w| w.invalidate_sources = true);
+                self.native_queued = false;
                 self.trace.event("prompt_end", None, None, None);
                 self.prompt = true;
                 self.commands_allowed = true;
+                // ReadLine disposed the previous enumerator when execution
+                // began. Refresh the session snapshot after every new prompt.
+                self.commands_pending = self.ready;
                 if !self.ready && !self.adapter_diagnostic_shown {
                     self.diagnostic = Some("PowerShell adapter unavailable (PSReadLine or reserved key binding). Completion is disabled for this session.".into());
                     self.adapter_diagnostic_shown = true;
                 }
                 self.line.clear();
+                self.context = None;
+                self.native_request = None;
+                if let Ok(environment) =
+                    serde_json::from_value::<BTreeMap<String, String>>(value["environment"].clone())
+                {
+                    self.shell_environment = Arc::new(environment);
+                }
                 if let Some(cwd) = value["cwd"].as_str() {
                     self.cwd = cwd.into();
                 }
@@ -397,16 +667,28 @@ impl State {
                     worker.update(|w| {
                         w.started = true;
                     });
-                    writer.write_all(COMMANDS)?;
-                    writer.flush()?;
+                    self.commands_pending = true;
                     self.indexed = true;
                 }
             }
             "execute" => {
+                worker.update(|w| {
+                    w.cancel = true;
+                    w.query = None;
+                });
                 self.prompt = false;
                 self.pending_query = None;
                 self.dirty = false;
                 self.invalidate();
+                self.native_request = None;
+                self.commands_pending = false;
+            }
+            "editing" if value["state"] == "continuation" => {
+                self.prompt = true;
+                self.native_request = None;
+                self.pending_query = None;
+                self.dirty = true;
+                self.dismissed = false;
             }
             "commands" => {
                 if let Some((commands, complete)) = self.commands_snapshot.receive(&value) {
@@ -436,6 +718,7 @@ impl State {
                 };
                 self.line = line.into();
                 self.cursor = cursor;
+                self.context = decode_context(line, &value["context"]);
                 if !self.dismissed
                     && (self.explicit
                         || (self.config.completion.auto_trigger && !line.trim().is_empty()))
@@ -447,15 +730,141 @@ impl State {
                         cwd: self.cwd.clone(),
                         limit: self.config.completion.max_results,
                         descriptions: self.descriptions.clone(),
+                        context: self.context.clone(),
+                        fuzzy: self.config.completion.fuzzy,
+                        usage: self
+                            .config
+                            .learning
+                            .enabled
+                            .then(|| self.learning.snapshot()),
+                        environment: self.shell_environment.clone(),
+                        dynamic: self.config.completion.dynamic,
                     };
                     worker.update(|w| w.query = Some(query));
                 }
                 self.explicit = false;
             }
+            "edit_result" => {
+                let id = request_number(&value["request_id"]);
+                if self
+                    .pending_accept
+                    .as_ref()
+                    .is_some_and(|pending| Some(pending.0) == id)
+                {
+                    let (_, key, project) = self.pending_accept.take().unwrap();
+                    if value["applied"] == true {
+                        if self.config.learning.enabled {
+                            self.learning.accepted(&key, &project);
+                        }
+                        self.dismissed = false;
+                        self.explicit = true;
+                    } else {
+                        self.pending_query = None;
+                        self.dirty = true;
+                    }
+                }
+            }
+            "native_completion" => {
+                let id = request_number(&value["request_id"]);
+                if id != self.native_request {
+                    return Ok(());
+                }
+                self.native_request = None;
+                self.pending_query = None;
+                if id != Some(self.revision) || !self.prompt {
+                    self.dirty = self.prompt;
+                    return Ok(());
+                }
+                if value["status"] != "ok" {
+                    self.diagnostic = Some("PowerShell 原生补全没有返回结果".into());
+                    return Ok(());
+                }
+                let Some(line) = value["line"].as_str() else {
+                    return Ok(());
+                };
+                let Some(cursor) = value["cursor"]
+                    .as_u64()
+                    .and_then(|c| protocol::utf16_to_byte(line, c as usize))
+                else {
+                    return Ok(());
+                };
+                let Some(start) = value["replace_start"]
+                    .as_u64()
+                    .and_then(|c| protocol::utf16_to_byte(line, c as usize))
+                else {
+                    return Ok(());
+                };
+                let Some(end) = value["replace_end"]
+                    .as_u64()
+                    .and_then(|c| protocol::utf16_to_byte(line, c as usize))
+                else {
+                    return Ok(());
+                };
+                if start > end {
+                    return Ok(());
+                }
+                let Ok(mut candidates) =
+                    serde_json::from_value::<Vec<Candidate>>(value["candidates"].clone())
+                else {
+                    return Ok(());
+                };
+                candidates.truncate(self.config.completion.max_results);
+                let native_context = decode_context(line, &value["context"]).unwrap_or_else(|| {
+                    CommandIndex::discover_with_env(OsStr::new(""), OsStr::new(".EXE"))
+                        .input_context(line, cursor)
+                });
+                let catalog = worker.0.0.lock().unwrap().catalog_snapshot.clone();
+                let catalog = catalog
+                    .as_deref()
+                    .unwrap_or_else(|| crate::spec_catalog::Catalog::builtin());
+                let known = catalog.lookup_unfiltered(
+                    &native_context.command,
+                    &native_context.arguments,
+                    "",
+                );
+                for candidate in &mut candidates {
+                    candidate.id = format!("native:{}", candidate.insert_text);
+                    candidate.source = "PowerShell 原生补全".into();
+                    candidate.detail = std::mem::take(&mut candidate.description);
+                    candidate.description = catalog
+                        .describe_command(&candidate.label)
+                        .unwrap_or("用途暂未收录 · 原生补全")
+                        .into();
+                    let mut description_key = candidate.label.clone();
+                    if let Some(spec) = known.as_ref().and_then(|result| {
+                        result.candidates.iter().find(|spec| {
+                            spec.name == candidate.label || spec.name == candidate.insert_text
+                        })
+                    }) {
+                        candidate.description = spec.description.clone();
+                        description_key = spec.key.clone();
+                    }
+                    if let Some(custom) = self.descriptions.get(&description_key) {
+                        candidate.description = custom.clone();
+                    }
+                }
+                self.line = line.into();
+                self.cursor = cursor;
+                self.completion = Completion {
+                    replace_start: start,
+                    replace_end: end,
+                    candidates,
+                    incomplete: false,
+                };
+                self.native_menu = true;
+                self.menu_focus = true;
+                self.dismissed = false;
+                self.selected = 0;
+            }
             "error" => {
+                self.notification = Some(format!(
+                    "{}：{}",
+                    value["code"].as_str().unwrap_or("adapter"),
+                    value["message"].as_str().unwrap_or("适配器错误")
+                ));
                 self.pending_query = None;
                 self.dirty = false;
-                self.dismissed = true;
+                self.dismissed = false;
                 self.invalidate();
                 match value["code"].as_str().unwrap_or("") {
                     "buffer_unavailable"
@@ -472,6 +881,10 @@ impl State {
                     Some("readline_init") => "readline_init",
                     Some("command_snapshot") => "command_snapshot",
                     Some("serialize") => "serialize",
+                    Some("key_snapshot") => "key_snapshot",
+                    Some("key_register") => "key_register",
+                    Some("public_keys") => "public_keys",
+                    Some("readline_wrap") => "readline_wrap",
                     _ => return Ok(()),
                 };
                 if let Some(ms) = value["duration_ms"]
@@ -492,8 +905,28 @@ impl State {
     }
 
     fn query(&mut self, writer: &mut impl Write) -> Result<()> {
-        if self.dirty && self.ready && self.prompt && self.pending_query.is_none() {
-            writer.write_all(QUERY)?;
+        if self.native_queued
+            && self.ready
+            && self.prompt
+            && self.pending_query.is_none()
+            && self.native_request.is_none()
+        {
+            self.native_queued = false;
+            self.native_request = Some(self.revision);
+            self.dirty = false;
+            self.write_payload(
+                "request",
+                &json!({"id":self.revision.to_string(),"kind":"native"}),
+            )?;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
+            writer.flush()?;
+        } else if self.dirty
+            && self.ready
+            && self.prompt
+            && self.pending_query.is_none()
+            && self.native_request.is_none()
+        {
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 's'))?;
             writer.flush()?;
             self.pending_query = Some(self.revision);
             if self.trace.enabled() {
@@ -502,14 +935,33 @@ impl State {
             self.trace
                 .event("query_sent", Some(self.revision), None, None);
             self.dirty = false;
+        } else if self.reset_pending.is_some()
+            && self.ready
+            && self.prompt
+            && !self.nested_edit
+            && self.pending_query.is_none()
+            && self.native_request.is_none()
+        {
+            let public_keys = self.reset_pending.take().unwrap();
+            self.write_payload("request", &json!({"id":self.revision.to_string(),"kind":"commands_reset","public_keys_json":public_keys}))?;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'c'))?;
+            writer.flush()?;
+            self.commands_pending = false;
         } else if self.commands_pending
             && self.commands_allowed
             && self.ready
             && self.prompt
             && !self.nested_edit
             && self.pending_query.is_none()
+            && self.native_request.is_none()
         {
-            writer.write_all(COMMANDS)?;
+            if self.pipe.is_some() {
+                self.write_payload(
+                    "request",
+                    &json!({"id":self.revision.to_string(),"kind":"commands_next"}),
+                )?;
+            }
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'c'))?;
             writer.flush()?;
             self.commands_pending = false;
         }
@@ -527,13 +979,24 @@ impl State {
             if end < start {
                 return Ok(());
             }
-            let edit = json!({"expectedLine":self.line,"expectedCursor":cursor,"start":start,"length":end-start,"text":candidate.insert_text});
+            let id = self.revision + 1;
+            let mut text = candidate.insert_text.clone();
+            if self.config.completion.append_space
+                && candidate.append_space
+                && self.completion.replace_end == self.line.len()
+                && !text.ends_with(char::is_whitespace)
+                && crate::engine::space_after(&text)
+            {
+                text.push(' ');
+            }
+            self.pending_accept = Some((id, candidate.identity().into(), self.cwd.clone()));
+            let edit = json!({"id":id.to_string(),"expectedLine":self.line,"expectedCursor":cursor,"start":start,"length":end-start,"text":text});
             // Only the child receives the apply chord, after this write is closed.
-            std::fs::write(&self.edit_path, serde_json::to_vec(&edit)?)?;
+            self.write_payload("edit", &edit)?;
             self.invalidate();
             self.pending_query = Some(self.revision);
             self.dismissed = true;
-            writer.write_all(ACCEPT)?;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'a'))?;
             writer.flush()?;
         }
         Ok(())
@@ -546,6 +1009,13 @@ impl State {
         master: &dyn portable_pty::MasterPty,
         worker: &Worker,
     ) -> Result<()> {
+        if let Event::Mouse(mouse) = event {
+            if let Some(bytes) = input::mouse_bytes(mouse, self.parser.screen()) {
+                writer.write_all(&bytes)?;
+                writer.flush()?;
+            }
+            return Ok(());
+        }
         if matches!(&event, Event::Key(key) if key.kind == crossterm::event::KeyEventKind::Release)
         {
             return Ok(());
@@ -574,10 +1044,64 @@ impl State {
             }
         }
         let paste = matches!(event, Event::Paste(_));
+        let edit_enter = if let Event::Key(key) = &event {
+            use crossterm::event::{KeyCode, KeyModifiers};
+            if self.prompt
+                && self.ready
+                && key.code == KeyCode::Enter
+                && key.modifiers.is_empty()
+                && self.enter_ready
+            {
+                Some('e')
+            } else if self.prompt
+                && self.ready
+                && key.code == KeyCode::Enter
+                && key.modifiers == KeyModifiers::SHIFT
+                && self.shift_enter_ready
+            {
+                Some('l')
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(suffix) = edit_enter {
+            self.notification = None;
+            self.invalidate();
+            self.prompt = false;
+            self.dirty = false;
+            self.native_queued = false;
+            worker.update(|w| {
+                w.cancel = true;
+                w.query = None;
+            });
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, suffix))?;
+            writer.flush()?;
+            return Ok(());
+        }
         if matches!(event, Event::Key(_) | Event::Paste(_)) {
+            self.notification = None;
             self.commands_allowed = query_after && !self.nested_edit;
         }
-        let Some(input) = input::translate(event, self.parser.screen().application_cursor()) else {
+        let configured = if self.prompt && self.ready {
+            input::configured(&event, &self.config.keys).filter(|input| {
+                let name = match input {
+                    Input::Trigger => "trigger",
+                    Input::Native => "native",
+                    Input::Details => "details",
+                    Input::Refresh => "refresh",
+                    Input::Reload => "reload",
+                    _ => return true,
+                };
+                self.public_keys.get(name).copied().unwrap_or(true)
+            })
+        } else {
+            None
+        };
+        let Some(input) = configured
+            .or_else(|| input::translate(event, self.parser.screen().application_cursor()))
+        else {
             return Ok(());
         };
         let visible = !self.completion.candidates.is_empty() && !self.dismissed && self.prompt;
@@ -602,7 +1126,9 @@ impl State {
                 return Ok(());
             }
             Input::Tab if visible => return self.accept(writer),
-            Input::Previous if visible => {
+            Input::Previous
+                if visible && (self.menu_focus || !self.config.completion.up_arrow_history) =>
+            {
                 self.selection_touched = true;
                 self.selected = self
                     .selected
@@ -611,6 +1137,7 @@ impl State {
                 return Ok(());
             }
             Input::BackTab if visible => {
+                self.menu_focus = true;
                 self.selection_touched = true;
                 self.selected = self
                     .selected
@@ -619,6 +1146,7 @@ impl State {
                 return Ok(());
             }
             Input::Next if visible => {
+                self.menu_focus = true;
                 self.selection_touched = true;
                 self.selected = (self.selected + 1) % self.completion.candidates.len();
                 return Ok(());
@@ -629,6 +1157,7 @@ impl State {
                 return Ok(());
             }
             Input::Trigger if self.prompt && self.ready => {
+                self.menu_focus = true;
                 self.explicit = true;
                 self.dismissed = false;
                 self.dirty = true;
@@ -637,22 +1166,33 @@ impl State {
             Input::Refresh if self.prompt && self.ready => {
                 self.commands_allowed = true;
                 worker.update(|w| w.refresh = true);
-                writer.write_all(COMMANDS)?;
-                writer.flush()?;
+                self.reset_pending = Some(serde_json::to_string(&self.config.keys)?);
+                return Ok(());
+            }
+            Input::Details if visible => {
+                self.details = !self.details;
+                return Ok(());
+            }
+            Input::Native if self.prompt && self.ready => {
+                if !self.native_ready {
+                    self.diagnostic = Some("原生补全不可用；检查适配器版本和内部快捷键冲突".into());
+                    return Ok(());
+                }
+                if self.native_request.is_some() {
+                    return Ok(());
+                }
+                self.invalidate();
+                worker.update(|w| {
+                    w.cancel = true;
+                    w.query = None;
+                });
+                self.native_queued = true;
+                self.dirty = false;
+                self.dismissed = false;
                 return Ok(());
             }
             Input::Reload if self.prompt => {
-                match config::load(self.config_path.as_deref()) {
-                    Ok(mut config) => {
-                        self.descriptions = Arc::new(std::mem::take(&mut config.descriptions));
-                        self.config = config;
-                        self.invalidate();
-                        self.dirty = true;
-                        self.explicit = true;
-                        self.dismissed = false;
-                    }
-                    Err(_) => self.bell = true,
-                }
+                self.reload(worker);
                 return Ok(());
             }
             Input::Tab => vec![b'\t'],
@@ -673,6 +1213,8 @@ impl State {
             Input::Trigger => vec![0],
             Input::Refresh => b"\x1b\x03".to_vec(),
             Input::Reload => b"\x1b\x12".to_vec(),
+            Input::Native => vec![0],
+            Input::Details => b"\x1bOP".to_vec(),
             Input::Bytes(bytes) => bytes,
         };
         self.invalidate();
@@ -680,8 +1222,16 @@ impl State {
         // After submitting a line the next input may belong to a native program.
         // Do not inject a PSReadLine chord until the next prompt marker.
         if bytes.iter().any(|b| matches!(b, b'\r' | b'\n' | 3 | 4)) {
-            self.prompt = false;
-            self.dirty = false;
+            if paste && self.parser.screen().bracketed_paste() {
+                self.dirty = self.prompt;
+            } else {
+                self.prompt = false;
+                self.dirty = false;
+                worker.update(|w| {
+                    w.cancel = true;
+                    w.query = None;
+                });
+            }
         } else {
             self.dirty = self.prompt && query_after && !self.nested_edit;
         }
@@ -702,6 +1252,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
     trace.event("host_start", None, None, None);
     let mut config = config::load(options.config_path.as_deref())?;
     let descriptions = Arc::new(std::mem::take(&mut config.descriptions));
+    let protocol_prefix = config.keys.protocol_prefix.clone();
+    let usage_path = if std::env::var("SHELLSENSE_NO_HISTORY").as_deref() == Ok("1") {
+        options.data_dir.join("probe-usage.json")
+    } else {
+        config::statistics_path()
+    };
+    let learning = Arc::new(Learning::new(usage_path));
     let integration = pty::ensure_integration(&options.data_dir)?;
     let session_directory = options
         .data_dir
@@ -709,14 +1266,51 @@ pub fn run(options: RunOptions) -> Result<u32> {
     std::fs::create_dir_all(&session_directory)?;
     let _files = SessionFiles(session_directory.clone());
     let edit_path = session_directory.join("edit.json");
+    let request_path = session_directory.join("request.json");
     let token = uuid::Uuid::new_v4().to_string();
+    let mut pipe = if matches!(options.transport, Transport::Pipe) {
+        crate::pipe::PipeServer::new().ok()
+    } else {
+        None
+    };
+    // Explicit test-only transport tap. Release builds cannot emit editing
+    // payloads to an outer terminal, even if this environment variable is set.
+    #[cfg(debug_assertions)]
+    let probe_token = (std::env::var("SHELLSENSE_NO_HISTORY").as_deref() == Ok("1"))
+        .then(|| std::env::var("SHELLSENSE_PROBE_TOKEN").ok())
+        .flatten()
+        .filter(|token| {
+            !token.is_empty()
+                && token
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        });
     let mut env = BTreeMap::from([
         ("SHELLSENSE_TOKEN".into(), token.clone()),
+        (
+            "SHELLSENSE_PIPE_NAME".into(),
+            pipe.as_ref()
+                .map(|p| p.name().to_owned())
+                .unwrap_or_default(),
+        ),
         (
             "SHELLSENSE_EDIT_PATH".into(),
             edit_path.to_string_lossy().into(),
         ),
         ("SHELLSENSE_ACTIVE".into(), "1".into()),
+        (
+            "SHELLSENSE_SESSION_DIR".into(),
+            session_directory.to_string_lossy().into(),
+        ),
+        (
+            "SHELLSENSE_REQUEST_PATH".into(),
+            request_path.to_string_lossy().into(),
+        ),
+        ("SHELLSENSE_KEY_PREFIX".into(), protocol_prefix.clone()),
+        (
+            "SHELLSENSE_PUBLIC_KEYS".into(),
+            serde_json::to_string(&config.keys)?,
+        ),
         ("ISTERM".into(), "1".into()),
         ("TERM".into(), "xterm-256color".into()),
     ]);
@@ -725,6 +1319,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         if trace.enabled() { "1" } else { "0" }.into(),
     );
     let cwd = std::env::current_dir()?;
+    env.extend(pty::key_environment(&config.keys));
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let _raw = RawMode::enable()
         .context("ShellSense run requires an interactive terminal. Use 'complete' for scripts.")?;
@@ -747,6 +1342,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
         cols,
     )?;
     trace.event("pty_started", None, None, None);
+    if let Some(server) = pipe.as_mut() {
+        if let Some(pid) = child.process_id() {
+            server.set_client_pid(pid);
+        } else {
+            server.disable();
+            pipe = None;
+        }
+    }
     let _child_guard = ChildGuard(child.clone_killer());
     let (tx, rx) = mpsc::sync_channel(256);
     let read_tx = tx.clone();
@@ -802,8 +1405,19 @@ pub fn run(options: RunOptions) -> Result<u32> {
         let code = child.wait().map(|s| s.exit_code()).unwrap_or(1);
         let _ = wait_tx.send(HostEvent::Exit(code));
     });
-    let worker = Worker::new(options.data_dir.join("commands.json"), tx, trace.clone());
+    let reload_tx = tx.clone();
+    let monitor = crate::reload::Monitor::new(&config, options.config_path.as_deref(), move || {
+        let _ = reload_tx.try_send(HostEvent::Reload);
+    });
+    let worker = Worker::new(
+        options.data_dir.join("commands.json"),
+        config::specs_dir(&config, options.config_path.as_deref()),
+        session_directory.join("data-sources.json"),
+        tx,
+        trace.clone(),
+    );
     let mut state = State {
+        pipe,
         descriptions,
         parser: vt100::Parser::new(rows, cols, 0),
         decoder: Decoder::new(token),
@@ -836,6 +1450,25 @@ pub fn run(options: RunOptions) -> Result<u32> {
         commands_allowed: false,
         trace: trace.clone(),
         query_started: None,
+        request_path,
+        protocol_prefix,
+        context: None,
+        shell_environment: Arc::new(std::env::vars().collect()),
+        learning,
+        pending_accept: None,
+        native_request: None,
+        native_ready: false,
+        native_menu: false,
+        menu_focus: false,
+        details: false,
+        enter_ready: false,
+        shift_enter_ready: false,
+        native_queued: false,
+        monitor,
+        notification: None,
+        public_keys: BTreeMap::new(),
+        reset_pending: None,
+        status_writer: crate::status::StatusWriter::new(session_directory.join("adapter.json")),
     };
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
@@ -869,7 +1502,35 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 frame.extend_from_slice(&data);
                                 ui_dirty = true;
                             }
-                            Part::Message(value) => {
+                            Part::Message(mut value) => {
+                                if value["event"] == "pipe" {
+                                    let envelope =
+                                        state.pipe.as_mut().and_then(|p| p.read_json().ok());
+                                    match envelope {
+                                        Some(envelope)
+                                            if envelope["sequence"] == value["sequence"]
+                                                && envelope["payload"].is_object() =>
+                                        {
+                                            value = envelope["payload"].clone()
+                                        }
+                                        _ => {
+                                            if let Some(mut server) = state.pipe.take() {
+                                                server.disable();
+                                            }
+                                            state.pending_query = None;
+                                            state.native_request = None;
+                                            state.dirty = state.prompt;
+                                            state.diagnostic = Some("管道帧校验失败，已回退 OSC；请重新触发原生补全或插入".into());
+                                            continue;
+                                        }
+                                    }
+                                }
+                                #[cfg(debug_assertions)]
+                                if let Some(token) = &probe_token {
+                                    frame.extend_from_slice(
+                                        format!("\x1b]7776;{token};{value}\x07").as_bytes(),
+                                    );
+                                }
                                 let before = (state.revision, state.prompt, state.dismissed);
                                 state.message(value, &mut writer, &worker)?;
                                 ui_dirty |=
@@ -903,21 +1564,23 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }
                 }
                 HostEvent::Completion(revision, completion)
-                    if revision == state.revision && state.prompt && !state.dismissed =>
+                    if revision == state.revision
+                        && state.prompt
+                        && !state.dismissed
+                        && !state.native_menu =>
                 {
                     ui_dirty |= state.completion != completion;
                     let selected_label = state
                         .completion
                         .candidates
                         .get(state.selected)
-                        .filter(|_| state.selection_touched)
-                        .map(|candidate| candidate.label.clone());
+                        .map(|candidate| candidate.identity().to_owned());
                     state.selected = selected_label
                         .and_then(|label| {
                             completion
                                 .candidates
                                 .iter()
-                                .position(|candidate| candidate.label == label)
+                                .position(|candidate| candidate.identity() == label)
                         })
                         .unwrap_or(0);
                     state.completion = completion;
@@ -926,6 +1589,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     trace.event("completion_discarded", Some(revision), None, None)
                 }
                 HostEvent::Exit(code) => exit_code = Some(code),
+                HostEvent::Diagnostic(message) => state.diagnostic = Some(message),
+                HostEvent::Reload => {}
                 HostEvent::Eof => eof = true,
                 HostEvent::Error(error) => {
                     if exit_code.is_none() {
@@ -933,6 +1598,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }
                 }
             }
+        }
+        if state.monitor.take_changed() {
+            state.reload(&worker);
+            ui_dirty = true;
         }
         state.query(&mut writer)?;
         if std::mem::take(&mut state.repaint) {
@@ -944,26 +1613,47 @@ pub fn run(options: RunOptions) -> Result<u32> {
             frame.push(7);
         }
         if let Some(message) = state.diagnostic.take() {
-            state.overlay.erase(state.parser.screen(), &mut frame)?;
-            let bytes = format!("\r\nShellSense: {message}\r\n");
-            state.parser.process(bytes.as_bytes());
-            frame.extend_from_slice(bytes.as_bytes());
+            state.notification = Some(message);
             ui_dirty = true;
         }
         let repaint_start = Instant::now();
         let bytes_before = frame.len();
         if ui_dirty && state.prompt && !state.dismissed {
+            let notice = state
+                .notification
+                .as_ref()
+                .map(|message| Candidate {
+                    label: "ShellSense".into(),
+                    description: message.clone(),
+                    ..Default::default()
+                })
+                .or_else(|| {
+                    state.completion.incomplete.then(|| Candidate {
+                        label: "正在加载候选…".into(),
+                        ..Default::default()
+                    })
+                });
+            let displayed = if state.completion.candidates.is_empty() {
+                notice.as_slice()
+            } else {
+                &state.completion.candidates
+            };
             let query = state
                 .line
                 .get(state.completion.replace_start..state.cursor)
                 .unwrap_or("");
-            state.overlay.draw(
+            state.overlay.draw_with_state(
                 state.parser.screen(),
                 &mut frame,
-                &state.completion.candidates,
+                displayed,
                 state.selected,
                 query,
                 &state.config,
+                crate::menu::MenuState {
+                    incomplete: state.completion.incomplete,
+                    details: state.details,
+                    diagnostic: state.notification.as_deref(),
+                },
             )?;
         } else if ui_dirty {
             state.overlay.erase(state.parser.screen(), &mut frame)?;
@@ -999,6 +1689,34 @@ pub fn run(options: RunOptions) -> Result<u32> {
     trace.event("host_exit", None, None, None);
     trace.flush();
     Ok(exit_code.unwrap_or(0))
+}
+
+fn request_number(value: &Value) -> Option<u64> {
+    value
+        .as_u64()
+        .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
+}
+
+fn decode_context(line: &str, value: &Value) -> Option<InputContext> {
+    if !value.is_object() {
+        return None;
+    }
+    let mut context: InputContext = serde_json::from_value(value.clone()).ok()?;
+    match (
+        protocol::utf16_to_byte(line, context.replace_start),
+        protocol::utf16_to_byte(line, context.replace_end),
+    ) {
+        (Some(start), Some(end)) if start <= end => {
+            context.replace_start = start;
+            context.replace_end = end;
+        }
+        _ => {
+            context.suppressed = true;
+            context.replace_start = 0;
+            context.replace_end = 0;
+        }
+    }
+    Some(context)
 }
 
 #[cfg(test)]

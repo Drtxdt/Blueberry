@@ -2,21 +2,42 @@
 
 [ui]
 max_rows = 8
-width = 80
+width = 0 # 0: adapt to the terminal width
+theme = "dark" # dark, light, high_contrast
+status_bar = true
 descriptions = true
 border = "rounded" # "rounded", "square", or "none"
 icons = true
-foreground = "default"
-background = "default"
-selected_foreground = "#ffffff"
-selected_background = "#264f78"
-border_color = "#6688aa"
-description_color = "#8f9baa"
-match_color = "#ffcc66"
+# Uncomment individual colors to override the selected theme.
+# foreground = "default"
+# background = "default"
+# selected_foreground = "#ffffff"
+# selected_background = "#264f78"
+# border_color = "#6688aa"
+# description_color = "#8f9baa"
+# match_color = "#ffcc66"
 
 [completion]
 max_results = 100
 auto_trigger = true
+fuzzy = true
+dynamic = true
+append_space = true
+up_arrow_history = true
+
+[keys]
+trigger = "Ctrl+Space"
+native = "Ctrl+Alt+Space"
+details = "F1"
+refresh = "Ctrl+Alt+C"
+reload = "Ctrl+Alt+R"
+protocol_prefix = "F12" # F5..F12; takes effect in a new session
+
+[learning]
+enabled = true # local selection counts only; learning clear removes them
+
+[specs]
+# directory = 'C:\Users\you\AppData\Roaming\shellsense\specs'
 
 [descriptions]
 # Optional overrides; keys distinguish command scopes and option case.

@@ -1,5 +1,8 @@
 use shellsense::model::CandidateKind;
+use shellsense::spec_catalog::{Catalog, DiagnosticSeverity};
 use shellsense::specs::{all_builtin_descriptions, canonical_command, complete, describe_command};
+use std::fs;
+use tempfile::tempdir;
 
 fn args(values: &[&str]) -> Vec<String> {
     values.iter().map(|value| (*value).to_owned()).collect()
@@ -17,23 +20,6 @@ fn has_chinese(value: &str) -> bool {
     value
         .chars()
         .any(|character| ('\u{3400}'..='\u{9fff}').contains(&character))
-}
-
-fn static_table_names(source: &str) -> Vec<&str> {
-    source
-        .lines()
-        .filter_map(|line| {
-            let declaration = line.trim_start().strip_prefix("const ")?;
-            let (name, _) = declaration.split_once(':')?;
-            if name.chars().all(|character| {
-                character.is_ascii_uppercase() || character.is_ascii_digit() || character == '_'
-            }) {
-                Some(name)
-            } else {
-                None
-            }
-        })
-        .collect()
 }
 
 #[test]
@@ -82,13 +68,13 @@ fn git_log_scope_contains_oneline_and_status_does_not() {
     assert!(
         log.candidates
             .iter()
-            .all(|candidate| has_chinese(candidate.description))
+            .all(|candidate| has_chinese(&candidate.description))
     );
     assert_eq!(
         log.candidates
             .iter()
             .find(|candidate| candidate.name == "--oneline")
-            .map(|candidate| candidate.description),
+            .map(|candidate| candidate.description.as_str()),
         Some("每条提交显示为一行")
     );
 
@@ -224,6 +210,32 @@ fn optional_values_are_completed_only_when_attached() {
 }
 
 #[test]
+fn long_value_delimiter_is_not_an_inline_option_boundary() {
+    // Cargo's comma delimiter separates feature values. It does not make
+    // `--features,a` a valid spelling of an attached long-option value.
+    let invalid = complete("cargo", &args(&["build"]), "--features,a")
+        .expect("cargo build spec remains addressable");
+    assert_eq!(invalid.context, "cargo build");
+    assert!(invalid.candidates.is_empty());
+    assert_eq!(invalid.provider, None);
+    assert_eq!(invalid.value_delimiter, None);
+
+    // The long-option/value boundary is `=`; the option still advertises its
+    // comma delimiter to the provider for values such as `a,b`.
+    let attached = complete("cargo", &args(&["build"]), "--features=a,b")
+        .expect("cargo build spec remains addressable");
+    assert_eq!(attached.context, "cargo build");
+    assert_eq!(attached.provider.as_deref(), Some("cargo.features"));
+    assert_eq!(attached.value_delimiter, Some(','));
+
+    // A short option with an attached value keeps its existing grammar.
+    let short = complete("git", &args(&["-ccore.pager=cat", "log"]), "--o")
+        .expect("git short attached option remains valid");
+    assert_eq!(short.context, "git log");
+    assert!(names(&short).contains(&"--oneline"));
+}
+
+#[test]
 fn no_value_flags_do_not_consume_following_options() {
     let ff = complete("git", &args(&["pull", "--ff"]), "--re").expect("git spec");
     assert!(names(&ff).contains(&"--rebase"));
@@ -335,7 +347,7 @@ fn every_returned_candidate_has_a_real_description_and_context_key() {
         let result = complete(command, &before, prefix).expect("known spec");
         for candidate in result.candidates {
             assert!(!candidate.description.trim().is_empty());
-            assert!(has_chinese(candidate.description));
+            assert!(has_chinese(&candidate.description));
             let lower = candidate.description.to_ascii_lowercase();
             assert!(!lower.contains("todo"));
             assert!(!lower.contains("placeholder"));
@@ -404,23 +416,214 @@ fn every_builtin_description_is_localized() {
 }
 
 #[test]
-fn every_static_description_table_is_in_the_coverage_inventory() {
-    let source = include_str!("../src/specs.rs");
-    let inventory_start = source
-        .find("pub fn all_builtin_descriptions")
-        .expect("description inventory");
-    let inventory_end = source[inventory_start..]
-        .find("fn append_value_descriptions")
-        .map(|offset| inventory_start + offset)
-        .expect("description inventory helpers");
-    let inventory = &source[inventory_start..inventory_end];
+fn generated_catalog_description_inventory_is_exposed() {
+    let descriptions = all_builtin_descriptions();
+    assert!(descriptions.len() >= 1_000);
+    assert!(descriptions.contains(&"管理代码版本并协作开发"));
+    assert!(descriptions.contains(&"合并开发历史"));
+    assert!(descriptions.contains(&"运行 workspace 脚本"));
+}
 
-    for table in static_table_names(source) {
-        if table != "EMPTY_VALUES" {
-            assert!(
-                inventory.contains(table),
-                "static description table missing from inventory: {table}"
-            );
-        }
+#[test]
+fn user_catalog_overrides_exact_context_and_preserves_last_good_builtin_node() {
+    let directory = tempdir().expect("temporary user spec directory");
+    fs::write(
+        directory.path().join("01-user.toml"),
+        r#"
+schema_version = 1
+name = "测试规格"
+version = "1"
+
+[[option_sets]]
+id = "test.log"
+
+[[option_sets.options]]
+name = "--json"
+description = "输出 JSON"
+detail = "输出 JSON；示例：git log --json。"
+value_kind = "none"
+
+[[nodes]]
+path = "git log"
+description = "查看提交日志（覆盖）"
+detail = "查看提交日志（覆盖）；示例：git log --json。"
+option_sets = ["test.log"]
+examples = ["git log --json"]
+provider = "git.refs"
+"#,
+    )
+    .unwrap();
+
+    let catalog = Catalog::load_user_dir(directory.path()).expect("catalog loads");
+    let result = catalog
+        .lookup("git", &args(&["log"]), "--j")
+        .expect("overridden context remains addressable");
+    assert_eq!(result.context, "git log");
+    assert_eq!(names(&result), vec!["--json"]);
+    assert_eq!(
+        result.candidates[0].source,
+        directory.path().join("01-user.toml").display().to_string()
+    );
+    assert_eq!(result.provider, None);
+
+    let positional = catalog
+        .lookup("git", &args(&["log"]), "src")
+        .expect("overridden positional context remains addressable");
+    assert_eq!(positional.provider.as_deref(), Some("git.refs"));
+
+    let untouched = catalog
+        .lookup("git", &args(&["status"]), "--zz")
+        .expect("unmodified built-in context");
+    assert!(names(&untouched).is_empty());
+    assert!(catalog.diagnostics().is_empty());
+}
+
+#[test]
+fn directory_value_specs_are_distinct_from_file_or_directory_paths() {
+    for (command, preceding) in [
+        ("git", vec!["-C"]),
+        ("git", vec!["--git-dir"]),
+        ("git", vec!["--work-tree"]),
+        ("npm", vec!["--prefix"]),
+        ("npm", vec!["install", "--prefix"]),
+        ("pnpm", vec!["--dir"]),
+        ("pnpm", vec!["-C"]),
+        ("pnpm", vec!["install", "--dir"]),
+    ] {
+        let result = complete(command, &args(&preceding), "repo").expect("directory spec");
+        assert!(result.path_values, "{command} {preceding:?} accepts paths");
+        assert!(
+            result.directories_only,
+            "{command} {preceding:?} accepts directories only"
+        );
     }
+
+    let location = complete("Set-Location", &[], "repo").expect("location spec");
+    assert!(location.path_values);
+    assert!(location.directories_only);
+
+    let location_option =
+        complete("Set-Location", &args(&["-Path"]), "repo").expect("location option spec");
+    assert!(location_option.path_values);
+    assert!(location_option.directories_only);
+
+    let ordinary = complete("cargo", &args(&["build", "--manifest-path"]), "Cargo.toml")
+        .expect("file or directory path spec");
+    assert!(ordinary.path_values);
+    assert!(!ordinary.directories_only);
+}
+
+#[test]
+fn user_catalog_reports_invalid_files_without_discarding_valid_snapshot() {
+    let directory = tempdir().expect("temporary user spec directory");
+    fs::write(
+        directory.path().join("01-valid.toml"),
+        r#"
+schema_version = 1
+
+[[nodes]]
+path = "mytool"
+description = "运行我的工具"
+detail = "运行我的工具；示例：mytool。"
+positional = "none"
+children = ["mytool list"]
+
+[[nodes]]
+path = "mytool list"
+description = "列出项目"
+detail = "列出项目；示例：mytool list。"
+positional = "value"
+provider = "powershell.paths"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("02-invalid.toml"),
+        "schema_version = 99\n",
+    )
+    .unwrap();
+
+    let catalog = Catalog::load_user_dir(directory.path()).expect("directory loads");
+    assert!(catalog.canonical_command("mytool").is_some());
+    assert!(catalog.lookup("mytool", &[], "").is_some());
+    assert!(
+        catalog
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+    );
+
+    let report = Catalog::check_dir(directory.path()).expect("check report");
+    assert!(!report.is_valid());
+    assert_eq!(report.files.len(), 2);
+}
+
+#[test]
+fn repeatability_conflict_dependency_and_delimited_values_are_enforced() {
+    let directory = tempdir().expect("temporary user spec directory");
+    fs::write(
+        directory.path().join("rules.toml"),
+        r#"
+schema_version = 1
+
+[[option_sets]]
+id = "tool.options"
+
+[[option_sets.options]]
+name = "--features"
+description = "选择 features"
+detail = "选择 features；示例：tool --features=a,b。"
+value_kind = "text"
+value_delimiter = ","
+repeatable = true
+values = [{ name = "alpha", description = "启用 alpha" }, { name = "beta", description = "启用 beta" }]
+
+[[option_sets.options]]
+name = "--fast"
+description = "启用快速模式"
+detail = "启用快速模式；示例：tool --fast。"
+value_kind = "none"
+conflicts = ["--slow"]
+
+[[option_sets.options]]
+name = "--slow"
+description = "启用慢速模式"
+detail = "启用慢速模式；示例：tool --slow。"
+value_kind = "none"
+conflicts = ["--fast"]
+
+[[option_sets.options]]
+name = "--report"
+description = "输出报告"
+detail = "输出报告；示例：tool --fast --report。"
+value_kind = "none"
+requires = ["--fast"]
+
+[[nodes]]
+path = "tool"
+description = "运行测试工具"
+detail = "运行测试工具；示例：tool。"
+positional = "none"
+option_sets = ["tool.options"]
+"#,
+    )
+    .unwrap();
+    let catalog = Catalog::load_user_dir(directory.path()).expect("catalog loads");
+    let options = catalog.lookup("tool", &[], "--").expect("tool options");
+    assert!(names(&options).contains(&"--fast"));
+    assert!(names(&options).contains(&"--slow"));
+    assert!(!names(&options).contains(&"--report"));
+
+    let after_fast = catalog
+        .lookup("tool", &args(&["--fast"]), "--")
+        .expect("tool options after --fast");
+    assert!(!names(&after_fast).contains(&"--fast"));
+    assert!(!names(&after_fast).contains(&"--slow"));
+    assert!(names(&after_fast).contains(&"--report"));
+
+    let delimited = catalog
+        .lookup("tool", &[], "--features=a")
+        .expect("inline value context");
+    assert!(names(&delimited).contains(&"--features=alpha"));
+    assert_eq!(delimited.value_delimiter, Some(','));
 }

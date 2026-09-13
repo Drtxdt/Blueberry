@@ -1,64 +1,61 @@
 # ShellSense
 
-Windows + PowerShell 7 的原生终端补全宿主，当前为 **0.2 Alpha**。独立 Rust 工程，不依赖 Node、npm 或 TypeScript 运行时。PowerShell 适配脚本嵌入可执行文件，负责读取 PSReadLine 输入和应用经过校验的替换。
+Windows Terminal + PowerShell 7 的 Rust 补全宿主。Beta 开发版提供项目感知候选、离线中文说明和可配置菜单，不需要 Node、在线翻译或模型。架构是 Windows Terminal → ShellSense → 一个 pwsh，保留用户 profile 和 PSReadLine 的行内预测。
 
-本版修复 Cargo 等链接命令漏项，加入按上下文补全的 Git/Cargo 规格和离线中文用途说明。**启动与热态菜单的性能目标仍未通过**，实测结果、原始数据和剩余瓶颈见 [性能验收](docs/performance.md)。
+本地构建未签名，尚未公开发布。功能、真实终端验证和性能是不同验收项，具体状态见 [Beta 验收记录](docs/beta-progress.md) 和 [性能报告](docs/performance.md)。启动增量 P50 ≤50 ms、热态菜单 P95 ≤20 ms 的目标不随版本推进而降低。
 
-## 使用
+## 启动
 
-本地交付已包含 `dist/shellsense.exe`，可直接运行：
-
-```powershell
-.\dist\shellsense.exe run
-```
-
-Git 仓库不跟踪生成的二进制；从源码克隆后按以下步骤构建。
-
-要求 Windows 10/11（支持 ConPTY）、PowerShell 7、Windows Terminal。源码构建需要 Rust stable 和 MSVC C++ Build Tools：
+需要支持 ConPTY 的 Windows 10/11、Windows Terminal 和 PowerShell 7。源码构建另需 Rust stable、MSVC C++ Build Tools：
 
 ```powershell
 cargo build --release --locked
 .\target\release\shellsense.exe run
 ```
 
-更推荐直接让 Windows Terminal 启动 ShellSense：
+本地交付目录提供 `dist/shellsense.exe`，Git 不跟踪生成的 exe。建议让 Windows Terminal 直接启动 ShellSense，避免在 profile 中再启动外层 pwsh。`shellsense terminal-profile` 只打印配置；发布包提供带预览、备份、升级和回滚的 [安装脚本](docs/beta-installation.md)。
 
-```powershell
-.\target\release\shellsense.exe terminal-profile
-```
+从现有 shell 手动启动时会清空当前可视区域以建立菜单坐标。子 pwsh 使用 UTF-8 控制台输入输出，依赖旧代码页的程序需要单独验证。正常模式保留 profile；`run --no-profile` 仅用于诊断。
 
-将输出的 JSON 对象加入 Windows Terminal 的 `profiles.list`。该命令只打印配置，不修改现有设置。正式使用时先将 exe 放在固定位置，再导出配置；移动 exe 后需要更新路径。
+## 补全内容
 
-Windows Terminal → ShellSense → 一个 pwsh。不要在 PowerShell profile 中启动 ShellSense，否则外层 pwsh 的启动成本仍然存在。正常模式保留用户 profile 的一次加载；`run --no-profile` 可用于排查 profile 的耗时。
-
-从已有 shell 手动启动时，会清空当前可视区域以建立可靠的菜单坐标；更适合在单独的 Windows Terminal 标签页中使用。
-
-宿主内的 pwsh 使用 UTF-8 控制台输入/输出，确保中文与 emoji 重绘正确。这只作用于子进程；依赖旧代码页的程序需要另行验证。
-
-## 已实现
-
-- 首词补全：实际 PATH/PATHEXT 可执行文件、当前已加载的 alias/function/cmdlet；支持管道或分号后的命令位置。
-- 参数补全：内置 Git、Cargo、npm、Docker、pwsh、gh 等常用命令的静态子命令和选项，以及本地路径候选。
-- 参数按子命令和取值规则过滤：`git log --o` 提供 `--oneline`，`git status --o` 不提供；支持 `git -C "含空格目录" log --o`，`--` 后停止选项补全。
-- 内置主命令、子命令、选项和静态取值均有中文说明。未知程序显示“用途暂未收录”及来源，可自行补充；alias 优先展示目标用途。
-- 原生菜单：上下选择、分页、选中项颜色、描述、边框、图标、匹配高亮；支持中文宽字符，候选文本会移除终端控制字符。
-- 后台命令索引与缓存、过期请求丢弃。输入线程不等待目录扫描；空闲时阻塞等待事件。
-- 当前 pwsh 的 PATH 变更在下一次提示符时更新索引。编辑操作使用 PSReadLine.Replace；不会执行补全文本。
-
-| 操作 | 按键 |
+| 场景 | 内容 |
 | --- | --- |
-| 输入时自动显示 | 默认开启 |
-| 显示补全，包括空行 | Ctrl+Space |
-| 选择候选 | ↑ / ↓ / Shift+Tab |
+| 首词 | 实际 PATH/PATHEXT 程序、会话 alias/function/cmdlet，包括 cargo/rustc 等本地链接 |
+| Git | 上下文选项、本地/远端分支、标签、远端、worktree、适用的状态文件 |
+| Cargo | workspace 包、features、bin/example/test/bench 目标 |
+| npm / pnpm | 本地脚本、workspace 包名和依赖名称 |
+| PowerShell | $env: 名称、路径表达式、目录专用位置与重定向目标 |
+| 自定义工具 | 用户目录中的版本化 TOML 规格、中文说明、示例与内置数据源 |
+
+`git log --o` 包含 `--oneline`，`git status --o` 不包含；`git -C "含空格目录" log --o` 保留作用域。支持 `--name=value`、规格定义的短选项组合、互斥/依赖/重复规则与 `cargo build --features a,b`。未知选项不猜测取值个数，`--` 后停止选项补全。
+
+简单输入由 Rust 解析；复杂输入从当前 PSReadLine AST 提取必要上下文。注释、here-string 正文和不能确认的表达式不猜测。插入校验真实缓冲区与 Unicode 范围，保留光标右侧文本；ShellSense 不执行补全文本。
+
+Git 使用固定只读查询；Cargo/JS 读取本地清单，不执行构建、项目脚本、安装、fetch 或凭据交互。最多两个后台数据任务，静态候选立即可用，未完成结果显示加载状态。缓存更新会重算当前查询，保留选中的具体候选。
+
+## 按键
+
+| 操作 | 默认按键 |
+| --- | --- |
+| 显式显示菜单 | Ctrl+Space |
+| 进入菜单导航 / 下一项 | ↓ |
+| 上一项（进入菜单导航后） | ↑ / Shift+Tab |
 | 接受候选 | Tab |
+| 执行当前输入，不接受菜单 | Enter |
 | 关闭菜单 | Esc |
-| 执行当前输入 | Enter |
-| 刷新命令索引及当前 shell 命令 | Ctrl+Alt+C |
-| 重新加载主题和用途说明 | Ctrl+Alt+R |
+| 中文详情、参数格式、离线示例 | F1 |
+| 手动请求本会话原生补全 | Ctrl+Alt+Space |
+| 刷新命令和项目候选 | Ctrl+Alt+C |
+| 重新加载配置和规格 | Ctrl+Alt+R |
 
-菜单未显示时，Tab 和方向键仍交给 shell。程序运行期间及备用屏幕中停用补全。内部占用 PSReadLine 的 `F12,s`、`F12,a`、`F12,c` 组合键；已有绑定冲突时停用适配，保留原绑定。
+自动菜单默认保留上箭头的历史操作。菜单未显示时 Tab 和方向键交回 shell。外部程序运行期间不注入查询键，全屏与鼠标控制按当前终端模式透传。
 
-## 个性化
+原生补全可能运行用户已有的 PowerShell 补全脚本，因此只手动触发，使用独立菜单和真实替换范围，耗时不属于自动菜单承诺。ShellSense 不能强制终止任意补全脚本。
+
+内部使用 `F12,s/a/c/n/e/l` 组合键，前缀可配置。冲突时保留原绑定并提示配置项。公共快捷键变化支持重新仲裁；内部前缀下次启动生效。
+
+## 配置与说明
 
 ```powershell
 shellsense config init
@@ -66,71 +63,56 @@ shellsense config check
 shellsense theme
 ```
 
-默认文件：`%APPDATA%\shellsense\config.toml`。可用全局 `--config <路径>` 指定其他文件。初始化不会覆盖已有文件。完整示例见 [config.example.toml](config.example.toml)：
+默认配置为 `%APPDATA%\shellsense\config.toml`，`--config <路径>` 可指定其他文件；初始化不覆盖已有文件。完整字段见 [config.example.toml](config.example.toml)。
 
 ```toml
 [ui]
-max_rows = 8
-width = 80
-border = "rounded"
-icons = true
+theme = "dark" # dark / light / high_contrast
+width = 0      # 自动适配窗口
 descriptions = true
-selected_background = "#264f78"
-selected_foreground = "#ffffff"
-match_color = "#ffcc66"
+status_bar = true
 
 [completion]
-max_results = 100
-auto_trigger = true
+fuzzy = true
+dynamic = true
+up_arrow_history = true
+
+[learning]
+enabled = true
+
+[keys]
+native = "Ctrl+Alt+Space"
 
 [descriptions]
 "git log --oneline" = "每条提交显示为一行"
-"cargo" = "构建项目并管理 Rust 依赖"
 "mytool" = "运行我的本地工具"
 ```
 
-颜色接受 `default` 或 `#RRGGBB`；支持 `NO_COLOR`。修改后按 Ctrl+Alt+R 生效，配置无效时保留上一次有效配置；使用 `config check` 查看具体错误。
+手动颜色优先于主题，接受 `default` 或 `#RRGGBB`，支持 `NO_COLOR`。变更自动重载，也可按 Ctrl+Alt+R；错误配置保留上一份有效设置。
 
-用途说明的键使用完整命令上下文；例如 `"git log --oneline"` 与 `"git show --oneline"` 可以不同，`-C` 和 `-c` 区分大小写。使用别名补全参数时仍采用目标命令的规范键。主命令可以直接按程序名或 alias 名覆盖。说明随程序离线提供，输入时不启动帮助命令、翻译服务或模型。`ui.descriptions = false` 可隐藏说明列。
+内置主命令、子命令和参数有简短中文用途；未知程序显示“用途暂未收录”及来源，alias 优先展示目标用途。`[descriptions]` 按完整上下文覆盖，优先于用户规格和内置说明。文件、目录分别显示中文类型。
 
-可选值使用附加写法补全，例如 `--ignored=mat` → `--ignored=matching`；它的取值说明键写作 `"git status --ignored matching"`。
+规格只从用户配置目录加载，不加载项目脚本或任意程序插件。[TOML 规格说明](docs/specifications.md) 包含格式、覆盖规则和固定数据源。可在 `[specs]` 中指定 `directory`。
 
-升级会自动重建旧索引缓存，旧配置仍然有效。本地交付的上一版保存在 `dist/previous/shellsense-v0.1.0.exe`，不会覆盖用户配置。已运行的旧进程需关闭后从新 exe 启动。
+本地排序仅在适配器确认成功插入后记录候选/项目的加盐散列、次数和时间，不读取完整历史，不记录环境变量值或输出。最多一万条，清理九十天未使用项；只调整同等匹配质量的顺序。关闭后不再记录或使用统计，`shellsense learning clear` 清除已有统计。
 
-若回退到 0.1，已加入 `[descriptions]` 的配置需另存一份旧格式副本并通过 `--config` 指定；0.1 不识别这个新配置段。从源码回退提交后需重新构建 exe。
-
-## 验证与性能
+## 诊断与验证
 
 ```powershell
-cargo test --locked
+shellsense complete --line "git switch fea" --json --explain
+shellsense specs check
+shellsense specs list
+shellsense doctor
+shellsense learning clear
+cargo test --locked -- --test-threads=1
 pwsh -NoProfile -NonInteractive -File tests/adapter.tests.ps1
 cargo clippy --all-targets --locked -- -D warnings
-shellsense probe --iterations 30 --output benchmark.json
-shellsense probe --with-profile --iterations 30 --output profile-benchmark.json
-shellsense probe --host --iterations 30 --output host-benchmark.json
-shellsense probe --host --no-descriptions --iterations 30 --output without-descriptions.json
-shellsense complete --line "gi" --json
 ```
 
-`probe` 创建真实 ConPTY 会话，交替测量原生 pwsh 与适配后的 pwsh，记录提示符时间、首次输入回显时间、PSReadLine 查询往返和 Rust 查找时间，验证输入读取、替换、命令枚举及执行后恢复。默认不加载用户 profile；`--with-profile` 测试实际 profile。它不会修改 profile，测试会关闭历史写入。
+`complete --json` 保留原字段和 UTF-8 字节替换范围，增加可选的标识、来源、详情及完整性状态。`doctor` 在 ShellSense 会话内还读取当前适配器能力和键位仲裁结果。
 
-`probe --host` 分别测量应用缓存未命中/命中时的首个提示符、首次菜单、每个会话 10 次热态菜单和自身 working set。它使用固定配置和临时命令目录，不加载 profile；内存统计排除 pwsh。缓存命中必须通过完整性验证，且不重复写盘。测试用两层 ConPTY 模拟运行环境，OS 缓存不清空。中位数采用中间两项均值，P95 采用 nearest-rank。
+`run --trace <新文件>` 默认关闭，只记录阶段、请求编号、数量和时间，不记录命令正文。`run --transport pipe` 是显式 named pipe 对照路径；默认 OSC，失败回退。只有完整宿主测量和兼容测试证明收益，才考虑改变默认。
 
-定位性能可运行 `shellsense run --trace timing.jsonl`，路径须为新文件。trace 默认关闭，只记录阶段、请求编号、时间和数量，不记录命令正文。正式计时请关闭 trace。
+历史 `probe` 与 `probe --host` 的口径见性能报告：前者测适配器回显，后者包含外层 ConPTY 宿主。不能把 Rust 查找时间当作按键到菜单可见的总延迟，也不能把组件测试通过当作真实输入法已验收。
 
-性能数字只适用于被测机器。提示符出现、首次输入可用和菜单出现是三个不同指标；`probe` 不测外层菜单渲染、冷启动磁盘缓存或内存占用。请勿把静态查找耗时解释为总输入延迟，也不要把 Alpha 当作全部性能目标已经达成。
-
-## 当前边界
-
-- 首版只验收 Windows + pwsh 的默认 Windows 键位，不承诺 Bash/Zsh、远程 SSH、多路复用器、Vi 编辑模式或所有终端程序兼容。鼠标事件透传尚未实现。
-- 未移植全部 Fig/inshellisense 规格，不运行 JavaScript 生成器；Git 分支等动态数据、外部规格转换工具后续实现。
-- 支持常见引号和命令分隔符，但不是完整 PowerShell 语法分析器。复杂子表达式、here-string、嵌套语言及多行编辑仍需扩展。回车后至下一次提示符期间不会注入查询键。
-- shell 命令仅枚举已加载内容，避免为补全自动导入模块。新建/删除 alias、function 或导入模块后可按 Ctrl+Alt+C 刷新。
-- 首版避免扫描显式 UNC 目录；映射网络盘仍可能延迟后台 I/O。高级 VT 控制、复杂 emoji 和大量异步输出需要继续兼容性验证。
-- 原 inshellisense 工程保持不变。这是新实现，尚不声称功能完全等价。
-
-实现设计见 [docs/architecture.md](docs/architecture.md)，适配协议见 [docs/powershell-adapter.md](docs/powershell-adapter.md)。
-
-## 许可证
-
-MIT。新编写的补全逻辑与静态规格不包含 Fig/inshellisense 源码的直接复制。依赖分别遵循各自许可证。
+本轮不提供自己的行内预测、完整历史建议、在线规格市场、AI 或 i18n。后续顺序为 Python/uv、winget/dotnet、Docker/Kubernetes、VS Code、i18n、WSL/其他 Shell。

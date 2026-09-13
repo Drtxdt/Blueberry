@@ -242,9 +242,14 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         "git candidate did not appear; screen:\n{}",
         host.harness.contents()
     );
-    // PowerShell exposes a `gi` alias for Get-Item, which is the first row
-    // for this prefix. Move to the deterministic git row before accepting.
-    host.harness.send(b"\x1b[B")?;
+    // An alias arriving in a later snapshot must not steal the selected Git
+    // candidate. If it was present in the initial frame, navigate past it.
+    if !host.harness.viewport_contents().contains("› ⌘ git ") {
+        host.harness.send(b"\x1b[B")?;
+        wait_until(&mut host.harness, "selected Git candidate", |screen| {
+            screen.contains("› ⌘ git ")
+        })?;
+    }
     host.harness.send(b"\t")?;
     wait_until(
         &mut host.harness,
@@ -320,7 +325,12 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     wait_until(
         &mut host.harness,
         "quoted emoji candidate acceptance",
-        |contents| contents.contains("'😀 file.txt'") && !contents.contains("□ 😀 file.txt"),
+        |contents| {
+            contents.lines().any(|line| {
+                line.trim_end()
+                    .ends_with("Get-ChildItem -Name \"😀 file.txt\"")
+            })
+        },
     )?;
     let previous_prompt_count = prompt_count(&host.harness.contents());
     host.harness.send(b"\r")?;
@@ -470,7 +480,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
                     line.find('╭')
                         .zip(line.rfind('╮'))
                         .is_some_and(|(start, end)| {
-                            start <= end && line[start..end + '╮'.len_utf8()].chars().count() == 80
+                            start <= end && line[start..end + '╮'.len_utf8()].chars().count() == 100
                         })
                 })
         },

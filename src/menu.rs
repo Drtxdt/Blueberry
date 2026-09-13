@@ -20,6 +20,101 @@ pub struct MenuFrame {
     pub width: u16,
 }
 
+#[derive(Clone, Copy, Default)]
+pub struct MenuState<'a> {
+    pub incomplete: bool,
+    pub details: bool,
+    pub diagnostic: Option<&'a str>,
+}
+
+pub fn render_with_state(
+    candidates: &[Candidate],
+    selected: usize,
+    query: &str,
+    available_width: u16,
+    config: &Config,
+    state: MenuState,
+    available_rows: usize,
+) -> MenuFrame {
+    let mut adjusted = Config {
+        ui: config.ui.clone(),
+        completion: config.completion.clone(),
+        ..Default::default()
+    };
+    let footer_rows = usize::from(config.ui.status_bar) + if state.details { 4 } else { 0 };
+    let border_rows = if config.ui.border == "none" { 0 } else { 2 };
+    if available_rows == 0 {
+        return MenuFrame {
+            lines: Vec::new(),
+            width: 0,
+        };
+    }
+    if available_rows < border_rows + 1 {
+        adjusted.ui.border = "none".into();
+    }
+    adjusted.ui.max_rows = adjusted.ui.max_rows.min(
+        available_rows
+            .saturating_sub(footer_rows + border_rows)
+            .max(1),
+    );
+    let mut frame = render(candidates, selected, query, available_width, &adjusted);
+    frame.lines.truncate(available_rows);
+    let Some(candidate) = candidates.get(selected) else {
+        return frame;
+    };
+    if frame.width == 0 {
+        return frame;
+    }
+    let mut push = |text: &str| {
+        if frame.lines.len() < available_rows {
+            let text = truncate_to_width(&sanitize_text(text), frame.width as usize);
+            let padded = format!(
+                "{}{}",
+                text,
+                " ".repeat((frame.width as usize).saturating_sub(display_width(&text)))
+            );
+            frame.lines.push(paint_span(
+                &padded,
+                FragmentRole::Description,
+                false,
+                &config.ui,
+            ));
+        }
+    };
+    if config.ui.status_bar {
+        let source = if candidate.source.is_empty() {
+            "内置"
+        } else {
+            &candidate.source
+        };
+        if let Some(diagnostic) = state.diagnostic {
+            push(diagnostic);
+        } else {
+            push(&format!(
+                "{}/{} · {}{} · F1 详情",
+                selected + 1,
+                candidates.len(),
+                source,
+                if state.incomplete {
+                    " · 正在加载"
+                } else {
+                    ""
+                }
+            ));
+        }
+    }
+    if state.details {
+        push(&format!("{}：{}", candidate.label, candidate.description));
+        for line in candidate.detail.lines().take(3) {
+            push(line);
+        }
+        if candidate.detail.is_empty() {
+            push("暂无更多说明；接受候选只插入文本。");
+        }
+    }
+    frame
+}
+
 /// Render a candidate list as a bounded, terminal-safe frame.
 ///
 /// `selected` is clamped to the visible candidate range. When more candidates
@@ -34,15 +129,20 @@ pub fn render(
     config: &Config,
 ) -> MenuFrame {
     let candidate_count = candidates.len().min(config.completion.max_results);
-    if candidate_count == 0 || available_width == 0 || config.ui.width == 0 {
+    if candidate_count == 0 || available_width == 0 {
         return MenuFrame {
             lines: Vec::new(),
             width: 0,
         };
     }
 
+    let desired_width = if config.ui.width == 0 {
+        100
+    } else {
+        config.ui.width
+    };
     let frame_width = (available_width as usize)
-        .min(config.ui.width)
+        .min(desired_width)
         .min(u16::MAX as usize);
     if frame_width == 0 {
         return MenuFrame {
@@ -151,12 +251,14 @@ pub fn preview(config: &Config) -> String {
             insert_text: "Get-ChildItem".to_owned(),
             description: "列出目录中的项目".to_owned(),
             kind: CandidateKind::Cmdlet,
+            ..Default::default()
         },
         Candidate {
             label: "Get-Content".to_owned(),
             insert_text: "Get-Content".to_owned(),
             description: "读取文件内容".to_owned(),
             kind: CandidateKind::Cmdlet,
+            ..Default::default()
         },
     ];
     render(&candidates, 0, "Get-", 60, config).lines.join("\n")
@@ -585,6 +687,7 @@ mod tests {
             insert_text: label.to_owned(),
             description: description.to_owned(),
             kind: CandidateKind::Command,
+            ..Default::default()
         }
     }
 
@@ -719,5 +822,54 @@ mod tests {
         config.ui.foreground = "\x1b[31m".to_owned();
         let frame = render(&[candidate("safe", "")], 0, "", 12, &config);
         assert!(!frame.lines[0].contains("31m"));
+    }
+
+    #[test]
+    fn details_and_loading_fit_small_viewports() {
+        let config = Config::default();
+        let mut item = candidate("--features", "启用指定功能");
+        item.source = "Cargo.toml".into();
+        item.detail = "格式：a,b\n示例：cargo build --features a,b".into();
+        for width in [1, 8, 20, 45, 120] {
+            for rows in 0..16 {
+                let frame = render_with_state(
+                    std::slice::from_ref(&item),
+                    0,
+                    "",
+                    width,
+                    &config,
+                    MenuState {
+                        incomplete: true,
+                        details: true,
+                        ..Default::default()
+                    },
+                    rows,
+                );
+                assert!(frame.lines.len() <= rows);
+                assert!(frame.width <= width);
+                assert!(
+                    frame
+                        .lines
+                        .iter()
+                        .all(|line| display_width(&strip_ansi(line)) <= usize::from(frame.width))
+                );
+            }
+        }
+        let frame = render_with_state(
+            &[item],
+            0,
+            "",
+            120,
+            &config,
+            MenuState {
+                incomplete: true,
+                details: true,
+                ..Default::default()
+            },
+            15,
+        );
+        let plain = frame.lines.join("\n");
+        assert!(plain.contains("正在加载"));
+        assert!(plain.contains("格式：a,b"));
     }
 }

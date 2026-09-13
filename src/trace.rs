@@ -53,10 +53,10 @@ impl Trace {
         }
     }
     pub fn flush(&self) {
-        if let Some(inner) = &self.0 {
-            if let Ok(mut writer) = inner.writer.lock() {
-                let _ = writer.flush();
-            }
+        if let Some(inner) = &self.0
+            && let Ok(mut writer) = inner.writer.lock()
+        {
+            let _ = writer.flush();
         }
     }
 }

@@ -1,5 +1,5 @@
 //! Reproducible complete-host measurements with explicit application cache modes.
-use crate::{config, engine::CommandIndex, probe::Harness};
+use crate::{engine::CommandIndex, probe::Harness};
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{
@@ -66,9 +66,14 @@ pub fn host_probe_traced(
     fs::create_dir_all(&fixture_dir)?;
     create_fixtures(&fixture_dir)?;
     let config_path = temporary.path().join("defaults.toml");
-    let mut settings = config::Config::default();
-    settings.ui.descriptions = descriptions;
-    fs::write(&config_path, toml::to_string(&settings)?)?;
+    // Keep this historical comparison fixture valid for the frozen 0.2 host.
+    // New scenario probes separately exercise all current default features.
+    fs::write(
+        &config_path,
+        format!(
+            "[ui]\nwidth = 80\ndescriptions = {descriptions}\n[completion]\nmax_results = 100\nauto_trigger = true\n"
+        ),
+    )?;
     let path = fixture_path(&fixture_dir)?;
     let pathext = probe_pathext();
     let cwd = env::current_dir()?;

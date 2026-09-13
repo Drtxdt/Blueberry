@@ -22,6 +22,8 @@ pub struct Harness {
     messages: VecDeque<Value>,
     screen: vt100::Parser,
     trace: Vec<u8>,
+    protocol_seen: bool,
+    known_empty_buffer: bool,
 }
 
 impl Harness {
@@ -50,9 +52,12 @@ impl Harness {
             messages: VecDeque::new(),
             screen: vt100::Parser::new(30, 120, 0),
             trace: Vec::new(),
+            protocol_seen: false,
+            known_empty_buffer: false,
         })
     }
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {
+        self.known_empty_buffer = false;
         self.session.writer.write_all(bytes)?;
         self.session.writer.flush()?;
         Ok(())
@@ -74,7 +79,16 @@ impl Harness {
                     }
                     self.screen.process(&data);
                 }
-                Part::Message(value) => self.messages.push_back(value),
+                Part::Message(value) => {
+                    self.protocol_seen = true;
+                    match value["event"].as_str() {
+                        Some("prompt_end") => self.known_empty_buffer = true,
+                        Some("buffer") => self.known_empty_buffer = value["line"] == "",
+                        Some("execute" | "editing") => self.known_empty_buffer = false,
+                        _ => {}
+                    }
+                    self.messages.push_back(value);
+                }
                 Part::CursorQuery(private) => {
                     let (row, col) = self.screen.screen().cursor_position();
                     self.send(
@@ -95,7 +109,7 @@ impl Harness {
         let until = Instant::now() + timeout;
         loop {
             while let Some(value) = self.messages.pop_front() {
-                if value["event"] == "error" {
+                if value["event"] == "error" && name != "error" {
                     bail!("Adapter: {value}");
                 }
                 if value["event"] == name {
@@ -152,8 +166,36 @@ impl Harness {
         Ok(())
     }
     pub fn finish(&mut self, timeout: Duration) -> Result<()> {
-        self.send(b"\x03exit\r")?;
         let deadline = Instant::now() + timeout;
+        let needs_cancel = !self.known_empty_buffer;
+        self.messages.clear();
+        self.trace.clear();
+        if needs_cancel {
+            if self.protocol_seen {
+                // A cancelled empty line need not emit another prompt. Clear
+                // the edit and confirm the real buffer before typing exit.
+                self.send(b"\x01\x7f")?;
+                self.send(b"\x1b[32;57;0;1;8;1_\x1b[32;57;0;0;8;1_")?;
+                loop {
+                    let buffer =
+                        self.event("buffer", deadline.saturating_duration_since(Instant::now()))?;
+                    if buffer["line"] == "" {
+                        break;
+                    }
+                }
+            } else {
+                self.send(b"\x01\x7f")?;
+                // Release probes use the Windows PSReadLine editing mode.
+                // SelectAll + Backspace clears our synthetic input without
+                // relying on ETX, which an outer ConPTY can consume as a
+                // console control event. This is outside every timed sample.
+                let settle = Instant::now() + Duration::from_millis(250).min(timeout);
+                while Instant::now() < settle {
+                    let _ = self.pump(Duration::from_millis(25));
+                }
+            }
+        }
+        self.send(b"exit\r")?;
         loop {
             if let Some(status) = self.session.child.try_wait()? {
                 ensure!(
@@ -165,7 +207,8 @@ impl Harness {
             }
             ensure!(
                 Instant::now() < deadline,
-                "Host did not exit normally before timeout"
+                "Host did not exit normally before timeout; screen:\n{}",
+                self.viewport_contents()
             );
             let _ = self.pump(Duration::from_millis(50));
         }
@@ -225,7 +268,7 @@ pub fn run_with_adapter(
     let edit_path = temporary.0.join("edit.json");
     let cwd = std::env::current_dir()?;
     let token = uuid::Uuid::new_v4().to_string();
-    let env = BTreeMap::from([
+    let mut env = BTreeMap::from([
         ("SHELLSENSE_TOKEN".into(), token.clone()),
         (
             "SHELLSENSE_EDIT_PATH".into(),
@@ -236,6 +279,7 @@ pub fn run_with_adapter(
         ("ISTERM".into(), "1".into()),
         ("TERM".into(), "xterm-256color".into()),
     ]);
+    env.extend(pty::key_environment(&crate::config::KeyBindings::default()));
     let mut baseline = Vec::new();
     let mut integrated = Vec::new();
     let mut queries = Vec::new();
@@ -365,6 +409,7 @@ pub fn run_with_adapter(
         "platform":std::env::consts::OS,"arch":std::env::consts::ARCH,
         "shell":shell,"adapter_source":adapter_source,"profile_mode":profile_mode,
         "no_profile":no_profile,"iterations":iterations,
+        "public_keys": "default keys, identical JSON and startup environment as the host",
         "method":"Alternating fresh ConPTY pwsh processes; UTF-8 console and history saving disabled in both cases. The baseline wraps the profile's existing prompt and emits a controlled marker after its output; the adapter source is reported above. Prompt marker timestamp, not first visible frame. OS caches are not cleared. Query timings include PSReadLine + OSC + ConPTY roundtrip. This does not measure outer-host rendering or RSS.",
         "baseline_prompt":stats(&baseline),"adapter_prompt":stats(&integrated),
         "baseline_first_input_echo":stats(&baseline_input),"adapter_first_input_echo":stats(&integrated_input),

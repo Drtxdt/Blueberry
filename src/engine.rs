@@ -6,7 +6,7 @@
 //! point. This means a large PATH never blocks the first completion query and
 //! a partially built index is still useful to the caller.
 
-use crate::model::{Candidate, CandidateKind, Completion, ShellCommand};
+use crate::model::{Candidate, CandidateKind, Completion, InputContext, ShellCommand};
 use crate::specs;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
@@ -453,7 +453,7 @@ impl CommandIndex {
             file.flush()?;
             file.sync_all()?;
             drop(file);
-            atomic_replace(&temporary, path)
+            replace_file(&temporary, path)
         })();
 
         if let Err(error) = write_result {
@@ -514,9 +514,70 @@ impl CommandIndex {
         limit: usize,
         overrides: &BTreeMap<String, String>,
     ) -> Completion {
+        self.complete_configured(line, cursor, cwd, limit, overrides, None, false, true, None)
+    }
+
+    pub fn input_context(&self, line: &str, cursor: usize) -> InputContext {
         let cursor = clamp_cursor(line, cursor);
         let tokens = lex_line(line);
         let current = current_token(line, &tokens, cursor);
+        let start = segment_start(&tokens, current.start);
+        let command = tokens
+            .iter()
+            .find(|token| !token.separator && token.start >= start && token.start <= current.start);
+        let command_position = command.is_none_or(|command| command.start == current.start);
+        let redirect = tokens
+            .iter()
+            .rev()
+            .find(|t| t.separator && t.end <= current.start)
+            .is_some_and(|t| t.raw == ">");
+        InputContext {
+            command: if redirect {
+                "__shell_redirection".into()
+            } else {
+                command
+                    .map(|c| self.resolve_command(&decode_power_shell(&c.raw)))
+                    .unwrap_or_default()
+            },
+            arguments: preceding_arguments(&tokens, start, current.start),
+            prefix: TokenContext::from(line, &current, cursor).value_before,
+            replace_start: current.start,
+            replace_end: current.end,
+            command_position: command_position && !redirect,
+            suppressed: comment_at_cursor(line, cursor),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn complete_configured(
+        &self,
+        line: &str,
+        cursor: usize,
+        cwd: &Path,
+        limit: usize,
+        overrides: &BTreeMap<String, String>,
+        context: Option<&InputContext>,
+        fuzzy: bool,
+        paths: bool,
+        catalog: Option<&crate::spec_catalog::Catalog>,
+    ) -> Completion {
+        let cursor = clamp_cursor(line, cursor);
+        let derived = self.input_context(line, cursor);
+        let context = context.unwrap_or(&derived);
+        if context.replace_start > cursor
+            || context.replace_end < cursor
+            || line
+                .get(context.replace_start..context.replace_end)
+                .is_none()
+        {
+            return Completion::default();
+        }
+        let current = Token {
+            start: context.replace_start,
+            end: context.replace_end,
+            raw: line[context.replace_start..context.replace_end].into(),
+            separator: false,
+        };
         let replacement = Completion {
             replace_start: current.start,
             replace_end: current.end,
@@ -524,35 +585,49 @@ impl CommandIndex {
             incomplete: !self.complete,
         };
         let effective_limit = limit.min(MAX_RESULTS);
-        if effective_limit == 0 {
+        if effective_limit == 0 || context.suppressed {
             return replacement;
         }
 
         let token_context = TokenContext::from(line, &current, cursor);
-        let prefix = token_context.value_before.clone();
-        let segment_start = segment_start(&tokens, current.start);
-        let command_token = tokens.iter().find(|token| {
-            !token.separator && token.start >= segment_start && token.start <= current.start
-        });
-        let is_command_position = command_token
-            .map(|command| command.start == current.start)
-            .unwrap_or(true);
+        let prefix = context.prefix.clone();
 
-        if is_command_position {
-            let candidates =
-                self.command_candidates(&prefix, &token_context, effective_limit, overrides);
+        if context.command_position {
+            let mut candidates =
+                self.command_candidates(&prefix, &token_context, effective_limit, overrides, fuzzy);
+            if let Some(catalog) = catalog {
+                for candidate in &mut candidates {
+                    let (resolved, targets) =
+                        self.resolve_command_with_alias_targets(&candidate.label);
+                    let canonical = catalog
+                        .canonical_command(&resolved)
+                        .unwrap_or_else(|| resolved.clone());
+                    if override_value(overrides, &candidate.label).is_none()
+                        && override_value(overrides, &resolved).is_none()
+                        && override_value(overrides, &canonical).is_none()
+                        && targets
+                            .iter()
+                            .all(|target| override_value(overrides, target).is_none())
+                        && let Some(description) = catalog.describe_command(&resolved)
+                    {
+                        candidate.description = description.into();
+                    }
+                }
+            }
             return Completion {
                 candidates,
                 ..replacement
             };
         }
 
-        let command_name = command_token
-            .map(|command| decode_power_shell(&command.raw))
-            .unwrap_or_default();
-        let preceding_args = preceding_arguments(&tokens, segment_start, current.start);
-        let resolved_command = self.resolve_command(&command_name);
-        let spec_result = specs::complete(&resolved_command, &preceding_args, &prefix);
+        let preceding_args = &context.arguments;
+        let resolved_command = self.resolve_command(&context.command);
+        let catalog = catalog.unwrap_or_else(|| crate::spec_catalog::Catalog::builtin());
+        let spec_result = if fuzzy {
+            catalog.lookup_unfiltered(&resolved_command, preceding_args, &prefix)
+        } else {
+            catalog.lookup(&resolved_command, preceding_args, &prefix)
+        };
         let mut candidates = Vec::new();
         let mut path_values = false;
         let mut no_spec = true;
@@ -563,10 +638,7 @@ impl CommandIndex {
             let prefix_lower = prefix.to_ascii_lowercase();
             let mut seen = HashSet::new();
             for candidate in result.candidates {
-                if !candidate
-                    .name
-                    .to_ascii_lowercase()
-                    .starts_with(&prefix_lower)
+                if crate::ranking::match_class(&candidate.name, &prefix_lower, fuzzy).is_none()
                     // Spec keys intentionally preserve option spelling. In
                     // particular, git -C and git -c are distinct candidates.
                     || !seen.insert(candidate.key.clone())
@@ -581,6 +653,10 @@ impl CommandIndex {
                     insert_text,
                     description,
                     kind: candidate.kind,
+                    id: candidate.key,
+                    source: candidate.source,
+                    detail: candidate.detail,
+                    append_space: candidate.append_space,
                 });
                 if candidates.len() >= effective_limit {
                     break;
@@ -591,8 +667,20 @@ impl CommandIndex {
         // Specs explicitly opt into path values. Unknown commands retain the
         // useful local filesystem fallback used by the original engine, while
         // options are never treated as paths.
-        if candidates.is_empty() && !prefix.starts_with('-') && (path_values || no_spec) {
+        if paths && candidates.is_empty() && !prefix.starts_with('-') && (path_values || no_spec) {
             candidates = filesystem_candidates(cwd, &prefix, &token_context, effective_limit);
+            if matches!(
+                resolved_command.to_ascii_lowercase().as_str(),
+                "cd" | "set-location" | "push-location" | "pushd"
+            ) {
+                candidates.retain(|c| c.kind == CandidateKind::Directory);
+            }
+        }
+        if !candidates
+            .iter()
+            .any(|c| matches!(c.kind, CandidateKind::File | CandidateKind::Directory))
+        {
+            crate::ranking::sort(&mut candidates, &prefix, fuzzy, None, cwd, effective_limit);
         }
 
         Completion {
@@ -682,13 +770,14 @@ impl CommandIndex {
         context: &TokenContext,
         limit: usize,
         overrides: &BTreeMap<String, String>,
+        fuzzy: bool,
     ) -> Vec<Candidate> {
         let prefix_lower = prefix.to_ascii_lowercase();
         let mut candidates = Vec::new();
         let mut seen = HashSet::new();
 
         for command in &self.entries {
-            if !command.name.to_ascii_lowercase().starts_with(&prefix_lower) {
+            if crate::ranking::match_class(&command.name, &prefix_lower, fuzzy).is_none() {
                 continue;
             }
             if seen.insert(command_key(&command.name)) {
@@ -697,15 +786,19 @@ impl CommandIndex {
                     insert_text: format_insert(&command.name, context, false),
                     description: self.command_description(command, overrides),
                     kind: command.kind.clone(),
+                    id: format!("command:{}", command.name),
+                    source: match &command.executable_path {
+                        Some(path) => path.display().to_string(),
+                        None => "PowerShell 会话".into(),
+                    },
+                    append_space: true,
+                    ..Default::default()
                 });
             }
         }
         // A short exact command (git) should precede git-gui for the prefix
         // gi. PATH order still decides which duplicate is indexed.
-        candidates.sort_by_cached_key(|candidate| {
-            (candidate.label.len(), candidate.label.to_ascii_lowercase())
-        });
-        candidates.truncate(limit);
+        crate::ranking::sort(&mut candidates, prefix, fuzzy, None, Path::new(""), limit);
         candidates
     }
 
@@ -803,10 +896,10 @@ impl CommandIndex {
             if let Some(canonical) = specs::canonical_command(&current) {
                 return (canonical.to_owned(), alias_targets);
             }
-            if let Some(stem) = without_program_extension(&key) {
-                if let Some(canonical) = specs::canonical_command(stem) {
-                    return (canonical.to_owned(), alias_targets);
-                }
+            if let Some(stem) = without_program_extension(&key)
+                && let Some(canonical) = specs::canonical_command(stem)
+            {
+                return (canonical.to_owned(), alias_targets);
             }
             return (current, alias_targets);
         }
@@ -875,6 +968,10 @@ fn is_remote_path(path: &Path) -> bool {
 
 fn path_resolves_remote(path: &Path) -> bool {
     matches!(symlink_target_status(path), LinkStatus::Remote)
+}
+
+pub(crate) fn local_link(path: &Path) -> bool {
+    matches!(symlink_target_status(path), LinkStatus::Local)
 }
 
 fn symlink_target_status(path: &Path) -> LinkStatus {
@@ -1206,11 +1303,11 @@ fn lex_line(line: &str) -> Vec<Token> {
 
 fn skip_one_char(bytes: &[u8], cursor: &mut usize) {
     if *cursor < bytes.len() {
-        if let Ok(text) = std::str::from_utf8(&bytes[*cursor..]) {
-            if let Some(character) = text.chars().next() {
-                *cursor += character.len_utf8();
-                return;
-            }
+        if let Ok(text) = std::str::from_utf8(&bytes[*cursor..])
+            && let Some(character) = text.chars().next()
+        {
+            *cursor += character.len_utf8();
+            return;
         }
         *cursor = (*cursor + 1).min(bytes.len());
     }
@@ -1324,6 +1421,11 @@ fn analyze_quotes(raw: &str) -> (Option<u8>, bool) {
     (first_quote, quote == 0 && first_quote.is_some())
 }
 
+pub fn space_after(text: &str) -> bool {
+    let (quote, closed) = analyze_quotes(text);
+    quote.is_none() || closed
+}
+
 fn decode_power_shell(raw: &str) -> String {
     let bytes = raw.as_bytes();
     let mut result = String::new();
@@ -1377,6 +1479,58 @@ fn append_one_char(raw: &str, cursor: &mut usize, result: &mut String) {
     } else {
         *cursor += 1;
     }
+}
+
+pub fn format_value(value: &str, line: &str, context: &InputContext, cursor: usize) -> String {
+    let Some(raw) = line.get(context.replace_start..context.replace_end) else {
+        return String::new();
+    };
+    let token = Token {
+        start: context.replace_start,
+        end: context.replace_end,
+        raw: raw.into(),
+        separator: false,
+    };
+    format_insert(value, &TokenContext::from(line, &token, cursor), true)
+}
+
+fn comment_at_cursor(line: &str, cursor: usize) -> bool {
+    let before = &line[..cursor];
+    let mut quote = None;
+    let mut escaped = false;
+    let mut comment = false;
+    let mut boundary = true;
+    for character in before.chars() {
+        if comment {
+            if character == '\n' {
+                comment = false;
+                boundary = true;
+            }
+            continue;
+        }
+        if escaped {
+            escaped = false;
+            boundary = false;
+            continue;
+        }
+        if character == '`' && quote != Some('\'') {
+            escaped = true;
+            continue;
+        }
+        if let Some(active) = quote {
+            if character == active {
+                quote = None;
+            }
+            continue;
+        }
+        if character == '\'' || character == '"' {
+            quote = Some(character);
+        } else if character == '#' && boundary {
+            comment = true;
+        }
+        boundary = character.is_whitespace() || matches!(character, ';' | '|' | '{' | '}');
+    }
+    comment
 }
 
 fn format_insert(text: &str, context: &TokenContext, path_value: bool) -> String {
@@ -1504,7 +1658,7 @@ fn filesystem_candidates(
             insert.push(separator);
         }
         candidates.push(Candidate {
-            label: name,
+            label: name.clone(),
             insert_text: format_insert(&insert, context, true),
             description: if is_directory {
                 "目录".to_owned()
@@ -1516,6 +1670,9 @@ fn filesystem_candidates(
             } else {
                 CandidateKind::File
             },
+            id: format!("path:{}", directory.join(&name).display()),
+            source: directory.display().to_string(),
+            ..Default::default()
         });
         if candidates.len() >= limit {
             break;
@@ -1542,15 +1699,15 @@ fn resolve_directory(cwd: &Path, directory_text: &str) -> PathBuf {
         // Trimming C:\\ to C: turns a drive-relative path into a drive root.
         path_text.push(trailing_separator.unwrap());
     }
-    if path_text == "~" || path_text.starts_with("~/") || path_text.starts_with("~\\") {
-        if let Some(home) = env::var_os("USERPROFILE").or_else(|| env::var_os("HOME")) {
-            let suffix = path_text[1..].trim_start_matches(['/', '\\']);
-            return if suffix.is_empty() {
-                PathBuf::from(home)
-            } else {
-                PathBuf::from(home).join(suffix)
-            };
-        }
+    if (path_text == "~" || path_text.starts_with("~/") || path_text.starts_with("~\\"))
+        && let Some(home) = env::var_os("USERPROFILE").or_else(|| env::var_os("HOME"))
+    {
+        let suffix = path_text[1..].trim_start_matches(['/', '\\']);
+        return if suffix.is_empty() {
+            PathBuf::from(home)
+        } else {
+            PathBuf::from(home).join(suffix)
+        };
     }
     let candidate = PathBuf::from(&path_text);
     if candidate.is_absolute() {
@@ -1564,7 +1721,7 @@ fn path_separator() -> char {
     if cfg!(windows) { '\\' } else { '/' }
 }
 
-fn atomic_replace(source: &Path, destination: &Path) -> io::Result<()> {
+pub fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
