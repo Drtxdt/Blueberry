@@ -790,7 +790,7 @@ fn execute() -> Result<u32> {
         } => {
             let path = config::statistics_path();
             let learning = Learning::new(path.clone());
-            learning.clear();
+            learning.clear().context("无法清除本地补全选择统计")?;
             drop(learning);
             println!("已清除本地补全选择统计: {}", path.display());
             Ok(0)

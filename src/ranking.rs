@@ -189,7 +189,8 @@ pub fn sort(
 
 enum Event {
     Accepted(String, PathBuf),
-    Clear(mpsc::Sender<()>),
+    Clear(mpsc::Sender<std::io::Result<()>>),
+    Refresh,
     Stop,
 }
 pub struct Learning {
@@ -203,8 +204,16 @@ impl Learning {
         let (sender, receiver) = mpsc::channel();
         let shared = snapshot.clone();
         let thread = thread::spawn(move || {
-            let mut store = UsageSnapshot::load(&path);
-            let mut disk_stamp = stamp(&path);
+            // The gate serializes clearing and saving across active hosts.
+            // Its contents are a random clear generation, never selection data.
+            let (mut store, mut generation, mut disk_stamp) = match usage_gate(&path) {
+                Ok(gate) => (
+                    UsageSnapshot::load(&path),
+                    gate_generation(&gate),
+                    stamp(&path),
+                ),
+                Err(_) => (UsageSnapshot::default(), Vec::new(), None),
+            };
             store.prune(now());
             *shared.write().unwrap() = Arc::new(store.clone());
             let mut dirty = false;
@@ -216,37 +225,54 @@ impl Learning {
                         .recv()
                         .map_err(|_| mpsc::RecvTimeoutError::Disconnected)
                 };
+                let mut gate = match usage_gate(&path) {
+                    Ok(gate) => gate,
+                    Err(error) => {
+                        match event {
+                            Ok(Event::Clear(done)) => {
+                                let _ = done.send(Err(error));
+                            }
+                            Ok(Event::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                            _ => {}
+                        }
+                        continue;
+                    }
+                };
+                let current_generation = gate_generation(&gate);
+                if current_generation != generation
+                    || (disk_stamp.is_some() && stamp(&path).is_none())
+                {
+                    store = UsageSnapshot::default();
+                    generation = current_generation;
+                    disk_stamp = None;
+                    dirty = false;
+                    *shared.write().unwrap() = Arc::new(store.clone());
+                }
                 match event {
                     Ok(Event::Accepted(id, project)) => {
-                        if disk_stamp.is_some() && stamp(&path).is_none() {
-                            store = UsageSnapshot::default();
-                            disk_stamp = None;
-                        }
                         store.record(&id, &project, now());
                         dirty = true;
                         *shared.write().unwrap() = Arc::new(store.clone());
                     }
+                    Ok(Event::Refresh) => {}
                     Ok(Event::Clear(done)) => {
-                        store = UsageSnapshot::default();
-                        *shared.write().unwrap() = Arc::new(store.clone());
-                        let _ = fs::remove_file(&path);
-                        disk_stamp = None;
-                        dirty = false;
-                        let _ = done.send(());
+                        let result = clear_usage(&path, &mut gate);
+                        if result.is_ok() {
+                            store = UsageSnapshot::default();
+                            generation = gate_generation(&gate);
+                            *shared.write().unwrap() = Arc::new(store.clone());
+                            disk_stamp = None;
+                            dirty = false;
+                        }
+                        let _ = done.send(result);
                     }
                     Ok(Event::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => {
-                        if dirty && !(disk_stamp.is_some() && stamp(&path).is_none()) {
+                        if dirty {
                             let _ = save(&path, &store);
                         }
                         break;
                     }
                     Err(mpsc::RecvTimeoutError::Timeout) => {
-                        if disk_stamp.is_some() && stamp(&path).is_none() {
-                            store = UsageSnapshot::default();
-                            disk_stamp = None;
-                            dirty = false;
-                            *shared.write().unwrap() = Arc::new(store.clone());
-                        }
                         if dirty && save(&path, &store).is_ok() {
                             dirty = false;
                             disk_stamp = stamp(&path);
@@ -267,10 +293,16 @@ impl Learning {
     pub fn accepted(&self, id: &str, project: &Path) {
         let _ = self.sender.send(Event::Accepted(id.into(), project.into()));
     }
-    pub fn clear(&self) {
+    /// Recheck an external clear after a shell command, outside input work.
+    pub fn refresh(&self) {
+        let _ = self.sender.send(Event::Refresh);
+    }
+    pub fn clear(&self) -> std::io::Result<()> {
         let (send, recv) = mpsc::channel();
-        let _ = self.sender.send(Event::Clear(send));
-        let _ = recv.recv_timeout(Duration::from_secs(2));
+        self.sender
+            .send(Event::Clear(send))
+            .map_err(std::io::Error::other)?;
+        recv.recv().map_err(std::io::Error::other)?
     }
 }
 impl Drop for Learning {
@@ -281,6 +313,41 @@ impl Drop for Learning {
         }
     }
 }
+fn usage_gate(path: &Path) -> std::io::Result<fs::File> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let file = fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path.with_extension("lock"))?;
+    file.lock()?;
+    Ok(file)
+}
+fn gate_generation(mut gate: &fs::File) -> Vec<u8> {
+    use std::io::{Read, Seek};
+    let mut bytes = Vec::new();
+    if gate.rewind().is_ok() {
+        let _ = gate.take(64).read_to_end(&mut bytes);
+    }
+    bytes
+}
+fn clear_usage(path: &Path, gate: &mut fs::File) -> std::io::Result<()> {
+    use std::io::{Seek, Write};
+    // Rotate before removing the data, while holding the same OS lock used
+    // by writers. A host with an unsaved selection also observes this clear.
+    gate.rewind()?;
+    gate.set_len(0)?;
+    gate.write_all(uuid::Uuid::new_v4().to_string().as_bytes())?;
+    gate.flush()?;
+    match fs::remove_file(path) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
+        _ => Ok(()),
+    }
+}
+
 fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -359,6 +426,57 @@ mod tests {
     }
 
     #[test]
+    fn an_existing_session_observes_an_external_clear_at_the_next_prompt() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("usage.json");
+        let mut previous = UsageSnapshot::default();
+        previous.record("old-choice", directory.path(), now());
+        save(&path, &previous).unwrap();
+        let active = Learning::new(path.clone());
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while active.snapshot().entries.is_empty() {
+            assert!(std::time::Instant::now() < deadline);
+            thread::yield_now();
+        }
+        Learning::new(path.clone()).clear().unwrap();
+        active.refresh();
+        while !active.snapshot().entries.is_empty() {
+            assert!(std::time::Instant::now() < deadline);
+            thread::yield_now();
+        }
+        drop(active);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn external_clear_does_not_resurrect_an_unflushed_selection() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("usage.json");
+        let active = Learning::new(path.clone());
+        active.accepted("unsaved-choice", directory.path());
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while active.snapshot().entries.is_empty() {
+            assert!(std::time::Instant::now() < deadline);
+            thread::yield_now();
+        }
+        assert!(
+            !path.exists(),
+            "fixture must exercise an unflushed selection"
+        );
+        Learning::new(path.clone()).clear().unwrap();
+        drop(active); // Stop must check the clear generation before flushing.
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn clearing_reports_an_unwritable_statistics_location() {
+        let directory = tempfile::tempdir().unwrap();
+        let parent = directory.path().join("not-a-directory");
+        fs::write(&parent, "fixture").unwrap();
+        assert!(Learning::new(parent.join("usage.json")).clear().is_err());
+    }
+
+    #[test]
     fn acknowledged_selections_flush_on_exit_and_clear_is_durable() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("usage.json");
@@ -372,7 +490,7 @@ mod tests {
         assert_eq!(data.entries.len(), 1);
         {
             let learning = Learning::new(path.clone());
-            learning.clear();
+            learning.clear().unwrap();
         }
         assert!(!path.exists());
     }
