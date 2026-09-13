@@ -7811,7 +7811,7 @@ detail = "将依赖添加到清单；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo add 示例"]
+examples = ["cargo add serde"]
 
 [[nodes]]
 path = "cargo bench"
@@ -7851,7 +7851,7 @@ detail = "删除生成的构建产物；可按 F1 查看用途与离线示例。
 positional = "path"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo clean 示例"]
+examples = ["cargo clean --dry-run"]
 
 [[nodes]]
 path = "cargo clippy"
@@ -7871,7 +7871,7 @@ detail = "构建包文档；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo doc 示例"]
+examples = ["cargo doc --no-deps"]
 
 [[nodes]]
 path = "cargo fetch"
@@ -7881,7 +7881,7 @@ detail = "下载依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo fetch 示例"]
+examples = ["cargo fetch --locked"]
 
 [[nodes]]
 path = "cargo fix"
@@ -7891,7 +7891,7 @@ detail = "自动修复编译器警告；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo fix 示例"]
+examples = ["cargo fix --edition"]
 
 [[nodes]]
 path = "cargo fmt"
@@ -7911,7 +7911,7 @@ detail = "生成 Cargo.lock 文件；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo generate-lockfile 示例"]
+examples = ["cargo generate-lockfile"]
 
 [[nodes]]
 path = "cargo init"
@@ -7921,7 +7921,7 @@ detail = "创建空仓库；可按 F1 查看用途与离线示例。"
 positional = "path"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo init 示例"]
+examples = ["cargo init --lib"]
 
 [[nodes]]
 path = "cargo install"
@@ -7931,7 +7931,7 @@ detail = "安装 Rust 二进制；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo install 示例"]
+examples = ["cargo install ripgrep"]
 
 [[nodes]]
 path = "cargo locate-project"
@@ -7941,7 +7941,7 @@ detail = "定位 Cargo 项目清单；可按 F1 查看用途与离线示例。"
 positional = "path"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo locate-project 示例"]
+examples = ["cargo locate-project --workspace"]
 
 [[nodes]]
 path = "cargo metadata"
@@ -7951,7 +7951,7 @@ detail = "输出包元数据；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo metadata 示例"]
+examples = ["cargo metadata --no-deps --format-version 1"]
 
 [[nodes]]
 path = "cargo new"
@@ -7961,7 +7961,7 @@ detail = "创建新包；可按 F1 查看用途与离线示例。"
 positional = "path"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo new 示例"]
+examples = ["cargo new hello"]
 
 [[nodes]]
 path = "cargo publish"
@@ -7971,7 +7971,7 @@ detail = "将包发布到包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo publish 示例"]
+examples = ["cargo publish --dry-run"]
 
 [[nodes]]
 path = "cargo remove"
@@ -7981,7 +7981,7 @@ detail = "从清单移除依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo remove 示例"]
+examples = ["cargo remove serde"]
 
 [[nodes]]
 path = "cargo report"
@@ -7991,7 +7991,7 @@ detail = "显示 Cargo 报告；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo report 示例"]
+examples = ["cargo report future-incompatibilities"]
 
 [[nodes]]
 path = "cargo run"
@@ -8011,7 +8011,7 @@ detail = "使用 rustc 选项编译包；可按 F1 查看用途与离线示例�
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo rustc 示例"]
+examples = ["cargo rustc -- --cfg local"]
 
 [[nodes]]
 path = "cargo rustdoc"
@@ -8021,7 +8021,7 @@ detail = "使用 rustdoc 选项构建文档；可按 F1 查看用途与离线示
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo rustdoc 示例"]
+examples = ["cargo rustdoc -- --document-private-items"]
 
 [[nodes]]
 path = "cargo search"
@@ -8031,7 +8031,7 @@ detail = "在包仓库中搜索包；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo search 示例"]
+examples = ["cargo search serde --limit 5"]
 
 [[nodes]]
 path = "cargo test"
@@ -8051,7 +8051,7 @@ detail = "显示依赖树；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo tree 示例"]
+examples = ["cargo tree -d"]
 
 [[nodes]]
 path = "cargo uninstall"
@@ -8061,7 +8061,7 @@ detail = "卸载 Rust 二进制；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo uninstall 示例"]
+examples = ["cargo uninstall ripgrep"]
 
 [[nodes]]
 path = "cargo update"
@@ -8071,7 +8071,7 @@ detail = "更新依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo update 示例"]
+examples = ["cargo update -p serde"]
 
 [[nodes]]
 path = "cargo vendor"
@@ -8081,7 +8081,7 @@ detail = "将所有依赖放入本地目录；可按 F1 查看用途与离线示
 positional = "path"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo vendor 示例"]
+examples = ["cargo vendor vendor"]
 
 [[nodes]]
 path = "cargo version"
@@ -8091,7 +8091,7 @@ detail = "显示 Cargo 版本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["CARGO_GLOBAL_OPTIONS"]
-examples = ["cargo version 示例"]
+examples = ["cargo version"]
 
 [[nodes]]
 path = "docker"
@@ -8101,7 +8101,7 @@ detail = "构建镜像并管理容器；可按 F1 查看用途与离线示例。
 positional = "value"
 children = ["docker build", "docker builder", "docker buildx", "docker checkpoint", "docker commit", "docker compose", "docker config", "docker container", "docker context", "docker cp", "docker create", "docker diff", "docker events", "docker exec", "docker export", "docker history", "docker image", "docker images", "docker info", "docker init", "docker inspect", "docker kill", "docker load", "docker login", "docker logout", "docker logs", "docker manifest", "docker network", "docker node", "docker pause", "docker plugin", "docker port", "docker ps", "docker pull", "docker push", "docker rename", "docker restart", "docker rm", "docker rmi", "docker run", "docker save", "docker search", "docker secret", "docker service", "docker stack", "docker start", "docker stats", "docker stop", "docker swarm", "docker system", "docker tag", "docker top", "docker trust", "docker unpause", "docker update", "docker version", "docker volume", "docker wait"]
 option_sets = ["DOCKER_GLOBAL_OPTIONS"]
-examples = ["docker 示例"]
+examples = []
 
 [[nodes]]
 path = "docker build"
@@ -8111,7 +8111,7 @@ detail = "从 Dockerfile 构建镜像；可按 F1 查看用途与离线示例。
 positional = "path"
 children = []
 option_sets = ["DOCKER_BUILD_OPTIONS"]
-examples = ["docker build 示例"]
+examples = []
 
 [[nodes]]
 path = "docker builder"
@@ -8121,7 +8121,7 @@ detail = "管理构建；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker builder 示例"]
+examples = []
 
 [[nodes]]
 path = "docker buildx"
@@ -8131,7 +8131,7 @@ detail = "使用 BuildKit 构建；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker buildx 示例"]
+examples = []
 
 [[nodes]]
 path = "docker checkpoint"
@@ -8141,7 +8141,7 @@ detail = "管理检查点；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker checkpoint 示例"]
+examples = []
 
 [[nodes]]
 path = "docker commit"
@@ -8151,7 +8151,7 @@ detail = "从容器创建镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker commit 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose"
@@ -8161,7 +8161,7 @@ detail = "定义并运行多容器应用；可按 F1 查看用途与离线示例
 positional = "value"
 children = ["docker compose build", "docker compose config", "docker compose cp", "docker compose create", "docker compose down", "docker compose events", "docker compose exec", "docker compose images", "docker compose kill", "docker compose logs", "docker compose pause", "docker compose port", "docker compose ps", "docker compose pull", "docker compose push", "docker compose restart", "docker compose rm", "docker compose run", "docker compose start", "docker compose stop", "docker compose top", "docker compose unpause", "docker compose up", "docker compose version", "docker compose watch"]
 option_sets = ["DOCKER_COMPOSE_OPTIONS"]
-examples = ["docker compose 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose build"
@@ -8171,7 +8171,7 @@ detail = "构建或重新构建服务；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose build 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose config"
@@ -8181,7 +8181,7 @@ detail = "验证并查看 Compose 文件；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose config 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose cp"
@@ -8191,7 +8191,7 @@ detail = "在服务与主机之间复制文件；可按 F1 查看用途与离线
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose cp 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose create"
@@ -8201,7 +8201,7 @@ detail = "创建服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose create 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose down"
@@ -8211,7 +8211,7 @@ detail = "停止并移除资源；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose down 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose events"
@@ -8221,7 +8221,7 @@ detail = "接收服务实时事件；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose events 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose exec"
@@ -8231,7 +8231,7 @@ detail = "在服务中运行命令；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose exec 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose images"
@@ -8241,7 +8241,7 @@ detail = "列出服务使用的镜像；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose images 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose kill"
@@ -8251,7 +8251,7 @@ detail = "强制停止服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose kill 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose logs"
@@ -8261,7 +8261,7 @@ detail = "查看服务输出；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose logs 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose pause"
@@ -8271,7 +8271,7 @@ detail = "暂停服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose pause 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose port"
@@ -8281,7 +8281,7 @@ detail = "输出公开端口绑定；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose port 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose ps"
@@ -8291,7 +8291,7 @@ detail = "列出服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose ps 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose pull"
@@ -8301,7 +8301,7 @@ detail = "拉取服务镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose pull 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose push"
@@ -8311,7 +8311,7 @@ detail = "推送服务镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose push 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose restart"
@@ -8321,7 +8321,7 @@ detail = "重启服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose restart 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose rm"
@@ -8331,7 +8331,7 @@ detail = "移除已停止的服务容器；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose rm 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose run"
@@ -8341,7 +8341,7 @@ detail = "运行一次性命令；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose run 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose start"
@@ -8351,7 +8351,7 @@ detail = "启动服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose start 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose stop"
@@ -8361,7 +8361,7 @@ detail = "停止服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose stop 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose top"
@@ -8371,7 +8371,7 @@ detail = "显示服务进程；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose top 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose unpause"
@@ -8381,7 +8381,7 @@ detail = "恢复服务运行；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose unpause 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose up"
@@ -8391,7 +8391,7 @@ detail = "创建并启动服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["DOCKER_COMPOSE_UP_OPTIONS"]
-examples = ["docker compose up 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose version"
@@ -8401,7 +8401,7 @@ detail = "显示 Compose 版本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose version 示例"]
+examples = []
 
 [[nodes]]
 path = "docker compose watch"
@@ -8411,7 +8411,7 @@ detail = "监视源文件并重新构建服务；可按 F1 查看用途与离线
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker compose watch 示例"]
+examples = []
 
 [[nodes]]
 path = "docker config"
@@ -8421,7 +8421,7 @@ detail = "管理 Swarm 配置；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker config 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container"
@@ -8431,7 +8431,7 @@ detail = "管理容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["docker container attach", "docker container commit", "docker container cp", "docker container create", "docker container diff", "docker container exec", "docker container export", "docker container inspect", "docker container kill", "docker container logs", "docker container ls", "docker container pause", "docker container port", "docker container prune", "docker container rename", "docker container restart", "docker container rm", "docker container run", "docker container start", "docker container stats", "docker container stop", "docker container top", "docker container unpause", "docker container update", "docker container wait"]
 option_sets = ["DOCKER_COMMON_OPTIONS"]
-examples = ["docker container 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container attach"
@@ -8441,7 +8441,7 @@ detail = "将本地输入输出连接到容器；可按 F1 查看用途与离线
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container attach 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container commit"
@@ -8451,7 +8451,7 @@ detail = "从容器创建镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container commit 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container cp"
@@ -8461,7 +8461,7 @@ detail = "在容器与主机之间复制文件；可按 F1 查看用途与离线
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container cp 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container create"
@@ -8471,7 +8471,7 @@ detail = "创建容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container create 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container diff"
@@ -8481,7 +8481,7 @@ detail = "检查文件系统更改；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container diff 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container exec"
@@ -8491,7 +8491,7 @@ detail = "在运行中的容器内执行命令；可按 F1 查看用途与离线
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container exec 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container export"
@@ -8501,7 +8501,7 @@ detail = "导出容器文件系统；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container export 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container inspect"
@@ -8511,7 +8511,7 @@ detail = "显示容器详情；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container inspect 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container kill"
@@ -8521,7 +8521,7 @@ detail = "强制终止容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container kill 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container logs"
@@ -8531,7 +8531,7 @@ detail = "获取容器日志；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container logs 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container ls"
@@ -8541,7 +8541,7 @@ detail = "列出容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container ls 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container pause"
@@ -8551,7 +8551,7 @@ detail = "暂停容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container pause 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container port"
@@ -8561,7 +8561,7 @@ detail = "列出端口映射；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container port 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container prune"
@@ -8571,7 +8571,7 @@ detail = "移除未使用的容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container prune 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container rename"
@@ -8581,7 +8581,7 @@ detail = "重命名容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container rename 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container restart"
@@ -8591,7 +8591,7 @@ detail = "重启容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container restart 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container rm"
@@ -8601,7 +8601,7 @@ detail = "移除容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container rm 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container run"
@@ -8611,7 +8611,7 @@ detail = "在新容器中执行命令；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container run 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container start"
@@ -8621,7 +8621,7 @@ detail = "启动容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container start 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container stats"
@@ -8631,7 +8631,7 @@ detail = "显示容器资源使用情况；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container stats 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container stop"
@@ -8641,7 +8641,7 @@ detail = "停止容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container stop 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container top"
@@ -8651,7 +8651,7 @@ detail = "显示容器中的进程；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container top 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container unpause"
@@ -8661,7 +8661,7 @@ detail = "恢复容器运行；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container unpause 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container update"
@@ -8671,7 +8671,7 @@ detail = "更新容器配置；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container update 示例"]
+examples = []
 
 [[nodes]]
 path = "docker container wait"
@@ -8681,7 +8681,7 @@ detail = "等待容器停止；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker container wait 示例"]
+examples = []
 
 [[nodes]]
 path = "docker context"
@@ -8691,7 +8691,7 @@ detail = "管理 Docker 上下文；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker context 示例"]
+examples = []
 
 [[nodes]]
 path = "docker cp"
@@ -8701,7 +8701,7 @@ detail = "在容器与主机之间复制文件；可按 F1 查看用途与离线
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker cp 示例"]
+examples = []
 
 [[nodes]]
 path = "docker create"
@@ -8711,7 +8711,7 @@ detail = "创建新容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["DOCKER_RUN_OPTIONS"]
-examples = ["docker create 示例"]
+examples = []
 
 [[nodes]]
 path = "docker diff"
@@ -8721,7 +8721,7 @@ detail = "检查容器文件系统的更改；可按 F1 查看用途与离线示
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker diff 示例"]
+examples = []
 
 [[nodes]]
 path = "docker events"
@@ -8731,7 +8731,7 @@ detail = "获取服务器实时事件；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker events 示例"]
+examples = []
 
 [[nodes]]
 path = "docker exec"
@@ -8741,7 +8741,7 @@ detail = "在运行中的容器内执行命令；可按 F1 查看用途与离线
 positional = "value"
 children = []
 option_sets = ["DOCKER_EXEC_OPTIONS"]
-examples = ["docker exec 示例"]
+examples = []
 
 [[nodes]]
 path = "docker export"
@@ -8751,7 +8751,7 @@ detail = "导出容器文件系统；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker export 示例"]
+examples = []
 
 [[nodes]]
 path = "docker history"
@@ -8761,7 +8761,7 @@ detail = "显示镜像历史记录；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker history 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image"
@@ -8771,7 +8771,7 @@ detail = "管理镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["docker image build", "docker image history", "docker image import", "docker image inspect", "docker image load", "docker image ls", "docker image prune", "docker image pull", "docker image push", "docker image rm", "docker image save", "docker image tag"]
 option_sets = ["DOCKER_COMMON_OPTIONS"]
-examples = ["docker image 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image build"
@@ -8781,7 +8781,7 @@ detail = "构建镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image build 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image history"
@@ -8791,7 +8791,7 @@ detail = "显示镜像历史记录；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image history 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image import"
@@ -8801,7 +8801,7 @@ detail = "从文件系统归档创建镜像；可按 F1 查看用途与离线示
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image import 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image inspect"
@@ -8811,7 +8811,7 @@ detail = "显示镜像详情；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image inspect 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image load"
@@ -8821,7 +8821,7 @@ detail = "从归档加载镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image load 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image ls"
@@ -8831,7 +8831,7 @@ detail = "列出镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image ls 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image prune"
@@ -8841,7 +8841,7 @@ detail = "移除未使用的镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image prune 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image pull"
@@ -8851,7 +8851,7 @@ detail = "拉取镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image pull 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image push"
@@ -8861,7 +8861,7 @@ detail = "推送镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image push 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image rm"
@@ -8871,7 +8871,7 @@ detail = "移除镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image rm 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image save"
@@ -8881,7 +8881,7 @@ detail = "将镜像保存到归档；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image save 示例"]
+examples = []
 
 [[nodes]]
 path = "docker image tag"
@@ -8891,7 +8891,7 @@ detail = "为镜像添加标签；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker image tag 示例"]
+examples = []
 
 [[nodes]]
 path = "docker images"
@@ -8901,7 +8901,7 @@ detail = "列出镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["DOCKER_IMAGES_OPTIONS"]
-examples = ["docker images 示例"]
+examples = []
 
 [[nodes]]
 path = "docker info"
@@ -8911,7 +8911,7 @@ detail = "显示系统信息；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker info 示例"]
+examples = []
 
 [[nodes]]
 path = "docker init"
@@ -8921,7 +8921,7 @@ detail = "为容器化项目创建文件；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker init 示例"]
+examples = []
 
 [[nodes]]
 path = "docker inspect"
@@ -8931,7 +8931,7 @@ detail = "返回底层信息；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker inspect 示例"]
+examples = []
 
 [[nodes]]
 path = "docker kill"
@@ -8941,7 +8941,7 @@ detail = "强制终止运行中的容器；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker kill 示例"]
+examples = []
 
 [[nodes]]
 path = "docker load"
@@ -8951,7 +8951,7 @@ detail = "从归档加载镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker load 示例"]
+examples = []
 
 [[nodes]]
 path = "docker login"
@@ -8961,7 +8961,7 @@ detail = "登录软件包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker login 示例"]
+examples = []
 
 [[nodes]]
 path = "docker logout"
@@ -8971,7 +8971,7 @@ detail = "退出软件包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker logout 示例"]
+examples = []
 
 [[nodes]]
 path = "docker logs"
@@ -8981,7 +8981,7 @@ detail = "获取容器日志；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker logs 示例"]
+examples = []
 
 [[nodes]]
 path = "docker manifest"
@@ -8991,7 +8991,7 @@ detail = "管理镜像清单；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker manifest 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network"
@@ -9001,7 +9001,7 @@ detail = "管理网络；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["docker network connect", "docker network create", "docker network disconnect", "docker network inspect", "docker network ls", "docker network prune", "docker network rm"]
 option_sets = ["DOCKER_COMMON_OPTIONS"]
-examples = ["docker network 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network connect"
@@ -9011,7 +9011,7 @@ detail = "将容器连接到网络；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker network connect 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network create"
@@ -9021,7 +9021,7 @@ detail = "创建网络；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker network create 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network disconnect"
@@ -9031,7 +9031,7 @@ detail = "断开容器与网络的连接；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker network disconnect 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network inspect"
@@ -9041,7 +9041,7 @@ detail = "显示网络详情；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker network inspect 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network ls"
@@ -9051,7 +9051,7 @@ detail = "列出网络；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker network ls 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network prune"
@@ -9061,7 +9061,7 @@ detail = "移除未使用的网络；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker network prune 示例"]
+examples = []
 
 [[nodes]]
 path = "docker network rm"
@@ -9071,7 +9071,7 @@ detail = "移除网络；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker network rm 示例"]
+examples = []
 
 [[nodes]]
 path = "docker node"
@@ -9081,7 +9081,7 @@ detail = "管理 Swarm 节点；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker node 示例"]
+examples = []
 
 [[nodes]]
 path = "docker pause"
@@ -9091,7 +9091,7 @@ detail = "暂停容器中的所有进程；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker pause 示例"]
+examples = []
 
 [[nodes]]
 path = "docker plugin"
@@ -9101,7 +9101,7 @@ detail = "管理插件；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker plugin 示例"]
+examples = []
 
 [[nodes]]
 path = "docker port"
@@ -9111,7 +9111,7 @@ detail = "列出端口映射；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker port 示例"]
+examples = []
 
 [[nodes]]
 path = "docker ps"
@@ -9121,7 +9121,7 @@ detail = "列出容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["DOCKER_PS_OPTIONS"]
-examples = ["docker ps 示例"]
+examples = []
 
 [[nodes]]
 path = "docker pull"
@@ -9131,7 +9131,7 @@ detail = "拉取镜像或仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["DOCKER_PULL_OPTIONS"]
-examples = ["docker pull 示例"]
+examples = []
 
 [[nodes]]
 path = "docker push"
@@ -9141,7 +9141,7 @@ detail = "推送镜像或仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["DOCKER_PUSH_OPTIONS"]
-examples = ["docker push 示例"]
+examples = []
 
 [[nodes]]
 path = "docker rename"
@@ -9151,7 +9151,7 @@ detail = "重命名容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker rename 示例"]
+examples = []
 
 [[nodes]]
 path = "docker restart"
@@ -9161,7 +9161,7 @@ detail = "重启容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker restart 示例"]
+examples = []
 
 [[nodes]]
 path = "docker rm"
@@ -9171,7 +9171,7 @@ detail = "移除容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker rm 示例"]
+examples = []
 
 [[nodes]]
 path = "docker rmi"
@@ -9181,7 +9181,7 @@ detail = "移除镜像；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker rmi 示例"]
+examples = []
 
 [[nodes]]
 path = "docker run"
@@ -9191,7 +9191,7 @@ detail = "在新容器中执行命令；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = ["DOCKER_RUN_OPTIONS"]
-examples = ["docker run 示例"]
+examples = []
 
 [[nodes]]
 path = "docker save"
@@ -9201,7 +9201,7 @@ detail = "将镜像保存到归档；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker save 示例"]
+examples = []
 
 [[nodes]]
 path = "docker search"
@@ -9211,7 +9211,7 @@ detail = "搜索 Docker Hub；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker search 示例"]
+examples = []
 
 [[nodes]]
 path = "docker secret"
@@ -9221,7 +9221,7 @@ detail = "管理 Swarm 密钥；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker secret 示例"]
+examples = []
 
 [[nodes]]
 path = "docker service"
@@ -9231,7 +9231,7 @@ detail = "管理 Swarm 服务；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker service 示例"]
+examples = []
 
 [[nodes]]
 path = "docker stack"
@@ -9241,7 +9241,7 @@ detail = "管理 Swarm 堆栈；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker stack 示例"]
+examples = []
 
 [[nodes]]
 path = "docker start"
@@ -9251,7 +9251,7 @@ detail = "启动已停止的容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker start 示例"]
+examples = []
 
 [[nodes]]
 path = "docker stats"
@@ -9261,7 +9261,7 @@ detail = "显示容器资源使用情况；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker stats 示例"]
+examples = []
 
 [[nodes]]
 path = "docker stop"
@@ -9271,7 +9271,7 @@ detail = "停止运行中的容器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker stop 示例"]
+examples = []
 
 [[nodes]]
 path = "docker swarm"
@@ -9281,7 +9281,7 @@ detail = "管理 Swarm；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker swarm 示例"]
+examples = []
 
 [[nodes]]
 path = "docker system"
@@ -9291,7 +9291,7 @@ detail = "管理 Docker 数据；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["docker system df", "docker system events", "docker system info", "docker system prune"]
 option_sets = ["DOCKER_COMMON_OPTIONS"]
-examples = ["docker system 示例"]
+examples = []
 
 [[nodes]]
 path = "docker system df"
@@ -9301,7 +9301,7 @@ detail = "显示 Docker 磁盘使用情况；可按 F1 查看用途与离线示�
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker system df 示例"]
+examples = []
 
 [[nodes]]
 path = "docker system events"
@@ -9311,7 +9311,7 @@ detail = "显示 Docker 事件；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker system events 示例"]
+examples = []
 
 [[nodes]]
 path = "docker system info"
@@ -9321,7 +9321,7 @@ detail = "显示 Docker 系统信息；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker system info 示例"]
+examples = []
 
 [[nodes]]
 path = "docker system prune"
@@ -9331,7 +9331,7 @@ detail = "移除未使用的 Docker 数据；可按 F1 查看用途与离线示�
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker system prune 示例"]
+examples = []
 
 [[nodes]]
 path = "docker tag"
@@ -9341,7 +9341,7 @@ detail = "为镜像创建标签；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker tag 示例"]
+examples = []
 
 [[nodes]]
 path = "docker top"
@@ -9351,7 +9351,7 @@ detail = "显示运行中的进程；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker top 示例"]
+examples = []
 
 [[nodes]]
 path = "docker trust"
@@ -9361,7 +9361,7 @@ detail = "管理镜像信任；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker trust 示例"]
+examples = []
 
 [[nodes]]
 path = "docker unpause"
@@ -9371,7 +9371,7 @@ detail = "恢复容器中进程运行；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker unpause 示例"]
+examples = []
 
 [[nodes]]
 path = "docker update"
@@ -9381,7 +9381,7 @@ detail = "更新容器配置；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker update 示例"]
+examples = []
 
 [[nodes]]
 path = "docker version"
@@ -9391,7 +9391,7 @@ detail = "显示 Docker 版本信息；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker version 示例"]
+examples = []
 
 [[nodes]]
 path = "docker volume"
@@ -9401,7 +9401,7 @@ detail = "管理卷；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["docker volume create", "docker volume inspect", "docker volume ls", "docker volume prune", "docker volume rm"]
 option_sets = ["DOCKER_COMMON_OPTIONS"]
-examples = ["docker volume 示例"]
+examples = []
 
 [[nodes]]
 path = "docker volume create"
@@ -9411,7 +9411,7 @@ detail = "创建卷；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker volume create 示例"]
+examples = []
 
 [[nodes]]
 path = "docker volume inspect"
@@ -9421,7 +9421,7 @@ detail = "显示卷详情；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker volume inspect 示例"]
+examples = []
 
 [[nodes]]
 path = "docker volume ls"
@@ -9431,7 +9431,7 @@ detail = "列出卷；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker volume ls 示例"]
+examples = []
 
 [[nodes]]
 path = "docker volume prune"
@@ -9441,7 +9441,7 @@ detail = "移除未使用的卷；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker volume prune 示例"]
+examples = []
 
 [[nodes]]
 path = "docker volume rm"
@@ -9451,7 +9451,7 @@ detail = "移除卷；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker volume rm 示例"]
+examples = []
 
 [[nodes]]
 path = "docker wait"
@@ -9461,7 +9461,7 @@ detail = "等待容器停止；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["docker wait 示例"]
+examples = []
 
 [[nodes]]
 path = "Get-ChildItem"
@@ -9471,7 +9471,7 @@ detail = "列出文件、目录和其他子项；可按 F1 查看用途与离线
 positional = "path"
 children = []
 option_sets = ["GET_CHILD_ITEM_OPTIONS"]
-examples = ["Get-ChildItem 示例"]
+examples = []
 
 [[nodes]]
 path = "gh"
@@ -9481,7 +9481,7 @@ detail = "在终端管理 GitHub 项目；可按 F1 查看用途与离线示例�
 positional = "value"
 children = ["gh alias", "gh api", "gh attestation", "gh auth", "gh browse", "gh codespace", "gh config", "gh copilot", "gh extension", "gh gist", "gh issue", "gh label", "gh org", "gh pr", "gh project", "gh release", "gh repo", "gh ruleset", "gh run", "gh search", "gh secret", "gh ssh-key", "gh status", "gh variable", "gh workflow"]
 option_sets = ["GH_GLOBAL_OPTIONS"]
-examples = ["gh 示例"]
+examples = []
 
 [[nodes]]
 path = "gh alias"
@@ -9491,7 +9491,7 @@ detail = "管理 GitHub CLI 别名；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh alias 示例"]
+examples = []
 
 [[nodes]]
 path = "gh api"
@@ -9501,7 +9501,7 @@ detail = "发起经过身份验证的 GitHub API 请求；可按 F1 查看用途
 positional = "value"
 children = []
 option_sets = ["GH_API_OPTIONS"]
-examples = ["gh api 示例"]
+examples = []
 
 [[nodes]]
 path = "gh attestation"
@@ -9511,7 +9511,7 @@ detail = "管理构件证明；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh attestation 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth"
@@ -9521,7 +9521,7 @@ detail = "进行 GitHub 身份验证；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["gh auth login", "gh auth logout", "gh auth refresh", "gh auth setup-git", "gh auth status", "gh auth switch", "gh auth token"]
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh auth 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth login"
@@ -9531,7 +9531,7 @@ detail = "登录 GitHub；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh auth login 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth logout"
@@ -9541,7 +9541,7 @@ detail = "退出 GitHub；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh auth logout 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth refresh"
@@ -9551,7 +9551,7 @@ detail = "刷新身份验证；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh auth refresh 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth setup-git"
@@ -9561,7 +9561,7 @@ detail = "配置 Git 凭据存储；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh auth setup-git 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth status"
@@ -9571,7 +9571,7 @@ detail = "显示身份验证状态；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh auth status 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth switch"
@@ -9581,7 +9581,7 @@ detail = "切换身份验证账户；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh auth switch 示例"]
+examples = []
 
 [[nodes]]
 path = "gh auth token"
@@ -9591,7 +9591,7 @@ detail = "输出身份验证令牌；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh auth token 示例"]
+examples = []
 
 [[nodes]]
 path = "gh browse"
@@ -9601,7 +9601,7 @@ detail = "在浏览器中打开 GitHub 页面；可按 F1 查看用途与离线�
 positional = "value"
 children = []
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh browse 示例"]
+examples = []
 
 [[nodes]]
 path = "gh codespace"
@@ -9611,7 +9611,7 @@ detail = "连接并管理 Codespaces；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh codespace 示例"]
+examples = []
 
 [[nodes]]
 path = "gh config"
@@ -9621,7 +9621,7 @@ detail = "管理 GitHub CLI 配置；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh config 示例"]
+examples = []
 
 [[nodes]]
 path = "gh copilot"
@@ -9631,7 +9631,7 @@ detail = "使用 GitHub Copilot；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh copilot 示例"]
+examples = []
 
 [[nodes]]
 path = "gh extension"
@@ -9641,7 +9641,7 @@ detail = "管理 GitHub CLI 扩展；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh extension 示例"]
+examples = []
 
 [[nodes]]
 path = "gh gist"
@@ -9651,7 +9651,7 @@ detail = "管理 Gist；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh gist 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue"
@@ -9661,7 +9661,7 @@ detail = "管理 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["gh issue close", "gh issue comment", "gh issue create", "gh issue delete", "gh issue develop", "gh issue edit", "gh issue list", "gh issue lock", "gh issue pin", "gh issue reopen", "gh issue status", "gh issue transfer", "gh issue unlock", "gh issue unpin", "gh issue view"]
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh issue 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue close"
@@ -9671,7 +9671,7 @@ detail = "关闭 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue close 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue comment"
@@ -9681,7 +9681,7 @@ detail = "向 Issue 添加评论；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue comment 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue create"
@@ -9691,7 +9691,7 @@ detail = "创建 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue create 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue delete"
@@ -9701,7 +9701,7 @@ detail = "删除 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue delete 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue develop"
@@ -9711,7 +9711,7 @@ detail = "管理 Issue 开发分支；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue develop 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue edit"
@@ -9721,7 +9721,7 @@ detail = "编辑 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue edit 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue list"
@@ -9731,7 +9731,7 @@ detail = "列出 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["GH_LIST_OPTIONS"]
-examples = ["gh issue list 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue lock"
@@ -9741,7 +9741,7 @@ detail = "锁定 Issue 讨论；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue lock 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue pin"
@@ -9751,7 +9751,7 @@ detail = "固定 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue pin 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue reopen"
@@ -9761,7 +9761,7 @@ detail = "重新打开 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue reopen 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue status"
@@ -9771,7 +9771,7 @@ detail = "显示 Issue 状态；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue status 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue transfer"
@@ -9781,7 +9781,7 @@ detail = "转移 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue transfer 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue unlock"
@@ -9791,7 +9791,7 @@ detail = "解锁 Issue 讨论；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue unlock 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue unpin"
@@ -9801,7 +9801,7 @@ detail = "取消固定 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue unpin 示例"]
+examples = []
 
 [[nodes]]
 path = "gh issue view"
@@ -9811,7 +9811,7 @@ detail = "查看 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh issue view 示例"]
+examples = []
 
 [[nodes]]
 path = "gh label"
@@ -9821,7 +9821,7 @@ detail = "管理 Issue 标签；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh label 示例"]
+examples = []
 
 [[nodes]]
 path = "gh org"
@@ -9831,7 +9831,7 @@ detail = "管理组织；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh org 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr"
@@ -9841,7 +9841,7 @@ detail = "管理 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["gh pr checkout", "gh pr checks", "gh pr close", "gh pr comment", "gh pr create", "gh pr diff", "gh pr edit", "gh pr list", "gh pr lock", "gh pr merge", "gh pr ready", "gh pr reopen", "gh pr review", "gh pr status", "gh pr unlock", "gh pr view"]
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh pr 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr checkout"
@@ -9851,7 +9851,7 @@ detail = "在本地检出 Pull Request；可按 F1 查看用途与离线示例�
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr checkout 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr checks"
@@ -9861,7 +9861,7 @@ detail = "显示 Pull Request 检查；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr checks 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr close"
@@ -9871,7 +9871,7 @@ detail = "关闭 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr close 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr comment"
@@ -9881,7 +9881,7 @@ detail = "向 Pull Request 添加评论；可按 F1 查看用途与离线示例�
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr comment 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr create"
@@ -9891,7 +9891,7 @@ detail = "创建 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr create 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr diff"
@@ -9901,7 +9901,7 @@ detail = "查看 Pull Request 更改；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr diff 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr edit"
@@ -9911,7 +9911,7 @@ detail = "编辑 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr edit 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr list"
@@ -9921,7 +9921,7 @@ detail = "列出 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["GH_LIST_OPTIONS"]
-examples = ["gh pr list 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr lock"
@@ -9931,7 +9931,7 @@ detail = "锁定 Pull Request 讨论；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr lock 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr merge"
@@ -9941,7 +9941,7 @@ detail = "合并 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr merge 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr ready"
@@ -9951,7 +9951,7 @@ detail = "将 Pull Request 标记为可供审查；可按 F1 查看用途与离�
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr ready 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr reopen"
@@ -9961,7 +9961,7 @@ detail = "重新打开 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr reopen 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr review"
@@ -9971,7 +9971,7 @@ detail = "审查 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr review 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr status"
@@ -9981,7 +9981,7 @@ detail = "显示 Pull Request 状态；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr status 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr unlock"
@@ -9991,7 +9991,7 @@ detail = "解锁 Pull Request 讨论；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr unlock 示例"]
+examples = []
 
 [[nodes]]
 path = "gh pr view"
@@ -10001,7 +10001,7 @@ detail = "查看 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh pr view 示例"]
+examples = []
 
 [[nodes]]
 path = "gh project"
@@ -10011,7 +10011,7 @@ detail = "管理项目；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh project 示例"]
+examples = []
 
 [[nodes]]
 path = "gh release"
@@ -10021,7 +10021,7 @@ detail = "管理发布；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh release 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo"
@@ -10031,7 +10031,7 @@ detail = "管理代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["gh repo archive", "gh repo clone", "gh repo create", "gh repo delete", "gh repo deploy-key", "gh repo edit", "gh repo fork", "gh repo list", "gh repo rename", "gh repo set-default", "gh repo sync", "gh repo unarchive", "gh repo view"]
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh repo 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo archive"
@@ -10041,7 +10041,7 @@ detail = "归档代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo archive 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo clone"
@@ -10051,7 +10051,7 @@ detail = "克隆仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo clone 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo create"
@@ -10061,7 +10061,7 @@ detail = "创建代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo create 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo delete"
@@ -10071,7 +10071,7 @@ detail = "删除代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo delete 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo deploy-key"
@@ -10081,7 +10081,7 @@ detail = "管理部署密钥；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo deploy-key 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo edit"
@@ -10091,7 +10091,7 @@ detail = "编辑代码仓库设置；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo edit 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo fork"
@@ -10101,7 +10101,7 @@ detail = "派生代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo fork 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo list"
@@ -10111,7 +10111,7 @@ detail = "列出代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo list 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo rename"
@@ -10121,7 +10121,7 @@ detail = "重命名代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo rename 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo set-default"
@@ -10131,7 +10131,7 @@ detail = "设置默认代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo set-default 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo sync"
@@ -10141,7 +10141,7 @@ detail = "同步派生仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo sync 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo unarchive"
@@ -10151,7 +10151,7 @@ detail = "取消归档代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo unarchive 示例"]
+examples = []
 
 [[nodes]]
 path = "gh repo view"
@@ -10161,7 +10161,7 @@ detail = "查看代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh repo view 示例"]
+examples = []
 
 [[nodes]]
 path = "gh ruleset"
@@ -10171,7 +10171,7 @@ detail = "管理代码仓库规则集；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh ruleset 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run"
@@ -10181,7 +10181,7 @@ detail = "查看和管理 GitHub Actions 运行记录；可按 F1 查看用途�
 positional = "value"
 children = ["gh run cancel", "gh run delete", "gh run download", "gh run list", "gh run rerun", "gh run view", "gh run watch"]
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh run 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run cancel"
@@ -10191,7 +10191,7 @@ detail = "取消工作流运行；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh run cancel 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run delete"
@@ -10201,7 +10201,7 @@ detail = "删除工作流运行；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh run delete 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run download"
@@ -10211,7 +10211,7 @@ detail = "下载运行构件；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh run download 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run list"
@@ -10221,7 +10221,7 @@ detail = "列出工作流运行记录；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh run list 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run rerun"
@@ -10231,7 +10231,7 @@ detail = "重新运行工作流；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh run rerun 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run view"
@@ -10241,7 +10241,7 @@ detail = "查看工作流运行记录；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh run view 示例"]
+examples = []
 
 [[nodes]]
 path = "gh run watch"
@@ -10251,7 +10251,7 @@ detail = "监视工作流运行；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh run watch 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search"
@@ -10261,7 +10261,7 @@ detail = "搜索 GitHub；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["gh search code", "gh search commits", "gh search issues", "gh search prs", "gh search repos", "gh search topics", "gh search users"]
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh search 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search code"
@@ -10271,7 +10271,7 @@ detail = "搜索代码；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh search code 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search commits"
@@ -10281,7 +10281,7 @@ detail = "搜索提交；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh search commits 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search issues"
@@ -10291,7 +10291,7 @@ detail = "搜索 Issue；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh search issues 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search prs"
@@ -10301,7 +10301,7 @@ detail = "搜索 Pull Request；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh search prs 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search repos"
@@ -10311,7 +10311,7 @@ detail = "搜索代码仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh search repos 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search topics"
@@ -10321,7 +10321,7 @@ detail = "搜索主题；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh search topics 示例"]
+examples = []
 
 [[nodes]]
 path = "gh search users"
@@ -10331,7 +10331,7 @@ detail = "搜索用户；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh search users 示例"]
+examples = []
 
 [[nodes]]
 path = "gh secret"
@@ -10341,7 +10341,7 @@ detail = "管理代码仓库密钥；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh secret 示例"]
+examples = []
 
 [[nodes]]
 path = "gh ssh-key"
@@ -10351,7 +10351,7 @@ detail = "管理 SSH 密钥；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh ssh-key 示例"]
+examples = []
 
 [[nodes]]
 path = "gh status"
@@ -10361,7 +10361,7 @@ detail = "显示通知和状态；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh status 示例"]
+examples = []
 
 [[nodes]]
 path = "gh variable"
@@ -10371,7 +10371,7 @@ detail = "管理代码仓库变量；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh variable 示例"]
+examples = []
 
 [[nodes]]
 path = "gh workflow"
@@ -10381,7 +10381,7 @@ detail = "管理 GitHub Actions 工作流；可按 F1 查看用途与离线示�
 positional = "value"
 children = ["gh workflow disable", "gh workflow enable", "gh workflow list", "gh workflow run", "gh workflow view"]
 option_sets = ["GH_COMMON_OPTIONS"]
-examples = ["gh workflow 示例"]
+examples = []
 
 [[nodes]]
 path = "gh workflow disable"
@@ -10391,7 +10391,7 @@ detail = "禁用工作流；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh workflow disable 示例"]
+examples = []
 
 [[nodes]]
 path = "gh workflow enable"
@@ -10401,7 +10401,7 @@ detail = "启用工作流；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh workflow enable 示例"]
+examples = []
 
 [[nodes]]
 path = "gh workflow list"
@@ -10411,7 +10411,7 @@ detail = "列出工作流；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh workflow list 示例"]
+examples = []
 
 [[nodes]]
 path = "gh workflow run"
@@ -10421,7 +10421,7 @@ detail = "运行工作流；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh workflow run 示例"]
+examples = []
 
 [[nodes]]
 path = "gh workflow view"
@@ -10431,7 +10431,7 @@ detail = "查看工作流；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["gh workflow view 示例"]
+examples = []
 
 [[nodes]]
 path = "git"
@@ -10439,7 +10439,7 @@ name = "git"
 description = "管理代码版本并协作开发"
 detail = "管理代码版本并协作开发；可按 F1 查看用途与离线示例。"
 positional = "none"
-children = ["git add", "git am", "git archive", "git bisect", "git branch", "git checkout", "git cherry-pick", "git clean", "git clone", "git commit", "git config", "git diff", "git fetch", "git format-patch", "git grep", "git init", "git log", "git merge", "git mv", "git pull", "git push", "git rebase", "git reflog", "git remote", "git rename", "git reset", "git restore", "git revert", "git rm", "git show", "git sparse-checkout", "git stash", "git status", "git switch", "git tag", "git worktree"]
+children = ["git add", "git am", "git archive", "git bisect", "git branch", "git checkout", "git cherry-pick", "git clean", "git clone", "git commit", "git config", "git diff", "git fetch", "git format-patch", "git grep", "git init", "git log", "git merge", "git mv", "git pull", "git push", "git rebase", "git reflog", "git remote", "git reset", "git restore", "git revert", "git rm", "git show", "git sparse-checkout", "git stash", "git status", "git switch", "git tag", "git worktree"]
 option_sets = ["GIT_GLOBAL_OPTIONS"]
 examples = ["git status", "git log --oneline -10"]
 
@@ -10462,7 +10462,7 @@ detail = "从邮箱应用补丁；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["git am 示例"]
+examples = ["git am change.patch"]
 
 [[nodes]]
 path = "git archive"
@@ -10472,7 +10472,7 @@ detail = "创建文件归档；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["git archive 示例"]
+examples = ["git archive --format=zip --output=source.zip HEAD"]
 
 [[nodes]]
 path = "git bisect"
@@ -10482,7 +10482,7 @@ detail = "找出引入错误的提交；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["git bisect 示例"]
+examples = ["git bisect start"]
 
 [[nodes]]
 path = "git branch"
@@ -10536,7 +10536,7 @@ detail = "克隆仓库；可按 F1 查看用途与离线示例。"
 positional = "path"
 children = []
 option_sets = []
-examples = ["git clone 示例"]
+examples = ["git clone https://example.com/team/project.git"]
 
 [[nodes]]
 path = "git commit"
@@ -10556,7 +10556,7 @@ detail = "读写仓库选项；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["git config 示例"]
+examples = ["git config --get user.name"]
 
 [[nodes]]
 path = "git diff"
@@ -10588,7 +10588,7 @@ detail = "准备用于电子邮件提交的补丁；可按 F1 查看用途与离
 positional = "value"
 children = []
 option_sets = []
-examples = ["git format-patch 示例"]
+examples = ["git format-patch -1 HEAD"]
 
 [[nodes]]
 path = "git grep"
@@ -10598,7 +10598,7 @@ detail = "打印匹配模式的行；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["git grep 示例"]
+examples = ["git grep TODO"]
 
 [[nodes]]
 path = "git init"
@@ -10608,7 +10608,7 @@ detail = "创建空仓库；可按 F1 查看用途与离线示例。"
 positional = "path"
 children = []
 option_sets = []
-examples = ["git init 示例"]
+examples = ["git init project"]
 
 [[nodes]]
 path = "git log"
@@ -10684,7 +10684,7 @@ detail = "管理引用日志；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["git reflog 示例"]
+examples = ["git reflog -10"]
 
 [[nodes]]
 path = "git remote"
@@ -10727,7 +10727,7 @@ detail = "删除过时的远程跟踪分支；可按 F1 查看用途与离线示
 positional = "value"
 children = []
 option_sets = ["GIT_REMOTE_PRUNE_OPTIONS"]
-examples = ["git remote prune 示例"]
+examples = ["git remote prune --dry-run origin"]
 provider = "git"
 
 [[nodes]]
@@ -10760,7 +10760,7 @@ detail = "删除远程仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["git remote rm 示例"]
+examples = ["git remote rm upstream"]
 provider = "git"
 
 [[nodes]]
@@ -10771,7 +10771,7 @@ detail = "更改跟踪的分支；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["GIT_REMOTE_SET_BRANCHES_OPTIONS"]
-examples = ["git remote set-branches 示例"]
+examples = ["git remote set-branches origin main"]
 provider = "git"
 
 [[nodes]]
@@ -10782,7 +10782,7 @@ detail = "设置或删除默认分支；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = ["GIT_REMOTE_SET_HEAD_OPTIONS"]
-examples = ["git remote set-head 示例"]
+examples = ["git remote set-head origin main"]
 provider = "git"
 
 [[nodes]]
@@ -10815,18 +10815,8 @@ detail = "更新远程仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["GIT_REMOTE_UPDATE_OPTIONS"]
-examples = ["git remote update 示例"]
+examples = ["git remote update origin"]
 provider = "git"
-
-[[nodes]]
-path = "git rename"
-name = "rename"
-description = "重命名仓库或引用"
-detail = "重命名仓库或引用；可按 F1 查看用途与离线示例。"
-positional = "value"
-children = []
-option_sets = []
-examples = ["git rename 示例"]
 
 [[nodes]]
 path = "git reset"
@@ -10891,7 +10881,7 @@ detail = "管理稀疏检出文件；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["git sparse-checkout 示例"]
+examples = ["git sparse-checkout list"]
 
 [[nodes]]
 path = "git stash"
@@ -10911,7 +10901,7 @@ detail = "应用暂存条目；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["GIT_STASH_APPLY_OPTIONS"]
-examples = ["git stash apply 示例"]
+examples = ["git stash apply"]
 
 [[nodes]]
 path = "git stash branch"
@@ -10921,7 +10911,7 @@ detail = "从暂存条目创建分支；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = ["GIT_STASH_APPLY_OPTIONS"]
-examples = ["git stash branch 示例"]
+examples = ["git stash branch recover-work"]
 
 [[nodes]]
 path = "git stash clear"
@@ -10931,7 +10921,7 @@ detail = "删除所有暂存条目；可按 F1 查看用途与离线示例。"
 positional = "none"
 children = []
 option_sets = []
-examples = ["git stash clear 示例"]
+examples = ["git stash clear"]
 
 [[nodes]]
 path = "git stash create"
@@ -10941,7 +10931,7 @@ detail = "创建但不保存暂存对象；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["git stash create 示例"]
+examples = ["git stash create \"临时快照\""]
 
 [[nodes]]
 path = "git stash drop"
@@ -10951,7 +10941,7 @@ detail = "删除一个暂存条目；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["GIT_STASH_DROP_OPTIONS"]
-examples = ["git stash drop 示例"]
+examples = ["git stash drop"]
 
 [[nodes]]
 path = "git stash list"
@@ -10991,7 +10981,7 @@ detail = "将本地更改保存到新暂存；可按 F1 查看用途与离线示
 positional = "path"
 children = []
 option_sets = ["GIT_STASH_PUSH_OPTIONS"]
-examples = ["git stash save 示例"]
+examples = ["git stash save \"暂存修改\""]
 
 [[nodes]]
 path = "git stash show"
@@ -11001,7 +10991,7 @@ detail = "显示暂存中记录的更改；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = ["GIT_STASH_SHOW_OPTIONS"]
-examples = ["git stash show 示例"]
+examples = ["git stash show --stat"]
 
 [[nodes]]
 path = "git stash store"
@@ -11011,7 +11001,7 @@ detail = "保存暂存对象；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["GIT_STASH_APPLY_OPTIONS"]
-examples = ["git stash store 示例"]
+examples = ["git stash store -m \"恢复快照\" (git rev-parse refs/stash)"]
 
 [[nodes]]
 path = "git status"
@@ -11152,7 +11142,7 @@ detail = "管理包访问设置；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm access 示例"]
+examples = ["npm access list packages"]
 
 [[nodes]]
 path = "npm add"
@@ -11162,7 +11152,7 @@ detail = "将文件添加到索引；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_INSTALL_OPTIONS"]
-examples = ["npm add 示例"]
+examples = ["npm add lodash"]
 provider = "npm.dependencies"
 
 [[nodes]]
@@ -11173,7 +11163,7 @@ detail = "运行安全审计；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm audit 示例"]
+examples = ["npm audit --omit=dev"]
 
 [[nodes]]
 path = "npm bugs"
@@ -11183,7 +11173,7 @@ detail = "打开包错误跟踪器；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm bugs 示例"]
+examples = ["npm bugs lodash"]
 
 [[nodes]]
 path = "npm cache"
@@ -11193,7 +11183,7 @@ detail = "管理 npm 缓存；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm cache 示例"]
+examples = ["npm cache verify"]
 
 [[nodes]]
 path = "npm ci"
@@ -11203,7 +11193,7 @@ detail = "从锁定文件安装；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_INSTALL_OPTIONS"]
-examples = ["npm ci 示例"]
+examples = ["npm ci"]
 provider = "npm.dependencies"
 
 [[nodes]]
@@ -11214,7 +11204,7 @@ detail = "启用 Shell 补全；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm completion 示例"]
+examples = ["npm completion"]
 
 [[nodes]]
 path = "npm config"
@@ -11224,7 +11214,7 @@ detail = "管理 npm 配置；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = ["npm config get", "npm config set", "npm config delete", "npm config list", "npm config fix"]
 option_sets = ["NPM_CONFIG_OPTIONS"]
-examples = ["npm config 示例"]
+examples = ["npm config list"]
 
 [[nodes]]
 path = "npm config delete"
@@ -11234,7 +11224,7 @@ detail = "删除配置值；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm config delete 示例"]
+examples = ["npm config delete registry"]
 
 [[nodes]]
 path = "npm config fix"
@@ -11244,7 +11234,7 @@ detail = "修复配置问题；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm config fix 示例"]
+examples = ["npm config fix"]
 
 [[nodes]]
 path = "npm config get"
@@ -11254,7 +11244,7 @@ detail = "获取配置值；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm config get 示例"]
+examples = ["npm config get registry"]
 
 [[nodes]]
 path = "npm config list"
@@ -11264,7 +11254,7 @@ detail = "列出配置值；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm config list 示例"]
+examples = ["npm config list"]
 
 [[nodes]]
 path = "npm config set"
@@ -11274,7 +11264,7 @@ detail = "设置配置值；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm config set 示例"]
+examples = ["npm config set save-exact true"]
 
 [[nodes]]
 path = "npm dedupe"
@@ -11284,7 +11274,7 @@ detail = "减少重复依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm dedupe 示例"]
+examples = ["npm dedupe --dry-run"]
 
 [[nodes]]
 path = "npm deprecate"
@@ -11294,7 +11284,7 @@ detail = "弃用软件包版本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm deprecate 示例"]
+examples = ["npm deprecate my-package@1.0.0 \"请升级到新版本\""]
 
 [[nodes]]
 path = "npm diff"
@@ -11304,7 +11294,7 @@ detail = "比较软件包版本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm diff 示例"]
+examples = ["npm diff --diff=lodash@4.17.20 --diff=lodash@4.17.21"]
 
 [[nodes]]
 path = "npm dist-tag"
@@ -11314,7 +11304,7 @@ detail = "管理发布标签；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm dist-tag 示例"]
+examples = ["npm dist-tag ls lodash"]
 
 [[nodes]]
 path = "npm docs"
@@ -11324,7 +11314,7 @@ detail = "打开软件包文档；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm docs 示例"]
+examples = ["npm docs lodash"]
 
 [[nodes]]
 path = "npm doctor"
@@ -11334,7 +11324,7 @@ detail = "检查 npm 环境；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm doctor 示例"]
+examples = ["npm doctor"]
 
 [[nodes]]
 path = "npm exec"
@@ -11344,7 +11334,7 @@ detail = "从软件包运行命令；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm exec 示例"]
+examples = ["npm exec -- tsc --version"]
 
 [[nodes]]
 path = "npm explain"
@@ -11354,7 +11344,7 @@ detail = "解释已安装的软件包；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm explain 示例"]
+examples = ["npm explain lodash"]
 
 [[nodes]]
 path = "npm explore"
@@ -11364,7 +11354,7 @@ detail = "打开软件包目录；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm explore 示例"]
+examples = ["npm explore lodash -- node --version"]
 
 [[nodes]]
 path = "npm fund"
@@ -11374,7 +11364,7 @@ detail = "显示资助信息；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm fund 示例"]
+examples = ["npm fund"]
 
 [[nodes]]
 path = "npm help"
@@ -11384,7 +11374,7 @@ detail = "显示 npm 帮助；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm help 示例"]
+examples = ["npm help install"]
 
 [[nodes]]
 path = "npm hook"
@@ -11394,7 +11384,7 @@ detail = "管理软件包仓库钩子；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm hook 示例"]
+examples = []
 
 [[nodes]]
 path = "npm i"
@@ -11404,7 +11394,7 @@ detail = "安装软件包依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_INSTALL_OPTIONS"]
-examples = ["npm i 示例"]
+examples = ["npm i"]
 provider = "npm.dependencies"
 
 [[nodes]]
@@ -11415,7 +11405,7 @@ detail = "创建 package.json 文件；可按 F1 查看用途与离线示例。"
 positional = "path"
 children = []
 option_sets = ["NPM_INIT_OPTIONS"]
-examples = ["npm init 示例"]
+examples = ["npm init -y"]
 
 [[nodes]]
 path = "npm install"
@@ -11425,7 +11415,7 @@ detail = "安装软件包依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_INSTALL_OPTIONS"]
-examples = ["npm install 示例"]
+examples = ["npm install"]
 provider = "npm.dependencies"
 
 [[nodes]]
@@ -11436,7 +11426,7 @@ detail = "安装依赖并运行 CI 测试；可按 F1 查看用途与离线示�
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm install-ci-test 示例"]
+examples = ["npm install-ci-test"]
 
 [[nodes]]
 path = "npm install-test"
@@ -11446,7 +11436,7 @@ detail = "安装依赖并运行测试；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm install-test 示例"]
+examples = ["npm install-test"]
 
 [[nodes]]
 path = "npm link"
@@ -11456,7 +11446,7 @@ detail = "为软件包创建符号链接；可按 F1 查看用途与离线示例
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm link 示例"]
+examples = ["npm link"]
 
 [[nodes]]
 path = "npm ll"
@@ -11466,7 +11456,7 @@ detail = "列出已安装的软件包；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm ll 示例"]
+examples = ["npm ll"]
 
 [[nodes]]
 path = "npm login"
@@ -11476,7 +11466,7 @@ detail = "登录软件包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm login 示例"]
+examples = ["npm login"]
 
 [[nodes]]
 path = "npm logout"
@@ -11486,7 +11476,7 @@ detail = "退出软件包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm logout 示例"]
+examples = ["npm logout"]
 
 [[nodes]]
 path = "npm ls"
@@ -11496,7 +11486,7 @@ detail = "列出已安装的软件包；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm ls 示例"]
+examples = ["npm ls --depth=0"]
 
 [[nodes]]
 path = "npm org"
@@ -11506,7 +11496,7 @@ detail = "管理组织；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm org 示例"]
+examples = ["npm org ls my-org"]
 
 [[nodes]]
 path = "npm outdated"
@@ -11516,7 +11506,7 @@ detail = "检查过时的软件包；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm outdated 示例"]
+examples = ["npm outdated"]
 
 [[nodes]]
 path = "npm owner"
@@ -11526,7 +11516,7 @@ detail = "管理软件包所有者；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm owner 示例"]
+examples = ["npm owner ls lodash"]
 
 [[nodes]]
 path = "npm pack"
@@ -11536,7 +11526,7 @@ detail = "创建软件包归档；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm pack 示例"]
+examples = ["npm pack --dry-run"]
 
 [[nodes]]
 path = "npm ping"
@@ -11546,7 +11536,7 @@ detail = "Ping 软件包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm ping 示例"]
+examples = ["npm ping"]
 
 [[nodes]]
 path = "npm pkg"
@@ -11556,7 +11546,7 @@ detail = "管理软件包元数据；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm pkg 示例"]
+examples = ["npm pkg get scripts"]
 
 [[nodes]]
 path = "npm prefix"
@@ -11566,7 +11556,7 @@ detail = "显示 npm 前缀；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm prefix 示例"]
+examples = ["npm prefix"]
 
 [[nodes]]
 path = "npm profile"
@@ -11576,7 +11566,7 @@ detail = "管理 npm 个人资料；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm profile 示例"]
+examples = ["npm profile get"]
 
 [[nodes]]
 path = "npm prune"
@@ -11586,7 +11576,7 @@ detail = "移除多余的软件包；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm prune 示例"]
+examples = ["npm prune --dry-run"]
 
 [[nodes]]
 path = "npm publish"
@@ -11596,7 +11586,7 @@ detail = "发布软件包；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm publish 示例"]
+examples = ["npm publish --dry-run"]
 
 [[nodes]]
 path = "npm query"
@@ -11606,7 +11596,7 @@ detail = "查询已安装的软件包；可按 F1 查看用途与离线示例。
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm query 示例"]
+examples = ["npm query \"[name=lodash]\""]
 
 [[nodes]]
 path = "npm rebuild"
@@ -11616,7 +11606,7 @@ detail = "重新构建软件包；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm rebuild 示例"]
+examples = ["npm rebuild"]
 
 [[nodes]]
 path = "npm remove"
@@ -11626,7 +11616,7 @@ detail = "移除软件包依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_INSTALL_OPTIONS"]
-examples = ["npm remove 示例"]
+examples = ["npm remove lodash"]
 provider = "npm.dependencies"
 
 [[nodes]]
@@ -11637,7 +11627,7 @@ detail = "打开软件包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm repo 示例"]
+examples = ["npm repo lodash"]
 
 [[nodes]]
 path = "npm restart"
@@ -11647,7 +11637,7 @@ detail = "运行 restart 脚本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_RUN_OPTIONS"]
-examples = ["npm restart 示例"]
+examples = ["npm restart"]
 provider = "npm.scripts"
 
 [[nodes]]
@@ -11658,7 +11648,7 @@ detail = "显示 npm 根目录；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm root 示例"]
+examples = ["npm root"]
 
 [[nodes]]
 path = "npm run"
@@ -11679,7 +11669,7 @@ detail = "运行软件包脚本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_RUN_OPTIONS"]
-examples = ["npm run-script 示例"]
+examples = ["npm run-script build"]
 provider = "npm.scripts"
 
 [[nodes]]
@@ -11690,7 +11680,7 @@ detail = "搜索软件包仓库；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm search 示例"]
+examples = ["npm search typescript"]
 
 [[nodes]]
 path = "npm set"
@@ -11700,7 +11690,7 @@ detail = "设置配置值；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm set 示例"]
+examples = ["npm set save-exact true"]
 
 [[nodes]]
 path = "npm shrinkwrap"
@@ -11710,7 +11700,7 @@ detail = "创建或更新 shrinkwrap；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm shrinkwrap 示例"]
+examples = ["npm shrinkwrap"]
 
 [[nodes]]
 path = "npm start"
@@ -11720,7 +11710,7 @@ detail = "运行 start 脚本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_RUN_OPTIONS"]
-examples = ["npm start 示例"]
+examples = ["npm start"]
 provider = "npm.scripts"
 
 [[nodes]]
@@ -11731,7 +11721,7 @@ detail = "运行 stop 脚本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_RUN_OPTIONS"]
-examples = ["npm stop 示例"]
+examples = ["npm stop"]
 provider = "npm.scripts"
 
 [[nodes]]
@@ -11742,7 +11732,7 @@ detail = "管理团队；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm team 示例"]
+examples = ["npm team ls my-org:developers"]
 
 [[nodes]]
 path = "npm test"
@@ -11752,7 +11742,7 @@ detail = "运行 test 脚本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_RUN_OPTIONS"]
-examples = ["npm test 示例"]
+examples = ["npm test"]
 provider = "npm.scripts"
 
 [[nodes]]
@@ -11763,7 +11753,7 @@ detail = "管理身份验证令牌；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm token 示例"]
+examples = ["npm token list"]
 
 [[nodes]]
 path = "npm uninstall"
@@ -11773,7 +11763,7 @@ detail = "移除软件包依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["NPM_INSTALL_OPTIONS"]
-examples = ["npm uninstall 示例"]
+examples = ["npm uninstall lodash"]
 provider = "npm.dependencies"
 
 [[nodes]]
@@ -11784,7 +11774,7 @@ detail = "从软件包仓库移除软件包；可按 F1 查看用途与离线示
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm unpublish 示例"]
+examples = ["npm unpublish my-package@1.0.0 --dry-run"]
 
 [[nodes]]
 path = "npm update"
@@ -11794,7 +11784,7 @@ detail = "更新软件包依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm update 示例"]
+examples = ["npm update --dry-run"]
 
 [[nodes]]
 path = "npm version"
@@ -11804,7 +11794,7 @@ detail = "提升软件包版本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm version 示例"]
+examples = ["npm version"]
 
 [[nodes]]
 path = "npm view"
@@ -11814,7 +11804,7 @@ detail = "查看软件包元数据；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = []
-examples = ["npm view 示例"]
+examples = ["npm view lodash version"]
 
 [[nodes]]
 path = "pnpm"
@@ -11822,7 +11812,7 @@ name = "pnpm"
 description = "管理高效的 JavaScript 包和 workspace"
 detail = "管理高效的 JavaScript 包和 workspace；可按 F1 查看用途与离线示例。"
 positional = "value"
-children = ["pnpm add", "pnpm install", "pnpm i", "pnpm remove", "pnpm rm", "pnpm run", "pnpm test", "pnpm build", "pnpm exec", "pnpm update", "pnpm list", "pnpm ls"]
+children = ["pnpm add", "pnpm install", "pnpm i", "pnpm remove", "pnpm rm", "pnpm run", "pnpm test", "pnpm exec", "pnpm update", "pnpm list", "pnpm ls"]
 option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_GLOBAL_OPTIONS"]
 examples = ["pnpm run", "pnpm install"]
 
@@ -11834,19 +11824,8 @@ detail = "添加 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
-examples = ["pnpm add 示例"]
+examples = ["pnpm add lodash"]
 provider = "pnpm.dependencies"
-
-[[nodes]]
-path = "pnpm build"
-name = "build"
-description = "运行 build 脚本"
-detail = "运行 build 脚本；可按 F1 查看用途与离线示例。"
-positional = "value"
-children = []
-option_sets = ["PNPM_GLOBAL_OPTIONS"]
-examples = ["pnpm build 示例"]
-provider = "pnpm.scripts"
 
 [[nodes]]
 path = "pnpm exec"
@@ -11856,7 +11835,7 @@ detail = "执行 workspace 命令；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS"]
-examples = ["pnpm exec 示例"]
+examples = ["pnpm exec tsc --version"]
 
 [[nodes]]
 path = "pnpm i"
@@ -11866,7 +11845,7 @@ detail = "安装 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
-examples = ["pnpm i 示例"]
+examples = ["pnpm i"]
 provider = "pnpm.dependencies"
 
 [[nodes]]
@@ -11877,7 +11856,7 @@ detail = "安装 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
-examples = ["pnpm install 示例"]
+examples = ["pnpm install --frozen-lockfile"]
 provider = "pnpm.dependencies"
 
 [[nodes]]
@@ -11888,7 +11867,7 @@ detail = "列出 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS"]
-examples = ["pnpm list 示例"]
+examples = ["pnpm list --depth=0"]
 provider = "pnpm.dependencies"
 
 [[nodes]]
@@ -11899,7 +11878,7 @@ detail = "列出 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS"]
-examples = ["pnpm ls 示例"]
+examples = ["pnpm ls --depth=0"]
 provider = "pnpm.dependencies"
 
 [[nodes]]
@@ -11910,7 +11889,7 @@ detail = "移除 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
-examples = ["pnpm remove 示例"]
+examples = ["pnpm remove lodash"]
 provider = "pnpm.dependencies"
 
 [[nodes]]
@@ -11921,7 +11900,7 @@ detail = "移除 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
-examples = ["pnpm rm 示例"]
+examples = ["pnpm rm lodash"]
 provider = "pnpm.dependencies"
 
 [[nodes]]
@@ -11943,7 +11922,7 @@ detail = "运行 test 脚本；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS"]
-examples = ["pnpm test 示例"]
+examples = ["pnpm test"]
 provider = "pnpm.scripts"
 
 [[nodes]]
@@ -11954,7 +11933,7 @@ detail = "更新 workspace 依赖；可按 F1 查看用途与离线示例。"
 positional = "value"
 children = []
 option_sets = ["PNPM_GLOBAL_OPTIONS"]
-examples = ["pnpm update 示例"]
+examples = ["pnpm update --interactive"]
 provider = "pnpm.dependencies"
 
 [[nodes]]
@@ -11965,7 +11944,7 @@ detail = "运行 PowerShell 命令和脚本；可按 F1 查看用途与离线示
 positional = "value"
 children = []
 option_sets = ["PWSH_OPTIONS"]
-examples = ["pwsh 示例"]
+examples = []
 
 [[nodes]]
 path = "Set-Location"
@@ -11975,6 +11954,6 @@ detail = "切换当前目录或位置；可按 F1 查看用途与离线示例。
 positional = "directory"
 children = []
 option_sets = ["SET_LOCATION_OPTIONS"]
-examples = ["Set-Location 示例"]
+examples = []
 
 # 动态 provider 仅为固定标识，运行时由 Rust 数据源实现；规格文件禁止脚本执行。

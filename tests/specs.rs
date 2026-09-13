@@ -627,3 +627,14 @@ option_sets = ["tool.options"]
     assert!(names(&delimited).contains(&"--features=alpha"));
     assert_eq!(delimited.value_delimiter, Some(','));
 }
+
+#[test]
+fn builtin_roots_do_not_invent_git_or_project_script_commands() {
+    assert!(names(&complete("git", &args(&[]), "rename").unwrap()).is_empty());
+    assert!(names(&complete("pnpm", &args(&[]), "build").unwrap()).is_empty());
+}
+
+#[test]
+fn builtin_examples_never_contain_generated_placeholders() {
+    assert!(!include_str!("../specs/builtin.toml").contains(" 示例\""));
+}

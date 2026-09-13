@@ -29,6 +29,12 @@ values = [
 repeatable = false
 value_delimiter = "="
 
+[[option_sets.options]]
+name = "--dir"
+description = "指定工作目录"
+detail = "指定工作目录；示例：mytool --dir ./build。"
+value_kind = "directory"
+
 [[nodes]]
 path = "mytool"
 description = "运行我的离线工具"
@@ -46,11 +52,21 @@ positional = "path"
 provider = "powershell.paths"
 ```
 
-`nodes.path` 是完整的规范上下文，使用空格分隔根命令和子命令。`children` 可以写完整路径，也可以写当前节点下的短名称；完整路径更适合覆盖已有节点。`positional` 可取 `none`、`value` 或 `path`。
+`nodes.path` 是完整的规范上下文，使用空格分隔根命令和子命令。`children` 可以写完整路径，也可以写当前节点下的短名称；完整路径更适合覆盖已有节点。`positional` 可取 `none`、`value`、`path` 或 `directory`。
 
-选项支持 `value_kind`（`none`、`text`、`path`）、固定 `values`、`optional`、`repeatable`、`conflicts`、`requires`、`positional`、`value_delimiter`、`short_cluster` 和 `append_space`。`optional = true` 的选项只有在输入 `--name=value` 或短选项附加值时才展开固定值候选；裸选项不会吞掉后面的未知 token。未知选项始终只占用自身 token，规格不会猜测它的参数个数。
+选项支持 `value_kind`（`none`、`text`、`path`、`directory`）、固定 `values`、`optional`、`repeatable`、`conflicts`、`requires`、`positional`、`value_delimiter`、`short_cluster` 和 `append_space`。`path` 表示文件或目录，`directory` 表示只能从目录候选中选择；两者都启用路径补全。`optional = true` 的选项只有在输入 `--name=value` 或短选项附加值时才展开固定值候选；裸选项不会吞掉后面的未知 token。未知选项始终只占用自身 token，规格不会猜测它的参数个数。
 
 选项可以用 `names = ["-f", "--format"]` 声明别名；`name` 是候选显示和规格键使用的主拼写。`repeatable = false` 的选项在已出现后会从菜单移除。`conflicts` 中的任一选项已经出现时，该选项会被移除；`requires` 中的选项全部出现后才会显示。`value_delimiter = ","` 可描述 `--features=a,b` 这类值分隔符，`=` 适合长选项的内联值。
+
+运行时的 `SpecResult` 用 `path_values = true` 表示当前上下文需要路径候选；当且仅当当前选项或位置参数的 `value_kind` 是 `directory` 时，`directories_only = true`。宿主将这两个字段传给路径数据源，因此目录约束来自当前规格上下文，而不是仅按命令名称猜测。比如 Git 的 `-C` 和 pnpm 的 `--dir`、`-C` 都只展示目录，Cargo 的 `--manifest-path` 仍同时展示文件和目录。
+
+```text
+git -C <目录> status
+git --work-tree <目录> status
+npm --prefix <目录> run build
+pnpm --dir <目录> run build
+pnpm -C <目录> install
+```
 
 ## 固定动态数据源
 

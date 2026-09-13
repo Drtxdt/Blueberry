@@ -1266,10 +1266,8 @@ fn git_needs(ctx: &GitContext, forced_scope: Option<&str>) -> GitNeeds {
             // here is important: adding refs as well makes a branch with the
             // same prefix look like a path completion and can insert the
             // wrong value.
-            if after_double_dash {
-                if subcommand == "checkout" {
-                    needs.status_paths = true;
-                }
+            if after_double_dash && subcommand == "checkout" {
+                needs.status_paths = true;
                 return needs;
             }
             let creating = ctx
@@ -1288,8 +1286,8 @@ fn git_needs(ctx: &GitContext, forced_scope: Option<&str>) -> GitNeeds {
             }
         }
         "merge" | "rebase" | "cherry-pick" | "cherry_pick" | "revert" | "show" | "log" => {
-            if after_double_dash {
-                needs.status_paths = matches!(subcommand.as_str(), "show" | "log");
+            if after_double_dash && matches!(subcommand.as_str(), "show" | "log") {
+                needs.status_paths = true;
                 return needs;
             }
             if active.as_deref() == Some("--format") || active.as_deref() == Some("--pretty") {
@@ -1433,7 +1431,16 @@ fn git_needs(ctx: &GitContext, forced_scope: Option<&str>) -> GitNeeds {
                 needs.status_paths = true;
             }
         }
-        "status" | "add" | "diff" | "rm" | "mv" | "clean" | "ls-files" => {
+        "diff" => {
+            needs.status_paths = true;
+            if !after_double_dash && positionals.len() < 2 {
+                needs.refs = true;
+                needs.branches = true;
+                needs.remote_branches = true;
+                needs.tags = true;
+            }
+        }
+        "status" | "add" | "rm" | "mv" | "clean" | "ls-files" => {
             needs.status_paths = true;
         }
         _ => {}

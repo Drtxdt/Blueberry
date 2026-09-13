@@ -316,6 +316,23 @@ fn git_dynamic_context_does_not_mix_refs_with_paths_or_creation_names() {
         );
     }
 
+    for command in ["switch", "merge"] {
+        let refs = collect(
+            &query("git", &[command, "--"], "fea", root.path()),
+            &cancelled,
+        );
+        assert!(
+            refs.candidates
+                .iter()
+                .any(|candidate| candidate.value == "feature/demo")
+        );
+    }
+    let diff = collect(&query("git", &["diff"], "fea", root.path()), &cancelled);
+    assert!(
+        diff.candidates
+            .iter()
+            .any(|candidate| candidate.value == "feature/demo")
+    );
     let branch_create = collect(&query("git", &["branch"], "fea", root.path()), &cancelled);
     assert!(branch_create.candidates.is_empty());
     let branch_delete = collect(
