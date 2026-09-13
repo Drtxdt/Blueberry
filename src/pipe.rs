@@ -4,7 +4,7 @@
 //! exposes a small, synchronous API so the host can keep its existing event
 //! loop and ordering barriers: a read or write either completes immediately
 //! or reports `WouldBlock`.  There is no polling thread and no background
-//! lifetime that could outlive a ShellSense session.
+//! lifetime that could outlive a Blueberry session.
 
 use serde_json::Value;
 use std::io;
@@ -262,7 +262,7 @@ mod windows_pipe {
 
     impl PipeServer {
         pub fn new() -> io::Result<Self> {
-            let name = format!("shellsense-{}", uuid::Uuid::new_v4().simple());
+            let name = format!("blueberry-{}", uuid::Uuid::new_v4().simple());
             let full_name = format!(r"\\.\pipe\{name}");
             let name_wide = wide_z(&full_name);
             let security = SecurityDescriptor::for_current_user()?;
@@ -384,7 +384,7 @@ mod windows_pipe {
                     self.disable();
                     Err(Error::new(
                         ErrorKind::PermissionDenied,
-                        "named-pipe client PID does not match the ShellSense child",
+                        "named-pipe client PID does not match the Blueberry child",
                     ))
                 }
                 None => {
@@ -636,7 +636,7 @@ impl PipeServer {
     pub fn new() -> io::Result<Self> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            "ShellSense named-pipe transport is Windows-only",
+            "Blueberry named-pipe transport is Windows-only",
         ))
     }
 
@@ -649,14 +649,14 @@ impl PipeServer {
     pub fn read_json(&mut self) -> io::Result<Value> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            "ShellSense named-pipe transport is Windows-only",
+            "Blueberry named-pipe transport is Windows-only",
         ))
     }
 
     pub fn write_json(&mut self, _value: &Value) -> io::Result<()> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            "ShellSense named-pipe transport is Windows-only",
+            "Blueberry named-pipe transport is Windows-only",
         ))
     }
 

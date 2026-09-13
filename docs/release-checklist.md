@@ -1,3 +1,5 @@
+> 历史记录：本文保留 0.5.0-beta.1 阶段的安装与验收资料。当前版本请使用 [安装指南](installation.md)、[发版指南](releasing.md) 和 [发布验证记录](release-validation.md)。
+
 # ShellSense Beta 发布准备与验收
 
 当前版本 `0.5.0-beta.1` 是未签名的本地 Beta 候选，尚未公开发布。功能自动回归通过，性能门槛未通过；真实 Windows Terminal 输入法/视觉及远程 CI 仍待完成。原始测量、构建环境与可执行文件 SHA-256 见 [性能报告](performance-v0.5.md)，功能范围见 [验收记录](beta-progress.md)。

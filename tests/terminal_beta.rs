@@ -1,12 +1,12 @@
 #![cfg(all(windows, debug_assertions))]
 
-//! End-to-end Beta checks against a real ShellSense host and a real
+//! End-to-end Beta checks against a real Blueberry host and a real
 //! PSReadLine runspace. The tests deliberately use only temporary
 //! directories and disable PSReadLine history.
 
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::{Value, json};
-use shellsense::{config, probe::Harness};
+use blueberry::{config, probe::Harness};
 use std::{
     collections::BTreeMap,
     fs,
@@ -122,7 +122,7 @@ fn terminal_static_function_metadata_refreshes_values_without_execution() -> Res
     host.harness.send(b"SS-Knowledge -Mode ")?;
     let _ = request_buffer(&mut host.harness, "SS-Knowledge")?;
     let metadata = host.harness.event("command_metadata", PTY_TIMEOUT)?;
-    let _: shellsense::knowledge::HelpPage = serde_json::from_value(metadata["page"].clone())?;
+    let _: blueberry::knowledge::HelpPage = serde_json::from_value(metadata["page"].clone())?;
     wait_until(
         &mut host.harness,
         "learned enum menu",
@@ -160,7 +160,7 @@ fn start_host() -> Result<RunningHost> {
     .context("create deterministic git.cmd")?;
     fs::write(
         cwd.path().join("中文😀 文件.txt"),
-        b"ShellSense Unicode fixture",
+        b"Blueberry Unicode fixture",
     )
     .context("create Unicode path fixture")?;
 
@@ -180,20 +180,20 @@ fn start_host() -> Result<RunningHost> {
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
         ("NO_COLOR".to_owned(), "1".to_owned()),
-        ("SHELLSENSE_NO_HISTORY".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
         // Debug hosts mirror protocol frames to this probe token without
         // changing the private child-shell token used by the live adapter.
-        ("SHELLSENSE_PROBE_TOKEN".to_owned(), token.clone()),
+        ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
         (
-            "SHELLSENSE_TEST_BUFFER".to_owned(),
+            "BLUEBERRY_TEST_BUFFER".to_owned(),
             buffer_marker.to_string_lossy().into_owned(),
         ),
         (
-            "SHELLSENSE_NATIVE_MARKER".to_owned(),
+            "BLUEBERRY_NATIVE_MARKER".to_owned(),
             native_marker.to_string_lossy().into_owned(),
         ),
     ]);
-    let transport = std::env::var("SHELLSENSE_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
+    let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
     let args = vec![
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
@@ -204,7 +204,7 @@ fn start_host() -> Result<RunningHost> {
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),
     ];
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_shellsense"));
+    let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let mut harness = Harness::start(&program, &args, cwd.path(), &env, token)
         .with_context(|| format!("start {}", program.display()))?;
     harness
@@ -422,7 +422,7 @@ fn buffer_probe_command(path: &Path) -> String {
 
 fn native_probe_command(path: &Path) -> String {
     format!(
-        "function Test-ShellSenseNative {{ param([string]$Value); Write-Output ('NATIVE:' + $Value) }}; Register-ArgumentCompleter -CommandName Test-ShellSenseNative -ParameterName Value -ScriptBlock {{ param($commandName,$parameterName,$wordToComplete,$commandAst,$fakeBoundParameters); [IO.File]::AppendAllText({}, [string]::Concat('called',[char]10)); [System.Management.Automation.CompletionResult]::new('alpha','alpha',[System.Management.Automation.CompletionResultType]::ParameterValue,'native alpha') }}; Write-Output SS_NATIVE_READY",
+        "function Test-BlueberryNative {{ param([string]$Value); Write-Output ('NATIVE:' + $Value) }}; Register-ArgumentCompleter -CommandName Test-BlueberryNative -ParameterName Value -ScriptBlock {{ param($commandName,$parameterName,$wordToComplete,$commandAst,$fakeBoundParameters); [IO.File]::AppendAllText({}, [string]::Concat('called',[char]10)); [System.Management.Automation.CompletionResult]::new('alpha','alpha',[System.Management.Automation.CompletionResultType]::ParameterValue,'native alpha') }}; Write-Output SS_NATIVE_READY",
         ps_quote(path)
     )
 }
@@ -622,9 +622,9 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
     )?;
 
     clear_line(&mut host.harness)?;
-    let line = "Test-ShellSenseNative -Value a";
+    let line = "Test-BlueberryNative -Value a";
     host.harness.send(line.as_bytes())?;
-    let buffer = request_buffer(&mut host.harness, "Test-ShellSenseNative")?;
+    let buffer = request_buffer(&mut host.harness, "Test-BlueberryNative")?;
     ensure!(
         !host.native_marker.exists(),
         "automatic Rust completion invoked the user native completer: {buffer}"
@@ -683,7 +683,7 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
     ensure!(
         inserted["line"]
             .as_str()
-            .is_some_and(|line| line.trim_end() == "Test-ShellSenseNative -Value alpha"),
+            .is_some_and(|line| line.trim_end() == "Test-BlueberryNative -Value alpha"),
         "native replacement changed unrelated text: {inserted}"
     );
     host.harness.send(b"\r")?;
@@ -795,7 +795,7 @@ fn terminal_beta_learning_records_only_an_applied_edit() -> Result<()> {
 
     // A stale payload is consumed and rejected before Replace is called. It
     // must not create a learning entry.
-    if std::env::var("SHELLSENSE_TEST_TRANSPORT").as_deref() != Ok("pipe") {
+    if std::env::var("BLUEBERRY_TEST_TRANSPORT").as_deref() != Ok("pipe") {
         fs::write(
             &host.edit_path,
             serde_json::to_vec(&json!({

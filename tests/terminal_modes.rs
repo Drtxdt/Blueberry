@@ -2,8 +2,8 @@
 
 //! Real ConPTY regressions for terminal modes and long output.
 //!
-//! Each case starts an isolated ShellSense process with a temporary config,
-//! data directory, working directory, and `SHELLSENSE_NO_HISTORY=1`. The
+//! Each case starts an isolated Blueberry process with a temporary config,
+//! data directory, working directory, and `BLUEBERRY_NO_HISTORY=1`. The
 //! child PowerShell used by the host is the same executable selected for the
 //! external `pwsh -NoProfile -File` fixture. The tests intentionally do not
 //! modify a profile, global settings, or a real repository.
@@ -15,7 +15,7 @@
 
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::Value;
-use shellsense::{config, probe::Harness};
+use blueberry::{config, probe::Harness};
 use std::{
     collections::BTreeMap,
     fs,
@@ -35,8 +35,8 @@ use windows_sys::Win32::{
 };
 
 const PTY_TIMEOUT: Duration = Duration::from_secs(20);
-const MOUSE_HELPER_LOG_ENV: &str = "SHELLSENSE_MOUSE_HELPER_LOG";
-const TEST_TRANSPORT_ENV: &str = "SHELLSENSE_TEST_TRANSPORT";
+const MOUSE_HELPER_LOG_ENV: &str = "BLUEBERRY_MOUSE_HELPER_LOG";
+const TEST_TRANSPORT_ENV: &str = "BLUEBERRY_TEST_TRANSPORT";
 const MOUSE_COLUMN: i16 = 11;
 const MOUSE_ROW: i16 = 6;
 const VK_F12: u16 = 0x7b;
@@ -236,7 +236,7 @@ struct RunningHost {
 }
 
 fn selected_pwsh() -> PathBuf {
-    std::env::var_os("SHELLSENSE_PWSH_EXE")
+    std::env::var_os("BLUEBERRY_PWSH_EXE")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("pwsh.exe"))
 }
@@ -295,10 +295,10 @@ fn start_host() -> Result<RunningHost> {
         ("TERM".to_owned(), "xterm-256color".to_owned()),
         ("NO_COLOR".to_owned(), "1".to_owned()),
         // This keeps PSReadLine history and learning output inside data_dir.
-        ("SHELLSENSE_NO_HISTORY".to_owned(), "1".to_owned()),
-        ("SHELLSENSE_PROBE_TOKEN".to_owned(), token.clone()),
+        ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
     ]);
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_shellsense"));
+    let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let args = vec![
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
@@ -541,7 +541,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
         .context("wait for alternate-screen ready marker")?;
 
     // A resize while the child owns the alternate screen must be forwarded to
-    // the child without repainting a ShellSense menu over it.
+    // the child without repainting a Blueberry menu over it.
     host.harness
         .resize(12, 60)
         .context("resize alternate screen small")?;
@@ -561,7 +561,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
     );
     ensure!(
         !keys.lines().any(|line| line.starts_with("key=F12;")),
-        "ShellSense injected a protocol F12 while the external program was active: {keys}"
+        "Blueberry injected a protocol F12 while the external program was active: {keys}"
     );
     let screen = host.harness.viewport_contents();
     ensure!(
@@ -708,7 +708,7 @@ fn conpty_mouse_passthrough_for_external_program() -> Result<()> {
         .context("wait for external mouse helper readiness")?;
 
     // The bytes enter the same outer ConPTY input stream as a terminal
-    // emulator's SGR mouse report.  ShellSense must decode them as a mouse
+    // emulator's SGR mouse report.  Blueberry must decode them as a mouse
     // event, encode them for the nested child, and avoid its private F12
     // protocol chord while the child owns mouse mode.
     host.harness
@@ -741,7 +741,7 @@ fn conpty_mouse_passthrough_for_external_program() -> Result<()> {
     ensure!(
         !log.lines()
             .any(|line| line.starts_with("KEY") && line.contains("vk=123")),
-        "ShellSense injected F12 into the external helper:\n{log}"
+        "Blueberry injected F12 into the external helper:\n{log}"
     );
     ensure!(
         log.contains("DONE f12=0"),

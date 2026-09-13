@@ -125,7 +125,7 @@ struct TemporaryDirectory {
 impl TemporaryDirectory {
     fn new() -> Result<Self> {
         let path =
-            env::temp_dir().join(format!("shellsense-beta-metrics-{}", uuid::Uuid::new_v4()));
+            env::temp_dir().join(format!("blueberry-beta-metrics-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&path)
             .with_context(|| format!("无法创建性能夹具目录 {}", path.display()))?;
         Ok(Self { path })
@@ -273,7 +273,7 @@ pub fn run(
     );
     ensure!(
         !executable.as_os_str().is_empty(),
-        "ShellSense 可执行文件路径不能为空"
+        "Blueberry 可执行文件路径不能为空"
     );
     ensure!(!shell.as_os_str().is_empty(), "PowerShell 路径不能为空");
 
@@ -439,18 +439,18 @@ pub fn run(
         },
         "scenarios": scenario_reports,
         "method": {
-            "host": "每个样本都在真实 PowerShell + ShellSense + 外层 ConPTY 中测量",
+            "host": "每个样本都在真实 PowerShell + Blueberry + 外层 ConPTY 中测量",
             "observation": "只读取 Harness 的 viewport 行；输入回显和带候选图标的真实菜单行分别确认",
             "dynamic": "计时前确认无旧输入/菜单；动态结果须出现目标候选和完整可见的 F1 状态行且无加载标记。诊断替代或裁切状态行不算完成；静态场景不计作动态完成",
             "ordering": "每场景每种 cache 模式使用 0..9 循环的十个唯一夹具候选",
             "initial_query": "每个 session 的首个查询单独等待完整动态结果；它不进入热态菜单统计。静态场景的首个查询只等待首个可用候选",
             "cache": "每个 session pair 先在全新空 data 目录测量 miss，再复用同一份已验证 complete=true 的 commands.json 测量 hit；hit 后检查文件时间未改变",
             "transport": "每个 host 读取新建 session 的 adapter.json；只有与请求 transport 相同的热态样本进入验收统计，降级样本只保留为诊断",
-            "memory": "Windows 采样 ShellSense host working set；其他平台报告 unavailable",
+            "memory": "Windows 采样 Blueberry host working set；其他平台报告 unavailable",
             "cpu": "Windows 使用 GetProcessTimes，空闲约 200 ms；其他平台报告 unavailable",
             "throughput": "固定安全文本夹具通过 Get-Content -Raw 输出，并用独立 pwsh 同命令作基准",
-            "profile": "不传 --no-profile；SHELLSENSE_NO_HISTORY=1 只禁止历史落盘，不改变 profile 加载",
-            "trace": "未设置 trace 路径，SHELLSENSE_TRACE=0",
+            "profile": "不传 --no-profile；BLUEBERRY_NO_HISTORY=1 只禁止历史落盘，不改变 profile 加载",
+            "trace": "未设置 trace 路径，BLUEBERRY_TRACE=0",
             "cache_state": "保留 OS 文件缓存，不清空系统缓存",
         },
         "fixture": {
@@ -640,7 +640,7 @@ fn measure_session(
     // previous miss session's adapter.json (both use the same data directory).
     let previous_adapters = adapter_paths(data_dir);
     let mut harness = Harness::start(executable, &args, cwd, environment, token)
-        .with_context(|| format!("无法启动 {} 场景的 ShellSense host", kind.name()))?;
+        .with_context(|| format!("无法启动 {} 场景的 Blueberry host", kind.name()))?;
     wait_for_prompt(&mut harness, WAIT_TIMEOUT)
         .with_context(|| format!("{} 场景等待 PowerShell 提示符失败", kind.name()))?;
     // StatusWriter publishes the transport selected by the adapter in a
@@ -889,13 +889,13 @@ fn host_environment(fixtures: &Fixtures) -> Result<BTreeMap<String, String>> {
     Ok(BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), pathext.to_string_lossy().into_owned()),
-        ("SHELLSENSE_NO_HISTORY".to_owned(), "1".to_owned()),
-        ("SHELLSENSE_ACTIVE".to_owned(), "1".to_owned()),
-        ("SHELLSENSE_TRACE".to_owned(), "0".to_owned()),
+        ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_ACTIVE".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_TRACE".to_owned(), "0".to_owned()),
         // Explicitly shadow a caller's diagnostic token.  Harness uses no
         // event tap, and an inherited token must not turn one on in a debug
         // host accidentally.
-        ("SHELLSENSE_PROBE_TOKEN".to_owned(), String::new()),
+        ("BLUEBERRY_PROBE_TOKEN".to_owned(), String::new()),
         ("ISTERM".to_owned(), "1".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
     ]))
@@ -921,7 +921,7 @@ fn create_fixtures(directory: &Path) -> Result<Fixtures> {
     let throughput = root.join("throughput.txt");
     let mut output = Vec::with_capacity(OUTPUT_BYTES);
     while output.len() < OUTPUT_BYTES {
-        output.extend_from_slice(b"shellsense-beta-output\n");
+        output.extend_from_slice(b"blueberry-beta-output\n");
     }
     output.truncate(OUTPUT_BYTES);
     fs::write(&throughput, output)
@@ -929,7 +929,7 @@ fn create_fixtures(directory: &Path) -> Result<Fixtures> {
 
     let git_global_config = root.join("git-global.config");
     fs::write(&git_global_config, b"[core]\n")?;
-    fs::write(git.join("README.txt"), b"ShellSense beta fixture\n")?;
+    fs::write(git.join("README.txt"), b"Blueberry beta fixture\n")?;
     setup_git(&git, &git_global_config)?;
 
     write_cargo_fixture(&cargo, &cargo_app)?;
@@ -967,12 +967,12 @@ fn setup_git(directory: &Path, global_config: &Path) -> Result<()> {
     fixture_git(
         directory,
         global_config,
-        &["config", "user.email", "shellsense-beta@example.invalid"],
+        &["config", "user.email", "blueberry-beta@example.invalid"],
     )?;
     fixture_git(
         directory,
         global_config,
-        &["config", "user.name", "ShellSense Beta Fixture"],
+        &["config", "user.name", "Blueberry Beta Fixture"],
     )?;
     fixture_git(directory, global_config, &["add", "README.txt"])?;
     fixture_git(directory, global_config, &["commit", "-qm", "fixture"])?;
@@ -1049,7 +1049,7 @@ fn write_javascript_fixture(directory: &Path) -> Result<()> {
     for index in 0..10 {
         scripts.insert(
             format!("ssbeta-js-{index}"),
-            Value::String("echo shellsense-beta".to_owned()),
+            Value::String("echo blueberry-beta".to_owned()),
         );
     }
     let package = json!({
@@ -1081,7 +1081,7 @@ fn measure_throughput(
     mode: &str,
 ) -> Result<f64> {
     let marker = format!(
-        "SHELLSENSE_BETA_OUTPUT_DONE_{mode}_{session_index}_{}",
+        "BLUEBERRY_BETA_OUTPUT_DONE_{mode}_{session_index}_{}",
         uuid::Uuid::new_v4()
     );
     let command = format!(
@@ -1104,16 +1104,16 @@ fn measure_pwsh_baseline(
     fixtures: &Fixtures,
 ) -> Result<Value> {
     let mut baseline_environment = environment.clone();
-    baseline_environment.remove("SHELLSENSE_ACTIVE");
-    baseline_environment.remove("SHELLSENSE_TRACE");
-    // SHELLSENSE_NO_HISTORY is consumed by the adapter and has no meaning to
+    baseline_environment.remove("BLUEBERRY_ACTIVE");
+    baseline_environment.remove("BLUEBERRY_TRACE");
+    // BLUEBERRY_NO_HISTORY is consumed by the adapter and has no meaning to
     // a bare PowerShell process. Explicitly configure PSReadLine after the
     // normal profile has loaded, so this throughput control cannot write the
     // user's history. CI may select a pinned PSReadLine module; load that
     // same module before applying the option to keep the control comparable.
     let mut history_setup = String::new();
     if let Some(module) =
-        env::var_os("SHELLSENSE_TEST_PSREADLINE_MODULE").filter(|module| !module.is_empty())
+        env::var_os("BLUEBERRY_TEST_PSREADLINE_MODULE").filter(|module| !module.is_empty())
     {
         let module = PathBuf::from(module);
         history_setup.push_str("Import-Module '");
@@ -1154,7 +1154,7 @@ fn measure_pwsh_baseline(
         }
         reset_line(&mut harness, &line)?;
     }
-    let marker = format!("SHELLSENSE_BETA_BASELINE_DONE_{}", uuid::Uuid::new_v4());
+    let marker = format!("BLUEBERRY_BETA_BASELINE_DONE_{}", uuid::Uuid::new_v4());
     let command = format!(
         "Get-Content -Raw -LiteralPath '{}'; Write-Output '{}'",
         powershell_quote(&fixtures.throughput),
@@ -1173,7 +1173,7 @@ fn measure_pwsh_baseline(
         "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
         "profile_mode": "preserved",
         "shell": shell,
-        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 ShellSense host",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 Blueberry host",
     }))
 }
 

@@ -15,7 +15,7 @@ const FIXTURE_COUNT: usize = 10;
 const MAX_ITERATIONS: u16 = 100;
 const WAIT_TIMEOUT: Duration = Duration::from_secs(20);
 const FIXTURE_PREFIX: &str = "ss-ben";
-const TEMP_PREFIX: &str = "shellsense-host-probe-";
+const TEMP_PREFIX: &str = "blueberry-host-probe-";
 
 #[derive(Default)]
 struct Measurements {
@@ -231,8 +231,8 @@ fn probe_environment(path: &OsStr, pathext: &OsStr) -> BTreeMap<String, String> 
     BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), pathext.to_string_lossy().into_owned()),
-        ("SHELLSENSE_NO_HISTORY".to_owned(), "1".to_owned()),
-        ("SHELLSENSE_ACTIVE".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_ACTIVE".to_owned(), "1".to_owned()),
         ("ISTERM".to_owned(), "1".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
     ])

@@ -1,16 +1,16 @@
 # PowerShell adapter
 
 `shell/integration.ps1` is dot sourced by the one PowerShell process owned by
-shellsense. A normal launch keeps the user's profile enabled and then runs:
+blueberry. A normal launch keeps the user's profile enabled and then runs:
 
 ```powershell
 pwsh -NoLogo -NoExit -Command ". 'C:\path\to\integration.ps1'"
 ```
 
-The host supplies `SHELLSENSE_TOKEN` and `SHELLSENSE_EDIT_PATH` in the child
-environment. It may also provide `SHELLSENSE_REQUEST_PATH` and
-`SHELLSENSE_KEY_PREFIX` (`F5` through `F12`; the default is `F12`). For
-public shortcut arbitration it may provide `SHELLSENSE_PUBLIC_KEYS` as a JSON
+The host supplies `BLUEBERRY_TOKEN` and `BLUEBERRY_EDIT_PATH` in the child
+environment. It may also provide `BLUEBERRY_REQUEST_PATH` and
+`BLUEBERRY_KEY_PREFIX` (`F5` through `F12`; the default is `F12`). For
+public shortcut arbitration it may provide `BLUEBERRY_PUBLIC_KEYS` as a JSON
 object with `trigger`, `native`, `details`, `refresh`, and `reload` chord
 strings. The adapter reads the token once and removes it from the process
 environment. `request.json` defaults to the sibling of `edit.json`. Every
@@ -21,7 +21,7 @@ ESC ] 7776 ; token ; compact-json BEL
 ```
 
 The explicit `run --transport pipe` experiment also supplies
-`SHELLSENSE_PIPE_NAME`. The adapter creates a local duplex
+`BLUEBERRY_PIPE_NAME`. The adapter creates a local duplex
 `NamedPipeClientStream` and attempts `Connect(0)` once during bootstrap. A
 failed connection keeps OSC active. In pipe mode an event is first written as
 one UTF-8 message-mode frame with the envelope
@@ -48,7 +48,7 @@ events:
 
 | Event | Additional properties |
 | --- | --- |
-| `capabilities` | `protocol_version: 2`, legacy `ready`/`psreadline`/`key_handlers`/`edit_path`, `key_prefix`, actual `transport` (`osc` or `pipe`), request-path state, and a v2 `capabilities` map. `key_handlers` includes `native`, `paste`, and optional `enter`/`shift_enter`; when `SHELLSENSE_PUBLIC_KEYS` is set, `capabilities.public_keys` reports each shortcut's safe-to-intercept status. |
+| `capabilities` | `protocol_version: 2`, legacy `ready`/`psreadline`/`key_handlers`/`edit_path`, `key_prefix`, actual `transport` (`osc` or `pipe`), request-path state, and a v2 `capabilities` map. `key_handlers` includes `native`, `paste`, and optional `enter`/`shift_enter`; when `BLUEBERRY_PUBLIC_KEYS` is set, `capabilities.public_keys` reports each shortcut's safe-to-intercept status. |
 | `prompt_start` | `cwd` |
 | `prompt_end` | `cwd`, `path`, `pathext`, `pid`, and a transient `environment` map when it changes |
 | `buffer` | `line`, `cursor` (UTF-16 code-unit offset); complex lines additionally carry a compact `context` (see below) |
@@ -93,7 +93,7 @@ CRLF and lone CR normalize to LF. A selected range is replaced, otherwise the
 whole string is inserted through PSReadLine without executing it. Oversized
 input is consumed through its end marker and rejected as a whole. Payloads are
 removed after handling and the host cleans remaining session files on exit.
-ShellSense does not persist paste text in trace or learning statistics; normal
+Blueberry does not persist paste text in trace or learning statistics; normal
 PSReadLine history policy still applies when the user later executes the line.
 
 Native completion is manual-only. The adapter reads a request object such as
@@ -146,7 +146,7 @@ and an `error` event with code `key_chord_collision` is sent. If PSReadLine is
 not present in a noninteractive process, it is not auto-loaded; the readiness
 event reports `psreadline: false`.
 
-When `SHELLSENSE_PUBLIC_KEYS` is present, the adapter also checks those host
+When `BLUEBERRY_PUBLIC_KEYS` is present, the adapter also checks those host
 shortcuts against the current PSReadLine bindings. An unbound shortcut is
 reported as available. The completion `trigger` is available when its existing
 binding is the standard `MenuComplete` or `Complete` action, and `details` is
@@ -157,7 +157,7 @@ shortcuts are likewise reported unavailable, with a key-setting suggestion.
 The adapter never replaces these bindings. Omitting the variable omits
 `capabilities.public_keys` for compatibility with older hosts.
 
-Set `SHELLSENSE_NO_HISTORY=1` for isolated probes or CI sessions that should
+Set `BLUEBERRY_NO_HISTORY=1` for isolated probes or CI sessions that should
 leave no PSReadLine history file behind. Ordinary launches leave PSReadLine's
 history settings unchanged.
 
@@ -171,3 +171,14 @@ The prompt wrapper invokes the original prompt before transport helpers, so
 the prompt sees the preceding command's success status. LASTEXITCODE is read
 through the session-variable API and restored, allowing StrictMode before any
 native command has populated that variable.
+
+
+## Blueberry 的 PowerShell 5.1 兼容
+
+PowerShell 7 使用 System.Text.Json。Windows PowerShell 5.1 在首次初始化时通过系统 .NET Framework 编译内嵌 JSON 兼容层；组件随 Rust 程序嵌入，无需下载 DLL。兼容层保持 ASCII 传输、UTF-16 范围和字段类型校验，并拒绝重复字段。
+
+PSReadLine 2.0 的补充平面 Unicode 按键通过已有文本插入通道处理，避免 surrogate 按键丢失。普通按键和外部程序输入保持原有传递方式。
+
+协议版本保持 2。capabilities 增加可选数值字段 `json_initialization_ms`，记录 JSON 类型绑定或兼容层编译初始化耗时；已有接收方可忽略该字段。
+
+自动启动由 `blueberry startup` 管理当前用户 ConsoleHost profile，保留原编码和内容，使用 `BLUEBERRY_ACTIVE` 防止子会话递归。非交互、脚本调用和重定向不启动补全主机。

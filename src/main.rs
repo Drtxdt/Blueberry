@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
-use shellsense::{
+use blueberry::{
     completion, config,
     engine::CommandIndex,
     host,
@@ -220,12 +220,12 @@ fn complete_line(
     };
     if let Some(entry) = index
         .executable(command)
-        .and_then(|p| shellsense::knowledge::entry(command, &p, cwd))
+        .and_then(|p| blueberry::knowledge::entry(command, &p, cwd))
     {
-        for record in shellsense::knowledge::records(&shellsense::knowledge::cache_dir())
+        for record in blueberry::knowledge::records(&blueberry::knowledge::cache_dir())
             .iter()
             .filter(|r| {
-                r.entry.fingerprint == entry.fingerprint && shellsense::knowledge::current(r)
+                r.entry.fingerprint == entry.fingerprint && blueberry::knowledge::current(r)
             })
         {
             catalog.apply_help(record);
@@ -255,7 +255,7 @@ fn complete_line(
     let usage = settings
         .learning
         .enabled
-        .then(|| shellsense::ranking::UsageSnapshot::load(&config::statistics_path()));
+        .then(|| blueberry::ranking::UsageSnapshot::load(&config::statistics_path()));
     let completion = completion::merge(
         base,
         &request,
@@ -497,12 +497,12 @@ fn run_specs_command(command: SpecsCommand, config_path: Option<&Path>) -> Resul
             let path = index
                 .executable(&command)
                 .ok_or_else(|| anyhow!("找不到程序：{command}"))?;
-            let entry = shellsense::knowledge::entry(&command, &path, &std::env::current_dir()?)
+            let entry = blueberry::knowledge::entry(&command, &path, &std::env::current_dir()?)
                 .ok_or_else(|| anyhow!("无法解析此入口；请传入实际可执行文件路径"))?;
-            let record = shellsense::knowledge::learn(
+            let record = blueberry::knowledge::learn(
                 entry,
                 context,
-                &shellsense::knowledge::cache_dir(),
+                &blueberry::knowledge::cache_dir(),
                 &std::sync::atomic::AtomicBool::new(false),
             )
             .map_err(|e| anyhow!(e))?;
@@ -512,7 +512,7 @@ fn run_specs_command(command: SpecsCommand, config_path: Option<&Path>) -> Resul
         SpecsCommand::Forget { command } => {
             println!(
                 "已清除 {} 条帮助缓存",
-                shellsense::knowledge::forget(&shellsense::knowledge::cache_dir(), &command)?
+                blueberry::knowledge::forget(&blueberry::knowledge::cache_dir(), &command)?
             );
             Ok(0)
         }
@@ -551,7 +551,7 @@ fn run_specs_command(command: SpecsCommand, config_path: Option<&Path>) -> Resul
                     "{}",
                     serde_json::to_string_pretty(&serde_json::json!({
                         "directory": directory,
-                        "help_cache": shellsense::knowledge::records(&shellsense::knowledge::cache_dir()).iter().map(|r|serde_json::json!({"command":r.entry.command,"context":r.context,"source":r.entry.path,"stale":!shellsense::knowledge::current(r),"error":r.error})).collect::<Vec<_>>(),
+                        "help_cache": blueberry::knowledge::records(&blueberry::knowledge::cache_dir()).iter().map(|r|serde_json::json!({"command":r.entry.command,"context":r.context,"source":r.entry.path,"stale":!blueberry::knowledge::current(r),"error":r.error})).collect::<Vec<_>>(),
                         "count": nodes.len(),
                         "nodes": nodes,
                         "diagnostics": diagnostics,
@@ -607,12 +607,12 @@ fn command_available(name: &str) -> bool {
 }
 
 fn print_help_status() {
-    for r in shellsense::knowledge::records(&shellsense::knowledge::cache_dir()) {
+    for r in blueberry::knowledge::records(&blueberry::knowledge::cache_dir()) {
         println!(
             "帮助：{} {} · {} · {} · 入口：{}",
             r.entry.command,
             r.context.join(" "),
-            if !shellsense::knowledge::current(&r) {
+            if !blueberry::knowledge::current(&r) {
                 "过期"
             } else if r.error.is_some() {
                 "失败"
@@ -632,7 +632,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
     let settings = match config::load(config_path) {
         Ok(settings) => settings,
         Err(error) => {
-            println!("ShellSense {}", env!("CARGO_PKG_VERSION"));
+            println!("Blueberry {}", env!("CARGO_PKG_VERSION"));
             println!("Config: {}", path.display());
             println!("Config status: error: {error:#}");
             println!("Key diagnostics: 无法读取或验证配置，因此未启用快捷键");
@@ -654,7 +654,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
         .diagnostics()
         .iter()
         .filter(|diagnostic| {
-            diagnostic.severity == shellsense::spec_catalog::DiagnosticSeverity::Error
+            diagnostic.severity == blueberry::spec_catalog::DiagnosticSeverity::Error
         })
         .count();
     let learning_path = config::statistics_path();
@@ -672,7 +672,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
     };
     let (builtin_catalog_name, builtin_catalog_version) = Catalog::builtin_metadata();
     println!(
-        "ShellSense {}\nPlatform: {} / {}\nConfig: {}\nCache: {}\nSpecs: {}\nEffective contexts: {}\nSpec files: {}\nSpec diagnostics: {}\nMax candidates: {}\nCompletion: fuzzy={} dynamic={}\nKeys: trigger={} native={} search={} details={} refresh={} reload={} protocol={}\nKey status: valid\nLearning: {}\nData sources:",
+        "Blueberry {}\nPlatform: {} / {}\nConfig: {}\nCache: {}\nSpecs: {}\nEffective contexts: {}\nSpec files: {}\nSpec diagnostics: {}\nMax candidates: {}\nCompletion: fuzzy={} dynamic={}\nKeys: trigger={} native={} search={} details={} refresh={} reload={} protocol={}\nKey status: valid\nLearning: {}\nData sources:",
         env!("CARGO_PKG_VERSION"),
         std::env::consts::OS,
         std::env::consts::ARCH,
@@ -698,7 +698,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
         "Built-in catalog: {} v{}",
         builtin_catalog_name, builtin_catalog_version
     );
-    if let Some(session) = env::var_os("SHELLSENSE_SESSION_DIR") {
+    if let Some(session) = env::var_os("BLUEBERRY_SESSION_DIR") {
         let session = PathBuf::from(session);
         if let Ok(bytes) = std::fs::read(session.join("adapter.json"))
             && let Ok(status) = serde_json::from_slice::<serde_json::Value>(&bytes)
@@ -721,7 +721,7 @@ fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
         }
     } else {
         println!(
-            "Current key bindings: run doctor inside ShellSense to inspect the active session."
+            "Current key bindings: run doctor inside Blueberry to inspect the active session."
         );
     }
     for (label, command) in [
@@ -839,7 +839,7 @@ fn execute() -> Result<u32> {
                 20,
                 &settings.descriptions,
             );
-            let frame = shellsense::menu::render(&result.candidates, 0, "", 100, &settings);
+            let frame = blueberry::menu::render(&result.candidates, 0, "", 100, &settings);
             for line in frame.lines {
                 println!("{line}");
             }
@@ -848,7 +848,7 @@ fn execute() -> Result<u32> {
         Command::TerminalProfile => {
             let executable = std::env::current_exe()?;
             let profile = serde_json::json!({
-                "name":"ShellSense PowerShell",
+                "name":"Blueberry PowerShell",
                 "commandline":format!("\"{}\" run",executable.display()),
                 "startingDirectory":"%USERPROFILE%",
                 "guid":"{cda29eb9-0b16-4c08-bc90-75d9275a8ae9}",
@@ -876,7 +876,7 @@ fn execute() -> Result<u32> {
             host_executable,
             output,
         } => {
-            let report = shellsense::beta_metrics::run(
+            let report = blueberry::beta_metrics::run(
                 &host_executable.unwrap_or(std::env::current_exe()?),
                 &shell,
                 samples,
@@ -908,7 +908,7 @@ fn execute() -> Result<u32> {
             output,
         } => {
             let report = if host {
-                shellsense::metrics::host_probe_traced(
+                blueberry::metrics::host_probe_traced(
                     &host_executable.unwrap_or(std::env::current_exe()?),
                     &shell,
                     iterations,
@@ -939,7 +939,7 @@ fn main() -> std::process::ExitCode {
     match execute() {
         Ok(code) => std::process::ExitCode::from(code.min(255) as u8),
         Err(error) => {
-            eprintln!("shellsense: {error:#}");
+            eprintln!("blueberry: {error:#}");
             std::process::ExitCode::FAILURE
         }
     }

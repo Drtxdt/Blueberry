@@ -1,6 +1,6 @@
-# ShellSense 规格目录
+# Blueberry 规格目录
 
-ShellSense 的内置命令知识来自 [`specs/builtin.toml`](../specs/builtin.toml)。该文件使用版本 1 的声明式格式，构建时由 `build.rs` 校验并生成 Rust 静态数据。运行时不会解析内置 TOML，也不会执行其中的脚本。用户规格只从用户配置目录读取 `*.toml`，不能引用任意脚本、程序或在线服务。
+Blueberry 的内置命令知识来自 [`specs/builtin.toml`](../specs/builtin.toml)。该文件使用版本 1 的声明式格式，构建时由 `build.rs` 校验并生成 Rust 静态数据。运行时不会解析内置 TOML，也不会执行其中的脚本。用户规格只从用户配置目录读取 `*.toml`，不能引用任意脚本、程序或在线服务。
 
 ## 版本 1 格式
 
@@ -96,10 +96,10 @@ pnpm -C <目录> install
 用户规格目录可以用以下命令检查和查看。未指定 `--directory` 时使用配置中的 `specs.directory`；没有创建目录时按空目录处理，内置规格仍然可用。
 
 ```text
-shellsense specs check
-shellsense specs check --directory .\shellsense-specs --json
-shellsense specs list
-shellsense specs list --directory .\shellsense-specs --json
+blueberry specs check
+blueberry specs check --directory .\blueberry-specs --json
+blueberry specs list
+blueberry specs list --directory .\blueberry-specs --json
 ```
 
 `specs check` 会列出每个文件的有效性、节点数和 option set 数量，并在错误时以退出码 1 结束。`specs list` 展示合并后的完整上下文、来源和固定 provider。JSON 输出包含 `files`、`nodes` 或 `diagnostics`，便于编辑器和 CI 使用。
@@ -107,10 +107,10 @@ shellsense specs list --directory .\shellsense-specs --json
 补全诊断可以附加 `--explain`：
 
 ```text
-shellsense complete --line "git switch fea" --explain
-shellsense complete --line "cargo test --features=" --json --explain
+blueberry complete --line "git switch fea" --explain
+blueberry complete --line "cargo test --features=" --json --explain
 ```
 
 解释结果包含 UTF-8 替换范围、解析后的命令上下文、规格目录诊断、动态数据源状态及每个候选的来源。普通 `complete --json` 的原有字段保持不变。
 
-`doctor` 会同时报告配置位置、快捷键绑定、规格目录和诊断、Git/Cargo/npm/pnpm/PowerShell 可执行文件状态，以及本地统计文件位置。选择统计只保存散列标识；需要清除时执行 `shellsense learning clear`。
+`doctor` 会同时报告配置位置、快捷键绑定、规格目录和诊断、Git/Cargo/npm/pnpm/PowerShell 可执行文件状态，以及本地统计文件位置。选择统计只保存散列标识；需要清除时执行 `blueberry learning clear`。

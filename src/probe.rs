@@ -250,7 +250,7 @@ pub fn run_with_adapter(
     no_profile: bool,
     adapter_script: Option<&Path>,
 ) -> Result<Value> {
-    let directory = std::env::temp_dir().join(format!("shellsense-probe-{}", uuid::Uuid::new_v4()));
+    let directory = std::env::temp_dir().join(format!("blueberry-probe-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&directory)?;
     let temporary = Temporary(directory);
     let integration = match adapter_script {
@@ -269,13 +269,13 @@ pub fn run_with_adapter(
     let cwd = std::env::current_dir()?;
     let token = uuid::Uuid::new_v4().to_string();
     let mut env = BTreeMap::from([
-        ("SHELLSENSE_TOKEN".into(), token.clone()),
+        ("BLUEBERRY_TOKEN".into(), token.clone()),
         (
-            "SHELLSENSE_EDIT_PATH".into(),
+            "BLUEBERRY_EDIT_PATH".into(),
             edit_path.to_string_lossy().into(),
         ),
-        ("SHELLSENSE_ACTIVE".into(), "1".into()),
-        ("SHELLSENSE_NO_HISTORY".into(), "1".into()),
+        ("BLUEBERRY_ACTIVE".into(), "1".into()),
+        ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
         ("ISTERM".into(), "1".into()),
         ("TERM".into(), "xterm-256color".into()),
     ]);
@@ -304,7 +304,7 @@ pub fn run_with_adapter(
                 args.extend([
                     "-Command".into(),
                     format!(
-                        "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; $global:__shellsense_original_prompt = $ExecutionContext.InvokeCommand.GetCommand('Prompt', [System.Management.Automation.CommandTypes]::Function); $global:__shellsense_original_prompt = if ($null -eq $global:__shellsense_original_prompt) {{ {{ 'PS> ' }} }} else {{ $global:__shellsense_original_prompt.ScriptBlock }}; function global:prompt {{ $promptState = & {{ param($savedLastExitCode) try {{ $originalOutput = @(& $global:__shellsense_original_prompt); [pscustomobject]@{{ output = $originalOutput; error = $null; lastExitCode = $savedLastExitCode }} }} catch {{ [pscustomobject]@{{ output = @(); error = $_; lastExitCode = $savedLastExitCode }} }} }} ($ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')); [Console]::Write('{}'); $global:LASTEXITCODE = $promptState.lastExitCode; if ($null -ne $promptState.error) {{ throw $promptState.error }}; return $promptState.output }}",
+                        "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; $global:__blueberry_original_prompt = $ExecutionContext.InvokeCommand.GetCommand('Prompt', [System.Management.Automation.CommandTypes]::Function); $global:__blueberry_original_prompt = if ($null -eq $global:__blueberry_original_prompt) {{ {{ 'PS> ' }} }} else {{ $global:__blueberry_original_prompt.ScriptBlock }}; function global:prompt {{ $promptState = & {{ param($savedLastExitCode) try {{ $originalOutput = @(& $global:__blueberry_original_prompt); [pscustomobject]@{{ output = $originalOutput; error = $null; lastExitCode = $savedLastExitCode }} }} catch {{ [pscustomobject]@{{ output = @(); error = $_; lastExitCode = $savedLastExitCode }} }} }} ($ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')); [Console]::Write('{}'); $global:LASTEXITCODE = $promptState.lastExitCode; if ($null -ne $promptState.error) {{ throw $promptState.error }}; return $promptState.output }}",
                         frame.replace('\'', "''")
                     ),
                 ]);
@@ -314,8 +314,8 @@ pub fn run_with_adapter(
             let mut harness = Harness::start(shell, &args, &cwd, &env, token.clone())?;
             harness.event("prompt_end", timeout)?;
             let elapsed = started.elapsed().as_secs_f64() * 1000.0;
-            harness.send(b"SHELLSENSE_INPUT_READY")?;
-            harness.wait_text("SHELLSENSE_INPUT_READY", timeout)?;
+            harness.send(b"BLUEBERRY_INPUT_READY")?;
+            harness.wait_text("BLUEBERRY_INPUT_READY", timeout)?;
             let input_elapsed = started.elapsed().as_secs_f64() * 1000.0;
             if !adapted {
                 baseline.push(elapsed);
@@ -372,7 +372,7 @@ pub fn run_with_adapter(
             std::fs::write(
                 &edit_path,
                 serde_json::to_vec(
-                    &json!({"expectedLine":"git","expectedCursor":3,"start":0,"length":3,"text":"Write-Output SHELLSENSE_PROBE_OK"}),
+                    &json!({"expectedLine":"git","expectedCursor":3,"start":0,"length":3,"text":"Write-Output BLUEBERRY_PROBE_OK"}),
                 )?,
             )?;
             harness.send(b"\x1b[24~a")?;
@@ -380,7 +380,7 @@ pub fn run_with_adapter(
             harness.send(b"\r")?;
             harness.event("execute", timeout)?;
             harness.event("prompt_end", timeout)?;
-            harness.wait_line("SHELLSENSE_PROBE_OK", timeout)?;
+            harness.wait_line("BLUEBERRY_PROBE_OK", timeout)?;
             harness.stop()?;
         }
     }

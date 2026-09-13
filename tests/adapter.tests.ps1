@@ -41,19 +41,19 @@ Assert-ShellsenseTrue -Condition ([IO.File]::Exists($adapterPath)) -Message 'ada
 # Bootstrap with a token while capturing the private OSC frame.  The adapter
 # is run under -NonInteractive by the test command, so this must not import
 # PSReadLine merely because its commands are discoverable.
-$env:SHELLSENSE_TOKEN = 'adapter-test-token'
-$env:SHELLSENSE_EDIT_PATH = Join-Path ([IO.Path]::GetTempPath()) ('shellsense-adapter-test-' + [Guid]::NewGuid().ToString('N') + '.json')
-$env:SHELLSENSE_REQUEST_PATH = $null
-$env:SHELLSENSE_KEY_PREFIX = $null
-$env:SHELLSENSE_PUBLIC_KEYS = $null
-$env:SHELLSENSE_PUBLIC_KEYS_VERSION = $null
+$env:BLUEBERRY_TOKEN = 'adapter-test-token'
+$env:BLUEBERRY_EDIT_PATH = Join-Path ([IO.Path]::GetTempPath()) ('blueberry-adapter-test-' + [Guid]::NewGuid().ToString('N') + '.json')
+$env:BLUEBERRY_REQUEST_PATH = $null
+$env:BLUEBERRY_KEY_PREFIX = $null
+$env:BLUEBERRY_PUBLIC_KEYS = $null
+$env:BLUEBERRY_PUBLIC_KEYS_VERSION = $null
 foreach ($publicKeyName in @('TRIGGER', 'NATIVE', 'DETAILS', 'REFRESH', 'RELOAD')) {
     [Environment]::SetEnvironmentVariable(
-        ('SHELLSENSE_PUBLIC_KEY_' + $publicKeyName),
+        ('BLUEBERRY_PUBLIC_KEY_' + $publicKeyName),
         $null,
         'Process')
 }
-$env:SHELLSENSE_NO_HISTORY = '1'
+$env:BLUEBERRY_NO_HISTORY = '1'
 $capturedWriter = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
 $consoleWriter = [Console]::Out
 [Console]::SetOut($capturedWriter)
@@ -63,7 +63,7 @@ try {
     [Console]::SetOut($consoleWriter)
 }
 
-Assert-ShellsenseTrue -Condition ([string]::IsNullOrEmpty([string]$env:SHELLSENSE_TOKEN)) -Message 'bootstrap token is removed from the process environment'
+Assert-ShellsenseTrue -Condition ([string]::IsNullOrEmpty([string]$env:BLUEBERRY_TOKEN)) -Message 'bootstrap token is removed from the process environment'
 $capabilityFrame = $capturedWriter.ToString()
 $framePrefix = [string]([char]27) + ']7776;adapter-test-token;'
 Assert-ShellsenseTrue -Condition $capabilityFrame.StartsWith($framePrefix, [StringComparison]::Ordinal) -Message 'bootstrap emits an OSC frame'
@@ -80,7 +80,7 @@ Assert-ShellsenseEqual -Actual ([string]$capabilities.key_prefix) -Expected 'F12
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.manual_native) -Expected $true -Message 'native completion is manual-only'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.command_position) -Expected $true -Message 'context command-position capability is advertised'
 Assert-ShellsenseEqual -Actual ([bool]$capabilities.capabilities.paste_insert) -Expected $false -Message 'noninteractive bootstrap does not advertise paste insertion'
-Assert-ShellsenseTrue -Condition ([string]$script:SHELLSENSE_REQUEST_PATH -match '(?i)[\\/]request\.json$') -Message 'request path defaults beside edit path'
+Assert-ShellsenseTrue -Condition ([string]$script:BLUEBERRY_REQUEST_PATH -match '(?i)[\\/]request\.json$') -Message 'request path defaults beside edit path'
 
 # Frame construction must JSON-escape terminal-sensitive text rather than
 # writing it as raw control data.
@@ -157,9 +157,9 @@ Assert-ShellsenseTrue -Condition (-not (Test-ShellsenseEditPayload -Payload $bad
 $fallbackCwd = Get-ShellsenseWorkingDirectory
 Assert-ShellsenseTrue -Condition ([IO.Directory]::Exists($fallbackCwd)) -Message 'cwd is a filesystem directory'
 
-$savedEnvironmentSnapshot = $script:SHELLSENSE_ENVIRONMENT_SNAPSHOT
+$savedEnvironmentSnapshot = $script:BLUEBERRY_ENVIRONMENT_SNAPSHOT
 try {
-    $script:SHELLSENSE_ENVIRONMENT_SNAPSHOT = $null
+    $script:BLUEBERRY_ENVIRONMENT_SNAPSHOT = $null
     $firstPromptEnd = Get-ShellsensePromptEndData
     $secondPromptEnd = Get-ShellsensePromptEndData
     Assert-ShellsenseTrue -Condition $firstPromptEnd.Contains('environment') -Message 'first prompt end carries the environment snapshot'
@@ -167,7 +167,7 @@ try {
     Assert-ShellsenseTrue -Condition ($firstPromptEnd.Contains('path') -and $firstPromptEnd.Contains('pathext') -and $firstPromptEnd.Contains('pid')) -Message 'prompt end retains legacy process fields'
     Assert-ShellsenseTrue -Condition (-not $secondPromptEnd.Contains('environment')) -Message 'unchanged environment is not resent'
 } finally {
-    $script:SHELLSENSE_ENVIRONMENT_SNAPSHOT = $savedEnvironmentSnapshot
+    $script:BLUEBERRY_ENVIRONMENT_SNAPSHOT = $savedEnvironmentSnapshot
 }
 
 $transportText = "中文$([char]0xD83D)$([char]0xDE00)"
@@ -293,15 +293,15 @@ function Get-ShellsenseCapturedEvents {
 # prefix. Exercise both cases and restore adapter state before the remaining
 # helper tests run.
 Import-Module PSReadLine -ErrorAction Stop
-$savedReadLineAvailable = [bool]$script:SHELLSENSE_PSREADLINE_AVAILABLE
-$savedReadLineWrapped = [bool]$script:SHELLSENSE_READLINE_WRAPPED
-$savedOriginalReadLine = $script:SHELLSENSE_ORIGINAL_READLINE
-$savedKeyHandlers = $script:SHELLSENSE_KEY_HANDLERS
+$savedReadLineAvailable = [bool]$script:BLUEBERRY_PSREADLINE_AVAILABLE
+$savedReadLineWrapped = [bool]$script:BLUEBERRY_READLINE_WRAPPED
+$savedOriginalReadLine = $script:BLUEBERRY_ORIGINAL_READLINE
+$savedKeyHandlers = $script:BLUEBERRY_KEY_HANDLERS
 function Reset-ShellsenseReadLineTestState {
-    $script:SHELLSENSE_PSREADLINE_AVAILABLE = $false
-    $script:SHELLSENSE_READLINE_WRAPPED = $false
-    $script:SHELLSENSE_ORIGINAL_READLINE = $null
-    $script:SHELLSENSE_KEY_HANDLERS = [ordered]@{
+    $script:BLUEBERRY_PSREADLINE_AVAILABLE = $false
+    $script:BLUEBERRY_READLINE_WRAPPED = $false
+    $script:BLUEBERRY_ORIGINAL_READLINE = $null
+    $script:BLUEBERRY_KEY_HANDLERS = [ordered]@{
         buffer      = $false
         apply       = $false
         commands    = $false
@@ -334,9 +334,9 @@ try {
     # The wrapper must preserve the original ReadLine function's deliberate
     # native exit-code update, while suppressing only adapter side effects.
     $exitCodeBeforeReadLineTest = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
-    $readLineBeforeExitCodeTest = $script:SHELLSENSE_ORIGINAL_READLINE
+    $readLineBeforeExitCodeTest = $script:BLUEBERRY_ORIGINAL_READLINE
     try {
-        $script:SHELLSENSE_ORIGINAL_READLINE = { $global:LASTEXITCODE = 23; 'Write-Output test' }
+        $script:BLUEBERRY_ORIGINAL_READLINE = { $global:LASTEXITCODE = 23; 'Write-Output test' }
         $global:LASTEXITCODE = 7
         [Console]::SetOut($collisionCapture)
         $acceptedByWrapper = PSConsoleHostReadLine
@@ -344,15 +344,15 @@ try {
         Assert-ShellsenseEqual -Actual $global:LASTEXITCODE -Expected 23 -Message 'ReadLine wrapper keeps original function exit-code update'
     } finally {
         [Console]::SetOut($consoleWriter)
-        $script:SHELLSENSE_ORIGINAL_READLINE = $readLineBeforeExitCodeTest
+        $script:BLUEBERRY_ORIGINAL_READLINE = $readLineBeforeExitCodeTest
         $global:LASTEXITCODE = $exitCodeBeforeReadLineTest
     }
 
-    Assert-ShellsenseTrue -Condition ([bool]$script:SHELLSENSE_KEY_HANDLERS.buffer) -Message 'existing child does not falsely reserve F12,s'
-    Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS.apply) -Expected $false -Message 'existing F12,a remains reserved'
-    Assert-ShellsenseTrue -Condition ([bool]$script:SHELLSENSE_KEY_HANDLERS.commands) -Message 'existing child does not falsely reserve F12,c'
+    Assert-ShellsenseTrue -Condition ([bool]$script:BLUEBERRY_KEY_HANDLERS.buffer) -Message 'existing child does not falsely reserve F12,s'
+    Assert-ShellsenseEqual -Actual ([bool]$script:BLUEBERRY_KEY_HANDLERS.apply) -Expected $false -Message 'existing F12,a remains reserved'
+    Assert-ShellsenseTrue -Condition ([bool]$script:BLUEBERRY_KEY_HANDLERS.commands) -Message 'existing child does not falsely reserve F12,c'
     $childCollisionEvents = @(
-        Get-ShellsenseCapturedEvents -Raw $collisionCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN) |
+        Get-ShellsenseCapturedEvents -Raw $collisionCapture.ToString() -Token ([string]$script:BLUEBERRY_TOKEN) |
             Where-Object { $_.event -eq 'error' -and $_.code -eq 'key_chord_collision' }
     )
     Assert-ShellsenseEqual -Actual $childCollisionEvents.Count -Expected 1 -Message 'one exact child collision is reported'
@@ -384,16 +384,16 @@ try {
         [Console]::SetOut($consoleWriter)
     }
     foreach ($handlerName in @('buffer', 'apply', 'commands')) {
-        Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS[$handlerName]) -Expected $false -Message ('bare F12 preserves the parent binding for ' + $handlerName)
+        Assert-ShellsenseEqual -Actual ([bool]$script:BLUEBERRY_KEY_HANDLERS[$handlerName]) -Expected $false -Message ('bare F12 preserves the parent binding for ' + $handlerName)
     }
-    Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS.paste) -Expected $false -Message 'bare F12 preserves the parent binding for paste'
+    Assert-ShellsenseEqual -Actual ([bool]$script:BLUEBERRY_KEY_HANDLERS.paste) -Expected $false -Message 'bare F12 preserves the parent binding for paste'
     $parentCollisionEvents = @(
-        Get-ShellsenseCapturedEvents -Raw $parentCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN) |
+        Get-ShellsenseCapturedEvents -Raw $parentCapture.ToString() -Token ([string]$script:BLUEBERRY_TOKEN) |
             Where-Object { $_.event -eq 'error' -and $_.code -eq 'key_chord_collision' }
     )
     Assert-ShellsenseEqual -Actual $parentCollisionEvents.Count -Expected 7 -Message 'bare F12 reports all reserved child and lifecycle collisions'
-    Assert-ShellsenseTrue -Condition ([string]$parentCollisionEvents[0].suggestion -match 'SHELLSENSE_KEY_PREFIX=F(?:5|6|7|8|9|10|11)\.' -and
-        [string]$parentCollisionEvents[0].suggestion -notmatch 'SHELLSENSE_KEY_PREFIX=F12') -Message 'collision suggests a different configurable protocol prefix'
+    Assert-ShellsenseTrue -Condition ([string]$parentCollisionEvents[0].suggestion -match 'BLUEBERRY_KEY_PREFIX=F(?:5|6|7|8|9|10|11)\.' -and
+        [string]$parentCollisionEvents[0].suggestion -notmatch 'BLUEBERRY_KEY_PREFIX=F12') -Message 'collision suggests a different configurable protocol prefix'
     $existingParent = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('F12')))
     Assert-ShellsenseEqual -Actual $existingParent.Count -Expected 1 -Message 'existing bare F12 binding remains installed'
     Assert-ShellsenseEqual -Actual ([string]$existingParent[0].Function) -Expected 'existing parent' -Message 'existing bare F12 binding is not overwritten'
@@ -404,10 +404,10 @@ try {
         } catch {
         }
     }
-    $script:SHELLSENSE_PSREADLINE_AVAILABLE = $savedReadLineAvailable
-    $script:SHELLSENSE_READLINE_WRAPPED = $savedReadLineWrapped
-    $script:SHELLSENSE_ORIGINAL_READLINE = $savedOriginalReadLine
-    $script:SHELLSENSE_KEY_HANDLERS = $savedKeyHandlers
+    $script:BLUEBERRY_PSREADLINE_AVAILABLE = $savedReadLineAvailable
+    $script:BLUEBERRY_READLINE_WRAPPED = $savedReadLineWrapped
+    $script:BLUEBERRY_ORIGINAL_READLINE = $savedOriginalReadLine
+    $script:BLUEBERRY_KEY_HANDLERS = $savedKeyHandlers
 }
 
 # Public host shortcuts are optional. When configured, the standard
@@ -420,23 +420,23 @@ $publicKeyValues = [ordered]@{
     refresh = 'Ctrl+Alt+C'
     reload  = 'Ctrl+Alt+R'
 }
-$env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
-$env:SHELLSENSE_PUBLIC_KEYS_VERSION = '1'
+$env:BLUEBERRY_PUBLIC_KEYS = '{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
+$env:BLUEBERRY_PUBLIC_KEYS_VERSION = '1'
 foreach ($publicKeyName in $publicKeyValues.Keys) {
     [Environment]::SetEnvironmentVariable(
-        ('SHELLSENSE_PUBLIC_KEY_' + $publicKeyName.ToUpperInvariant()),
+        ('BLUEBERRY_PUBLIC_KEY_' + $publicKeyName.ToUpperInvariant()),
         [string]$publicKeyValues[$publicKeyName],
         'Process')
 }
 $fastPublicConfiguration = Get-ShellsensePublicKeyConfiguration
 Assert-ShellsenseEqual -Actual ([string]$fastPublicConfiguration.trigger) -Expected 'Ctrl+Space' -Message 'validated public-key environment fast path is used'
 Assert-ShellsenseEqual -Actual $fastPublicConfiguration.Count -Expected 5 -Message 'validated public-key fast path exposes all keys'
-$env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"F7","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
-$env:SHELLSENSE_PUBLIC_KEY_RELOAD = $null
+$env:BLUEBERRY_PUBLIC_KEYS = '{"trigger":"F7","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
+$env:BLUEBERRY_PUBLIC_KEY_RELOAD = $null
 $fallbackPublicConfiguration = Get-ShellsensePublicKeyConfiguration
 Assert-ShellsenseEqual -Actual ([string]$fallbackPublicConfiguration.trigger) -Expected 'F7' -Message 'missing validated key falls back to the original JSON'
-$env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
-[Environment]::SetEnvironmentVariable('SHELLSENSE_PUBLIC_KEY_RELOAD', $publicKeyValues.reload, 'Process')
+$env:BLUEBERRY_PUBLIC_KEYS = '{"trigger":"Ctrl+Space","native":"Ctrl+Alt+Space","details":"F1","refresh":"Ctrl+Alt+C","reload":"Ctrl+Alt+R"}'
+[Environment]::SetEnvironmentVariable('BLUEBERRY_PUBLIC_KEY_RELOAD', $publicKeyValues.reload, 'Process')
 Reset-ShellsenseReadLineTestState
 $publicCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
 [Console]::SetOut($publicCapture)
@@ -446,7 +446,7 @@ try {
 } finally {
     [Console]::SetOut($consoleWriter)
 }
-$publicEvents = @(Get-ShellsenseCapturedEvents -Raw $publicCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN))
+$publicEvents = @(Get-ShellsenseCapturedEvents -Raw $publicCapture.ToString() -Token ([string]$script:BLUEBERRY_TOKEN))
 $publicCapabilities = @($publicEvents | Where-Object { $_.event -eq 'capabilities' } | Select-Object -Last 1)
 Assert-ShellsenseEqual -Actual $publicCapabilities.Count -Expected 1 -Message 'public-key capabilities are advertised when configured'
 Assert-ShellsenseEqual -Actual ([bool]$publicCapabilities[0].capabilities.public_keys.trigger) -Expected $true -Message 'standard trigger binding is safe to supersede'
@@ -471,16 +471,16 @@ try {
 } finally {
     [Console]::SetOut($consoleWriter)
 }
-$customPublicEvents = @(Get-ShellsenseCapturedEvents -Raw $customPublicCapture.ToString() -Token ([string]$script:SHELLSENSE_TOKEN))
+$customPublicEvents = @(Get-ShellsenseCapturedEvents -Raw $customPublicCapture.ToString() -Token ([string]$script:BLUEBERRY_TOKEN))
 $customPublicCapabilities = @($customPublicEvents | Where-Object { $_.event -eq 'capabilities' } | Select-Object -Last 1)
 Assert-ShellsenseEqual -Actual ([bool]$customPublicCapabilities[0].capabilities.public_keys.trigger) -Expected $false -Message 'custom trigger binding is reported as a conflict'
 $customTriggerBindings = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('Ctrl+Spacebar')))
 Assert-ShellsenseEqual -Actual ([string]$customTriggerBindings[0].Function) -Expected 'custom trigger test handler' -Message 'custom trigger binding remains installed'
-$env:SHELLSENSE_PUBLIC_KEYS = $null
-$env:SHELLSENSE_PUBLIC_KEYS_VERSION = $null
+$env:BLUEBERRY_PUBLIC_KEYS = $null
+$env:BLUEBERRY_PUBLIC_KEYS_VERSION = $null
 foreach ($publicKeyName in @('TRIGGER', 'NATIVE', 'DETAILS', 'REFRESH', 'RELOAD')) {
     [Environment]::SetEnvironmentVariable(
-        ('SHELLSENSE_PUBLIC_KEY_' + $publicKeyName),
+        ('BLUEBERRY_PUBLIC_KEY_' + $publicKeyName),
         $null,
         'Process')
 }
@@ -503,7 +503,7 @@ try {
 } finally {
     [Console]::SetOut($consoleWriter)
 }
-Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_KEY_HANDLERS.enter) -Expected $false -Message 'custom Enter leaves lifecycle override unavailable'
+Assert-ShellsenseEqual -Actual ([bool]$script:BLUEBERRY_KEY_HANDLERS.enter) -Expected $false -Message 'custom Enter leaves lifecycle override unavailable'
 $customEnterBindings = @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('Enter')))
 Assert-ShellsenseEqual -Actual $customEnterBindings.Count -Expected 1 -Message 'custom Enter binding remains installed'
 Assert-ShellsenseEqual -Actual ([string]$customEnterBindings[0].Function) -Expected 'custom Enter test handler' -Message 'custom Enter function is preserved'
@@ -511,15 +511,15 @@ Assert-ShellsenseEqual -Actual ([string]$customEnterBindings[0].Function) -Expec
 # Native completion is reachable only from its manual request key.  A
 # redirected/noninteractive runspace cannot provide a real PSReadLine buffer;
 # it must still return a diagnostic status and a safe zero-width UTF-16 range.
-$savedNativeToken = [string]$script:SHELLSENSE_TOKEN
+$savedNativeToken = [string]$script:BLUEBERRY_TOKEN
 $nativeToken = 'adapter-native-token'
 $nativeCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
 [Console]::SetOut($nativeCapture)
 try {
-    $script:SHELLSENSE_TOKEN = $nativeToken
+    $script:BLUEBERRY_TOKEN = $nativeToken
     Get-ShellsenseNativeCompletion -RequestId 'native-error-1'
 } finally {
-    $script:SHELLSENSE_TOKEN = $savedNativeToken
+    $script:BLUEBERRY_TOKEN = $savedNativeToken
     [Console]::SetOut($consoleWriter)
 }
 $nativeEvents = @(Get-ShellsenseCapturedEvents -Raw $nativeCapture.ToString() -Token $nativeToken)
@@ -533,24 +533,24 @@ Assert-ShellsenseEqual -Actual (@($nativeEvents[0].candidates).Count) -Expected 
 
 # Trace is opt-in and must emit one bounded numeric stage event without
 # recursively tracing the trace frame itself or copying user payload fields.
-$savedTraceEnabled = [bool]$script:SHELLSENSE_TRACE_ENABLED
-$savedTraceEmitting = [bool]$script:SHELLSENSE_TRACE_EMITTING
-$savedTraceToken = [string]$script:SHELLSENSE_TOKEN
+$savedTraceEnabled = [bool]$script:BLUEBERRY_TRACE_ENABLED
+$savedTraceEmitting = [bool]$script:BLUEBERRY_TRACE_EMITTING
+$savedTraceToken = [string]$script:BLUEBERRY_TOKEN
 $traceToken = 'adapter-trace-token'
 $traceCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
 [Console]::SetOut($traceCapture)
 try {
-    $script:SHELLSENSE_TRACE_ENABLED = $true
-    $script:SHELLSENSE_TRACE_EMITTING = $false
-    $script:SHELLSENSE_TOKEN = $traceToken
+    $script:BLUEBERRY_TRACE_ENABLED = $true
+    $script:BLUEBERRY_TRACE_EMITTING = $false
+    $script:BLUEBERRY_TOKEN = $traceToken
     Send-ShellsenseEvent -Event 'buffer' -Data ([ordered]@{
         line   = 'trace payload stays out of diagnostics'
         cursor = 0
     })
 } finally {
-    $script:SHELLSENSE_TOKEN = $savedTraceToken
-    $script:SHELLSENSE_TRACE_ENABLED = $savedTraceEnabled
-    $script:SHELLSENSE_TRACE_EMITTING = $savedTraceEmitting
+    $script:BLUEBERRY_TOKEN = $savedTraceToken
+    $script:BLUEBERRY_TRACE_ENABLED = $savedTraceEnabled
+    $script:BLUEBERRY_TRACE_EMITTING = $savedTraceEmitting
     [Console]::SetOut($consoleWriter)
 }
 $traceEvents = @(Get-ShellsenseCapturedEvents -Raw $traceCapture.ToString() -Token $traceToken)
@@ -565,7 +565,7 @@ Assert-ShellsenseEqual -Actual (@($traceStageEvents[0].PSObject.Properties.Name)
 $fixtureCommands = [System.Collections.Generic.List[object]]::new()
 for ($fixtureIndex = 0; $fixtureIndex -lt 600; $fixtureIndex++) {
     [void]$fixtureCommands.Add([pscustomobject]@{
-        Name        = ('shellsenseFixture{0:D4}' -f $fixtureIndex)
+        Name        = ('blueberryFixture{0:D4}' -f $fixtureIndex)
         CommandType = 'Function'
         Definition  = ('function body {{ {0} }}' -f $fixtureIndex)
     })
@@ -574,17 +574,17 @@ for ($fixtureIndex = 0; $fixtureIndex -lt 600; $fixtureIndex++) {
 # Alias > Function > Cmdlet precedence, so the adapter must not deduplicate
 # these records while forming a snapshot.
 [void]$fixtureCommands.Add([pscustomobject]@{
-    Name        = 'shellsenseDuplicate'
+    Name        = 'blueberryDuplicate'
     CommandType = 'Cmdlet'
     Definition  = 'cmdlet definition must stay omitted'
 })
 [void]$fixtureCommands.Add([pscustomobject]@{
-    Name        = 'shellsenseDuplicate'
+    Name        = 'blueberryDuplicate'
     CommandType = 'Function'
     Definition  = 'function definition must stay omitted'
 })
 [void]$fixtureCommands.Add([pscustomobject]@{
-    Name        = 'shellsenseDuplicate'
+    Name        = 'blueberryDuplicate'
     CommandType = 'Alias'
     Definition  = 'Get-Item'
 })
@@ -592,14 +592,14 @@ for ($fixtureIndex = 0; $fixtureIndex -lt 600; $fixtureIndex++) {
 $commandTypes = [System.Management.Automation.CommandTypes]::Alias -bor
     [System.Management.Automation.CommandTypes]::Function -bor
     [System.Management.Automation.CommandTypes]::Cmdlet
-$fixtureNamesBefore = @($ExecutionContext.InvokeCommand.GetCommands('shellsenseFixture*', $commandTypes, $true))
+$fixtureNamesBefore = @($ExecutionContext.InvokeCommand.GetCommands('blueberryFixture*', $commandTypes, $true))
 $commandToken = 'adapter-commands-token'
-$savedCommandToken = [string]$script:SHELLSENSE_TOKEN
+$savedCommandToken = [string]$script:BLUEBERRY_TOKEN
 $commandCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
 $commandProvider = { return ,$fixtureCommands }
 [Console]::SetOut($commandCapture)
 try {
-    $script:SHELLSENSE_TOKEN = $commandToken
+    $script:BLUEBERRY_TOKEN = $commandToken
     $fixtureCount = $fixtureCommands.Count
     $snapshotEvents = [System.Collections.Generic.List[object]]::new()
     do {
@@ -626,7 +626,7 @@ try {
         Assert-ShellsenseTrue -Condition ($batch.Count -le 64) -Message 'snapshot batch is bounded at 64 entries'
         $totalCommands += $batch.Count
         foreach ($command in $batch) {
-            if ([string]$command.name -eq 'shellsenseDuplicate') {
+            if ([string]$command.name -eq 'blueberryDuplicate') {
                 [void]$duplicateRecords.Add($command)
             }
         }
@@ -656,7 +656,7 @@ try {
     Assert-ShellsenseTrue -Condition ((@($secondEvents[0].commands).Count -gt 0) -and (@($secondEvents[0].commands).Count -le 64)) -Message 'new snapshot starts with a bounded non-empty batch'
     # Drain the second fixture snapshot before leaving the test so later
     # adapter calls start from a clean cursor as well.
-    while ($null -ne $script:SHELLSENSE_COMMAND_SNAPSHOT_ID) {
+    while ($null -ne $script:BLUEBERRY_COMMAND_SNAPSHOT_ID) {
         Get-ShellsenseImportedCommands -CommandProvider $commandProvider
     }
 
@@ -692,10 +692,10 @@ try {
     # request. Start from the custom Ctrl+Space collision installed above,
     # then switch trigger to an unbound chord and require a fresh capability
     # frame before the replacement command batch.
-    $env:SHELLSENSE_PUBLIC_KEYS = '{"trigger":"Ctrl+Space"}'
+    $env:BLUEBERRY_PUBLIC_KEYS = '{"trigger":"Ctrl+Space"}'
     Update-ShellsensePublicKeyCapabilities
-    Assert-ShellsenseEqual -Actual ([bool]$script:SHELLSENSE_PUBLIC_KEY_STATUS.trigger) -Expected $false -Message 'pre-reset public trigger is still colliding'
-    $env:SHELLSENSE_PUBLIC_KEYS = $null
+    Assert-ShellsenseEqual -Actual ([bool]$script:BLUEBERRY_PUBLIC_KEY_STATUS.trigger) -Expected $false -Message 'pre-reset public trigger is still colliding'
+    $env:BLUEBERRY_PUBLIC_KEYS = $null
     $rebindRequestPath = Get-ShellsenseRequestPath
     [IO.File]::WriteAllText(
         $rebindRequestPath,
@@ -713,13 +713,13 @@ try {
     $rebindCapabilities = @($rebindEvents | Where-Object { $_.event -eq 'capabilities' })
     Assert-ShellsenseEqual -Actual $rebindCapabilities.Count -Expected 1 -Message 'public-key reset emits fresh capabilities'
     Assert-ShellsenseEqual -Actual ([bool]$rebindCapabilities[0].capabilities.public_keys.trigger) -Expected $true -Message 'public-key reset re-arbitrates the new trigger chord'
-    $script:SHELLSENSE_PUBLIC_KEY_STATUS = $null
+    $script:BLUEBERRY_PUBLIC_KEY_STATUS = $null
     Reset-ShellsenseCommandSnapshot
 } finally {
-    $script:SHELLSENSE_TOKEN = $savedCommandToken
+    $script:BLUEBERRY_TOKEN = $savedCommandToken
     [Console]::SetOut($consoleWriter)
 }
-$fixtureNamesAfter = @($ExecutionContext.InvokeCommand.GetCommands('shellsenseFixture*', $commandTypes, $true))
+$fixtureNamesAfter = @($ExecutionContext.InvokeCommand.GetCommands('blueberryFixture*', $commandTypes, $true))
 Assert-ShellsenseEqual -Actual $fixtureNamesAfter.Count -Expected $fixtureNamesBefore.Count -Message 'fixture provider does not pollute loaded commands'
 
 # Production command discovery must hand the lazy GetCommands sequence to the
@@ -743,14 +743,14 @@ Reset-ShellsenseCommandSnapshot
 
 # Preserve the prior command status seen by a user's actual Prompt.
 Remove-Variable LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
-$script:SHELLSENSE_ORIGINAL_PROMPT = { 'strict prompt' }
+$script:BLUEBERRY_ORIGINAL_PROMPT = { 'strict prompt' }
 [Console]::SetOut($capturedWriter)
 try {
     Assert-ShellsenseEqual -Actual (Prompt) -Expected 'strict prompt' -Message 'Prompt works before the first native exit code exists under StrictMode'
 } finally {
     [Console]::SetOut($consoleWriter)
 }
-$script:SHELLSENSE_ORIGINAL_PROMPT = { "$?/$global:LASTEXITCODE" }
+$script:BLUEBERRY_ORIGINAL_PROMPT = { "$?/$global:LASTEXITCODE" }
 [Console]::SetOut($capturedWriter)
 try {
     $global:LASTEXITCODE = 7
@@ -762,7 +762,7 @@ try {
     [Console]::SetOut($consoleWriter)
 }
 
-Remove-Item -LiteralPath $env:SHELLSENSE_EDIT_PATH -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $env:BLUEBERRY_EDIT_PATH -Force -ErrorAction SilentlyContinue
 
 function Test-ShellsenseMetadataFixture {
     <#

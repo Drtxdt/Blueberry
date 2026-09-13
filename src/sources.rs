@@ -111,7 +111,7 @@ impl Sources {
                         path.components().any(|part| {
                             matches!(
                                 part.as_os_str().to_str(),
-                                Some("target" | "node_modules" | ".shellsense")
+                                Some("target" | "node_modules" | ".blueberry")
                             )
                         })
                     })

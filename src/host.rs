@@ -1628,7 +1628,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let mut config = config::load(options.config_path.as_deref())?;
     let descriptions = Arc::new(std::mem::take(&mut config.descriptions));
     let protocol_prefix = config.keys.protocol_prefix.clone();
-    let usage_path = if std::env::var("SHELLSENSE_NO_HISTORY").as_deref() == Ok("1") {
+    let usage_path = if std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1") {
         options.data_dir.join("probe-usage.json")
     } else {
         config::statistics_path()
@@ -1651,8 +1651,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
     // Explicit test-only transport tap. Release builds cannot emit editing
     // payloads to an outer terminal, even if this environment variable is set.
     #[cfg(debug_assertions)]
-    let probe_token = (std::env::var("SHELLSENSE_NO_HISTORY").as_deref() == Ok("1"))
-        .then(|| std::env::var("SHELLSENSE_PROBE_TOKEN").ok())
+    let probe_token = (std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1"))
+        .then(|| std::env::var("BLUEBERRY_PROBE_TOKEN").ok())
         .flatten()
         .filter(|token| {
             !token.is_empty()
@@ -1661,43 +1661,43 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     .all(|c| c.is_ascii_alphanumeric() || c == b'-')
         });
     let mut env = BTreeMap::from([
-        ("SHELLSENSE_TOKEN".into(), token.clone()),
+        ("BLUEBERRY_TOKEN".into(), token.clone()),
         (
-            "SHELLSENSE_PIPE_NAME".into(),
+            "BLUEBERRY_PIPE_NAME".into(),
             pipe.as_ref()
                 .map(|p| p.name().to_owned())
                 .unwrap_or_default(),
         ),
         (
-            "SHELLSENSE_EDIT_PATH".into(),
+            "BLUEBERRY_EDIT_PATH".into(),
             edit_path.to_string_lossy().into(),
         ),
-        ("SHELLSENSE_ACTIVE".into(), "1".into()),
+        ("BLUEBERRY_ACTIVE".into(), "1".into()),
         (
-            "SHELLSENSE_SESSION_DIR".into(),
+            "BLUEBERRY_SESSION_DIR".into(),
             session_directory.to_string_lossy().into(),
         ),
         (
-            "SHELLSENSE_REQUEST_PATH".into(),
+            "BLUEBERRY_REQUEST_PATH".into(),
             request_path.to_string_lossy().into(),
         ),
-        ("SHELLSENSE_KEY_PREFIX".into(), protocol_prefix.clone()),
+        ("BLUEBERRY_KEY_PREFIX".into(), protocol_prefix.clone()),
         (
-            "SHELLSENSE_PUBLIC_KEYS".into(),
+            "BLUEBERRY_PUBLIC_KEYS".into(),
             serde_json::to_string(&config.keys)?,
         ),
         ("ISTERM".into(), "1".into()),
         ("TERM".into(), "xterm-256color".into()),
     ]);
     env.insert(
-        "SHELLSENSE_TRACE".into(),
+        "BLUEBERRY_TRACE".into(),
         if trace.enabled() { "1" } else { "0" }.into(),
     );
     let cwd = std::env::current_dir()?;
     env.extend(pty::key_environment(&config.keys));
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let _raw = RawMode::enable()
-        .context("ShellSense run requires an interactive terminal. Use 'complete' for scripts.")?;
+        .context("Blueberry run requires an interactive terminal. Use 'complete' for scripts.")?;
     #[cfg(windows)]
     let _ = crossterm::ansi_support::supports_ansi();
     // The screen model owns a fresh viewport. CSI 2J preserves scrollback.
@@ -2037,7 +2037,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 .notification
                 .as_ref()
                 .map(|message| Candidate {
-                    label: "ShellSense".into(),
+                    label: "Blueberry".into(),
                     description: message.clone(),
                     ..Default::default()
                 })

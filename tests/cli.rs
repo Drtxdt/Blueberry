@@ -10,7 +10,7 @@ fn json_completion_preserves_fields_and_uses_custom_chinese_descriptions() {
         "[descriptions]\n\"git log --oneline\" = \"逐条显示提交\"\n",
     )
     .unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_shellsense"))
+    let output = Command::new(env!("CARGO_BIN_EXE_blueberry"))
         .args([
             "--config",
             path.to_str().unwrap(),
@@ -50,7 +50,7 @@ fn complete_explain_json_reports_context_catalog_and_candidate_sources() {
         "[completion]\ndynamic = false\n[learning]\nenabled = false\n",
     )
     .unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_shellsense"))
+    let output = Command::new(env!("CARGO_BIN_EXE_blueberry"))
         .args([
             "--config",
             config.to_str().unwrap(),
@@ -88,7 +88,7 @@ fn specs_check_and_list_json_expose_validation_and_sources() {
     fs::create_dir_all(&specs).unwrap();
     fs::write(specs.join("valid.toml"), "schema_version = 1\n").unwrap();
 
-    let check = Command::new(env!("CARGO_BIN_EXE_shellsense"))
+    let check = Command::new(env!("CARGO_BIN_EXE_blueberry"))
         .args([
             "specs",
             "check",
@@ -107,7 +107,7 @@ fn specs_check_and_list_json_expose_validation_and_sources() {
     assert_eq!(check_json["valid"], true);
     assert_eq!(check_json["files"][0]["valid"], true);
 
-    let list = Command::new(env!("CARGO_BIN_EXE_shellsense"))
+    let list = Command::new(env!("CARGO_BIN_EXE_blueberry"))
         .args([
             "specs",
             "list",
@@ -139,7 +139,7 @@ fn specs_check_returns_failure_and_diagnostic_for_invalid_schema() {
     let specs = temporary.path().join("specs");
     fs::create_dir_all(&specs).unwrap();
     fs::write(specs.join("broken.toml"), "schema_version = 2\n").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_shellsense"))
+    let output = Command::new(env!("CARGO_BIN_EXE_blueberry"))
         .args([
             "specs",
             "check",

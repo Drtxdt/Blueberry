@@ -1,162 +1,140 @@
-# ShellSense
+# Blueberry
 
-Windows Terminal + PowerShell 7 的 Rust 补全宿主。当前源码版本为 `0.5.0-beta.1`，已完成本机自动功能回归，性能验收未通过，提供项目感知候选、离线中文说明和可配置菜单，不需要 Node、在线翻译或模型。架构是 Windows Terminal → ShellSense → 一个 pwsh，保留用户 profile 和 PSReadLine 的行内预测。
+[![CI](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml/badge.svg)](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Drtxdt/Blueberry?include_prereleases)](https://github.com/Drtxdt/Blueberry/releases)
 
-本地构建未签名，尚未公开发布。功能、真实终端验证和性能是不同验收项，具体状态见 [Beta 验收记录](docs/beta-progress.md) 和 [性能报告](docs/performance-v0.5.md)。0.5 旧版的正式性能数字以该报告为准；本轮增量对比见 [命令知识交付记录](docs/command-knowledge.md)。启动增量 P50 ≤50 ms、热态菜单 P95 ≤20 ms 的目标不随版本推进而降低。
+Blueberry 为 PowerShell 提供带中文说明的命令补全菜单。输入命令后，可以查看参数、浏览路径、阅读帮助，或按用途查找命令。
 
-## 启动
+使用 Rust 编写，交互运行环境为 **Windows x64、Windows PowerShell 5.1 / PowerShell 7、PSReadLine 2.0 及以上**。推荐在 Windows Terminal 中使用。
 
-目标支持范围是支持 ConPTY 的 Windows 10/11、Windows Terminal 和 PowerShell 7。源码构建另需 Rust stable、MSVC C++ Build Tools：
+## 安装
 
-```powershell
-cargo build --release --locked
-.\target\release\shellsense.exe run
-```
-
-本地交付目录提供 `dist/shellsense.exe`，Git 不跟踪生成的 exe。Windows x64 release 已确认使用静态 CRT，运行时依赖只保留 Windows 系统 DLL。建议让 Windows Terminal 直接启动 ShellSense，避免在 profile 中再启动外层 pwsh。`shellsense terminal-profile` 只打印配置；发布包提供带预览、备份、升级和回滚的 [安装脚本](docs/beta-installation.md)。
-
-从现有 shell 手动启动时会清空当前可视区域以建立菜单坐标。Reader 使用双层 Win32/VT 输入路径；中文、emoji、CRLF、选择替换、撤销和整段粘贴已有实际 ConPTY 回归通过记录。子 pwsh 使用 UTF-8 控制台输入输出，依赖旧代码页的程序需要单独验证。正常模式保留 profile；`run --no-profile` 仅用于诊断。
-
-当前真实 Windows Terminal 的 IME、视觉布局和颜色验收尚未完成；鼠标以及 alternate/resize 已有实际 ConPTY 通过记录。`.github/workflows/windows.yml` 已配置但尚未在远程 runner 执行。WSL 和其他 shell 不在本地 Beta 支持范围内。
-
-## 命令入口
-
-以下入口已经接入当前 CLI；命令帮助和代码已核对，但它们不能替代真实 Windows Terminal 验收或正式性能报告：
-
-| 命令 | 用途 |
-| --- | --- |
-| `shellsense complete --line ... --explain` | 不启动 PowerShell，输出解析上下文、规格、数据源和候选理由 |
-| `shellsense beta-probe` | 运行完整宿主的 Beta 场景探针；不替代独立启动 A/B runner，正式结果见性能报告 |
-| `shellsense probe` | 测量适配器回显；`--host` 才包含外层 ConPTY 宿主 |
-| `shellsense doctor` | 输出平台、配置、规格、缓存、键位和当前会话诊断 |
-| `shellsense specs check/list` | 校验规格，查看来源与帮助缓存状态 |
-| `shellsense specs learn <command>` / `specs forget <command>` | 显式学习本机工具帮助 / 清除帮助缓存 |
-| `shellsense learning clear` | 清除本地加盐候选选择统计 |
-| `shellsense config init/check`、`shellsense theme`、`shellsense terminal-profile` | 初始化/校验配置、查看主题和打印 Windows Terminal profile |
-
-## 补全内容
-
-| 场景 | 内容 |
-| --- | --- |
-| 首词 | 实际 PATH/PATHEXT 程序、会话 alias/function/cmdlet，包括 cargo/rustc 等本地链接 |
-| Git | 上下文选项、本地/远端分支、标签、远端、worktree、适用的状态文件 |
-| Cargo | workspace 包、features、bin/example/test/bench 目标 |
-| npm / pnpm | 本地脚本、workspace 包名和依赖名称 |
-| PowerShell | $env: 名称、路径表达式、目录专用位置与重定向目标 |
-| 自定义工具 | 用户目录中的版本化 TOML 规格、中文说明、示例与内置数据源 |
-
-`git log --o` 包含 `--oneline`，`git status --o` 不包含；`git -C "含空格目录" log --o` 保留作用域。支持 `--name=value`、规格定义的短选项组合、互斥/依赖/重复规则与 `cargo build --features a,b`。未知选项不猜测取值个数，`--` 后停止选项补全。
-
-简单输入由 Rust 解析；复杂输入从当前 PSReadLine AST 提取必要上下文。注释、here-string 正文和不能确认的表达式不猜测。插入校验真实缓冲区与 Unicode 范围，保留光标右侧文本；ShellSense 不执行补全文本。
-
-Git 使用固定只读查询；Cargo/JS 读取本地清单，不执行构建、项目脚本、安装、fetch 或凭据交互。最多两个后台数据任务，静态候选立即可用，未完成结果显示加载状态。缓存更新会重算当前查询，保留选中的具体候选；缺失目录会由 notify 监听逐级重挂，Git status 使用实际工作树递归监听，项目根变化时清理旧 provider 根监听。
-
-## 命令知识与按需学习
-
-内置新增 Codex、Python、uv、rustc、winget、dotnet 的根参数和主要一级子命令。有效原生 ToolTip 会直接显示为摘要，完整帮助保留在 F1；没有说明时显示准确类型，路径和别名目标放在详情中。
-
-可信安装入口在当前命令或子命令上下文空闲 300 ms 后获取帮助，每次最多一个任务、2 秒、256 KiB。帮助缓存在独立目录，绑定入口、包装目标、文件大小/修改时间和解析器版本；完整结果校正本机可见参数，不完整结果仅补充，用户规格优先。失败在当前会话退避 5 分钟。自动学习不会扫描所有工具，也不会自动运行 PowerShell 原生补全脚本。
+在 PowerShell 中运行：
 
 ```powershell
-shellsense specs learn codex
-shellsense specs learn codex --context exec
-shellsense specs list
-shellsense specs forget codex
+irm https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1 | iex
 ```
 
-未知可执行程序需要显式学习；非标准脚本入口需要指定实际可执行文件。`[help] enabled = false` 关闭自动帮助执行，已有缓存和离线规格仍可用。修改缓存后按 Ctrl+Alt+C 刷新当前会话。
+安装脚本下载 GitHub Release，校验文件后安装到当前用户目录，并询问是否随 PowerShell 启动。默认选择最新稳定版；只有 Beta 版本时安装最新公开 Beta。
 
-`[ui] icon_style = "nerd"` 使用 Nerd Font 图标，`"unicode"` 使用兼容符号，`icons = false` 隐藏图标。未配置新字段的旧配置沿用 Unicode，新建配置采用 Nerd Font；程序不修改字体或猜测缺字。`shellsense theme` 同时预览两种风格。
+也可以从 [Releases](https://github.com/Drtxdt/Blueberry/releases) 下载 Windows x64 ZIP，解压后运行 `blueberry.exe`。指定版本、升级、回滚和卸载步骤见 [安装指南](docs/installation.md)。
 
-输入“查看分支”后按 Ctrl+Alt+F，再用 Tab 插入 `git branch`。根位置仅搜索已安装工具；子命令位置搜索当前合法选项和命令，参数位置仅搜索合法值。搜索词仍由 PSReadLine 编辑，Esc 退出，Enter 执行现有输入。参数占位提示不可接受为真实值。
-
-实现和验收细节见 [本轮交付记录](docs/command-knowledge.md)。
-
-## 按键
-
-| 操作 | 默认按键 |
-| --- | --- |
-| 显式显示菜单 | Ctrl+Space |
-| 进入菜单导航 / 下一项 | ↓ |
-| 上一项（进入菜单导航后） | ↑ / Shift+Tab |
-| 接受候选 | Tab |
-| 执行当前输入，不接受菜单 | Enter |
-| 关闭菜单 | Esc |
-| 中文详情、参数格式、离线示例 | F1 |
-| 手动请求本会话原生补全 | Ctrl+Alt+Space |
-| 用途搜索（当前编辑词） | Ctrl+Alt+F |
-| F1 详情翻页 | PgUp / PgDn |
-| 刷新命令和项目候选 | Ctrl+Alt+C |
-| 重新加载配置和规格 | Ctrl+Alt+R |
-
-自动菜单默认保留上箭头的历史操作。菜单未显示时 Tab 和方向键交回 shell。外部程序运行期间不注入查询键，全屏与鼠标控制按当前终端模式透传；alternate/resize 也已有实际 ConPTY 回归记录。
-
-原生补全可能运行用户已有的 PowerShell 补全脚本，因此只手动触发，使用独立菜单和真实替换范围，耗时不属于自动菜单承诺。ShellSense 不能强制终止任意补全脚本。
-
-整段粘贴的会话通道设计为当前会话私有的 FIFO 文件通道；即使显式使用 `run --transport pipe`，该通道仍保持会话私有，ShellSense 不另行记录粘贴正文，不将正文写入 trace 或学习统计；PSReadLine 原有历史策略保持不变，会话结束时清理临时文件。Reader 双层 Win32/VT 的整段粘贴已在实际 ConPTY 回归通过；真实 Windows Terminal 的 IME、颜色和视觉验收仍未完成。
-
-内部使用 `F12,s/a/c/n/e/l/p` 组合键，前缀可配置。冲突时保留原绑定并提示配置项。公共快捷键变化支持重新仲裁；内部前缀下次启动生效。
-
-## 配置与说明
+## 快速开始
 
 ```powershell
-shellsense config init
-shellsense config check
-shellsense theme
+blueberry
 ```
 
-默认配置为 `%APPDATA%\shellsense\config.toml`，`--config <路径>` 可指定其他文件；初始化不覆盖已有文件。完整字段见 [config.example.toml](config.example.toml)。
+进入会话后，试着输入：
+
+```powershell
+git log --
+codex exec --
+uv python
+Get-ChildItem .\
+```
+
+菜单出现后，用方向键选择，按 **Tab** 接受，按 **Esc** 关闭，按 **F1** 阅读详情。
+
+自动启动可以随时调整：
+
+```powershell
+blueberry startup enable
+blueberry startup disable
+blueberry startup status
+```
+
+## 功能与示例
+
+| 功能 | 用法 |
+|---|---|
+| 命令与参数补全 | 按当前子命令和已输入参数筛选候选，支持明确的枚举值和目录参数 |
+| 中文说明 | 内置说明优先使用中文，本机帮助提供英文兜底；用户可自行覆盖 |
+| 本机帮助学习 | 对已登记且入口可信的工具按需获取帮助，缓存绑定实际安装入口和文件指纹 |
+| 参数引导 | `codex --model` 等待模型值时显示参数格式，提示文字不会被插入 |
+| 用途搜索 | 输入“查看分支”，按 Ctrl+Alt+F 搜索；在命令后搜索时限定当前上下文 |
+| 详情页 | F1 查看说明、参数格式、示例和来源，长内容可翻页 |
+| 原生补全 | Ctrl+Alt+Space 手动调用当前 PowerShell 会话的补全 |
+| 图标与主题 | Unicode / Nerd Font 图标，支持深色、浅色及高对比度主题 |
+
+内置规则涵盖 Git、Cargo、npm，以及 Codex、Python、uv、rustc、winget、dotnet 等工具。Codex 包含 `exec`、`review`、`resume`、`fork`、`mcp` 和 `completion` 等主要上下文。
+
+未知工具可以手动学习：
+
+```powershell
+blueberry specs learn mytool
+blueberry specs list
+blueberry specs forget mytool
+```
+
+学习在本机完成，后台任务有超时和输出大小限制。更复杂的参数关系可通过 [TOML 规格](docs/specifications.md) 补充。
+
+## 快捷键
+
+| 按键 | 操作 |
+|---|---|
+| Ctrl+Space | 打开补全菜单 |
+| Tab | 接受选中候选 |
+| ↑ / ↓ | 移动菜单选项 |
+| Esc | 关闭菜单或退出用途搜索 |
+| F1 | 打开或关闭详情 |
+| PageUp / PageDown | 翻页 |
+| Ctrl+Alt+F | 按用途搜索当前编辑词 |
+| Ctrl+Alt+Space | 请求 PowerShell 原生补全 |
+| Ctrl+Alt+C | 刷新命令索引 |
+| Ctrl+Alt+R | 重载配置 |
+
+Enter 保持 PowerShell 的执行行为。快捷键发生冲突时，可运行 `blueberry doctor` 查看诊断并修改配置。
+
+## 配置
+
+默认配置为 `%APPDATA%\Blueberry\config.toml`，安装目录为 `%LOCALAPPDATA%\Blueberry\bin`，缓存为 `%LOCALAPPDATA%\Blueberry\cache`。
+
+```powershell
+blueberry config init
+blueberry config check
+blueberry theme
+blueberry doctor
+```
+
+安装时使用兼容性较好的 Unicode 图标。终端已配置 Nerd Font 时，可修改：
 
 ```toml
 [ui]
-theme = "dark" # dark / light / high_contrast
-width = 0      # 自动适配窗口
-descriptions = true
-status_bar = true
-
-[completion]
-fuzzy = true
-dynamic = true
-up_arrow_history = true
-
-[learning]
-enabled = true
-
-[keys]
-native = "Ctrl+Alt+Space"
-
-[descriptions]
-"git log --oneline" = "每条提交显示为一行"
-"mytool" = "运行我的本地工具"
+icons = true
+icon_style = "nerd"
 ```
 
-手动颜色优先于主题，接受 `default` 或 `#RRGGBB`，支持 `NO_COLOR`。变更自动重载，也可按 Ctrl+Alt+R；错误配置保留上一份有效设置。
-
-内置主命令、子命令和参数有简短中文用途；未知程序显示“用途暂未收录”及来源，alias 优先展示目标用途。`[descriptions]` 按完整上下文覆盖，优先于用户规格和内置说明。文件、目录分别显示中文类型。
-
-规格只从用户配置目录加载，不加载项目脚本或任意程序插件。[TOML 规格说明](docs/specifications.md) 包含格式、覆盖规则和固定数据源。可在 `[specs]` 中指定 `directory`。
-
-本地排序仅在适配器确认成功插入后记录候选/项目的加盐散列、次数和时间，不读取完整历史，不记录环境变量值或输出。最多一万条，清理九十天未使用项；只调整同等匹配质量的顺序。关闭后不再记录或使用统计，`shellsense learning clear` 清除已有统计。
-
-## 诊断与验证
+完整选项见 [配置示例](config.example.toml)。使用独立配置或指定 PowerShell：
 
 ```powershell
-shellsense complete --line "git switch fea" --json --explain
-shellsense beta-probe --help
-shellsense probe --help
-shellsense specs check
-shellsense specs list
-shellsense doctor
-shellsense learning clear
-cargo test --locked -- --test-threads=1
-pwsh -NoProfile -NonInteractive -File tests/adapter.tests.ps1
-cargo clippy --all-targets --locked -- -D warnings
+blueberry --config .\my-config.toml
+blueberry run --shell powershell.exe
+blueberry run --shell pwsh.exe
 ```
 
-`complete --json` 保留原字段和 UTF-8 字节替换范围，增加可选的标识、来源、详情及完整性状态。`doctor` 在 ShellSense 会话内还读取当前适配器能力和键位仲裁结果。
+## 开发与测试
 
-`run --trace <新文件>` 默认关闭，只记录阶段、请求编号、数量和时间，不记录命令正文。`run --transport pipe` 是显式 named pipe 对照路径；默认 OSC，失败回退。只有完整宿主测量和兼容测试证明收益，才考虑改变默认。
+构建需要 Rust 1.94 或更新版本：
 
-历史 `probe` 与 `probe --host` 的口径见 [docs/performance-v0.5.md](docs/performance-v0.5.md)：前者测适配器回显，后者包含外层 ConPTY 宿主；`probe --with-profile` 的配对值是 fresh pwsh 下适配器相对 plain pwsh 的启动和首次字面输入回显增量。不能把 Rust 查找时间当作按键到菜单可见的总延迟，也不能把组件或 ConPTY 测试通过当作真实 Windows Terminal IME/颜色视觉已验收。
+```powershell
+cargo build --release --locked
+.\scripts\verify-local.ps1 -Shell pwsh.exe
+```
 
-本轮不提供自己的行内预测、完整历史建议、在线规格市场、AI 或 i18n。后续顺序为 Python/uv、winget/dotnet、Docker/Kubernetes、VS Code、i18n、WSL/其他 Shell。
+GitHub Actions 检查 Windows、Linux、macOS 的构建和核心测试，并在 Windows PowerShell 5.1 上运行适配器、安装和 ConPTY 回归。Windows Terminal 的中文输入、字体、缩放和视觉体验按 [本机检查表](docs/installation.md#本机验收) 验收。
+
+发布者从 [发版指南](docs/releasing.md) 开始：推送版本标签后，Actions 生成带附件的 Release 草稿，再由发布者检查并公开。
+
+## 未来展望
+
+- Linux/macOS 交互会话，以及 Bash、Zsh、Fish 等 Shell 适配。
+- 更深入的 Docker、Kubernetes、Python 项目动态候选。
+- 在线规格市场、AI 翻译和更多界面语言。
+- 行内预测、更完整的历史建议和 VS Code 集成。
+- 持续降低启动和菜单响应开销，目标为启动增量 P50 ≤50 ms、热态菜单 P95 ≤20 ms。
+- Scoop、WinGet 分发和发布签名。
+
+## 许可证
+
+[MIT](LICENSE)。依赖许可证见 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)。

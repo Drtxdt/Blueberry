@@ -1,4 +1,12 @@
-# 更新记录
+# Blueberry 更新日志
+
+## 0.5.0-beta.2
+
+- 统一 Blueberry 名称、命令及配置目录。
+- 支持 Windows PowerShell 5.1 和 PowerShell 7，兼容 PSReadLine 2.0。
+- 增加安装引导和 `startup enable / disable / status`。
+- 发布草稿自动打包，CI 覆盖三平台核心及 PowerShell 5.1 交互回归。
+- 重写安装、使用和发版文档。
 
 ## 0.5.0-beta.1 — 2026-09-13
 

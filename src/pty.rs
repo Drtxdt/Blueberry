@@ -18,9 +18,9 @@ pub struct Session {
 /// cold JSON parsing solely for initial key arbitration in current adapters.
 pub fn key_environment(keys: &crate::config::KeyBindings) -> BTreeMap<String, String> {
     let mut environment = BTreeMap::from([
-        ("SHELLSENSE_PUBLIC_KEYS_VERSION".into(), "1".into()),
+        ("BLUEBERRY_PUBLIC_KEYS_VERSION".into(), "1".into()),
         (
-            "SHELLSENSE_PUBLIC_KEYS".into(),
+            "BLUEBERRY_PUBLIC_KEYS".into(),
             serde_json::to_string(keys).expect("key strings serialize"),
         ),
     ]);
@@ -31,7 +31,7 @@ pub fn key_environment(keys: &crate::config::KeyBindings) -> BTreeMap<String, St
         ("REFRESH", &keys.refresh),
         ("RELOAD", &keys.reload),
     ] {
-        environment.insert(format!("SHELLSENSE_PUBLIC_KEY_{name}"), value.clone());
+        environment.insert(format!("BLUEBERRY_PUBLIC_KEY_{name}"), value.clone());
     }
     environment
 }
@@ -104,9 +104,9 @@ pub fn shell_args(integration: &Path, no_profile: bool) -> Vec<String> {
     if no_profile {
         args.push("-NoProfile".into());
     }
-    let isolated = std::env::var("SHELLSENSE_NO_HISTORY").as_deref() == Ok("1");
+    let isolated = std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1");
     let module = if isolated {
-        std::env::var("SHELLSENSE_TEST_PSREADLINE_MODULE")
+        std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE")
             .ok()
             .filter(|s| !s.is_empty())
     } else {

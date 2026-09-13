@@ -1,7 +1,7 @@
 #![cfg(windows)]
 
 use anyhow::{Context, Result, bail, ensure};
-use shellsense::{config, probe::Harness};
+use blueberry::{config, probe::Harness};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -93,7 +93,7 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         config::example().replace("icon_style = \"nerd\"", "icon_style = \"unicode\""),
     )
     .context("write test config")?;
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_shellsense"));
+    let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let inherited_path = std::env::var_os("PATH").unwrap_or_default();
     let args = vec![
         "--config".to_owned(),
@@ -115,7 +115,7 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
         ("NO_COLOR".to_owned(), "1".to_owned()),
-        ("SHELLSENSE_NO_HISTORY".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
     ]);
     let token = format!("host-test-{}", uuid::Uuid::new_v4());
     let mut harness = Harness::start(&program, &args, cwd, &env, token)
@@ -223,9 +223,9 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         b"@echo off\r\necho deterministic git placeholder\r\necho GIT_ARGS:%*\r\n",
     )
     .context("create deterministic git command")?;
-    std::fs::write(cwd.path().join("中文文件.txt"), b"shellsense unicode test")
+    std::fs::write(cwd.path().join("中文文件.txt"), b"blueberry unicode test")
         .context("create Chinese completion candidate")?;
-    std::fs::write(cwd.path().join("😀 file.txt"), b"shellsense emoji test")
+    std::fs::write(cwd.path().join("😀 file.txt"), b"blueberry emoji test")
         .context("create emoji completion candidate")?;
 
     let mut host = start_host(cwd.path())?;
@@ -288,8 +288,8 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     })?;
     run_and_wait_for_output(
         &mut host.harness,
-        b"Write-Output SHELLSENSE_HOST_ESC_OK\r",
-        "SHELLSENSE_HOST_ESC_OK",
+        b"Write-Output BLUEBERRY_HOST_ESC_OK\r",
+        "BLUEBERRY_HOST_ESC_OK",
         "post-Esc command",
     )?;
 
@@ -371,8 +371,8 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     )?;
     run_and_wait_for_output(
         &mut host.harness,
-        b"Write-Output SHELLSENSE_UNICODE_CLEAR_OK\r",
-        "SHELLSENSE_UNICODE_CLEAR_OK",
+        b"Write-Output BLUEBERRY_UNICODE_CLEAR_OK\r",
+        "BLUEBERRY_UNICODE_CLEAR_OK",
         "Unicode clear-line command",
     )?;
 
@@ -401,8 +401,8 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     )?;
     run_and_wait_for_output(
         &mut host.harness,
-        b"Write-Output SHELLSENSE_CONTEXT_OK\r",
-        "SHELLSENSE_CONTEXT_OK",
+        b"Write-Output BLUEBERRY_CONTEXT_OK\r",
+        "BLUEBERRY_CONTEXT_OK",
         "post-option buffer clear",
     )?;
 
@@ -410,14 +410,14 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // is intentionally unique so a leaked F12 sequence cannot be mistaken for
     // successful command output.
     std::fs::write(
-        cwd.path().join("shellsense-readline.cmd"),
+        cwd.path().join("blueberry-readline.cmd"),
         b"@echo off\r\necho READ_READY\r\nset /p \"line=\"\r\necho RECEIVED:%line%\r\n",
     )
     .context("create interactive external command")?;
     let previous_prompt_count = prompt_count(&host.harness.contents());
     clear_line_and_send(
         &mut host.harness,
-        b"cmd.exe /d /c shellsense-readline.cmd\r",
+        b"cmd.exe /d /c blueberry-readline.cmd\r",
         "interactive external command",
     )?;
     wait_for_line(

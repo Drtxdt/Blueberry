@@ -1,7 +1,7 @@
-# ShellSense 内置规格目录（版本 1）
+# Blueberry 内置规格目录（版本 1）
 # 本文件是唯一内置规格来源；build.rs 在构建时验证并生成 Rust 静态数据。
 schema_version = 1
-name = "ShellSense built-in"
+name = "Blueberry built-in"
 version = "0.4"
 
 [aliases]

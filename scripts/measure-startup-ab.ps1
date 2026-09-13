@@ -1,9 +1,9 @@
 [CmdletBinding()]
 param(
     # When omitted, look for the release executable in the repository and then
-    # for a shellsense application on PATH.  Formal measurements never fall
+    # for a blueberry application on PATH.  Formal measurements never fall
     # back to a debug build; probe reports are required to say build=release.
-    [string]$ShellSenseExecutable = '',
+    [string]$BlueberryExecutable = '',
 
     [string]$Shell = 'pwsh.exe',
 
@@ -47,32 +47,32 @@ function Resolve-ExistingFile {
     return [IO.Path]::GetFullPath($resolved)
 }
 
-function Resolve-ShellSense {
+function Resolve-Blueberry {
     param(
         [string]$RequestedPath
     )
 
     if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
-        return Resolve-ExistingFile -Path $RequestedPath -Description 'ShellSense executable'
+        return Resolve-ExistingFile -Path $RequestedPath -Description 'Blueberry executable'
     }
 
     $localCandidates = @(
-        (Join-Path $PSScriptRoot '..\target\release\shellsense.exe')
+        (Join-Path $PSScriptRoot '..\target\release\blueberry.exe')
     )
     foreach ($candidate in $localCandidates) {
         if ([IO.File]::Exists($candidate)) {
-            return Resolve-ExistingFile -Path $candidate -Description 'ShellSense executable'
+            return Resolve-ExistingFile -Path $candidate -Description 'Blueberry executable'
         }
     }
 
-    foreach ($commandName in @('shellsense.exe', 'shellsense')) {
+    foreach ($commandName in @('blueberry.exe', 'blueberry')) {
         $command = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue
         if ($null -ne $command -and -not [string]::IsNullOrWhiteSpace([string]$command.Source)) {
-            return Resolve-ExistingFile -Path ([string]$command.Source) -Description 'ShellSense executable'
+            return Resolve-ExistingFile -Path ([string]$command.Source) -Description 'Blueberry executable'
         }
     }
 
-    throw 'ShellSense executable was not supplied and no target/release or PATH executable was found.'
+    throw 'Blueberry executable was not supplied and no target/release or PATH executable was found.'
 }
 
 function Resolve-OptionalAdapter {
@@ -176,7 +176,7 @@ function Assert-InputHashes {
     $currentExecutableSha256 = Normalize-Hash (Get-Sha256 -Path $ExecutablePath)
     $expectedExecutableSha256 = Normalize-Hash $ExpectedExecutableSha256
     if ($currentExecutableSha256 -ine $expectedExecutableSha256) {
-        throw "ShellSense executable changed during this run; expected SHA-256 $ExpectedExecutableSha256 but found $currentExecutableSha256."
+        throw "Blueberry executable changed during this run; expected SHA-256 $ExpectedExecutableSha256 but found $currentExecutableSha256."
     }
     $currentBaselineSha256 = Normalize-Hash (Get-Sha256 -Path $BaselineAdapterPath)
     $expectedBaselineSha256 = Normalize-Hash $ExpectedBaselineAdapterSha256
@@ -353,8 +353,8 @@ function Invoke-ProbeOnce {
     $startInfo.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
     # A caller's diagnostic environment must not silently change a formal
     # sample.  The probe itself also disables history in its child shell.
-    $startInfo.Environment['SHELLSENSE_TRACE'] = '0'
-    $startInfo.Environment['SHELLSENSE_PROBE_TOKEN'] = ''
+    $startInfo.Environment['BLUEBERRY_TRACE'] = '0'
+    $startInfo.Environment['BLUEBERRY_PROBE_TOKEN'] = ''
     foreach ($argument in $arguments) {
         [void]$startInfo.ArgumentList.Add($argument)
     }
@@ -512,12 +512,12 @@ function New-Report {
         checkpoint_complete = $true
         requested_pair_count = $RequestedPairs
         completed_pair_count = $Samples.Count
-        shellsense_executable = $ExecutablePath
+        blueberry_executable = $ExecutablePath
         shell              = $ShellName
         build              = 'release'
         no_profile         = $false
         sha256             = [ordered]@{
-            shellsense_executable = $ExecutableSha256
+            blueberry_executable = $ExecutableSha256
             baseline_adapter      = $BaselineAdapterSha256
             candidate_adapter     = $CandidateAdapterSha256
         }
@@ -556,7 +556,7 @@ if ([string]::IsNullOrWhiteSpace($Shell)) {
     throw 'Shell cannot be empty.'
 }
 
-$hostPath = Resolve-ShellSense -RequestedPath $ShellSenseExecutable
+$hostPath = Resolve-Blueberry -RequestedPath $BlueberryExecutable
 $shellPath = Resolve-ShellForProbe -Name $Shell
 $baselineAdapterPath = Resolve-OptionalAdapter -Path $BaselineAdapter -Description 'BaselineAdapter'
 $candidateAdapterPath = Resolve-OptionalAdapter -Path $CandidateAdapter -Description 'CandidateAdapter'
@@ -576,7 +576,7 @@ if ([IO.Directory]::Exists($outputFile)) {
 # Keep every independent probe JSON in a run directory.  It is intentionally
 # not removed on success or failure: the final report embeds each raw result,
 # while the files make a failed child or malformed report auditable.
-$temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ('shellsense-startup-ab-' + [guid]::NewGuid().ToString('N'))
+$temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ('blueberry-startup-ab-' + [guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null
 
 $records = [System.Collections.Generic.List[object]]::new()
@@ -591,7 +591,7 @@ if ([IO.File]::Exists($outputFile)) {
     }
 
     $existingShell = [string](Get-PropertyValue -Object $existing.value -Name 'shell')
-    $existingExecutable = [string](Get-PropertyValue -Object $existing.value -Name 'shellsense_executable')
+    $existingExecutable = [string](Get-PropertyValue -Object $existing.value -Name 'blueberry_executable')
     $existingRequested = [int](Get-PropertyValue -Object $existing.value -Name 'requested_pair_count')
     $existingAdapters = Get-PropertyValue -Object $existing.value -Name 'adapters'
     $existingBaseline = [string](Get-PropertyValue -Object $existingAdapters -Name 'baseline')
@@ -600,7 +600,7 @@ if ([IO.File]::Exists($outputFile)) {
     if ($null -eq $existingHashes) {
         throw 'Existing startup A/B checkpoint has no input hashes; use a new OutputPath.'
     }
-    $existingHostSha256 = Normalize-Hash (Get-PropertyValue -Object $existingHashes -Name 'shellsense_executable')
+    $existingHostSha256 = Normalize-Hash (Get-PropertyValue -Object $existingHashes -Name 'blueberry_executable')
     $existingBaselineSha256 = Normalize-Hash (Get-PropertyValue -Object $existingHashes -Name 'baseline_adapter')
     $existingCandidateSha256 = Normalize-Hash (Get-PropertyValue -Object $existingHashes -Name 'candidate_adapter')
     $expectedBaseline = if ($null -eq $baselineAdapterPath) { 'embedded' } else { $baselineAdapterPath }

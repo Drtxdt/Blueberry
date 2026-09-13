@@ -1,4 +1,4 @@
-use shellsense::{
+use blueberry::{
     engine::CommandIndex,
     knowledge::{self, Entry, Record},
     model::{Candidate, CandidateKind},

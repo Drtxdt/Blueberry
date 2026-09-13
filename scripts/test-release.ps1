@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [Alias('ExePath')]
-    [string]$ShellSenseExecutable,
+    [string]$BlueberryExecutable,
 
     [string]$PreviousExePath,
 
@@ -15,7 +15,7 @@ Set-StrictMode -Version Latest
 $scriptRoot = Split-Path -Parent $PSScriptRoot
 $releaseScript = Join-Path $PSScriptRoot 'release.ps1'
 $manageScript = Join-Path $PSScriptRoot 'manage-install.ps1'
-$tempRoot = Join-Path ([IO.Path]::GetTempPath()) "shellsense-release-test-$([Guid]::NewGuid().ToString('N'))"
+$tempRoot = Join-Path ([IO.Path]::GetTempPath()) "blueberry-release-test-$([Guid]::NewGuid().ToString('N'))"
 $outputOne = Join-Path $tempRoot 'release-one'
 $outputTwo = Join-Path $tempRoot 'release-two'
 $installRoot = Join-Path $tempRoot 'install-root'
@@ -108,16 +108,16 @@ function Get-ExecutableVersion {
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $info
     try {
-        if (-not $process.Start()) { throw "无法启动真实 ShellSense exe: $resolved" }
+        if (-not $process.Start()) { throw "无法启动真实 Blueberry exe: $resolved" }
         $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit(30000)) {
             try { $process.Kill($true) } catch { }
-            throw "真实 ShellSense exe --version 超时: $resolved"
+            throw "真实 Blueberry exe --version 超时: $resolved"
         }
         $stdout = $stdoutTask.GetAwaiter().GetResult()
         $stderr = $stderrTask.GetAwaiter().GetResult()
-        if ($process.ExitCode -ne 0) { throw "真实 ShellSense exe --version 失败: $stderr" }
+        if ($process.ExitCode -ne 0) { throw "真实 Blueberry exe --version 失败: $stderr" }
         $match = [Text.RegularExpressions.Regex]::Match(
             $stdout, '(?m)(?<![0-9A-Za-z])([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?)(?![0-9A-Za-z])')
         if (-not $match.Success) { throw "无法从真实 exe --version 输出识别版本: $stdout" }
@@ -198,12 +198,12 @@ function Assert-PerformanceArtifactsPackaged {
 
 try {
     [IO.Directory]::CreateDirectory($tempRoot) | Out-Null
-    $currentExe = (Get-Item -LiteralPath $ShellSenseExecutable -Force).FullName
+    $currentExe = (Get-Item -LiteralPath $BlueberryExecutable -Force).FullName
     $hasPrevious = -not [string]::IsNullOrWhiteSpace($PreviousExePath)
     if (-not $hasPrevious) {
         $baselineCandidates = @(
-            (Join-Path $scriptRoot 'artifacts\shellsense-v0.2-baseline.exe'),
-            (Join-Path $scriptRoot 'artifacts\shellsense-v0.4-frozen.exe')
+            (Join-Path $scriptRoot 'artifacts\blueberry-v0.2-baseline.exe'),
+            (Join-Path $scriptRoot 'artifacts\blueberry-v0.4-frozen.exe')
         )
         foreach ($candidate in $baselineCandidates) {
             if (Test-Path -LiteralPath $candidate -PathType Leaf) {
@@ -233,7 +233,7 @@ try {
     }
     if ($firstReleaseNotesPath) { $releaseOneParameters['ReleaseNotesPath'] = $firstReleaseNotesPath }
     Invoke-TestScript -Path $releaseScript -Parameters $releaseOneParameters
-    $packageOne = Join-Path $outputOne "shellsense-v$firstVersion-windows-x64.zip"
+    $packageOne = Join-Path $outputOne "blueberry-v$firstVersion-windows-x64.zip"
     Assert-Test (Test-Path -LiteralPath $packageOne -PathType Leaf) '第一版 ZIP 已生成'
     Assert-Test (Test-Path -LiteralPath "$packageOne.sha256" -PathType Leaf) '第一版外部 SHA-256 已生成'
     Assert-PerformanceArtifactsPackaged -PackagePath $packageOne
@@ -243,7 +243,7 @@ try {
     }
     if ($hasPrevious) { $releaseTwoParameters['PreviousExePath'] = $firstExe }
     Invoke-TestScript -Path $releaseScript -Parameters $releaseTwoParameters
-    $packageTwo = Join-Path $outputTwo "shellsense-v$currentVersion-windows-x64.zip"
+    $packageTwo = Join-Path $outputTwo "blueberry-v$currentVersion-windows-x64.zip"
     Assert-Test (Test-Path -LiteralPath $packageTwo -PathType Leaf) '第二版 ZIP 已生成'
     Assert-PerformanceArtifactsPackaged -PackagePath $packageTwo
 
@@ -253,13 +253,13 @@ try {
     Write-TestBytes -Path (Join-Path $installRoot 'user-data.txt') -Text 'keep this user file'
 
     $manifestBeforeFailure = [IO.File]::ReadAllBytes((Join-Path $installRoot 'install.json'))
-    $exeBeforeFailure = Get-FileHashUpper (Join-Path $installRoot 'shellsense.exe')
-    $lock = [IO.File]::Open((Join-Path $installRoot 'shellsense.exe'), [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    $exeBeforeFailure = Get-FileHashUpper (Join-Path $installRoot 'blueberry.exe')
+    $lock = [IO.File]::Open((Join-Path $installRoot 'blueberry.exe'), [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
     try {
         Expect-TestFailure -Path $manageScript -Parameters @{ Action = 'Upgrade'; PackagePath = $packageTwo; InstallRoot = $installRoot } -MessagePattern '升级失败|恢复|占用|access|used'
     }
     finally { $lock.Dispose() }
-    Assert-Test ($exeBeforeFailure -eq (Get-FileHashUpper (Join-Path $installRoot 'shellsense.exe'))) '失败升级恢复当前 exe'
+    Assert-Test ($exeBeforeFailure -eq (Get-FileHashUpper (Join-Path $installRoot 'blueberry.exe'))) '失败升级恢复当前 exe'
     Assert-Test ([Linq.Enumerable]::SequenceEqual($manifestBeforeFailure, [IO.File]::ReadAllBytes((Join-Path $installRoot 'install.json')))) '失败升级恢复 install.json 元数据'
 
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'Upgrade'; PackagePath = $packageTwo; InstallRoot = $installRoot }
@@ -273,7 +273,7 @@ try {
     Assert-Test ((Get-Content -LiteralPath (Join-Path $installRoot 'VERSION.txt') -Raw) -match [regex]::Escape($firstVersion)) '回滚 VERSION 正确'
     $rollbackManifest = Get-Content -LiteralPath (Join-Path $installRoot 'install.json') -Raw | ConvertFrom-Json
     Assert-Test ([string]$rollbackManifest.current.version -eq $firstVersion) '回滚清单 current 元数据正确'
-    Assert-Test ((Get-FileHashUpper (Join-Path $installRoot 'shellsense.exe')) -eq (Get-FileHashUpper $firstExe)) '回滚验证当前 exe'
+    Assert-Test ((Get-FileHashUpper (Join-Path $installRoot 'blueberry.exe')) -eq (Get-FileHashUpper $firstExe)) '回滚验证当前 exe'
     Assert-ManifestFilesIntact -Root $installRoot
 
     $metadataBefore = [IO.File]::ReadAllBytes((Join-Path $installRoot 'install.json'))
@@ -295,7 +295,7 @@ try {
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'PreviewSettings'; SettingsPath = $settingsPath; InstallRoot = $installRoot }
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'ApplySettings'; SettingsPath = $settingsPath; InstallRoot = $installRoot }
     $updatedSettings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
-    Assert-Test ((@($updatedSettings.profiles.list) | Where-Object { $_.guid -eq '{7B5D8D4E-8A14-4CFB-9F39-7A7A7C2E0C51}' }).Count -eq 1) '应用 ShellSense profile'
+    Assert-Test ((@($updatedSettings.profiles.list) | Where-Object { $_.guid -eq '{7B5D8D4E-8A14-4CFB-9F39-7A7A7C2E0C51}' }).Count -eq 1) '应用 Blueberry profile'
     Assert-Test ((@($updatedSettings.profiles.list) | Where-Object { $_.guid -eq '{OTHER}' }).Count -eq 1) '保留其他 profile'
     Assert-Test (@(Get-ChildItem -LiteralPath $tempRoot -Filter 'settings.json.*.bak').Count -ge 1) 'Apply 创建原字节备份'
 
@@ -344,7 +344,7 @@ try {
 
     $releaseZipBeforeFailure = Get-FileHashUpper -Path $packageTwo
     $releaseShaBeforeFailure = Get-FileHashUpper -Path "$packageTwo.sha256"
-    $releaseManifestBeforeFailure = Get-FileHashUpper -Path (Join-Path $outputTwo "shellsense-v$currentVersion-release.json")
+    $releaseManifestBeforeFailure = Get-FileHashUpper -Path (Join-Path $outputTwo "blueberry-v$currentVersion-release.json")
     $releaseLock = [IO.File]::Open($packageTwo, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
     try {
         $releaseFailure = Capture-TestFailure -Path $releaseScript -Parameters @{
@@ -360,7 +360,7 @@ try {
     finally { $releaseLock.Dispose() }
     Assert-Test ($releaseZipBeforeFailure -eq (Get-FileHashUpper -Path $packageTwo)) '发布失败后 ZIP 未被混写'
     Assert-Test ($releaseShaBeforeFailure -eq (Get-FileHashUpper -Path "$packageTwo.sha256")) '发布失败后外部 SHA 未被混写'
-    Assert-Test ($releaseManifestBeforeFailure -eq (Get-FileHashUpper -Path (Join-Path $outputTwo "shellsense-v$currentVersion-release.json"))) '发布失败后 release manifest 未被混写'
+    Assert-Test ($releaseManifestBeforeFailure -eq (Get-FileHashUpper -Path (Join-Path $outputTwo "blueberry-v$currentVersion-release.json"))) '发布失败后 release manifest 未被混写'
 
     $junctionParent = Join-Path $tempRoot 'junction-parent'
     $junctionTarget = Join-Path $tempRoot 'junction-target'

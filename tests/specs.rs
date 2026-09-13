@@ -1,6 +1,6 @@
-use shellsense::model::CandidateKind;
-use shellsense::spec_catalog::{Catalog, DiagnosticSeverity};
-use shellsense::specs::{all_builtin_descriptions, canonical_command, complete, describe_command};
+use blueberry::model::CandidateKind;
+use blueberry::spec_catalog::{Catalog, DiagnosticSeverity};
+use blueberry::specs::{all_builtin_descriptions, canonical_command, complete, describe_command};
 use std::fs;
 use tempfile::tempdir;
 
@@ -8,7 +8,7 @@ fn args(values: &[&str]) -> Vec<String> {
     values.iter().map(|value| (*value).to_owned()).collect()
 }
 
-fn names(result: &shellsense::specs::SpecResult) -> Vec<&str> {
+fn names(result: &blueberry::specs::SpecResult) -> Vec<&str> {
     result
         .candidates
         .iter()

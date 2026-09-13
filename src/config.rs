@@ -16,7 +16,7 @@ const MAX_ROWS: usize = 100;
 const MAX_WIDTH: usize = 512;
 const MAX_RESULTS: usize = 1_000;
 
-/// Top-level ShellSense configuration.
+/// Top-level Blueberry configuration.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
@@ -278,35 +278,35 @@ impl Config {
     }
 }
 
-/// Return the platform-specific cache directory used by ShellSense.
+/// Return the platform-specific cache directory used by Blueberry.
 pub fn cache_dir() -> PathBuf {
     #[cfg(windows)]
     {
         if let Some(root) = env::var_os("LOCALAPPDATA") {
-            return PathBuf::from(root).join("shellsense");
+            return PathBuf::from(root).join("Blueberry").join("cache");
         }
         if let Some(root) = env::var_os("APPDATA") {
-            return PathBuf::from(root).join("shellsense").join("cache");
+            return PathBuf::from(root).join("Blueberry").join("cache");
         }
-        PathBuf::from("shellsense").join("cache")
+        PathBuf::from("blueberry").join("cache")
     }
 
     #[cfg(not(windows))]
     {
         if let Some(root) = env::var_os("XDG_CACHE_HOME") {
-            return PathBuf::from(root).join("shellsense");
+            return PathBuf::from(root).join("Blueberry");
         }
         if let Some(root) = env::var_os("HOME") {
-            return PathBuf::from(root).join(".cache").join("shellsense");
+            return PathBuf::from(root).join(".cache").join("Blueberry");
         }
-        PathBuf::from(".cache").join("shellsense")
+        PathBuf::from(".cache").join("Blueberry")
     }
 }
 
 /// Return a TOML example suitable for writing as a starting point for a
 /// user's configuration.
 pub fn example() -> &'static str {
-    r##"# ShellSense configuration
+    r##"# Blueberry configuration
 
 [ui]
 max_rows = 8
@@ -347,7 +347,7 @@ protocol_prefix = "F12" # F5..F12; takes effect in a new session
 enabled = true # local selection counts only; learning clear removes them
 
 [specs]
-# directory = 'C:\Users\you\AppData\Roaming\shellsense\specs'
+# directory = 'C:\Users\you\AppData\Roaming\blueberry\specs'
 
 [descriptions]
 # Optional overrides; keys distinguish command scopes and option case.
@@ -361,15 +361,15 @@ fn config_root() -> PathBuf {
     #[cfg(windows)]
     {
         if let Some(root) = env::var_os("APPDATA") {
-            return PathBuf::from(root).join("shellsense");
+            return PathBuf::from(root).join("Blueberry");
         }
         if let Some(root) = env::var_os("USERPROFILE") {
             return PathBuf::from(root)
                 .join("AppData")
                 .join("Roaming")
-                .join("shellsense");
+                .join("Blueberry");
         }
-        PathBuf::from("shellsense")
+        PathBuf::from("blueberry")
     }
 
     #[cfg(target_os = "macos")]
@@ -378,20 +378,20 @@ fn config_root() -> PathBuf {
             return PathBuf::from(root)
                 .join("Library")
                 .join("Application Support")
-                .join("shellsense");
+                .join("Blueberry");
         }
-        return PathBuf::from("shellsense");
+        return PathBuf::from("blueberry");
     }
 
     #[cfg(not(any(windows, target_os = "macos")))]
     {
         if let Some(root) = env::var_os("XDG_CONFIG_HOME") {
-            return PathBuf::from(root).join("shellsense");
+            return PathBuf::from(root).join("Blueberry");
         }
         if let Some(root) = env::var_os("HOME") {
-            return PathBuf::from(root).join(".config").join("shellsense");
+            return PathBuf::from(root).join(".config").join("Blueberry");
         }
-        PathBuf::from(".config").join("shellsense")
+        PathBuf::from(".config").join("Blueberry")
     }
 }
 

@@ -1,3 +1,5 @@
+> 历史记录：本文保留 0.5.0-beta.1 阶段的安装与验收资料。当前版本请使用 [安装指南](installation.md)、[发版指南](releasing.md) 和 [发布验证记录](release-validation.md)。
+
 # ShellSense Beta 安装与回滚
 
 Beta 首批交付是 Windows x64 ZIP。压缩包包含已构建的

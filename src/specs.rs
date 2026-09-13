@@ -1,4 +1,4 @@
-//! Context-aware completion over the compiled ShellSense specification catalog.
+//! Context-aware completion over the compiled Blueberry specification catalog.
 //!
 //! The public functions in this module intentionally keep the 0.2 API. The
 //! catalog implementation is separate so the same parser can serve the

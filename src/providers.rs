@@ -836,7 +836,7 @@ fn ignored_project_directory(path: &Path) -> bool {
         .is_some_and(|name| {
             matches!(
                 name.to_ascii_lowercase().as_str(),
-                ".git" | ".shellsense" | "node_modules" | "target"
+                ".git" | ".blueberry" | "node_modules" | "target"
             )
         })
 }

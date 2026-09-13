@@ -22,7 +22,7 @@ Set-StrictMode -Version Latest
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $requiredPayload = @(
-    'shellsense.exe', 'VERSION.txt', 'README.md', 'LICENSE',
+    'blueberry.exe', 'VERSION.txt', 'README.md', 'LICENSE',
     'THIRD-PARTY-NOTICES.txt', 'RELEASE-NOTES.md', 'config.example.toml',
     'docs/beta-installation.md', 'docs/release-checklist.md', 'docs/specifications.md',
     'docs/beta-progress.md', 'docs/performance.md', 'docs/performance-v0.5.md', 'docs/powershell-adapter.md',
@@ -274,7 +274,7 @@ function Assert-ExistingShaPair {
 
 function Replace-OutputSet {
     param([Parameter(Mandatory = $true)]$Entries, [switch]$Force)
-    $backupRoot = Join-Path ([IO.Path]::GetTempPath()) "shellsense-release-backup-$([Guid]::NewGuid().ToString('N'))"
+    $backupRoot = Join-Path ([IO.Path]::GetTempPath()) "blueberry-release-backup-$([Guid]::NewGuid().ToString('N'))"
     $backups = [Collections.Generic.List[object]]::new()
     $attempted = [Collections.Generic.List[object]]::new()
     $preserveBackup = $false
@@ -350,10 +350,10 @@ Assert-NoReparseComponents -Path $outputRoot
 [IO.Directory]::CreateDirectory($outputRoot) | Out-Null
 Assert-NoReparseComponents -Path $outputRoot
 
-$zipName = "shellsense-v$Version-windows-x64.zip"
+$zipName = "blueberry-v$Version-windows-x64.zip"
 $zipPath = Join-Path $outputRoot $zipName
 $shaPath = "$zipPath.sha256"
-$externalManifestPath = Join-Path $outputRoot "shellsense-v$Version-release.json"
+$externalManifestPath = Join-Path $outputRoot "blueberry-v$Version-release.json"
 Assert-ExistingShaPair -ZipPath $zipPath -ShaPath $shaPath
 
 $previousSource = $null
@@ -366,7 +366,7 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousExePath)) {
     Assert-NoReparseComponents -Path $previousDirectory
     [IO.Directory]::CreateDirectory($previousDirectory) | Out-Null
     Assert-NoReparseComponents -Path $previousDirectory
-    $previousTarget = Join-Path $previousDirectory "shellsense-v$Version-previous.exe"
+    $previousTarget = Join-Path $previousDirectory "blueberry-v$Version-previous.exe"
     if (Test-Path -LiteralPath $previousTarget) {
         $previousItem = Get-Item -LiteralPath $previousTarget -Force
         if ($previousItem.PSIsContainer -or ($previousItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -435,15 +435,15 @@ try {
     if ($notesSource) {
         Copy-ToStage -Source $notesSource -Stage $stagePayload -RelativePath 'RELEASE-NOTES.md'
     } else {
-        $notes = "# ShellSense $Version`n`n这是 Windows x64 的 ShellSense Beta 本地交付包。该构建未签名（unsigned）。`n"
+        $notes = "# Blueberry $Version`n`n这是 Windows x64 的 Blueberry Beta 本地交付包。该构建未签名（unsigned）。`n"
         Write-Utf8NoBom -Path (Join-Path $stagePayload 'RELEASE-NOTES.md') -Content $notes
     }
 
-    Copy-ToStage -Source $sourceExe -Stage $stagePayload -RelativePath 'shellsense.exe'
-    Assert-PeX64 -Path (Join-Path $stagePayload 'shellsense.exe') | Out-Null
-    $versionText = "ShellSense $Version`nPlatform: windows-x64`nSignature: unsigned`n"
+    Copy-ToStage -Source $sourceExe -Stage $stagePayload -RelativePath 'blueberry.exe'
+    Assert-PeX64 -Path (Join-Path $stagePayload 'blueberry.exe') | Out-Null
+    $versionText = "Blueberry $Version`nPlatform: windows-x64`nSignature: unsigned`n"
     Write-Utf8NoBom -Path (Join-Path $stagePayload 'VERSION.txt') -Content $versionText
-    Invoke-VersionCheck -Path (Join-Path $stagePayload 'shellsense.exe') -ExpectedVersion $Version
+    Invoke-VersionCheck -Path (Join-Path $stagePayload 'blueberry.exe') -ExpectedVersion $Version
 
     foreach ($required in $requiredPayload) {
         $requiredPath = Join-Path $stagePayload ($required.Replace('/', '\'))
@@ -457,8 +457,8 @@ try {
         $manifestFiles.Add([ordered]@{ path = $relative; sha256 = Get-Sha256 $file.FullName; bytes = $file.Length })
     }
     $manifest = [ordered]@{
-        schema_version = 1; product = 'ShellSense'; name = 'ShellSense'; version = $Version
-        platform = 'windows-x64'; architecture = 'x64'; executable = 'shellsense.exe'
+        schema_version = 1; product = 'Blueberry'; name = 'Blueberry'; version = $Version
+        platform = 'windows-x64'; architecture = 'x64'; executable = 'blueberry.exe'
         signed = $false; signature_status = 'unsigned'; release_notes = 'RELEASE-NOTES.md'
         license_notices = 'THIRD-PARTY-NOTICES.txt'; license_source = 'provided'
         performance_artifacts = @($performanceArtifactFiles | ForEach-Object { $_.RelativePath })

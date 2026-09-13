@@ -10,7 +10,7 @@ param(
 
     [string]$SettingsPath,
 
-    [string]$ProfileName = 'ShellSense',
+    [string]$ProfileName = 'Blueberry',
 
     [string]$ExePath
 )
@@ -20,9 +20,9 @@ Set-StrictMode -Version Latest
 
 $script:ManifestFileName = 'install.json'
 $script:InstallManifestSchemaVersion = 2
-$script:ShellSenseProfileGuid = '{7B5D8D4E-8A14-4CFB-9F39-7A7A7C2E0C51}'
+$script:BlueberryProfileGuid = '{7B5D8D4E-8A14-4CFB-9F39-7A7A7C2E0C51}'
 $script:RequiredPackageFiles = @(
-    'shellsense.exe',
+    'blueberry.exe',
     'VERSION.txt',
     'README.md',
     'LICENSE',
@@ -45,7 +45,7 @@ function Get-DefaultInstallRoot {
     if ([string]::IsNullOrWhiteSpace($localAppData)) {
         throw '无法确定 LocalAppData；请显式传入 -InstallRoot'
     }
-    return [IO.Path]::Combine($localAppData, 'ShellSense')
+    return [IO.Path]::Combine($localAppData, 'Blueberry')
 }
 
 function Get-FullPath {
@@ -472,7 +472,7 @@ function Assert-VersionFile {
     )
     $item = Get-RegularFileRecord -Path $Path -Label 'VERSION.txt'
     $text = [Text.UTF8Encoding]::new($false, $true).GetString([IO.File]::ReadAllBytes($item.FullName))
-    $match = [Text.RegularExpressions.Regex]::Match($text, '(?m)^\s*ShellSense\s+([^\s\r\n]+)\s*$')
+    $match = [Text.RegularExpressions.Regex]::Match($text, '(?m)^\s*Blueberry\s+([^\s\r\n]+)\s*$')
     if (-not $match.Success -or $match.Groups[1].Value -ne $ExpectedVersion -or
         $text -notmatch '(?m)^\s*Platform:\s*windows-x64\s*$' -or
         $text -notmatch '(?m)^\s*Signature:\s*unsigned\s*$') {
@@ -506,7 +506,7 @@ function Read-Package {
         throw "-PackagePath 必须是本地 .zip 文件: $packagePath"
     }
     Assert-ExternalPackageHash -PackagePath $packagePath
-    $stage = Join-Path ([IO.Path]::GetTempPath()) "shellsense-package-$([Guid]::NewGuid().ToString('N'))"
+    $stage = Join-Path ([IO.Path]::GetTempPath()) "blueberry-package-$([Guid]::NewGuid().ToString('N'))"
     try {
         $zip = [IO.Compression.ZipFile]::OpenRead($packagePath)
         $zipFiles = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -539,10 +539,10 @@ function Read-Package {
         $releaseRecord = Get-RegularFileRecord -Path $releaseManifestPath -Label '发布包 release.json'
         $releaseManifest = Read-JsonHashtable $releaseManifestPath
         if ([int]$releaseManifest.schema_version -ne 1 -or
-            [string]$releaseManifest.product -ne 'ShellSense' -or
+            [string]$releaseManifest.product -ne 'Blueberry' -or
             [string]$releaseManifest.platform -ne 'windows-x64' -or
             [string]$releaseManifest.architecture -ne 'x64') {
-            throw '发布包 release.json 不是受支持的 ShellSense Windows x64 清单'
+            throw '发布包 release.json 不是受支持的 Blueberry Windows x64 清单'
         }
         $version = [string]$releaseManifest.version
         if (-not (Test-VersionString $version)) { throw "发布包版本号无效: $version" }
@@ -579,8 +579,8 @@ function Read-Package {
                     bytes  = $item.Length
                 })
         }
-        $executable = @($files | Where-Object { $_.path -ieq 'shellsense.exe' })
-        if ($executable.Count -ne 1) { throw '发布包必须恰好包含 shellsense.exe' }
+        $executable = @($files | Where-Object { $_.path -ieq 'blueberry.exe' })
+        if ($executable.Count -ne 1) { throw '发布包必须恰好包含 blueberry.exe' }
         Assert-PeX64 -Path $executable[0].source | Out-Null
         Assert-VersionFile -Path (Join-Path $stage 'VERSION.txt') -ExpectedVersion $version
         foreach ($required in $script:RequiredPackageFiles) {
@@ -685,7 +685,7 @@ function Assert-PackageDestinations {
         $path = Get-ManagedPath -Root $Root -RelativePath $record.path
         if (Test-Path -LiteralPath $path) {
             if (-not $AllowedExisting.Contains($record.path)) {
-                throw "安装根已有未由 ShellSense 管理的文件，拒绝覆盖: $($record.path)"
+                throw "安装根已有未由 Blueberry 管理的文件，拒绝覆盖: $($record.path)"
             }
             $item = Get-Item -LiteralPath $path -Force
             if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -695,7 +695,7 @@ function Assert-PackageDestinations {
     }
     $releasePath = Get-ManagedPath -Root $Root -RelativePath 'release.json'
     if (Test-Path -LiteralPath $releasePath) {
-        if (-not $AllowedExisting.Contains('release.json')) { throw '安装根已有未由 ShellSense 管理的 release.json，拒绝覆盖' }
+        if (-not $AllowedExisting.Contains('release.json')) { throw '安装根已有未由 Blueberry 管理的 release.json，拒绝覆盖' }
         $releaseItem = Get-Item -LiteralPath $releasePath -Force
         if ($releaseItem.PSIsContainer -or ($releaseItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
             throw 'release.json 不能是目录或重解析点'
@@ -714,7 +714,7 @@ function Copy-PackageFiles {
     foreach ($record in $Package.files) {
         $destination = Get-ManagedPath -Root $Root -RelativePath $record.path
         if (Test-Path -LiteralPath $destination) {
-            if (-not $AllowedExisting.Contains($record.path)) { throw "安装根已有未由 ShellSense 管理的文件，拒绝覆盖: $($record.path)" }
+            if (-not $AllowedExisting.Contains($record.path)) { throw "安装根已有未由 Blueberry 管理的文件，拒绝覆盖: $($record.path)" }
             $destinationItem = Get-Item -LiteralPath $destination -Force
             if ($destinationItem.PSIsContainer -or ($destinationItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
                 throw "安装目标不能是目录或重解析点: $($record.path)"
@@ -726,7 +726,7 @@ function Copy-PackageFiles {
     }
     $releaseDestination = Get-ManagedPath -Root $Root -RelativePath 'release.json'
     if (Test-Path -LiteralPath $releaseDestination) {
-        if (-not $AllowedExisting.Contains('release.json')) { throw '安装根已有未由 ShellSense 管理的 release.json，拒绝覆盖' }
+        if (-not $AllowedExisting.Contains('release.json')) { throw '安装根已有未由 Blueberry 管理的 release.json，拒绝覆盖' }
         $releaseItem = Get-Item -LiteralPath $releaseDestination -Force
         if ($releaseItem.PSIsContainer -or ($releaseItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
             throw 'release.json 不能是目录或重解析点'
@@ -744,16 +744,16 @@ function Read-InstallManifest {
     )
     $path = Get-ManagedPath -Root $Root -RelativePath $script:ManifestFileName
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        if ($Required) { throw "安装清单不存在，无法确认这是 ShellSense 安装根: $path" }
+        if ($Required) { throw "安装清单不存在，无法确认这是 Blueberry 安装根: $path" }
         return $null
     }
     $item = Get-RegularFileRecord -Path $path -Label '安装清单'
     $manifest = Read-JsonHashtable $path
     if ([int]$manifest.schema_version -ne $script:InstallManifestSchemaVersion -or
-        [string]$manifest.product -ne 'ShellSense' -or
+        [string]$manifest.product -ne 'Blueberry' -or
         [string]$manifest.platform -ne 'windows-x64' -or
         [bool]$manifest.signed -or [string]$manifest.signature_status -ne 'unsigned') {
-        throw "不是受支持的 ShellSense Windows x64 安装清单: $path"
+        throw "不是受支持的 Blueberry Windows x64 安装清单: $path"
     }
     if (-not $manifest.ContainsKey('install_root') -or -not (Test-SamePath ([string]$manifest.install_root) $Root)) {
         throw "安装清单的 canonical install_root 与传入路径不一致: $path"
@@ -792,9 +792,9 @@ function Read-InstallManifest {
     $currentPath = Assert-SafeRelativePath ([string]$manifest.current.path)
     $currentVersion = [string]$manifest.current.version
     $currentHash = Assert-Sha256 ([string]$manifest.current.sha256) '安装清单 current.sha256'
-    if ($currentPath -ne 'shellsense.exe' -or -not (Test-VersionString $currentVersion) -or
-        -not $managedHashes.ContainsKey('shellsense.exe') -or $managedHashes['shellsense.exe'] -ne $currentHash) {
-        throw '安装清单 current 与 shellsense.exe 受管哈希不一致'
+    if ($currentPath -ne 'blueberry.exe' -or -not (Test-VersionString $currentVersion) -or
+        -not $managedHashes.ContainsKey('blueberry.exe') -or $managedHashes['blueberry.exe'] -ne $currentHash) {
+        throw '安装清单 current 与 blueberry.exe 受管哈希不一致'
     }
     $previous = [Collections.Generic.List[object]]::new()
     foreach ($entry in (Convert-ToArray $manifest.previous)) {
@@ -834,8 +834,8 @@ function Read-InstallManifest {
                     path = $originalPath; snapshot_path = $snapshotPath; sha256 = $hash; bytes = $bytes
                 })
         }
-        if (-not $snapshotSeen.Contains('shellsense.exe')) { throw "安装清单 previous 快照缺少 shellsense.exe: $snapshotRoot" }
-        $exeRecord = $snapshotFiles | Where-Object { $_.path -ieq 'shellsense.exe' }
+        if (-not $snapshotSeen.Contains('blueberry.exe')) { throw "安装清单 previous 快照缺少 blueberry.exe: $snapshotRoot" }
+        $exeRecord = $snapshotFiles | Where-Object { $_.path -ieq 'blueberry.exe' }
         $entryPath = Assert-SafeRelativePath ([string]$entry.path)
         if ($entryPath -ne $exeRecord.snapshot_path -or $entryHash -ne $exeRecord.sha256) {
             throw "安装清单 previous exe 元数据不一致: $snapshotRoot"
@@ -874,9 +874,9 @@ function Assert-InstalledState {
             throw "受管文件 SHA-256 与安装清单不一致，拒绝修改: $relative"
         }
     }
-    $currentPath = Get-ManagedPath -Root $Root -RelativePath 'shellsense.exe'
+    $currentPath = Get-ManagedPath -Root $Root -RelativePath 'blueberry.exe'
     Assert-PeX64 -Path $currentPath | Out-Null
-    if ((Get-Sha256 $currentPath) -ne $State.current.sha256) { throw '当前 shellsense.exe SHA-256 与安装清单不一致，拒绝修改' }
+    if ((Get-Sha256 $currentPath) -ne $State.current.sha256) { throw '当前 blueberry.exe SHA-256 与安装清单不一致，拒绝修改' }
     Assert-VersionFile -Path (Get-ManagedPath -Root $Root -RelativePath 'VERSION.txt') -ExpectedVersion $State.current.version
     foreach ($entry in $State.previous) {
         foreach ($record in $entry.files) {
@@ -896,7 +896,7 @@ function Assert-InstalledState {
 
 function New-Transaction {
     param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)]$State)
-    $transactionRoot = Join-Path ([IO.Path]::GetTempPath()) "shellsense-transaction-$([Guid]::NewGuid().ToString('N'))"
+    $transactionRoot = Join-Path ([IO.Path]::GetTempPath()) "blueberry-transaction-$([Guid]::NewGuid().ToString('N'))"
     $backupRoot = Join-Path $transactionRoot 'files'
     [IO.Directory]::CreateDirectory($backupRoot) | Out-Null
     $records = [Collections.Generic.List[object]]::new()
@@ -1032,7 +1032,7 @@ function Commit-SnapshotPlan {
     $snapshotFiles = @($Plan.records | ForEach-Object {
             [ordered]@{ path = $_.path; snapshot_path = $_.snapshot_path; sha256 = $_.sha256; bytes = $_.bytes }
         })
-    $exe = $Plan.records | Where-Object { $_.path -ieq 'shellsense.exe' }
+    $exe = $Plan.records | Where-Object { $_.path -ieq 'blueberry.exe' }
     return [ordered]@{
         path = $exe.snapshot_path; version = ''; sha256 = $exe.sha256; snapshot_root = $Plan.snapshot_root
         snapshot_manifest = $Plan.snapshot_manifest; snapshot_manifest_sha256 = $Plan.snapshot_manifest_sha256
@@ -1098,7 +1098,7 @@ function Remove-ObsoleteActiveFiles {
 function Invoke-Install {
     param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)]$Package)
     $manifestPath = Get-ManagedPath -Root $Root -RelativePath $script:ManifestFileName
-    if (Test-Path -LiteralPath $manifestPath) { throw '安装根已有 ShellSense 清单；使用 Upgrade 更新已有安装' }
+    if (Test-Path -LiteralPath $manifestPath) { throw '安装根已有 Blueberry 清单；使用 Upgrade 更新已有安装' }
     $emptyAllowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $transaction = [pscustomobject]@{ touched = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase) }
     $copied = [Collections.Generic.List[string]]::new()
@@ -1113,7 +1113,7 @@ function Invoke-Install {
         [void]$transaction.touched.Add($script:ManifestFileName)
         $state = Read-InstallManifest -Root $Root -Required
         Assert-InstalledState -Root $Root -State $state
-        Write-Host "已安装 ShellSense $($Package.manifest.version) 到 $Root（unsigned）"
+        Write-Host "已安装 Blueberry $($Package.manifest.version) 到 $Root（unsigned）"
     }
     catch {
         foreach ($relative in @($transaction.touched | Sort-Object Length -Descending)) {
@@ -1141,20 +1141,20 @@ function New-InstallManifest {
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][object]$ManagedFiles,
         [string]$InstalledUtc
     )
-    $executable = Get-ManagedPath -Root $Root -RelativePath 'shellsense.exe'
-    $exeItem = Get-RegularFileRecord -Path $executable -Label '安装清单生成前 shellsense.exe'
+    $executable = Get-ManagedPath -Root $Root -RelativePath 'blueberry.exe'
+    $exeItem = Get-RegularFileRecord -Path $executable -Label '安装清单生成前 blueberry.exe'
     $currentHash = Get-Sha256 $exeItem.FullName
     Assert-PeX64 -Path $executable | Out-Null
     $managedSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in (Expand-Values $ManagedFiles)) { [void]$managedSet.Add((Assert-SafeRelativePath $relative)) }
     foreach ($key in $ManagedHashes.Keys) { [void]$managedSet.Add((Assert-SafeRelativePath ([string]$key))) }
-    [void]$managedSet.Add('shellsense.exe'); [void]$managedSet.Add('release.json'); [void]$managedSet.Add($script:ManifestFileName)
+    [void]$managedSet.Add('blueberry.exe'); [void]$managedSet.Add('release.json'); [void]$managedSet.Add($script:ManifestFileName)
     $orderedHashes = [ordered]@{}
     foreach ($key in ($ManagedHashes.Keys | Sort-Object)) {
         $safe = Assert-SafeRelativePath ([string]$key)
         $orderedHashes[$safe] = Assert-Sha256 ([string]$ManagedHashes[$key]) "受管文件 $safe"
     }
-    $orderedHashes['shellsense.exe'] = $currentHash
+    $orderedHashes['blueberry.exe'] = $currentHash
     $previousArray = @($Previous | ForEach-Object {
             $copy = [ordered]@{}
             if ($_ -is [Collections.IDictionary]) {
@@ -1165,9 +1165,9 @@ function New-InstallManifest {
             $copy['version'] = [string]$_.version; $copy['sha256'] = [string]$_.sha256; $copy
         })
     return [ordered]@{
-        schema_version = $script:InstallManifestSchemaVersion; product = 'ShellSense'; install_root = (Get-FullPath $Root)
+        schema_version = $script:InstallManifestSchemaVersion; product = 'Blueberry'; install_root = (Get-FullPath $Root)
         platform = 'windows-x64'; signed = $false; signature_status = 'unsigned'
-        current = [ordered]@{ path = 'shellsense.exe'; version = [string]$Package.manifest.version; sha256 = $currentHash }
+        current = [ordered]@{ path = 'blueberry.exe'; version = [string]$Package.manifest.version; sha256 = $currentHash }
         previous = $previousArray; managed_files = @($managedSet | Sort-Object); managed_hashes = $orderedHashes
         installed_utc = if ($InstalledUtc) { $InstalledUtc } else { [DateTime]::UtcNow.ToString('o') }
         updated_utc = [DateTime]::UtcNow.ToString('o'); metadata_sha256 = ''
@@ -1211,7 +1211,7 @@ function Invoke-Upgrade {
         Write-Utf8JsonAtomic -Path (Get-ManagedPath -Root $Root -RelativePath $script:ManifestFileName) -Value $manifest
         $newState = Read-InstallManifest -Root $Root -Required
         Assert-InstalledState -Root $Root -State $newState
-        Write-Host "已从本地包升级 ShellSense $($Package.manifest.version)（unsigned）；上一版完整快照保存在 $($snapshot.snapshot_root)"
+        Write-Host "已从本地包升级 Blueberry $($Package.manifest.version)（unsigned）；上一版完整快照保存在 $($snapshot.snapshot_root)"
     }
     catch {
         $failure = $_.Exception
@@ -1241,8 +1241,8 @@ function Invoke-Rollback {
         if ($differs) { $selected = $candidate; break }
     }
     if ($null -eq $selected) { throw '没有内容不同的上一版完整快照，无法回滚' }
-    $selectedExe = $selected.files | Where-Object { $_.path -ieq 'shellsense.exe' }
-    if ($null -eq $selectedExe) { throw '上一版完整快照缺少 shellsense.exe' }
+    $selectedExe = $selected.files | Where-Object { $_.path -ieq 'blueberry.exe' }
+    if ($null -eq $selectedExe) { throw '上一版完整快照缺少 blueberry.exe' }
     $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in $State.managed_files) { [void]$allowed.Add($relative) }
     [void](Assert-PathAvailable -Root $Root -RelativePath "previous/$([Guid]::NewGuid().ToString('N'))")
@@ -1280,7 +1280,7 @@ function Invoke-Rollback {
         Write-Utf8JsonAtomic -Path (Get-ManagedPath -Root $Root -RelativePath $script:ManifestFileName) -Value $manifest
         $newState = Read-InstallManifest -Root $Root -Required
         Assert-InstalledState -Root $Root -State $newState
-        Write-Host "已回滚到 ShellSense $($selected.version)（unsigned）；回滚前的完整受管文件和元数据保存在 $($snapshot.snapshot_root)"
+        Write-Host "已回滚到 Blueberry $($selected.version)（unsigned）；回滚前的完整受管文件和元数据保存在 $($snapshot.snapshot_root)"
     }
     catch {
         $failure = $_.Exception
@@ -1332,9 +1332,9 @@ function Invoke-Uninstall {
         $remaining = @(Get-ChildItem -LiteralPath $Root -Force)
         if ($remaining.Count -eq 0) {
             Remove-Item -LiteralPath $Root -Force
-            Write-Host '已卸载 ShellSense；用户配置目录未被触碰。'
+            Write-Host '已卸载 Blueberry；用户配置目录未被触碰。'
         } else {
-            Write-Host "已删除完整性校验通过的 ShellSense 文件；安装根仍包含用户或保留文件，已保留: $Root"
+            Write-Host "已删除完整性校验通过的 Blueberry 文件；安装根仍包含用户或保留文件，已保留: $Root"
             foreach ($relative in $missing) { Write-Host "受管文件原已缺失: $relative" }
         }
     }
@@ -1448,15 +1448,15 @@ function Convert-JsoncForPreview {
     return $withoutTrailingCommas.ToString()
 }
 
-function Get-ShellSenseProfile {
+function Get-BlueberryProfile {
     param([Parameter(Mandatory = $true)][string]$Executable, [Parameter(Mandatory = $true)][string]$Name)
     $escaped = $Executable.Replace('"', '\"')
-    return [ordered]@{ guid = $script:ShellSenseProfileGuid; name = $Name; commandline = "`"$escaped`" run"; hidden = $false }
+    return [ordered]@{ guid = $script:BlueberryProfileGuid; name = $Name; commandline = "`"$escaped`" run"; hidden = $false }
 }
 
 function Write-ManualProfile {
     param([Parameter(Mandatory = $true)][string]$Executable, [Parameter(Mandatory = $true)][string]$Name)
-    $profile = Get-ShellSenseProfile -Executable $Executable -Name $Name
+    $profile = Get-BlueberryProfile -Executable $Executable -Name $Name
     Write-Host ''
     Write-Host '无法安全改写带注释或尾逗号的 Windows Terminal JSONC。请手动合并以下 profile（原文件未修改）：'
     Write-Host ($profile | ConvertTo-Json -Depth 10)
@@ -1477,13 +1477,13 @@ function Read-SettingsPlan {
         throw 'Windows Terminal settings 缺少 profiles.list；原文件未修改'
     }
     $profiles = Convert-ToArray $settings.profiles.list
-    $newProfile = Get-ShellSenseProfile -Executable $Executable -Name $Name
+    $newProfile = Get-BlueberryProfile -Executable $Executable -Name $Name
     $newList = [Collections.Generic.List[object]]::new(); $found = $false
     foreach ($profile in $profiles) {
         if ($profile -is [Collections.IDictionary] -and $profile.ContainsKey('guid') -and
-            [string]::Equals([string]$profile.guid, $script:ShellSenseProfileGuid, [StringComparison]::OrdinalIgnoreCase)) {
+            [string]::Equals([string]$profile.guid, $script:BlueberryProfileGuid, [StringComparison]::OrdinalIgnoreCase)) {
             $updated = [ordered]@{}; foreach ($key in $profile.Keys) { $updated[$key] = $profile[$key] }
-            $updated['guid'] = $script:ShellSenseProfileGuid; $updated['name'] = $Name
+            $updated['guid'] = $script:BlueberryProfileGuid; $updated['name'] = $Name
             $updated['commandline'] = $newProfile.commandline; $updated['hidden'] = $false
             $newList.Add($updated); $found = $true
         } else { $newList.Add($profile) }
@@ -1536,7 +1536,7 @@ function Invoke-ApplySettings {
         $json = $plan.after | ConvertTo-Json -Depth 30
         [IO.File]::WriteAllText($temporary, "$json`n", [Text.UTF8Encoding]::new($false))
         [IO.File]::Move($temporary, $plan.path, $true)
-        Write-Host "已应用 ShellSense profile；原 settings 字节备份为 $backupPath"
+        Write-Host "已应用 Blueberry profile；原 settings 字节备份为 $backupPath"
     }
     finally {
         if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
@@ -1569,12 +1569,12 @@ try {
         }
         'PreviewSettings' {
             if ([string]::IsNullOrWhiteSpace($SettingsPath)) { throw 'PreviewSettings 需要显式 -SettingsPath；脚本不会猜测 Windows Terminal 配置位置' }
-            $executable = if ($ExePath) { Resolve-ExistingFile -Path $ExePath -Label 'ShellSense exe' } else { Resolve-ExistingFile -Path (Join-Path $root 'shellsense.exe') -Label 'ShellSense exe' }
+            $executable = if ($ExePath) { Resolve-ExistingFile -Path $ExePath -Label 'Blueberry exe' } else { Resolve-ExistingFile -Path (Join-Path $root 'blueberry.exe') -Label 'Blueberry exe' }
             Invoke-PreviewSettings -Path $SettingsPath -Executable $executable -Name $ProfileName
         }
         'ApplySettings' {
             if ([string]::IsNullOrWhiteSpace($SettingsPath)) { throw 'ApplySettings 需要显式 -SettingsPath；脚本不会猜测 Windows Terminal 配置位置' }
-            $executable = if ($ExePath) { Resolve-ExistingFile -Path $ExePath -Label 'ShellSense exe' } else { Resolve-ExistingFile -Path (Join-Path $root 'shellsense.exe') -Label 'ShellSense exe' }
+            $executable = if ($ExePath) { Resolve-ExistingFile -Path $ExePath -Label 'Blueberry exe' } else { Resolve-ExistingFile -Path (Join-Path $root 'blueberry.exe') -Label 'Blueberry exe' }
             Invoke-ApplySettings -Path $SettingsPath -Executable $executable -Name $ProfileName
         }
     }

@@ -1,4 +1,4 @@
-# ShellSense configuration
+# Blueberry configuration
 
 [ui]
 max_rows = 8
@@ -42,7 +42,7 @@ enabled = true # background help for recognized installations
 enabled = true # local selection counts only; learning clear removes them
 
 [specs]
-# directory = 'C:\Users\you\AppData\Roaming\shellsense\specs'
+# directory = 'C:\Users\you\AppData\Roaming\blueberry\specs'
 
 [descriptions]
 # Optional overrides; keys distinguish command scopes and option case.

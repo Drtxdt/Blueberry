@@ -1,6 +1,6 @@
 use serde_json::Value;
-use shellsense::engine::{CommandIndex, Discovery};
-use shellsense::model::{CandidateKind, ShellCommand};
+use blueberry::engine::{CommandIndex, Discovery};
+use blueberry::model::{CandidateKind, ShellCommand};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;

@@ -1,9 +1,9 @@
-use shellsense::model::CandidateKind;
-use shellsense::providers::{
+use blueberry::model::CandidateKind;
+use blueberry::providers::{
     ProjectQuery, ProviderCache, collect, collect_snapshot, normalize_query, normalized_args,
     project_key, snapshot_fingerprint,
 };
-use shellsense::{
+use blueberry::{
     completion::{merge, plan},
     engine::CommandIndex,
     sources,
@@ -61,9 +61,9 @@ fn git_provider_reads_branches_tags_remotes_and_status_paths() {
     git(root.path(), &["init"]);
     git(
         root.path(),
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(root.path(), &["config", "user.name", "ShellSense Test"]);
+    git(root.path(), &["config", "user.name", "Blueberry Test"]);
     fs::create_dir(root.path().join("src")).unwrap();
     fs::write(root.path().join("src/main.rs"), "fn main() {}\n").unwrap();
     git(root.path(), &["add", "."]);
@@ -165,9 +165,9 @@ fn git_dynamic_provider_is_reached_through_completion_plan_and_respects_context(
     git(root.path(), &["init"]);
     git(
         root.path(),
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(root.path(), &["config", "user.name", "ShellSense Test"]);
+    git(root.path(), &["config", "user.name", "Blueberry Test"]);
     fs::write(root.path().join("README.md"), "integration fixture\n").unwrap();
     git(root.path(), &["add", "README.md"]);
     git(root.path(), &["commit", "-m", "initial"]);
@@ -188,9 +188,9 @@ fn git_dynamic_provider_is_reached_through_completion_plan_and_respects_context(
     git(&quoted, &["init"]);
     git(
         &quoted,
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(&quoted, &["config", "user.name", "ShellSense Test"]);
+    git(&quoted, &["config", "user.name", "Blueberry Test"]);
     fs::write(quoted.join("README.md"), "quoted fixture\n").unwrap();
     git(&quoted, &["add", "README.md"]);
     git(&quoted, &["commit", "-m", "initial"]);
@@ -291,9 +291,9 @@ fn git_dynamic_context_does_not_mix_refs_with_paths_or_creation_names() {
     git(root.path(), &["init"]);
     git(
         root.path(),
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(root.path(), &["config", "user.name", "ShellSense Test"]);
+    git(root.path(), &["config", "user.name", "Blueberry Test"]);
     fs::write(root.path().join("README.md"), "context fixture\n").unwrap();
     git(root.path(), &["add", "README.md"]);
     git(root.path(), &["commit", "-m", "initial"]);
@@ -660,7 +660,7 @@ fn recursive_workspace_scan_skips_generated_and_metadata_trees() {
         "node_modules/hidden",
         "target/hidden",
         ".git/hidden",
-        ".shellsense/hidden",
+        ".blueberry/hidden",
     ] {
         let directory = root.path().join(directory);
         fs::create_dir_all(&directory).unwrap();
@@ -849,9 +849,9 @@ fn git_worktree_pointer_tracks_gitdir_and_common_directory() {
     git(root.path(), &["init"]);
     git(
         root.path(),
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(root.path(), &["config", "user.name", "ShellSense Test"]);
+    git(root.path(), &["config", "user.name", "Blueberry Test"]);
     fs::write(root.path().join("README.md"), "worktree fixture\n").unwrap();
     git(root.path(), &["add", "README.md"]);
     git(root.path(), &["commit", "-m", "initial"]);
@@ -934,9 +934,9 @@ fn git_packed_refs_keep_local_branches_and_tags_visible() {
     git(root.path(), &["init"]);
     git(
         root.path(),
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(root.path(), &["config", "user.name", "ShellSense Test"]);
+    git(root.path(), &["config", "user.name", "Blueberry Test"]);
     fs::write(root.path().join("file.txt"), "packed refs\n").unwrap();
     git(root.path(), &["add", "file.txt"]);
     git(root.path(), &["commit", "-m", "initial"]);
@@ -984,9 +984,9 @@ fn git_ref_and_remote_cache_entries_are_removed_after_invalidation() {
     git(root.path(), &["init"]);
     git(
         root.path(),
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(root.path(), &["config", "user.name", "ShellSense Test"]);
+    git(root.path(), &["config", "user.name", "Blueberry Test"]);
     fs::write(root.path().join("file.txt"), "cache fixture\n").unwrap();
     git(root.path(), &["add", "file.txt"]);
     git(root.path(), &["commit", "-m", "initial"]);
@@ -1088,9 +1088,9 @@ fn git_refs_are_not_silently_truncated_above_four_thousand_candidates() {
     git(root.path(), &["init"]);
     git(
         root.path(),
-        &["config", "user.email", "shellsense@example.invalid"],
+        &["config", "user.email", "blueberry@example.invalid"],
     );
-    git(root.path(), &["config", "user.name", "ShellSense Test"]);
+    git(root.path(), &["config", "user.name", "Blueberry Test"]);
     fs::write(root.path().join("file.txt"), "many refs\n").unwrap();
     git(root.path(), &["add", "file.txt"]);
     git(root.path(), &["commit", "-m", "initial"]);
