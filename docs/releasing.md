@@ -10,6 +10,15 @@ GitHub 仓库存放源码；Release 存放用户下载的程序。CI 验证代�
 
 ## 创建版本
 
+每次修改 `Cargo.toml` 中的版本号后，先同步锁文件并编译：
+
+```powershell
+cargo update --offline --package blueberry
+cargo build --release --locked
+```
+
+将 `Cargo.toml`、`Cargo.lock` 和包含新版本章节的 `CHANGELOG.md` 一起提交。仅修改 `Cargo.toml` 会让 CI 的 `--locked` 构建失败；更新日志缺少对应版本章节会阻止发布草稿生成。
+
 以 `0.5.0-beta.2` 为例，在已提交且工作区干净的 main 分支运行：
 
 ```powershell
@@ -19,6 +28,8 @@ git push origin v0.5.0-beta.2
 ```
 
 标签必须与 Cargo 版本一致，且提交属于 main 历史。每次版本使用新标签。
+
+失败运行中的标签仍指向原提交；点击 Re-run 不会读取之后的 main 修复。准备重发时，先确认标签指向包含修复的提交。已公开版本使用新的版本号和标签，保留原标签。
 
 ## 检查并公开
 
