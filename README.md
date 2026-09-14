@@ -14,7 +14,7 @@ Blueberry 是一个使用rust主要构建的高性能终端IDE风格补全工具
 在 PowerShell 中运行：
 
 ```powershell
-irm https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1 | iex
+(irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1').TrimStart([char]0xFEFF) | iex
 ```
 
 安装脚本下载 GitHub Release，校验文件后安装到当前用户目录，并询问是否随 PowerShell 启动。默认选择最新稳定版；只有 Beta 版本时安装最新公开 Beta。

@@ -5,8 +5,10 @@
 在 Windows PowerShell 5.1 或 PowerShell 7 中运行：
 
 ```powershell
-irm https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1 | iex
+(irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1').TrimStart([char]0xFEFF) | iex
 ```
+
+请复制代码块中的完整命令，网址保留单引号，不要使用 `[网址](网址)` 链接格式。命令会移除下载文本开头的 UTF-8 BOM，兼容带 BOM 的旧安装入口。
 
 安装到当前用户目录，无需 Rust。安装末尾选择是否随 PowerShell 启动。之后输入 `blueberry` 即可使用；其他已打开的终端需要重新打开以读取新 PATH。
 
@@ -17,7 +19,7 @@ irm https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1 | iex
 ## 指定版本与无人值守安装
 
 ```powershell
-$installer = irm https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1
+$installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1').TrimStart([char]0xFEFF)
 & ([scriptblock]::Create($installer)) -Version 0.5.0-beta.2 -NoPrompt
 ```
 
