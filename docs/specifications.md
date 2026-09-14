@@ -75,6 +75,11 @@ pnpm -C <目录> install
 - Git：`git` 是 Git 命令节点使用的通用数据源；它根据当前子命令、选项作用域、位置参数和 `--` 分隔符选择引用、远端、工作树或状态路径。`git.refs`、`git.branches`、`git.remotes`、`git.tags`、`git.worktrees`、`git.status`、`git.paths` 仍作为显式的细分数据源保留。
 - Cargo：`cargo.packages`、`cargo.features`、`cargo.bins`、`cargo.examples`、`cargo.tests`、`cargo.benches`
 - npm/pnpm：`npm.scripts`、`npm.workspaces`、`npm.dependencies`、`pnpm.scripts`、`pnpm.workspaces`、`pnpm.dependencies`
+- Python：`python.scripts`、`python.dependencies`、`python.environments`；Conda 和 Poetry 提供对应的环境、脚本及依赖数据源
+- JavaScript：Yarn、Bun 提供与 npm 相同的脚本、工作区和声明依赖数据源
+- Rust/Go/.NET/CMake：工具链、包、项目、框架、引用、预设和目标数据源
+- Docker/Kubernetes/Helm：Compose 服务与 profile、本地上下文，以及主动读取的远程资源数据源
+- SSH：`ssh.hosts` 从本机 SSH 配置读取具体 Host 别名
 - PowerShell：`powershell.env`、`powershell.paths`、`powershell.redirects`
 
 内置规格将 `git` 通用数据源挂在适用的 Git 子命令节点上，例如 `add`、`branch`、`checkout`、`diff`、`fetch`、`log`、`merge`、`pull`、`push`、`rebase`、`remote`、`reset`、`restore`、`show`、`status`、`switch`、`tag` 和 `worktree`。Git provider 会在 Rust 中固定调用只读查询；它不会触发 fetch、构建、脚本、依赖安装或凭据提示。

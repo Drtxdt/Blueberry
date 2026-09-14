@@ -4,6 +4,7 @@ pub mod completion;
 pub mod config;
 pub mod engine;
 pub mod host;
+pub mod hub;
 pub mod input;
 pub mod menu;
 pub mod metrics;
@@ -18,10 +19,12 @@ pub mod pty;
 pub mod ranking;
 pub mod reload;
 pub mod settings;
+pub mod setup;
 pub mod sources;
 pub mod spec_catalog;
 pub mod specs;
 pub mod status;
+pub mod tools_ui;
 pub mod trace;
 
 #[cfg(windows)]

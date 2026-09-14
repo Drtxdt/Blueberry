@@ -18,6 +18,20 @@ pnpm = ["pnpm", "pnpm.cmd", "pnpm.exe"]
 docker = ["docker", "docker.exe"]
 pwsh = ["pwsh", "powershell", "pwsh.exe", "powershell.exe"]
 gh = ["gh", "gh.exe"]
+pip = ["pip", "pip3", "pip.exe", "pip3.exe"]
+conda = ["conda", "conda.exe", "conda.bat", "mamba", "mamba.exe", "mamba.bat", "micromamba", "micromamba.exe"]
+poetry = ["poetry", "poetry.exe"]
+yarn = ["yarn", "yarn.cmd", "yarn.exe"]
+bun = ["bun", "bun.exe"]
+rustup = ["rustup", "rustup.exe"]
+go = ["go", "go.exe"]
+cmake = ["cmake", "cmake.exe"]
+ctest = ["ctest", "ctest.exe"]
+kubectl = ["kubectl", "kubectl.exe"]
+helm = ["helm", "helm.exe"]
+ssh = ["ssh", "ssh.exe"]
+scp = ["scp", "scp.exe"]
+sftp = ["sftp", "sftp.exe"]
 Set-Location = ["Set-Location", "set-location", "cd", "chdir", "sl"]
 Get-ChildItem = ["Get-ChildItem", "get-childitem", "gci", "dir", "ls"]
 
@@ -8171,6 +8185,7 @@ name = "exec"
 description = "在服务中运行命令"
 detail = "在服务中运行命令。"
 positional = "value"
+provider = "docker.services"
 children = []
 option_sets = []
 examples = []
@@ -8201,6 +8216,8 @@ name = "logs"
 description = "查看服务输出"
 detail = "查看服务输出。"
 positional = "value"
+provider = "docker.services"
+keywords = ["查看服务日志", "Compose 日志"]
 children = []
 option_sets = []
 examples = []
@@ -8261,6 +8278,7 @@ name = "restart"
 description = "重启服务"
 detail = "重启服务。"
 positional = "value"
+provider = "docker.services"
 children = []
 option_sets = []
 examples = []
@@ -8271,6 +8289,7 @@ name = "rm"
 description = "移除已停止的服务容器"
 detail = "移除已停止的服务容器。"
 positional = "value"
+provider = "docker.services"
 children = []
 option_sets = []
 examples = []
@@ -8281,6 +8300,7 @@ name = "run"
 description = "运行一次性命令"
 detail = "运行一次性命令。"
 positional = "value"
+provider = "docker.services"
 children = []
 option_sets = []
 examples = []
@@ -8291,6 +8311,7 @@ name = "start"
 description = "启动服务"
 detail = "启动服务。"
 positional = "value"
+provider = "docker.services"
 children = []
 option_sets = []
 examples = []
@@ -8301,6 +8322,7 @@ name = "stop"
 description = "停止服务"
 detail = "停止服务。"
 positional = "value"
+provider = "docker.services"
 children = []
 option_sets = []
 examples = []
@@ -8331,6 +8353,7 @@ name = "up"
 description = "创建并启动服务"
 detail = "创建并启动服务。"
 positional = "value"
+provider = "docker.services"
 children = []
 option_sets = ["DOCKER_COMPOSE_UP_OPTIONS"]
 examples = []
@@ -13302,7 +13325,8 @@ value_name = "<DIR>"
 path = "dotnet build"
 description = "编译项目"
 detail = "编译项目。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
 option_sets = ["LEARNABLE_dotnet_build"]
 examples = ["dotnet build --help"]
 
@@ -13342,7 +13366,8 @@ value_name = ""
 path = "dotnet run"
 description = "运行项目"
 detail = "运行项目。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
 option_sets = ["LEARNABLE_dotnet_run"]
 examples = ["dotnet run --help"]
 
@@ -13374,7 +13399,9 @@ value_name = ""
 path = "dotnet test"
 description = "运行测试"
 detail = "运行测试。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
+keywords = ["运行测试", ".NET 测试"]
 option_sets = ["LEARNABLE_dotnet_test"]
 examples = ["dotnet test --help"]
 
@@ -13407,7 +13434,8 @@ values = [{ name = "Debug", description = "选择 Debug" }, { name = "Release", 
 path = "dotnet publish"
 description = "生成可部署的应用"
 detail = "生成可部署的应用。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
 option_sets = ["LEARNABLE_dotnet_publish"]
 examples = ["dotnet publish --help"]
 
@@ -13425,7 +13453,8 @@ value_name = ""
 path = "dotnet restore"
 description = "还原项目依赖"
 detail = "还原项目依赖。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
 option_sets = ["LEARNABLE_dotnet_restore"]
 examples = ["dotnet restore --help"]
 
@@ -13443,7 +13472,8 @@ value_name = ""
 path = "dotnet add"
 description = "添加项目引用或包"
 detail = "添加项目引用或包。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
 option_sets = ["LEARNABLE_dotnet_add"]
 examples = ["dotnet add --help"]
 
@@ -13461,7 +13491,8 @@ value_name = ""
 path = "dotnet list"
 description = "列出项目引用或包"
 detail = "列出项目引用或包。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
 option_sets = ["LEARNABLE_dotnet_list"]
 examples = ["dotnet list --help"]
 
@@ -13479,7 +13510,8 @@ value_name = ""
 path = "dotnet clean"
 description = "清理构建产物"
 detail = "清理构建产物。"
-positional = "none"
+positional = "value"
+provider = "dotnet.projects"
 option_sets = ["LEARNABLE_dotnet_clean"]
 examples = ["dotnet clean --help"]
 
@@ -13497,6 +13529,463 @@ value_name = ""
 path = "dotnet tool"
 description = "管理 .NET 工具"
 detail = "管理 .NET 工具。"
-positional = "none"
+positional = "value"
+provider = "dotnet.tools"
 option_sets = ["LEARNABLE_dotnet_tool"]
 examples = ["dotnet tool --help"]
+
+# 常用开发与运维工具的离线中文基线。动态 provider 只读取本机状态或项目文件。
+[[option_sets]]
+id = "BLUEBERRY_COMMON_HELP"
+[[option_sets.options]]
+names = ["-h"]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示当前命令的帮助和参数。"
+value_kind = "none"
+[[option_sets.options]]
+name = "--version"
+description = "显示工具版本"
+detail = "显示当前工具的版本信息。"
+value_kind = "none"
+
+[[nodes]]
+path = "pip"
+description = "管理 Python 包"
+detail = "安装、查看和移除当前 Python 环境中的包。"
+positional = "none"
+children = ["install", "uninstall", "show", "list"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Python 包", "依赖"]
+examples = ["pip show requests"]
+[[nodes]]
+path = "pip install"
+description = "安装 Python 包"
+detail = "从索引或本地路径安装 Python 包。"
+positional = "path"
+provider = "powershell.paths"
+examples = ["pip install -r requirements.txt"]
+[[nodes]]
+path = "pip uninstall"
+description = "移除已安装的 Python 包"
+detail = "从当前 Python 环境移除一个或多个包。"
+positional = "value"
+provider = "python.dependencies"
+examples = ["pip uninstall requests"]
+[[nodes]]
+path = "pip show"
+description = "查看已安装包信息"
+detail = "显示当前环境中 Python 包的版本和安装位置。"
+positional = "value"
+provider = "python.dependencies"
+examples = ["pip show requests"]
+[[nodes]]
+path = "pip list"
+description = "列出已安装的 Python 包"
+detail = "列出当前 Python 环境已经安装的包。"
+positional = "none"
+examples = ["pip list"]
+
+[[nodes]]
+path = "conda"
+description = "管理 Conda 环境和软件包"
+detail = "创建、切换和管理 Conda 环境及其软件包。"
+positional = "none"
+children = ["activate", "run", "list", "install", "remove", "env"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["环境", "Python", "进入环境"]
+examples = ["conda activate dev"]
+[[nodes]]
+path = "conda activate"
+description = "进入 Conda 环境"
+detail = "在当前 PowerShell 会话中激活指定环境。"
+positional = "value"
+provider = "conda.environments"
+keywords = ["进入环境", "切换环境"]
+examples = ["conda activate dev"]
+[[nodes]]
+path = "conda run"
+description = "在指定环境中运行命令"
+detail = "不切换当前会话，直接在选定环境里执行命令。"
+positional = "value"
+options = [{ name = "--name", names = ["-n"], description = "选择环境名称", detail = "选择要运行命令的 Conda 环境。", value_kind = "text", provider = "conda.environments", value_name = "ENV" }, { name = "--prefix", names = ["-p"], description = "选择环境路径", detail = "按完整路径选择 Conda 环境。", value_kind = "directory", value_name = "PATH" }]
+examples = ["conda run -n dev python --version"]
+[[nodes]]
+path = "conda list"
+description = "列出环境中的软件包"
+detail = "显示当前或指定 Conda 环境安装的软件包。"
+positional = "value"
+provider = "conda.packages"
+examples = ["conda list -n dev"]
+[[nodes]]
+path = "conda install"
+description = "向环境安装软件包"
+detail = "将软件包安装到当前或指定 Conda 环境。"
+positional = "value"
+examples = ["conda install numpy"]
+[[nodes]]
+path = "conda remove"
+description = "从环境移除软件包"
+detail = "从当前或指定 Conda 环境移除已安装包。"
+positional = "value"
+provider = "conda.packages"
+examples = ["conda remove numpy"]
+[[nodes]]
+path = "conda env"
+description = "管理 Conda 环境"
+detail = "创建、导出、更新和删除 Conda 环境。"
+positional = "path"
+provider = "powershell.paths"
+examples = ["conda env create -f environment.yml"]
+
+[[nodes]]
+path = "poetry"
+description = "管理 Python 项目和虚拟环境"
+detail = "读取 pyproject.toml 并管理依赖、脚本和环境。"
+positional = "none"
+children = ["run", "add", "remove", "install", "env"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Python 项目", "依赖", "虚拟环境"]
+examples = ["poetry run pytest"]
+[[nodes]]
+path = "poetry run"
+description = "运行项目脚本"
+detail = "在 Poetry 虚拟环境中运行 pyproject.toml 声明的脚本。"
+positional = "value"
+provider = "poetry.scripts"
+keywords = ["运行脚本", "测试"]
+examples = ["poetry run pytest"]
+[[nodes]]
+path = "poetry add"
+description = "添加项目依赖"
+detail = "向 pyproject.toml 添加 Python 依赖。"
+positional = "value"
+examples = ["poetry add requests"]
+[[nodes]]
+path = "poetry remove"
+description = "移除项目依赖"
+detail = "从 pyproject.toml 移除已有依赖。"
+positional = "value"
+provider = "poetry.dependencies"
+examples = ["poetry remove requests"]
+[[nodes]]
+path = "poetry install"
+description = "安装项目依赖"
+detail = "按锁文件安装当前 Poetry 项目的依赖。"
+positional = "none"
+examples = ["poetry install"]
+[[nodes]]
+path = "poetry env"
+description = "管理 Poetry 虚拟环境"
+detail = "查看、选择和删除当前项目的虚拟环境。"
+positional = "value"
+provider = "poetry.environments"
+examples = ["poetry env list"]
+
+[[nodes]]
+path = "yarn"
+description = "管理 JavaScript 项目"
+detail = "运行 package.json 脚本并管理工作区依赖。"
+positional = "value"
+provider = "yarn.scripts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["前端", "脚本", "依赖"]
+examples = ["yarn test"]
+[[nodes]]
+path = "bun"
+description = "运行 JavaScript 和管理项目"
+detail = "运行 package.json 脚本、测试和依赖命令。"
+positional = "value"
+provider = "bun.scripts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["前端", "脚本", "测试"]
+examples = ["bun run test"]
+
+[[nodes]]
+path = "rustup"
+description = "管理 Rust 工具链"
+detail = "安装和选择 Rust 工具链、目标平台及组件。"
+positional = "none"
+children = ["toolchain", "target", "component", "default", "override"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Rust 工具链", "编译目标"]
+examples = ["rustup toolchain list"]
+[[nodes]]
+path = "rustup toolchain"
+description = "管理 Rust 工具链"
+detail = "列出、安装或删除本机 Rust 工具链。"
+positional = "value"
+provider = "rustup.toolchains"
+examples = ["rustup toolchain install stable"]
+[[nodes]]
+path = "rustup target"
+description = "管理 Rust 编译目标"
+detail = "为工具链添加或移除目标平台。"
+positional = "value"
+provider = "rustup.targets"
+examples = ["rustup target add wasm32-unknown-unknown"]
+[[nodes]]
+path = "rustup component"
+description = "管理 Rust 组件"
+detail = "添加或移除 rustfmt、clippy 等组件。"
+positional = "value"
+provider = "rustup.components"
+examples = ["rustup component add clippy"]
+[[nodes]]
+path = "rustup default"
+description = "设置默认 Rust 工具链"
+detail = "选择新终端默认使用的 Rust 工具链。"
+positional = "value"
+provider = "rustup.toolchains"
+examples = ["rustup default stable"]
+[[nodes]]
+path = "rustup override"
+description = "设置目录工具链"
+detail = "为当前项目目录选择 Rust 工具链。"
+positional = "value"
+provider = "rustup.toolchains"
+examples = ["rustup override set nightly"]
+
+[[nodes]]
+path = "go"
+description = "构建和管理 Go 项目"
+detail = "运行、构建、测试 Go 模块与工作区。"
+positional = "none"
+children = ["run", "build", "test", "list", "mod", "work"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Go 项目", "构建", "测试"]
+examples = ["go test ./..."]
+[[nodes]]
+path = "go run"
+description = "运行 Go 程序"
+detail = "运行当前项目中的 Go 文件或包。"
+positional = "path"
+provider = "go.files"
+examples = ["go run main.go"]
+[[nodes]]
+path = "go build"
+description = "构建 Go 包"
+detail = "编译当前模块的包和命令。"
+positional = "value"
+provider = "go.packages"
+examples = ["go build ./..."]
+[[nodes]]
+path = "go test"
+description = "运行 Go 测试"
+detail = "运行当前模块中指定包的测试。"
+positional = "value"
+provider = "go.packages"
+keywords = ["测试"]
+examples = ["go test ./..."]
+[[nodes]]
+path = "go list"
+description = "列出 Go 包"
+detail = "列出匹配模式的 Go 包。"
+positional = "value"
+provider = "go.packages"
+examples = ["go list ./..."]
+[[nodes]]
+path = "go mod"
+description = "管理 Go 模块"
+detail = "初始化、整理和编辑 go.mod。"
+positional = "value"
+examples = ["go mod tidy"]
+[[nodes]]
+path = "go work"
+description = "管理 Go 工作区"
+detail = "管理由 go.work 连接的多个 Go 模块。"
+positional = "value"
+provider = "go.workspaces"
+examples = ["go work use ./module"]
+
+[[nodes]]
+path = "cmake"
+description = "配置和构建 CMake 项目"
+detail = "使用源码目录、构建目录或预设配置 CMake 项目。"
+positional = "directory"
+children = ["--build", "--install", "--workflow"]
+options = [{ name = "--preset", description = "选择配置预设", detail = "选择 CMakePresets.json 中的配置预设。", value_kind = "text", provider = "cmake.presets", value_name = "PRESET" }, { name = "--build", description = "构建生成目录", detail = "构建已经配置的 CMake 生成目录。", value_kind = "directory", value_name = "DIR" }]
+keywords = ["CMake", "配置", "构建"]
+examples = ["cmake --preset windows-debug"]
+[[nodes]]
+path = "cmake --build"
+description = "构建 CMake 生成目录"
+detail = "调用生成器构建已经配置的目录。"
+positional = "directory"
+options = [{ name = "--preset", description = "选择构建预设", detail = "选择 CMakePresets.json 中的构建预设。", value_kind = "text", provider = "cmake.build_presets", value_name = "PRESET" }, { name = "--target", names = ["-t"], description = "选择构建目标", detail = "只构建指定目标。", value_kind = "text", provider = "cmake.targets", value_name = "TARGET" }]
+examples = ["cmake --build --preset windows-debug"]
+[[nodes]]
+path = "cmake --install"
+description = "安装 CMake 构建产物"
+detail = "执行当前生成目录的安装规则。"
+positional = "directory"
+examples = ["cmake --install build"]
+[[nodes]]
+path = "cmake --workflow"
+description = "运行 CMake 工作流预设"
+detail = "按工作流预设依次执行配置、构建和测试步骤。"
+positional = "value"
+provider = "cmake.presets"
+examples = ["cmake --workflow --preset ci"]
+
+[[nodes]]
+path = "ctest"
+description = "运行 CMake 测试"
+detail = "在 CMake 构建目录中选择并运行测试。"
+positional = "none"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+options = [{ name = "--preset", description = "选择测试预设", detail = "选择 CMakePresets.json 中的测试预设。", value_kind = "text", provider = "cmake.test_presets", value_name = "PRESET" }, { name = "--test-dir", description = "指定构建目录", detail = "从指定构建目录读取并运行测试。", value_kind = "directory", value_name = "DIR" }]
+keywords = ["CMake 测试", "运行测试"]
+examples = ["ctest --preset unit"]
+
+[[nodes]]
+path = "kubectl"
+description = "管理 Kubernetes 集群资源"
+detail = "查看和管理当前 Kubernetes 上下文中的工作负载与服务。远程资源需主动读取。"
+positional = "none"
+children = ["get", "describe", "logs", "exec", "delete", "config", "apply"]
+options = [{ name = "--context", description = "选择 Kubernetes 上下文", detail = "选择 kubeconfig 中的上下文。", value_kind = "text", provider = "kubectl.contexts", value_name = "CONTEXT" }, { name = "--namespace", names = ["-n"], description = "选择命名空间", detail = "在指定命名空间执行命令；按资源读取键获取远程候选。", value_kind = "text", provider = "kubectl.namespaces", value_name = "NAMESPACE" }, { name = "--kubeconfig", description = "指定 kubeconfig", detail = "使用指定 Kubernetes 配置文件。", value_kind = "path", value_name = "FILE" }]
+keywords = ["Kubernetes", "集群", "容器编排"]
+examples = ["kubectl get pods"]
+[[nodes]]
+path = "kubectl get"
+description = "列出 Kubernetes 资源"
+detail = "列出指定种类的资源；资源名称由主动读取提供。"
+positional = "value"
+provider = "kubectl.resources"
+keywords = ["查看资源", "列出 Pod"]
+examples = ["kubectl get pods"]
+[[nodes]]
+path = "kubectl describe"
+description = "查看资源详情"
+detail = "显示 Kubernetes 资源的详细状态和事件。"
+positional = "value"
+provider = "kubectl.resources"
+examples = ["kubectl describe deployment api"]
+[[nodes]]
+path = "kubectl logs"
+description = "查看容器日志"
+detail = "显示 Pod 或工作负载中的容器日志。"
+positional = "value"
+provider = "kubectl.resources"
+keywords = ["查看日志", "服务日志"]
+examples = ["kubectl logs deployment/api"]
+[[nodes]]
+path = "kubectl exec"
+description = "在容器中执行命令"
+detail = "连接 Pod 中的容器并运行命令。"
+positional = "value"
+provider = "kubectl.resources"
+examples = ["kubectl exec -it pod/api -- sh"]
+[[nodes]]
+path = "kubectl delete"
+description = "删除 Kubernetes 资源"
+detail = "删除指定种类和名称的集群资源。"
+positional = "value"
+provider = "kubectl.resources"
+examples = ["kubectl delete pod api"]
+[[nodes]]
+path = "kubectl config"
+description = "管理 Kubernetes 上下文"
+detail = "查看或切换 kubeconfig 中保存的上下文。"
+positional = "value"
+provider = "kubectl.contexts"
+examples = ["kubectl config use-context dev"]
+[[nodes]]
+path = "kubectl apply"
+description = "应用资源清单"
+detail = "从 YAML 或 JSON 文件创建或更新资源。"
+positional = "path"
+provider = "powershell.paths"
+examples = ["kubectl apply -f deployment.yaml"]
+
+[[nodes]]
+path = "helm"
+description = "管理 Kubernetes Helm Chart"
+detail = "安装、升级和管理当前集群中的 Helm release。远程 release 需主动读取。"
+positional = "none"
+children = ["list", "status", "install", "upgrade", "uninstall", "template", "lint", "repo"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Helm", "Kubernetes 发布"]
+examples = ["helm list"]
+[[nodes]]
+path = "helm list"
+description = "列出 Helm release"
+detail = "列出当前上下文和命名空间中的 Helm release。"
+positional = "none"
+examples = ["helm list --all-namespaces"]
+[[nodes]]
+path = "helm status"
+description = "查看 Helm release 状态"
+detail = "显示指定 release 的资源和部署状态。"
+positional = "value"
+provider = "helm.releases"
+examples = ["helm status api"]
+[[nodes]]
+path = "helm install"
+description = "安装 Helm Chart"
+detail = "以新 release 名称安装本地 Chart 或仓库 Chart。"
+positional = "path"
+provider = "helm.charts"
+examples = ["helm install api ./chart"]
+[[nodes]]
+path = "helm upgrade"
+description = "升级 Helm release"
+detail = "使用新的 Chart 或 values 更新现有 release。"
+positional = "value"
+provider = "helm.releases"
+examples = ["helm upgrade api ./chart"]
+[[nodes]]
+path = "helm uninstall"
+description = "卸载 Helm release"
+detail = "从集群移除指定 Helm release。"
+positional = "value"
+provider = "helm.releases"
+examples = ["helm uninstall api"]
+[[nodes]]
+path = "helm template"
+description = "在本地渲染 Chart"
+detail = "渲染 Kubernetes 清单但不连接集群安装。"
+positional = "path"
+provider = "helm.charts"
+examples = ["helm template api ./chart"]
+[[nodes]]
+path = "helm lint"
+description = "检查 Helm Chart"
+detail = "检查 Chart 结构和值是否符合要求。"
+positional = "path"
+provider = "helm.charts"
+examples = ["helm lint ./chart"]
+[[nodes]]
+path = "helm repo"
+description = "管理 Helm 仓库"
+detail = "添加、更新和列出本机 Helm 仓库。"
+positional = "value"
+provider = "helm.repositories"
+examples = ["helm repo list"]
+
+[[nodes]]
+path = "ssh"
+description = "连接 SSH 主机"
+detail = "连接 ~/.ssh/config 中配置的主机或指定地址。"
+positional = "value"
+provider = "ssh.hosts"
+options = [{ name = "-i", description = "选择身份文件", detail = "使用指定私钥进行身份验证。", value_kind = "path", value_name = "FILE" }, { name = "-p", description = "指定端口", detail = "连接远程 SSH 端口。", value_kind = "text", value_name = "PORT" }]
+keywords = ["远程连接", "服务器"]
+examples = ["ssh dev-server"]
+[[nodes]]
+path = "scp"
+description = "通过 SSH 复制文件"
+detail = "在本机路径与 SSH 主机之间复制文件。"
+positional = "path"
+provider = "ssh.hosts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+examples = ["scp ./app.zip dev-server:/tmp/"]
+[[nodes]]
+path = "sftp"
+description = "启动 SSH 文件传输会话"
+detail = "连接 SSH 配置主机并交互传输文件。"
+positional = "value"
+provider = "ssh.hosts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+examples = ["sftp dev-server"]

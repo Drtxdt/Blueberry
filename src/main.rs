@@ -92,7 +92,28 @@ enum Command {
     /// Print a Windows Terminal profile to add to settings.json.
     TerminalProfile,
     /// Print runtime and configuration diagnostics.
-    Doctor,
+    Doctor {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Inspect installed tools, specifications and learned help.
+    Tools {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Open the first-use guide and choose basic defaults.
+    Setup,
+    /// Open favorites, templates and PSReadLine history.
+    Hub {
+        #[arg(long)]
+        query: Option<String>,
+        #[arg(long, requires = "command", conflicts_with = "remove")]
+        add: Option<String>,
+        #[arg(long, requires = "add", conflicts_with = "remove")]
+        command: Option<String>,
+        #[arg(long, conflicts_with_all = ["add", "command"])]
+        remove: Option<String>,
+    },
     /// Enable, disable, or inspect PowerShell profile startup hooks.
     Startup {
         #[arg(value_enum)]
@@ -643,7 +664,17 @@ fn print_help_status() {
         );
     }
 }
-fn run_doctor(config_path: Option<&Path>) -> Result<u32> {
+fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
+    if json {
+        let path=config_path.map(Path::to_path_buf).unwrap_or_else(config::default_path);
+        let loaded=config::load(config_path);
+        let value=match loaded {
+            Ok(settings)=>serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":true,"cache":config::cache_dir(),"dynamic":settings.completion.dynamic,"keys":settings.keys}),
+            Err(error)=>serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":false,"error":format!("{error:#}")}),
+        };
+        println!("{}",serde_json::to_string_pretty(&value)?);
+        return Ok(if value["valid"]==true {0}else{1});
+    }
     print_help_status();
     let path = config_path
         .map(Path::to_path_buf)
@@ -790,14 +821,19 @@ fn execute() -> Result<u32> {
             data_dir,
             trace,
             transport,
-        } => host::run(host::RunOptions {
-            shell,
-            no_profile,
-            config_path: cli.config,
-            data_dir: data_dir.unwrap_or_else(config::cache_dir),
-            trace_path: trace,
-            transport,
-        }),
+        } => {
+            if !no_profile && blueberry::setup::take_first_hint() {
+                println!("Blueberry 提示：首次使用可运行 `blueberry setup`，两分钟了解补全、图标和自动启动设置。");
+            }
+            host::run(host::RunOptions {
+                shell,
+                no_profile,
+                config_path: cli.config,
+                data_dir: data_dir.unwrap_or_else(config::cache_dir),
+                trace_path: trace,
+                transport,
+            })
+        },
         Command::Startup {
             action,
             profile,
@@ -891,7 +927,14 @@ fn execute() -> Result<u32> {
             println!("{}", serde_json::to_string_pretty(&profile)?);
             Ok(0)
         }
-        Command::Doctor => run_doctor(cli.config.as_deref()),
+        Command::Doctor { json } => run_doctor(cli.config.as_deref(), json),
+        Command::Tools { json } => blueberry::tools_ui::run(cli.config.as_deref(), json),
+        Command::Setup => blueberry::setup::run(cli.config.as_deref()),
+        Command::Hub { query, add, command, remove } => {
+            if let (Some(name),Some(command))=(add,command) { blueberry::hub::add_favorite(&name,&command)?; Ok(0) }
+            else if let Some(name)=remove { blueberry::hub::remove_favorite(&name)?; Ok(0) }
+            else { blueberry::hub::run(cli.config.as_deref(), query.as_deref()) }
+        },
         Command::Learning {
             command: LearningCommand::Clear,
         } => {

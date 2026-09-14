@@ -33,7 +33,17 @@ search = "Ctrl+Alt+F"
 details = "F1"
 refresh = "Ctrl+Alt+C"
 reload = "Ctrl+Alt+R"
+resources = "Ctrl+Alt+D"
+hub = "Ctrl+Alt+P"
 protocol_prefix = "F12" # F5..F12; takes effect in a new session
+
+[resources]
+local_automatic = true # read local project and tool state automatically
+remote_on_demand = true # remote Docker/Kubernetes data requires Ctrl+Alt+D
+cache_seconds = 30
+
+[workbench]
+history_limit = 2000
 
 [help]
 enabled = true # background help for recognized installations

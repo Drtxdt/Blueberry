@@ -31,6 +31,8 @@ pub fn key_environment(keys: &crate::config::KeyBindings) -> BTreeMap<String, St
         ("DETAILS", &keys.details),
         ("REFRESH", &keys.refresh),
         ("RELOAD", &keys.reload),
+        ("RESOURCES", &keys.resources),
+        ("HUB", &keys.hub),
     ] {
         environment.insert(format!("BLUEBERRY_PUBLIC_KEY_{name}"), value.clone());
     }

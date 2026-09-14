@@ -61,7 +61,9 @@ blueberry startup status
 | 原生补全 | Ctrl+Alt+Space 手动调用当前 PowerShell 会话的补全 |
 | 图标与主题 | Unicode / Nerd Font 图标，支持深色、浅色及高对比度主题 |
 
-内置规则涵盖 Git、Cargo、npm，以及 Codex、Python、uv、rustc、winget、dotnet 等工具。Codex 包含 `exec`、`review`、`resume`、`fork`、`mcp` 和 `completion` 等主要上下文。
+内置规则涵盖 Git、Cargo、rustup、Python、pip、uv、Conda／Mamba、Poetry、npm、pnpm、Yarn、Bun、Go、dotnet、CMake、Docker Compose、kubectl、Helm、SSH、Codex 和 winget。项目补全可读取脚本、依赖、环境、工作区、解决方案、CMake 预设、Compose 服务、Kubernetes 上下文和 SSH Host。
+
+本机项目与环境数据自动更新。远程 Docker、Kubernetes 和 Helm 资源使用 **Ctrl+Alt+D** 主动读取，避免输入普通命令时连接远程服务。
 
 未知工具可以手动学习：
 
@@ -87,6 +89,8 @@ blueberry specs forget mytool
 | Ctrl+Alt+Space | 请求 PowerShell 原生补全 |
 | Ctrl+Alt+C | 刷新命令索引 |
 | Ctrl+Alt+R | 重载配置 |
+| Ctrl+Alt+D | 刷新当前工具的资源候选 |
+| Ctrl+Alt+P | 打开收藏、模板和历史工作台 |
 
 Enter 保持 PowerShell 的执行行为。快捷键发生冲突时，可运行 `blueberry doctor` 查看诊断并修改配置。
 
@@ -100,9 +104,20 @@ blueberry config init
 blueberry config check
 blueberry theme
 blueberry doctor
+blueberry doctor --json
+blueberry tools
+blueberry setup
+blueberry hub
 ```
 
-`blueberry config edit` 打开中文设置页，可调整外观、补全、快捷键和学习开关。方向键或 Tab 选择项目，Enter 修改，Ctrl+S 保存，Esc 返回；也支持鼠标点击和滚轮。修改外观时可以预览效果，保存后由配置热重载应用。
+`blueberry config edit` 打开中文设置页，可调整外观、补全、快捷键、资源和学习开关。方向键或 Tab 选择，Enter 修改，`/` 搜索，Ctrl+M 只看修改项，Ctrl+1／2／3 应用默认、精简或手动触发预设，Ctrl+D 查看差异，Ctrl+S 保存。修改外观时可以预览效果。
+
+`blueberry tools` 查看工具入口、内置规则数量和帮助学习状态。首次启动会提示一次 `blueberry setup`；向导不会阻塞 PowerShell。`blueberry hub` 汇总收藏、内置模板和 PSReadLine 历史；会话中按 Ctrl+Alt+P 后，Tab 将选中命令填回当前编辑行，Esc 保留原内容。
+
+```powershell
+blueberry hub --add "启动开发服务" --command "npm run dev"
+blueberry hub --remove "启动开发服务"
+```
 
 设置页保留 TOML 注释和高级配置。需要编辑自定义颜色、规格目录或命令说明时，选择“打开 TOML”。独立配置使用 `blueberry --config .\my-config.toml config edit`。Nerd Font 图标需要终端已配置相应字体。
 
@@ -142,7 +157,7 @@ GitHub Actions 检查 Windows、Linux、macOS 的构建和核心测试，并在 
 ## 未来展望
 
 - Linux/macOS 交互会话，以及 Bash、Zsh、Fish 等 Shell 适配。
-- 更深入的 Docker、Kubernetes、Python 项目动态候选。
+- 更深入的云账号资源、在线包索引和语言服务器候选。
 - 在线规格市场、AI 翻译和更多界面语言。
 - 行内预测、更完整的历史建议和 VS Code 集成。
 - 持续降低启动和菜单响应开销，目标为启动增量 P50 ≤50 ms、热态菜单 P95 ≤20 ms。

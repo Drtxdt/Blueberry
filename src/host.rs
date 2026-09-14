@@ -382,7 +382,7 @@ impl Worker {
                                 }
                             }
                         }
-                        let result = index.purpose_search(
+                        let mut result = index.purpose_search(
                             &search_catalog,
                             &q.line,
                             q.cursor,
@@ -390,6 +390,12 @@ impl Worker {
                             q.limit,
                             &q.descriptions,
                         );
+                        if context.command_position {
+                            for action in crate::providers::project_actions(&q.cwd,&q.line) {
+                                if result.candidates.len()>=q.limit { break; }
+                                result.candidates.push(Candidate{label:action.value.clone(),insert_text:action.value,description:action.description,kind:action.kind,id:action.source.clone(),source:action.source,match_reason:"当前项目".into(),append_space:true,..Default::default()});
+                            }
+                        }
                         let _ = output.send(HostEvent::Completion(q.revision, result));
                         continue;
                     }
@@ -994,6 +1000,8 @@ impl State {
                         searching: self.searching,
                         help_enabled: self.config.help.enabled,
                     };
+                    Arc::make_mut(&mut self.shell_environment)
+                        .remove("BLUEBERRY_REMOTE_REQUESTED");
                     self.schedule_metadata();
                     worker.update(|w| w.query = Some(query));
                 }
@@ -1501,6 +1509,8 @@ impl State {
                     Input::Details => "details",
                     Input::Refresh => "refresh",
                     Input::Reload => "reload",
+                    Input::Resources => "resources",
+                    Input::Hub => "hub",
                     _ => return true,
                 };
                 self.public_keys.get(name).copied().unwrap_or(true)
@@ -1623,6 +1633,20 @@ impl State {
                 self.reload(worker);
                 return Ok(());
             }
+            Input::Resources if self.prompt && self.ready => {
+                Arc::make_mut(&mut self.shell_environment)
+                    .insert("BLUEBERRY_REMOTE_REQUESTED".into(), "1".into());
+                worker.update(|work| work.refresh=true);
+                self.explicit=true; self.dismissed=false; self.dirty=true;
+                self.diagnostic=Some("正在刷新当前本机资源；远程资源仍需在对应工具中明确读取。".into());
+                return Ok(());
+            }
+            Input::Hub if self.prompt && self.ready => {
+                let candidates=crate::hub::candidates(&self.config,&self.line);
+                self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates,incomplete:false,argument_hint:"选择收藏、模板或历史命令；Tab 填回，Esc 保留原编辑行".into()};
+                self.selected=0;self.menu_focus=true;self.explicit=true;self.dismissed=false;self.details=false;
+                return Ok(());
+            }
             Input::Tab => vec![b'\t'],
             Input::Previous => if self.parser.screen().application_cursor() {
                 b"\x1bOA"
@@ -1644,6 +1668,8 @@ impl State {
             Input::Native => vec![0],
             Input::Search => b"\x1b\x06".to_vec(),
             Input::Details => b"\x1bOP".to_vec(),
+            Input::Resources => Vec::new(),
+            Input::Hub => Vec::new(),
             Input::Bytes(bytes) => bytes,
         };
         self.invalidate();

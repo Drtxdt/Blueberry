@@ -2709,7 +2709,7 @@ function Get-BlueberryPublicKeyConfiguration {
         if ([string]::Equals([string]$version, '1', [StringComparison]::Ordinal)) {
             $fastConfiguration = [ordered]@{}
             $fastComplete = $true
-            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload', 'search')) {
+            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload', 'search', 'resources', 'hub')) {
                 $environmentName = 'BLUEBERRY_PUBLIC_KEY_' + $name.ToUpperInvariant()
                 $value = [Environment]::GetEnvironmentVariable($environmentName, 'Process')
                 if ([string]::IsNullOrWhiteSpace([string]$value)) {
@@ -2742,7 +2742,7 @@ function Get-BlueberryPublicKeyConfiguration {
         if ($document.RootElement.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
             $invalid = $true
         } else {
-            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload', 'search')) {
+            foreach ($name in @('trigger', 'native', 'details', 'refresh', 'reload', 'search', 'resources', 'hub')) {
                 $property = $script:BLUEBERRY_JsonElement::new()
                 if (-not $document.RootElement.TryGetProperty($name, [ref]$property)) {
                     continue

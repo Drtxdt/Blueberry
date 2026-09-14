@@ -14,6 +14,8 @@ pub enum Input {
     Details,
     Refresh,
     Reload,
+    Resources,
+    Hub,
     Resize(u16, u16),
 }
 
@@ -72,6 +74,8 @@ pub fn configured(event: &Event, keys: &crate::config::KeyBindings) -> Option<In
         (&keys.details, Input::Details),
         (&keys.refresh, Input::Refresh),
         (&keys.reload, Input::Reload),
+        (&keys.resources, Input::Resources),
+        (&keys.hub, Input::Hub),
     ] {
         if parse_chord(chord).ok() == Some((code, key.modifiers)) {
             return Some(action);

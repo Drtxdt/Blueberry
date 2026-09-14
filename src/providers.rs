@@ -10,8 +10,9 @@
 use crate::model::CandidateKind;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::env;
 use std::fs::{self, File};
-use std::io::{self, Read};
+use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -85,6 +86,19 @@ pub enum ProviderKind {
     Cargo,
     Npm,
     Pnpm,
+    Python,
+    Conda,
+    Poetry,
+    Yarn,
+    Bun,
+    Rustup,
+    Go,
+    Dotnet,
+    Cmake,
+    Docker,
+    Kubectl,
+    Helm,
+    Ssh,
 }
 
 /// Select a project provider for an executable name or path.
@@ -95,6 +109,19 @@ pub fn provider_for_command(command: &str) -> Option<ProviderKind> {
         "cargo" => Some(ProviderKind::Cargo),
         "npm" => Some(ProviderKind::Npm),
         "pnpm" => Some(ProviderKind::Pnpm),
+        "python" | "python3" | "pip" | "pip3" | "uv" => Some(ProviderKind::Python),
+        "conda" | "mamba" | "micromamba" => Some(ProviderKind::Conda),
+        "poetry" => Some(ProviderKind::Poetry),
+        "yarn" => Some(ProviderKind::Yarn),
+        "bun" => Some(ProviderKind::Bun),
+        "rustup" => Some(ProviderKind::Rustup),
+        "go" => Some(ProviderKind::Go),
+        "dotnet" => Some(ProviderKind::Dotnet),
+        "cmake" | "ctest" => Some(ProviderKind::Cmake),
+        "docker" | "docker-compose" => Some(ProviderKind::Docker),
+        "kubectl" => Some(ProviderKind::Kubectl),
+        "helm" => Some(ProviderKind::Helm),
+        "ssh" | "scp" | "sftp" => Some(ProviderKind::Ssh),
         _ => None,
     }
 }
@@ -548,6 +575,18 @@ pub fn collect(query: &ProjectQuery, cancelled: &AtomicBool) -> ProviderResult {
         ProviderKind::Cargo => collect_cargo(query, cancelled),
         ProviderKind::Npm => collect_node(query, cancelled, false),
         ProviderKind::Pnpm => collect_node(query, cancelled, true),
+        ProviderKind::Yarn | ProviderKind::Bun => collect_node(query, cancelled, false),
+        ProviderKind::Python => collect_python(query, cancelled),
+        ProviderKind::Conda => collect_conda(query, cancelled),
+        ProviderKind::Poetry => collect_python(query, cancelled),
+        ProviderKind::Rustup => collect_rustup(query, cancelled),
+        ProviderKind::Go => collect_go(query, cancelled),
+        ProviderKind::Dotnet => collect_dotnet(query, cancelled),
+        ProviderKind::Cmake => collect_cmake(query, cancelled),
+        ProviderKind::Docker => collect_docker(query, cancelled),
+        ProviderKind::Kubectl => collect_kubeconfig(query, cancelled),
+        ProviderKind::Helm => collect_helm(query, cancelled),
+        ProviderKind::Ssh => collect_ssh(query, cancelled),
     }
 }
 
@@ -576,6 +615,19 @@ fn selected_provider(query: &ProjectQuery) -> Option<ProviderKind> {
             "cargo" => Some(ProviderKind::Cargo),
             "npm" => Some(ProviderKind::Npm),
             "pnpm" => Some(ProviderKind::Pnpm),
+            "python" => Some(ProviderKind::Python),
+            "conda" => Some(ProviderKind::Conda),
+            "poetry" => Some(ProviderKind::Poetry),
+            "yarn" => Some(ProviderKind::Yarn),
+            "bun" => Some(ProviderKind::Bun),
+            "rustup" => Some(ProviderKind::Rustup),
+            "go" => Some(ProviderKind::Go),
+            "dotnet" => Some(ProviderKind::Dotnet),
+            "cmake" => Some(ProviderKind::Cmake),
+            "docker" => Some(ProviderKind::Docker),
+            "kubectl" => Some(ProviderKind::Kubectl),
+            "helm" => Some(ProviderKind::Helm),
+            "ssh" => Some(ProviderKind::Ssh),
             _ => None,
         };
     }
@@ -608,6 +660,19 @@ fn valid_provider_id(provider: &str) -> bool {
             | "pnpm.scripts"
             | "pnpm.workspaces"
             | "pnpm.dependencies"
+            | "python.scripts" | "python.dependencies" | "python.environments"
+            | "conda.environments" | "conda.packages"
+            | "poetry.scripts" | "poetry.dependencies" | "poetry.environments"
+            | "yarn.scripts" | "yarn.workspaces" | "yarn.dependencies"
+            | "bun.scripts" | "bun.workspaces" | "bun.dependencies"
+            | "rustup.toolchains" | "rustup.targets" | "rustup.components"
+            | "go.packages" | "go.files" | "go.workspaces"
+            | "dotnet.projects" | "dotnet.frameworks" | "dotnet.references" | "dotnet.tools"
+            | "cmake.presets" | "cmake.build_presets" | "cmake.test_presets" | "cmake.targets"
+            | "docker.services" | "docker.profiles" | "docker.contexts"
+            | "kubectl.contexts" | "kubectl.namespaces" | "kubectl.resources"
+            | "helm.charts" | "helm.repositories" | "helm.releases"
+            | "ssh.hosts"
     )
 }
 
@@ -3545,4 +3610,222 @@ fn node_project_root(query: &ProjectQuery) -> Option<PathBuf> {
         .or_else(|| node_workspace_manifest(&cwd))
         .or_else(|| find_upwards_named(&cwd, "package.json"))
         .and_then(|manifest| manifest.parent().map(lexical_normalize))
+}
+
+pub fn project_actions(cwd:&Path, query:&str)->Vec<ProviderCandidate>{
+    let query=query.trim().to_lowercase();let mut actions=Vec::new();
+    let matches=|words:&[&str]|query.is_empty()||words.iter().any(|word|word.to_lowercase().contains(&query)||query.contains(&word.to_lowercase()));
+    if let Some(path)=find_upwards(cwd,"package.json") && let Ok(text)=read_limited(&path,MANIFEST_LIMIT) && let Ok(value)=serde_json::from_str::<serde_json::Value>(&text) && let Some(scripts)=value.get("scripts").and_then(serde_json::Value::as_object) {
+        for name in scripts.keys(){let words=if name.contains("test"){vec!["测试","运行测试"]}else if name.contains("dev")||name.contains("start"){vec!["开发服务","启动服务"]}else{vec!["运行脚本"]};if matches(&words){actions.push(ProviderCandidate{value:format!("npm run {name}"),description:format!("package.json 脚本 · {}",words[0]),kind:CandidateKind::Command,source:"project.action.node".into()});}}
+    }
+    if find_upwards(cwd,"Cargo.toml").is_some() && matches(&["测试","运行测试"]){actions.push(ProviderCandidate{value:"cargo test".into(),description:"当前 Rust 项目测试".into(),kind:CandidateKind::Command,source:"project.action.cargo".into()});}
+    if find_upwards(cwd,"go.mod").is_some() && matches(&["测试","运行测试"]){actions.push(ProviderCandidate{value:"go test ./...".into(),description:"当前 Go 模块测试".into(),kind:CandidateKind::Command,source:"project.action.go".into()});}
+    if find_upwards(cwd,"pyproject.toml").is_some() && matches(&["测试","运行测试"]){actions.push(ProviderCandidate{value:"uv run pytest".into(),description:"当前 Python 项目测试".into(),kind:CandidateKind::Command,source:"project.action.python".into()});}
+    if let Some(path)=["compose.yaml","compose.yml","docker-compose.yaml","docker-compose.yml"].iter().find_map(|name|find_upwards(cwd,name)) && let Ok(text)=read_limited(&path,MANIFEST_LIMIT) {
+        let mut in_services=false;for line in text.lines(){if line.trim()=="services:"{in_services=true;continue}if in_services&&!line.starts_with(' ')&&!line.trim().is_empty(){in_services=false}if in_services&&line.starts_with("  ")&&!line.starts_with("    ")&&line.trim().ends_with(':'){let service=line.trim().trim_end_matches(':');if matches(&["日志","服务日志","查看日志"]){actions.push(ProviderCandidate{value:format!("docker compose logs -f {service}"),description:"当前 Compose 服务日志".into(),kind:CandidateKind::Command,source:"project.action.compose".into()});}}}
+    }
+    actions
+}
+
+fn active_scope<'a>(query: &'a ProjectQuery, family: &str) -> &'a str {
+    provider_scope(query, family).unwrap_or("")
+}
+
+fn run_bounded_query(query:&ProjectQuery, program:&str, args:&[&str], cancelled_flag:&AtomicBool)->Result<Vec<String>,String>{
+    if cancelled(cancelled_flag){return Err("查询已取消".into())}
+    let output_path=env::temp_dir().join(format!("blueberry-query-{}.txt",uuid::Uuid::new_v4()));
+    let mut output=File::create(&output_path).map_err(|e|e.to_string())?;
+    let stdout=output.try_clone().map_err(|e|e.to_string())?;
+    let mut command=Command::new(program);command.args(args).current_dir(&query.cwd).env_clear().envs(&query.environment).stdin(Stdio::null()).stdout(Stdio::from(stdout)).stderr(Stdio::null());
+    #[cfg(windows)] command.creation_flags(CREATE_NO_WINDOW);
+    let mut child=match command.spawn(){Ok(child)=>child,Err(error)=>{let _=fs::remove_file(&output_path);return Err(error.to_string())}};
+    let deadline=Instant::now()+Duration::from_secs(2);let status=loop{if cancelled(cancelled_flag)||Instant::now()>=deadline{let _=child.kill();let _=child.wait();let _=fs::remove_file(&output_path);return Err(if cancelled(cancelled_flag){"查询已取消"}else{"查询超时"}.into())}match child.try_wait(){Ok(Some(status))=>break status,Ok(None)=>std::thread::sleep(Duration::from_millis(5)),Err(error)=>{let _=child.kill();let _=fs::remove_file(&output_path);return Err(error.to_string())}}};
+    if !status.success(){let _=fs::remove_file(&output_path);return Err(format!("命令退出码 {}",status.code().unwrap_or(-1)))}
+    output.seek(SeekFrom::Start(0)).map_err(|e|e.to_string())?;let mut bytes=Vec::new();output.take(2*1024*1024+1).read_to_end(&mut bytes).map_err(|e|e.to_string())?;let _=fs::remove_file(&output_path);if bytes.len()>2*1024*1024{return Err("查询输出超过 2 MiB".into())}
+    Ok(String::from_utf8_lossy(&bytes).lines().map(str::trim).filter(|line|!line.is_empty()).map(str::to_owned).collect())
+}
+
+fn add_values<I>(result: &mut ProviderResult, values: I, description: &str, source: &str, prefix: &str)
+where
+    I: IntoIterator,
+    I::Item: Into<String>,
+{
+    for value in values {
+        add_filtered(result, value.into(), description, CandidateKind::Value, source, prefix);
+    }
+}
+
+fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
+    let mut result = ProviderResult::default();
+    if active_scope(query,"python")=="dependencies" || matches!(executable_stem(&query.command).as_str(),"pip"|"pip3") {
+        if let Some(root)=query.environment.get("VIRTUAL_ENV").or_else(||query.environment.get("CONDA_PREFIX")) {
+            let root=PathBuf::from(root);
+            let candidates=[root.join("Lib/site-packages"),root.join("lib")];
+            for dir in candidates { add_watch_path(&mut result,&dir); if let Ok(entries)=fs::read_dir(dir){let packages=entries.flatten().filter_map(|e|{let name=e.file_name().to_string_lossy().into_owned();name.strip_suffix(".dist-info").or_else(||name.strip_suffix(".egg-info")).map(|n|n.split('-').next().unwrap_or(n).replace('_',"-"))});add_values(&mut result,packages,"当前 Python 环境已安装包","python.installed",&query.prefix);} }
+        }
+    }
+    let Some(manifest) = find_upwards(&query.cwd, "pyproject.toml") else { return result };
+    result.project_root = manifest.parent().map(Path::to_path_buf);
+    add_watch_path(&mut result, &manifest);
+    if cancelled(cancelled_flag) { result.incomplete = true; return result; }
+    if let Ok(text) = read_limited(&manifest, MANIFEST_LIMIT) {
+        let scope = query.provider.as_deref().unwrap_or("");
+        if scope.ends_with("scripts") || query.args.iter().any(|a| a == "run") {
+            let Ok(value) = text.parse::<toml::Value>() else { return result.finish() };
+            let scripts = value.get("project").and_then(|v| v.get("scripts")).and_then(toml::Value::as_table)
+                .into_iter().flat_map(|t| t.keys().cloned())
+                .chain(value.get("tool").and_then(|v| v.get("poetry")).and_then(|v| v.get("scripts")).and_then(toml::Value::as_table).into_iter().flat_map(|t| t.keys().cloned()));
+            add_values(&mut result, scripts, "Python 项目脚本", "python.script", &query.prefix);
+        } else {
+            let Ok(value) = text.parse::<toml::Value>() else { return result.finish() };
+            let dependencies = value.get("project").and_then(|v| v.get("dependencies")).and_then(toml::Value::as_array)
+                .into_iter().flatten().filter_map(toml::Value::as_str).filter_map(|s| s.split([' ', '<', '>', '=', '[', ';']).next()).map(str::to_owned);
+            add_values(&mut result, dependencies, "pyproject.toml 依赖", "python.dependency", &query.prefix);
+        }
+    }
+    result.finish()
+}
+
+fn collect_conda(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
+    let mut result = ProviderResult::default();
+    let mut roots = BTreeSet::new();
+    for key in ["CONDA_PREFIX", "CONDA_ROOT", "MAMBA_ROOT_PREFIX"] {
+        if let Some(value) = query.environment.get(key).filter(|v| !v.is_empty()) { roots.insert(PathBuf::from(value)); }
+    }
+    let mut envs = BTreeSet::new();
+    for root in roots {
+        if let Some(name) = root.file_name().and_then(|v| v.to_str()) { envs.insert(name.to_owned()); }
+        let env_dir = root.join("envs");
+        add_watch_path(&mut result, &env_dir);
+        if let Ok(entries) = fs::read_dir(env_dir) {
+            envs.extend(entries.flatten().filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()));
+        }
+    }
+    if active_scope(query,"conda")=="packages" {
+        if let Some(prefix)=query.environment.get("CONDA_PREFIX") {
+            let dir=PathBuf::from(prefix).join("conda-meta");add_watch_path(&mut result,&dir);
+            if let Ok(entries)=fs::read_dir(dir){let packages=entries.flatten().filter_map(|e|e.file_name().into_string().ok()).filter_map(|n|n.strip_suffix(".json").map(str::to_owned)).map(|n|n.rsplitn(3,'-').last().unwrap_or(&n).to_owned());add_values(&mut result,packages,"当前 Conda 环境已安装包","conda.package",&query.prefix);}
+        }
+    } else {
+        add_values(&mut result, envs, "本机 Conda 环境", "conda.environment", &query.prefix);
+    }
+    result.finish()
+}
+
+fn collect_rustup(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
+    let mut result = ProviderResult::default();
+    let root = query.environment.get("RUSTUP_HOME").map(PathBuf::from).or_else(|| query.environment.get("USERPROFILE").map(|p| PathBuf::from(p).join(".rustup")));
+    let Some(root) = root else { return result };
+    let folder = match active_scope(query, "rustup") { "targets" => "toolchains", "components" => "toolchains", _ => "toolchains" };
+    let dir = root.join(folder); add_watch_path(&mut result, &dir);
+    if let Ok(entries) = fs::read_dir(dir) { add_values(&mut result, entries.flatten().filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()), "已安装 Rust 工具链", "rustup.toolchain", &query.prefix); }
+    result.finish()
+}
+
+fn collect_go(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
+    let mut result = ProviderResult::default();
+    let manifest = find_upwards(&query.cwd, "go.mod").or_else(|| find_upwards(&query.cwd, "go.work"));
+    result.project_root = manifest.as_ref().and_then(|p| p.parent()).map(Path::to_path_buf);
+    if let Some(path) = manifest { add_watch_path(&mut result, &path); }
+    let root = result.project_root.clone().unwrap_or_else(|| query.cwd.clone());
+    if let Ok(entries) = fs::read_dir(&root) {
+        let values = entries.flatten().filter_map(|e| {
+            let p=e.path();
+            if p.is_dir() { Some(format!("./{}", e.file_name().to_string_lossy())) }
+            else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("go")) { Some(e.file_name().to_string_lossy().into_owned()) } else { None }
+        });
+        add_values(&mut result, values, "当前 Go 项目", "go.project", &query.prefix);
+    }
+    result.finish()
+}
+
+fn collect_dotnet(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
+    let mut result = ProviderResult::default();
+    let mut current = Some(query.cwd.as_path());
+    let mut root = query.cwd.clone();
+    while let Some(dir) = current {
+        let has_solution = fs::read_dir(dir).ok().is_some_and(|mut entries| {
+            entries.any(|entry| {
+                entry.ok().is_some_and(|entry| {
+                    entry
+                        .path()
+                        .extension()
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("sln"))
+                })
+            })
+        });
+        if has_solution {
+            root = dir.to_path_buf();
+            break;
+        }
+        current = dir.parent();
+    }
+    result.project_root=Some(root.clone()); add_watch_path(&mut result, &root);
+    if let Ok(entries)=fs::read_dir(root) { add_values(&mut result, entries.flatten().filter_map(|e| { let p=e.path(); let ext=p.extension()?.to_str()?; matches!(ext.to_ascii_lowercase().as_str(), "sln"|"csproj"|"fsproj"|"vbproj").then(|| e.file_name().to_string_lossy().into_owned()) }), "解决方案或项目", "dotnet.project", &query.prefix); }
+    result.finish()
+}
+
+fn collect_cmake(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
+    let mut result=ProviderResult::default();
+    let Some(path)=find_upwards(&query.cwd,"CMakePresets.json").or_else(|| find_upwards(&query.cwd,"CMakeUserPresets.json")) else { return result };
+    result.project_root=path.parent().map(Path::to_path_buf); add_watch_path(&mut result,&path);
+    if let Ok(text)=read_limited(&path,MANIFEST_LIMIT) && let Ok(json)=serde_json::from_str::<serde_json::Value>(&text) {
+        let key=match active_scope(query,"cmake") { "build_presets"=>"buildPresets", "test_presets"=>"testPresets", _=>"configurePresets" };
+        let values=json.get(key).and_then(|v|v.as_array()).into_iter().flatten().filter_map(|v|v.get("name")?.as_str()).map(str::to_owned);
+        add_values(&mut result,values,"CMake 预设","cmake.preset",&query.prefix);
+    }
+    result.finish()
+}
+
+fn collect_docker(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
+    let mut result=ProviderResult::default();
+    let remote=query.environment.get("DOCKER_HOST").is_some_and(|host|!host.starts_with("npipe://")&&!host.starts_with("unix://")&&!host.contains("localhost")&&!host.contains("127.0.0.1"));
+    if remote && query.environment.get("BLUEBERRY_REMOTE_REQUESTED").is_some_and(|v|v=="1") {
+        match run_bounded_query(query,"docker",&["ps","--format","{{.Names}}"],cancelled_flag){Ok(values)=>add_values(&mut result,values,"远程 Docker 容器","docker.remote.container",&query.prefix),Err(error)=>{result.incomplete=true;result.diagnostics.push(format!("Docker 资源读取失败：{error}"));}}
+    }
+    let names=["compose.yaml","compose.yml","docker-compose.yaml","docker-compose.yml"];
+    let Some(path)=names.iter().find_map(|n|find_upwards(&query.cwd,n)) else { return result };
+    result.project_root=path.parent().map(Path::to_path_buf); add_watch_path(&mut result,&path);
+    if let Ok(text)=read_limited(&path,MANIFEST_LIMIT) {
+        let mut in_services=false;
+        let values=text.lines().filter_map(|line| { if line.trim()=="services:" {in_services=true;return None} if in_services && !line.starts_with(' ')&&!line.trim().is_empty(){in_services=false} if in_services { let trimmed=line.trim(); (line.starts_with("  ")&&!line.starts_with("    ")&&trimmed.ends_with(':')).then(||trimmed.trim_end_matches(':').to_owned()) } else {None} });
+        add_values(&mut result,values,"Compose 服务","docker.compose.service",&query.prefix);
+    }
+    result.finish()
+}
+
+fn collect_kubeconfig(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
+    let mut result=ProviderResult::default();
+    let path=query.environment.get("KUBECONFIG").and_then(|v|env::split_paths(v).next()).or_else(||query.environment.get("USERPROFILE").map(|p|PathBuf::from(p).join(".kube/config")));
+    let Some(path)=path else{return result}; add_watch_path(&mut result,&path);
+    if let Ok(text)=read_limited(&path,2*MANIFEST_LIMIT) {
+        let mut wanted=false; let scope=active_scope(query,"kubectl");
+        let values=text.lines().filter_map(|line| {let t=line.trim(); if t=="contexts:" {wanted=true;return None} if wanted&&t.ends_with(':')&&!line.starts_with(' '){wanted=false} if wanted&&t.starts_with("- name:"){Some(t.trim_start_matches("- name:").trim().to_owned())}else if scope=="contexts"&&t.starts_with("current-context:"){Some(t.trim_start_matches("current-context:").trim().to_owned())}else{None}});
+        add_values(&mut result,values,"Kubernetes 上下文","kubectl.context",&query.prefix);
+    }
+    if query.environment.get("BLUEBERRY_REMOTE_REQUESTED").is_some_and(|v|v=="1") {
+        let scope=active_scope(query,"kubectl");
+        let args=if scope=="namespaces"{vec!["get","namespaces","-o","name"]}else{let kind=query.args.iter().find(|arg|matches!(arg.as_str(),"pods"|"pod"|"deployments"|"deployment"|"services"|"service"|"statefulsets"|"daemonsets"|"jobs")).map(String::as_str).unwrap_or("pods");vec!["get",kind,"-o","name"]};
+        match run_bounded_query(query,"kubectl",&args,cancelled_flag){Ok(values)=>add_values(&mut result,values,"当前 Kubernetes 上下文资源","kubectl.remote",&query.prefix),Err(error)=>{result.incomplete=true;result.diagnostics.push(format!("Kubernetes 资源读取失败：{error}"));}}
+    }
+    result.finish()
+}
+
+fn collect_helm(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
+    let mut result=ProviderResult::default();
+    let mut current=Some(query.cwd.as_path());
+    while let Some(dir)=current { let chart=dir.join("Chart.yaml"); if chart.is_file(){result.project_root=Some(dir.to_path_buf());add_watch_path(&mut result,&chart);add_filtered(&mut result,dir.to_string_lossy().into_owned(),"本地 Helm Chart",CandidateKind::Directory,"helm.chart",&query.prefix);break} current=dir.parent(); }
+    if active_scope(query,"helm")=="releases" && query.environment.get("BLUEBERRY_REMOTE_REQUESTED").is_some_and(|v|v=="1") {match run_bounded_query(query,"helm",&["list","-q"],cancelled_flag){Ok(values)=>add_values(&mut result,values,"当前上下文 Helm release","helm.remote.release",&query.prefix),Err(error)=>{result.incomplete=true;result.diagnostics.push(format!("Helm release 读取失败：{error}"));}}}
+    result.finish()
+}
+
+fn collect_ssh(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
+    let mut result=ProviderResult::default();
+    let Some(profile)=query.environment.get("USERPROFILE") else{return result};
+    let path=PathBuf::from(profile).join(".ssh/config"); add_watch_path(&mut result,&path);
+    if let Ok(text)=read_limited(&path,MANIFEST_LIMIT) {
+        let hosts=text.lines().filter_map(|line| {let t=line.trim(); let rest=t.strip_prefix("Host ").or_else(||t.strip_prefix("host "))?; Some(rest.split_whitespace().filter(|h|!h.contains(['*','?','!'])).map(str::to_owned).collect::<Vec<_>>())}).flatten();
+        add_values(&mut result,hosts,"SSH 配置主机","ssh.host",&query.prefix);
+    }
+    result.finish()
 }

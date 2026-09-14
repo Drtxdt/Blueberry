@@ -29,6 +29,8 @@ pub struct Config {
     pub learning: LearningConfig,
     pub specs: SpecsConfig,
     pub help: HelpConfig,
+    pub resources: ResourceConfig,
+    pub workbench: WorkbenchConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -40,6 +42,8 @@ pub struct KeyBindings {
     pub details: String,
     pub refresh: String,
     pub reload: String,
+    pub resources: String,
+    pub hub: String,
     pub protocol_prefix: String,
 }
 impl Default for KeyBindings {
@@ -51,9 +55,31 @@ impl Default for KeyBindings {
             details: "F1".into(),
             refresh: "Ctrl+Alt+C".into(),
             reload: "Ctrl+Alt+R".into(),
+            resources: "Ctrl+Alt+D".into(),
+            hub: "Ctrl+Alt+P".into(),
             protocol_prefix: "F12".into(),
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ResourceConfig {
+    pub local_automatic: bool,
+    pub remote_on_demand: bool,
+    pub cache_seconds: u64,
+}
+impl Default for ResourceConfig {
+    fn default() -> Self { Self { local_automatic: true, remote_on_demand: true, cache_seconds: 30 } }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct WorkbenchConfig {
+    pub history_limit: usize,
+}
+impl Default for WorkbenchConfig {
+    fn default() -> Self { Self { history_limit: 2_000 } }
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -164,6 +190,8 @@ impl Config {
             ("details", &self.keys.details),
             ("refresh", &self.keys.refresh),
             ("reload", &self.keys.reload),
+            ("resources", &self.keys.resources),
+            ("hub", &self.keys.hub),
         ] {
             let parsed = crate::input::parse_chord(chord)
                 .map_err(|error| anyhow!("keys.{name}: {error}"))?;
@@ -179,6 +207,12 @@ impl Config {
         }
         if self.descriptions.len() > 10_000 {
             bail!("descriptions must contain at most 10000 entries");
+        }
+        if !(1..=86_400).contains(&self.resources.cache_seconds) {
+            bail!("resources.cache_seconds must be 1 through 86400");
+        }
+        if !(1..=20_000).contains(&self.workbench.history_limit) {
+            bail!("workbench.history_limit must be 1 through 20000");
         }
         for (key, value) in &self.descriptions {
             if key.trim().is_empty() || key.chars().count() > 512 {
@@ -247,6 +281,8 @@ pub fn specs_dir(config: &Config, config_path: Option<&Path>) -> PathBuf {
 pub fn statistics_path() -> PathBuf {
     config_root().join("usage.json")
 }
+pub fn state_path() -> PathBuf { config_root().join("state.toml") }
+pub fn commands_path() -> PathBuf { config_root().join("commands.toml") }
 
 impl Config {
     pub(crate) fn apply_theme(&mut self, explicit: Option<&toml::Table>) {
@@ -341,7 +377,17 @@ search = "Ctrl+Alt+F"
 details = "F1"
 refresh = "Ctrl+Alt+C"
 reload = "Ctrl+Alt+R"
+resources = "Ctrl+Alt+D"
+hub = "Ctrl+Alt+P"
 protocol_prefix = "F12" # F5..F12; takes effect in a new session
+
+[resources]
+local_automatic = true
+remote_on_demand = true
+cache_seconds = 30
+
+[workbench]
+history_limit = 2000
 
 [learning]
 enabled = true # local selection counts only; learning clear removes them
