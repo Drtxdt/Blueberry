@@ -43,3 +43,9 @@
 - 首次公开 Release 后，在干净用户环境验证 README 一条命令安装及 PATH 生效。
 
 复现自动回归：`scripts/verify-local.ps1 -Shell pwsh.exe`。发布步骤见 [发版指南](releasing.md)。
+
+## 本地增量：右键粘贴与中文设置页
+
+本次增量包含按子程序需求切换鼠标捕获，以及 `blueberry config edit` 中文设置页。设置页覆盖常用选项、即时预览、保留注释的 TOML 保存和外部修改提示。
+
+按本轮要求，仅执行 `cargo build --release --locked` 编译检查。上述历史自动回归结果对应之前的提交，本次交互行为尚未实测：包括 Windows Terminal 右键粘贴、外部程序鼠标模式切换、窄窗口设置页和返回 PowerShell。现有 CI 保持原样；本次增量本地交付，未主动推送。

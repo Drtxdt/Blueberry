@@ -95,11 +95,18 @@ Enter 保持 PowerShell 的执行行为。快捷键发生冲突时，可运行 `
 默认配置为 `%APPDATA%\Blueberry\config.toml`，安装目录为 `%LOCALAPPDATA%\Blueberry\bin`，缓存为 `%LOCALAPPDATA%\Blueberry\cache`。
 
 ```powershell
+blueberry config edit
 blueberry config init
 blueberry config check
 blueberry theme
 blueberry doctor
 ```
+
+`blueberry config edit` 打开中文设置页，可调整外观、补全、快捷键和学习开关。方向键或 Tab 选择项目，Enter 修改，Ctrl+S 保存，Esc 返回；也支持鼠标点击和滚轮。修改外观时可以预览效果，保存后由配置热重载应用。
+
+设置页保留 TOML 注释和高级配置。需要编辑自定义颜色、规格目录或命令说明时，选择“打开 TOML”。独立配置使用 `blueberry --config .\my-config.toml config edit`。Nerd Font 图标需要终端已配置相应字体。
+
+普通命令行编辑期间，右键粘贴和文字选择沿用 Windows Terminal 的设置；外部程序请求鼠标输入时，Blueberry 将鼠标操作转交给该程序。
 
 安装时使用兼容性较好的 Unicode 图标。终端已配置 Nerd Font 时，可修改：
 

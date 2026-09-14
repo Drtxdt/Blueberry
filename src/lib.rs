@@ -17,6 +17,7 @@ pub mod providers;
 pub mod pty;
 pub mod ranking;
 pub mod reload;
+pub mod settings;
 pub mod sources;
 pub mod spec_catalog;
 pub mod specs;

@@ -176,6 +176,8 @@ enum LearningCommand {
 }
 #[derive(Subcommand)]
 enum ConfigCommand {
+    /// Open the Chinese interactive settings page.
+    Edit,
     Init {
         #[arg(long)]
         output: Option<PathBuf>,
@@ -832,6 +834,9 @@ fn execute() -> Result<u32> {
             Ok(0)
         }
         Command::Specs { command } => run_specs_command(command, cli.config.as_deref()),
+        Command::Config {
+            command: ConfigCommand::Edit,
+        } => blueberry::settings::run(cli.config.as_deref()),
         Command::Config {
             command: ConfigCommand::Init { output },
         } => {

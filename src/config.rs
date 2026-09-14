@@ -249,7 +249,7 @@ pub fn statistics_path() -> PathBuf {
 }
 
 impl Config {
-    fn apply_theme(&mut self, explicit: Option<&toml::Table>) {
+    pub(crate) fn apply_theme(&mut self, explicit: Option<&toml::Table>) {
         let palette = match self.ui.theme.as_str() {
             "light" => [
                 "#202020", "#ffffff", "#ffffff", "#005fb8", "#657585", "#505050", "#9c3600",

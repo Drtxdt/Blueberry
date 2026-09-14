@@ -509,12 +509,15 @@ impl Drop for Worker {
     }
 }
 
-struct RawMode {
+const MOUSE_OFF: &[u8] = b"\x1b[?9l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1005l\x1b[?1006l";
+
+pub(crate) struct RawMode {
     #[cfg(windows)]
     original: u32,
+    mouse: bool,
 }
 impl RawMode {
-    fn enable() -> std::io::Result<Self> {
+    pub(crate) fn enable() -> std::io::Result<Self> {
         #[cfg(windows)]
         {
             use windows_sys::Win32::System::Console::*;
@@ -530,26 +533,55 @@ impl RawMode {
                     & !(ENABLE_LINE_INPUT
                         | ENABLE_ECHO_INPUT
                         | ENABLE_PROCESSED_INPUT
-                        | ENABLE_QUICK_EDIT_MODE))
+                        | ENABLE_QUICK_EDIT_MODE
+                        | ENABLE_MOUSE_INPUT))
                     | ENABLE_WINDOW_INPUT
-                    | ENABLE_MOUSE_INPUT
                     | ENABLE_VIRTUAL_TERMINAL_INPUT
                     | ENABLE_EXTENDED_FLAGS;
                 if SetConsoleMode(handle, mode) == 0 {
                     return Err(std::io::Error::last_os_error());
                 }
             }
-            Ok(Self { original })
+            Ok(Self {
+                original,
+                mouse: false,
+            })
         }
         #[cfg(not(windows))]
         {
             terminal::enable_raw_mode()?;
-            Ok(Self {})
+            Ok(Self { mouse: false })
         }
+    }
+
+    pub(crate) fn mouse(&mut self, enabled: bool) -> std::io::Result<()> {
+        if self.mouse == enabled {
+            return Ok(());
+        }
+        #[cfg(windows)]
+        unsafe {
+            use windows_sys::Win32::System::Console::*;
+            let handle = GetStdHandle(STD_INPUT_HANDLE);
+            let mut mode = 0;
+            if GetConsoleMode(handle, &mut mode) == 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            mode &= !ENABLE_MOUSE_INPUT;
+            if enabled {
+                mode |= ENABLE_MOUSE_INPUT;
+            }
+            if SetConsoleMode(handle, mode) == 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+        }
+        self.mouse = enabled;
+        Ok(())
     }
 }
 impl Drop for RawMode {
     fn drop(&mut self) {
+        let _ = std::io::stdout().write_all(MOUSE_OFF);
+        let _ = std::io::stdout().flush();
         #[cfg(windows)]
         // Restore exactly the input mode inherited from the launching terminal.
         unsafe {
@@ -559,6 +591,7 @@ impl Drop for RawMode {
         #[cfg(not(windows))]
         let _ = terminal::disable_raw_mode();
         let _ = std::io::stdout().write_all(b"\x1b[0m\x1b[?25h\x1b[?2004l");
+        let _ = std::io::stdout().flush();
     }
 }
 
@@ -1287,6 +1320,9 @@ impl State {
         worker: &Worker,
     ) -> Result<()> {
         if let Event::Mouse(mouse) = event {
+            if self.prompt {
+                return Ok(());
+            }
             if let Some(bytes) = input::mouse_bytes(mouse, self.parser.screen()) {
                 writer.write_all(&bytes)?;
                 writer.flush()?;
@@ -1715,7 +1751,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let cwd = std::env::current_dir()?;
     env.extend(pty::key_environment(&config.keys));
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
-    let _raw = RawMode::enable()
+    let mut raw = RawMode::enable()
         .context("Blueberry run requires an interactive terminal. Use 'complete' for scripts.")?;
     #[cfg(windows)]
     let _ = crossterm::ansi_support::supports_ansi();
@@ -2036,6 +2072,11 @@ pub fn run(options: RunOptions) -> Result<u32> {
             state.reload(&worker);
             ui_dirty = true;
         }
+        if state.prompt {
+            // A child can exit without resetting its modes. Do not resurrect
+            // its old capture request on resize or the next command's execution.
+            state.parser.process(MOUSE_OFF);
+        }
         state.query(&mut writer)?;
         if std::mem::take(&mut state.repaint) {
             frame.extend_from_slice(b"\x1b[2J\x1b[H");
@@ -2129,6 +2170,15 @@ pub fn run(options: RunOptions) -> Result<u32> {
             } else {
                 b"\x1b[?2004l"
             });
+        }
+        // Ordinary editing belongs to the terminal (selection/right-click paste).
+        // Only applications requesting mouse reports may capture the outer mouse.
+        raw.mouse(
+            !state.prompt
+                && state.parser.screen().mouse_protocol_mode() != vt100::MouseProtocolMode::None,
+        )?;
+        if state.prompt && !frame.is_empty() {
+            frame.extend_from_slice(MOUSE_OFF);
         }
         if !frame.is_empty() {
             let started = Instant::now();
