@@ -1455,7 +1455,11 @@ impl State {
                 };
                 self.invalidate();
                 self.dismissed = true;
-                self.dirty = self.prompt;
+                // A private buffer-query key is itself a PSReadLine handler
+                // and breaks its consecutive history cursor.  Keep history
+                // navigation entirely inside PSReadLine until another input
+                // leaves this mode.
+                self.dirty = false;
                 writer.write_all(bytes)?;
                 writer.flush()?;
                 return Ok(());
@@ -1848,7 +1852,10 @@ impl State {
                 });
             }
         } else {
-            self.dirty = self.prompt && query_after && !self.nested_edit;
+            self.dirty = self.prompt
+                && query_after
+                && !self.nested_edit
+                && !starts_history_navigation;
         }
         if paste && self.parser.screen().bracketed_paste() {
             writer.write_all(b"\x1b[200~")?;
