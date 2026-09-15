@@ -751,6 +751,7 @@ struct State {
     hub_history_path: Option<PathBuf>,
     history_ready: bool,
     history_pending: bool,
+    history_navigation: bool,
     hub_form: Option<HubForm>,
 }
 
@@ -812,6 +813,7 @@ impl State {
                 self.dirty = self.prompt;
                 self.explicit = true;
                 self.dismissed = false;
+                self.history_navigation = false;
             }
             Err(error) => {
                 self.diagnostic = Some(format!("配置无效，保留上次有效设置：{error}"));
@@ -891,6 +893,7 @@ impl State {
             }
             "prompt_start" => {
                 self.notification = None;
+                self.history_navigation = false;
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -949,6 +952,7 @@ impl State {
                 }
             }
             "execute" => {
+                self.history_navigation = false;
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -963,6 +967,7 @@ impl State {
                 self.metadata_pending = None;
             }
             "editing" if value["state"] == "continuation" => {
+                self.history_navigation = false;
                 self.prompt = true;
                 self.native_request = None;
                 self.pending_query = None;
@@ -1336,6 +1341,7 @@ impl State {
             return Ok(());
         };
         self.searching = false;
+        self.history_navigation = false;
         let replacement=candidate.replacement.unwrap_or(crate::model::Replacement{start:self.completion.replace_start,end:self.completion.replace_end});
         let start = protocol::byte_to_utf16(&self.line, replacement.start);
         let end = protocol::byte_to_utf16(&self.line, replacement.end);
@@ -1409,6 +1415,36 @@ impl State {
                     }
                 }
                 _=>return Ok(())
+            }
+        }
+        if self.history_navigation {
+            if let Event::Key(key) = &event
+                && key.kind != crossterm::event::KeyEventKind::Release
+                && key.modifiers.is_empty()
+                && matches!(key.code, crossterm::event::KeyCode::Up | crossterm::event::KeyCode::Down)
+            {
+                let bytes = match key.code {
+                    crossterm::event::KeyCode::Up if self.parser.screen().application_cursor() => b"\x1bOA".as_slice(),
+                    crossterm::event::KeyCode::Up => b"\x1b[A".as_slice(),
+                    crossterm::event::KeyCode::Down if self.parser.screen().application_cursor() => b"\x1bOB".as_slice(),
+                    crossterm::event::KeyCode::Down => b"\x1b[B".as_slice(),
+                    _ => unreachable!(),
+                };
+                self.invalidate();
+                self.dismissed = true;
+                self.dirty = self.prompt;
+                writer.write_all(bytes)?;
+                writer.flush()?;
+                return Ok(());
+            }
+            let editing_event = match &event {
+                Event::Paste(_) => true,
+                Event::Key(key) => key.kind != crossterm::event::KeyEventKind::Release,
+                _ => false,
+            };
+            if editing_event {
+                self.history_navigation = false;
+                self.dismissed = false;
             }
         }
         if let Event::Mouse(mouse) = event {
@@ -1589,7 +1625,7 @@ impl State {
                 let name = match input {
                     Input::Trigger => "trigger",
                     Input::Native => "native",
-                    Input::Search => "search",
+                    Input::Search => return true,
                     Input::Details => "details",
                     Input::Refresh => "refresh",
                     Input::Reload => "reload",
@@ -1608,6 +1644,9 @@ impl State {
             return Ok(());
         };
         let visible = !self.completion.candidates.is_empty() && !self.dismissed && self.prompt;
+        let starts_history_navigation = !visible
+            && self.config.completion.up_arrow_history
+            && matches!(&input, Input::Previous | Input::Next);
         let bytes = match input {
             Input::Resize(cols, rows) => {
                 #[cfg(windows)]
@@ -1629,8 +1668,7 @@ impl State {
                 return Ok(());
             }
             Input::Tab if visible => return self.accept(writer),
-            Input::Previous
-                if visible && (self.menu_focus || !self.config.completion.up_arrow_history) =>
+            Input::Previous if visible =>
             {
                 self.selection_touched = true;
                 self.detail_page = 0;
@@ -1672,6 +1710,9 @@ impl State {
                 return Ok(());
             }
             Input::Dismiss if visible => {
+                if self.config.completion.up_arrow_history {
+                    self.history_navigation = true;
+                }
                 self.dismissed = true;
                 self.invalidate();
                 return Ok(());
@@ -1757,7 +1798,8 @@ impl State {
             Input::Bytes(bytes) => bytes,
         };
         self.invalidate();
-        self.dismissed = false;
+        self.history_navigation = starts_history_navigation;
+        self.dismissed = starts_history_navigation;
         // After submitting a line the next input may belong to a native program.
         // Do not inject a PSReadLine chord until the next prompt marker.
         if bytes.iter().any(|b| matches!(b, b'\r' | b'\n' | 3 | 4)) {
@@ -2042,6 +2084,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         hub_history_path: None,
         history_ready: false,
         history_pending: false,
+        history_navigation: false,
         hub_form: None,
     };
     let stdout = std::io::stdout();
@@ -2152,6 +2195,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if revision == state.revision
                         && state.prompt
                         && !state.dismissed
+                        && !state.history_navigation
                         && !state.native_menu =>
                 {
                     if state.hub_query.is_none()&&state.cursor==state.line.len()&&!state.line.contains(['\n','\r']) {

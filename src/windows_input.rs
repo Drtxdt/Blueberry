@@ -806,6 +806,14 @@ impl Reader {
             return None;
         }
         if unicode == 0 {
+            if key.control_state & LEFT_ALT_PRESSED != 0
+                && modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                && (b'A' as u16..=b'Z' as u16).contains(&key.virtual_key)
+            {
+                return Some(KeyCode::Char(
+                    (b'a' + (key.virtual_key as u8 - b'A')) as char,
+                ));
+            }
             return if key.virtual_key == VK_SPACE && modifiers.contains(KeyModifiers::CONTROL) {
                 Some(KeyCode::Char(' '))
             } else {

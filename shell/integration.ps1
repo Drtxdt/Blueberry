@@ -2841,6 +2841,11 @@ function Update-BlueberryPublicKeyCapabilities {
         $safe = $false
         if ($bindings.Count -eq 0) {
             $safe = $true
+        } elseif ([string]::Equals($name, 'search', [StringComparison]::Ordinal) -or
+            [string]::Equals($name, 'hub', [StringComparison]::Ordinal)) {
+            # Search and Hub are host-owned overlays. Their configured public
+            # chords deliberately take precedence while the prompt is active.
+            $safe = $true
         } elseif ([string]::Equals($name, 'trigger', [StringComparison]::Ordinal) -or
             [string]::Equals($name, 'details', [StringComparison]::Ordinal)) {
             # MenuComplete/Complete and ShowCommandHelp are the standard
