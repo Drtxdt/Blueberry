@@ -24,6 +24,7 @@ pub mod sources;
 pub mod spec_catalog;
 pub mod specs;
 pub mod status;
+pub mod terminal_ui;
 pub mod tools_ui;
 pub mod trace;
 

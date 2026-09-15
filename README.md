@@ -60,6 +60,8 @@ blueberry startup status
 | 详情页 | F1 查看说明、参数格式、示例和来源，长内容可翻页 |
 | 原生补全 | Ctrl+Alt+Space 手动调用当前 PowerShell 会话的补全 |
 | 图标与主题 | Unicode / Nerd Font 图标，支持深色、浅色及高对比度主题 |
+| 命令工作台 | Ctrl+Alt+P 搜索收藏、结构化模板、当前会话历史、项目操作和 Blueberry 管理入口 |
+| 常用命令建议 | 输入完整命令前缀时，在普通菜单中补充收藏、项目操作和最近历史 |
 
 内置规则涵盖 Git、Cargo、rustup、Python、pip、uv、Conda／Mamba、Poetry、npm、pnpm、Yarn、Bun、Go、dotnet、CMake、Docker Compose、kubectl、Helm、SSH、Codex 和 winget。项目补全可读取脚本、依赖、环境、工作区、解决方案、CMake 预设、Compose 服务、Kubernetes 上下文和 SSH Host。
 
@@ -112,7 +114,9 @@ blueberry hub
 
 `blueberry config edit` 打开中文设置页，可调整外观、补全、快捷键、资源和学习开关。方向键或 Tab 选择，Enter 修改，`/` 搜索，Ctrl+M 只看修改项，Ctrl+1／2／3 应用默认、精简或手动触发预设，Ctrl+D 查看差异，Ctrl+S 保存。修改外观时可以预览效果。
 
-`blueberry tools` 查看工具入口、内置规则数量和帮助学习状态。首次启动会提示一次 `blueberry setup`；向导不会阻塞 PowerShell。`blueberry hub` 汇总收藏、内置模板和 PSReadLine 历史；会话中按 Ctrl+Alt+P 后，Tab 将选中命令填回当前编辑行，Esc 保留原内容。
+`blueberry tools` 打开可搜索的工具管理页，可查看入口、规则、动态能力和帮助学习状态，并按工具调整帮助及动态候选。`blueberry setup` 使用分步页面选择图标、补全方式和自动启动。
+
+`blueberry hub` 汇总收藏、模板、当前 PowerShell 会话历史、准确的 PSReadLine 历史文件和项目操作。会话中按 Ctrl+Alt+P 后直接输入关键词，Enter 将命令填回但不会执行，Tab 或 F1 查看预览，Esc 保留原编辑行。独立运行时，确认后的命令复制到剪贴板。详细格式见 [命令工作台](docs/workbench.md)。
 
 ```powershell
 blueberry hub --add "启动开发服务" --command "npm run dev"
@@ -129,6 +133,20 @@ blueberry hub --remove "启动开发服务"
 [ui]
 icons = true
 icon_style = "nerd"
+```
+
+工作台和按工具覆盖示例：
+
+```toml
+[workbench]
+history_limit = 2000
+suggestions = true
+suggestion_limit = 6
+
+[tools.docker]
+dynamic = true
+help = true
+resources = "manual"
 ```
 
 [什么是Nerd Font?](https://www.nerdfonts.com/)

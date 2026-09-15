@@ -47,6 +47,12 @@ history_limit = 2000
 suggestions = true # add favorites, project actions and recent history after typing
 suggestion_limit = 6
 
+# Per-tool overrides are optional. Missing values follow the global settings.
+# [tools.docker]
+# dynamic = true
+# help = true
+# resources = "manual" # inherit | automatic | manual | off
+
 [help]
 enabled = true # background help for recognized installations
 

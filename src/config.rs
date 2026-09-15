@@ -31,7 +31,12 @@ pub struct Config {
     pub help: HelpConfig,
     pub resources: ResourceConfig,
     pub workbench: WorkbenchConfig,
+    pub tools: BTreeMap<String, ToolConfig>,
 }
+
+#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+#[serde(default,deny_unknown_fields)]
+pub struct ToolConfig { pub dynamic:Option<bool>, pub help:Option<bool>, pub resources:Option<String> }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -180,6 +185,10 @@ impl Default for CompletionConfig {
 }
 
 impl Config {
+    fn tool_override(&self,command:&str)->Option<&ToolConfig>{let name=Path::new(command).file_stem().and_then(|s|s.to_str()).unwrap_or(command).to_ascii_lowercase();self.tools.get(&name).or_else(||self.tools.get(command))}
+    pub fn dynamic_for(&self,command:&str)->bool{self.tool_override(command).and_then(|tool|tool.dynamic).unwrap_or(self.completion.dynamic)}
+    pub fn help_for(&self,command:&str)->bool{self.tool_override(command).and_then(|tool|tool.help).unwrap_or(self.help.enabled)}
+    pub fn resources_for(&self,command:&str)->&str{self.tool_override(command).and_then(|tool|tool.resources.as_deref()).unwrap_or("inherit")}
     /// Validate all bounded and enumerated configuration values.
     pub fn validate(&self) -> Result<()> {
         validate_ui(&self.ui)?;
@@ -218,6 +227,10 @@ impl Config {
         }
         if !(1..=50).contains(&self.workbench.suggestion_limit) {
             bail!("workbench.suggestion_limit must be 1 through 50");
+        }
+        for (name,tool) in &self.tools {
+            if name.trim().is_empty(){bail!("tool names must not be empty")}
+            if let Some(policy)=tool.resources.as_deref()&&!matches!(policy,"inherit"|"automatic"|"manual"|"off"){bail!("tools.{name}.resources must be inherit, automatic, manual, or off")}
         }
         for (key, value) in &self.descriptions {
             if key.trim().is_empty() || key.chars().count() > 512 {

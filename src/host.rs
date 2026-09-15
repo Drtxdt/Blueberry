@@ -1004,6 +1004,8 @@ impl State {
                     && (self.explicit
                         || (self.config.completion.auto_trigger && !line.trim().is_empty()))
                 {
+                    let tool_name=self.context.as_ref().map(|context|context.command.as_str()).filter(|name|!name.is_empty()).unwrap_or_else(||line.split_whitespace().next().unwrap_or(""));
+                    if self.config.resources_for(tool_name)=="automatic"{Arc::make_mut(&mut self.shell_environment).insert("BLUEBERRY_REMOTE_REQUESTED".into(),"1".into());}
                     let query = Query {
                         revision,
                         line: line.into(),
@@ -1019,9 +1021,9 @@ impl State {
                             .enabled
                             .then(|| self.learning.snapshot()),
                         environment: self.shell_environment.clone(),
-                        dynamic: self.config.completion.dynamic,
+                        dynamic: self.config.dynamic_for(tool_name),
                         searching: self.searching,
-                        help_enabled: self.config.help.enabled,
+                        help_enabled: self.config.help_for(tool_name),
                     };
                     Arc::make_mut(&mut self.shell_environment)
                         .remove("BLUEBERRY_REMOTE_REQUESTED");
@@ -1717,6 +1719,8 @@ impl State {
                 return Ok(());
             }
             Input::Resources if self.prompt && self.ready => {
+                let tool=self.context.as_ref().map(|context|context.command.as_str()).filter(|name|!name.is_empty()).unwrap_or_else(||self.line.split_whitespace().next().unwrap_or(""));
+                if self.config.resources_for(tool)=="off"{self.diagnostic=Some(format!("已在 tools.{tool}.resources 中关闭资源读取"));return Ok(())}
                 Arc::make_mut(&mut self.shell_environment)
                     .insert("BLUEBERRY_REMOTE_REQUESTED".into(), "1".into());
                 worker.update(|work| work.refresh=true);

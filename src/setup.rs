@@ -1,42 +1,21 @@
-use crate::config;
-use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use std::{fs, io::{self, IsTerminal, Write}, path::Path};
+use crate::{config,terminal_ui::{ScreenGuard,fit}};
+use anyhow::{Context,Result};
+use crossterm::{cursor::MoveTo,event::{self,Event,KeyCode,KeyEventKind,MouseEventKind},execute,terminal::{Clear,ClearType}};
+use serde::{Deserialize,Serialize};
+use std::{fs,io::{self,IsTerminal,Write},path::Path};
+use toml_edit::{DocumentMut,value};
 
-#[derive(Default, Deserialize, Serialize)]
-struct State { setup_hint_seen: bool, setup_completed: bool }
+const SETUP_VERSION:u32=2;
+#[derive(Default,Deserialize,Serialize)]
+struct State{#[serde(default)]setup_hint_seen:bool,#[serde(default)]setup_completed:bool,#[serde(default)]setup_version:u32}
+fn load()->State{fs::read_to_string(config::state_path()).ok().and_then(|s|toml::from_str(&s).ok()).unwrap_or_default()}
+fn save(state:&State)->Result<()>{let path=config::state_path();if let Some(parent)=path.parent(){fs::create_dir_all(parent)?}fs::write(&path,toml::to_string_pretty(state)?).with_context(||format!("无法写入 {}",path.display()))}
+pub fn take_first_hint()->bool{let mut state=load();if state.setup_hint_seen&&state.setup_version>=SETUP_VERSION{return false}state.setup_hint_seen=true;state.setup_version=SETUP_VERSION;save(&state).is_ok()}
 
-fn load() -> State { fs::read_to_string(config::state_path()).ok().and_then(|s| toml::from_str(&s).ok()).unwrap_or_default() }
-fn save(state: &State) -> Result<()> {
-    let path=config::state_path();
-    if let Some(parent)=path.parent(){fs::create_dir_all(parent)?;}
-    fs::write(&path,toml::to_string_pretty(state)?).with_context(||format!("无法写入 {}",path.display()))
-}
+pub fn run(config_path:Option<&Path>)->Result<u32>{let path=config_path.map(Path::to_path_buf).unwrap_or_else(config::default_path);if !io::stdin().is_terminal()||!io::stdout().is_terminal(){println!("Blueberry 初次使用向导");println!("Ctrl+Space 补全 · Ctrl+Alt+F 用途搜索 · F1 详情 · Ctrl+Alt+P 工作台");println!("交互终端中运行 blueberry setup 以修改基础设置。\n配置路径：{}",path.display());return Ok(0)}let mut choice=Choices::default();let screen=ScreenGuard::enter(true)?;let mut step=0usize;loop{draw(step,&choice,&path)?;match event::read()?{Event::Key(key)if key.kind!=KeyEventKind::Release=>match key.code{KeyCode::Esc=>return Ok(0),KeyCode::Left|KeyCode::Right|KeyCode::Char(' ')=>match step{1=>choice.nerd=!choice.nerd,2=>choice.auto=!choice.auto,3=>choice.startup=!choice.startup,_=>{}},KeyCode::Backspace if step>0=>step-=1,KeyCode::Enter if step<4=>step+=1,KeyCode::Enter=>break,_=>{}},Event::Mouse(mouse)=>match mouse.kind{MouseEventKind::ScrollUp=>step=step.saturating_sub(1),MouseEventKind::ScrollDown=>step=(step+1).min(4),_=>{}},_=>{}}}drop(screen);write_config(&path,&choice)?;if choice.startup{crate::startup::run("enable",None,false).context("配置自动启动失败")?;}let mut state=load();state.setup_hint_seen=true;state.setup_completed=true;state.setup_version=SETUP_VERSION;save(&state)?;println!("已保存设置：{}",path.display());Ok(0)}
 
-pub fn take_first_hint() -> bool {
-    let mut state=load();
-    if state.setup_hint_seen { return false; }
-    state.setup_hint_seen=true;
-    save(&state).is_ok()
-}
-
-pub fn run(config_path: Option<&Path>) -> Result<u32> {
-    println!("Blueberry 初次使用向导");
-    println!("  Ctrl+Space 补全 · Ctrl+Alt+F 用途搜索 · F1 详情 · blueberry config edit 设置");
-    let path=config_path.map(Path::to_path_buf).unwrap_or_else(config::default_path);
-    if !io::stdin().is_terminal() { println!("当前不是交互终端；配置路径：{}",path.display()); return Ok(0); }
-    print!("使用 Nerd Font 图标？终端未配置字体时请选择 N [y/N] "); io::stdout().flush()?;
-    let mut answer=String::new(); io::stdin().read_line(&mut answer)?;
-    let nerd=answer.trim().eq_ignore_ascii_case("y")||answer.trim().eq_ignore_ascii_case("yes");
-    let mut document=if path.is_file(){fs::read_to_string(&path)?}else{config::example().to_owned()};
-    document=document.replace("icon_style = \"nerd\"", if nerd{"icon_style = \"nerd\""}else{"icon_style = \"unicode\""});
-    if let Some(parent)=path.parent(){fs::create_dir_all(parent)?;}
-    fs::write(&path,document)?;
-    answer.clear(); print!("随 PowerShell 自动启动？默认关闭 [y/N] "); io::stdout().flush()?; io::stdin().read_line(&mut answer)?;
-    let startup=answer.trim().eq_ignore_ascii_case("y")||answer.trim().eq_ignore_ascii_case("yes");
-    if startup { crate::startup::run("enable",None,false).context("配置自动启动失败")?; }
-    let mut state=load(); state.setup_hint_seen=true; state.setup_completed=true; save(&state)?;
-    println!("已保存设置：{}",path.display());
-    if !startup { println!("自动启动保持关闭；需要时运行 blueberry startup enable。"); }
-    Ok(0)
-}
+#[derive(Default)]
+struct Choices{nerd:bool,auto:bool,startup:bool}
+impl Choices{fn default()->Self{Self{nerd:false,auto:true,startup:false}}}
+fn draw(step:usize,choice:&Choices,path:&Path)->Result<()>{let(cols,rows)=crossterm::terminal::size().unwrap_or((100,30));let mut out=io::stdout();execute!(out,MoveTo(0,0),Clear(ClearType::All))?;writeln!(out,"Blueberry 设置向导  {}/5",step+1)?;writeln!(out,"{}","─".repeat(cols as usize))?;match step{0=>{writeln!(out,"欢迎使用 Blueberry")?;writeln!(out,"\nCtrl+Space  打开补全")?;writeln!(out,"Ctrl+Alt+F 按用途搜索")?;writeln!(out,"Ctrl+Alt+P 打开命令工作台")?;writeln!(out,"F1          查看完整说明")?},1=>{writeln!(out,"图标风格")?;writeln!(out,"\n{}  Unicode  ✓  📁  ⚙",if !choice.nerd{"▶"}else{" "})?;writeln!(out,"{}  Nerd Font    󰉋  ",if choice.nerd{"▶"}else{" "})?;writeln!(out,"\n终端未配置 Nerd Font 时请选择 Unicode。")?},2=>{writeln!(out,"补全显示方式")?;writeln!(out,"\n{} 自动显示",if choice.auto{"▶"}else{" "})?;writeln!(out,"{} 按 Ctrl+Space 显示",if !choice.auto{"▶"}else{" "})?},3=>{writeln!(out,"随 PowerShell 自动启动")?;writeln!(out,"\n{} 保持关闭",if !choice.startup{"▶"}else{" "})?;writeln!(out,"{} 为当前用户启用",if choice.startup{"▶"}else{" "})?},_=>{writeln!(out,"保存前预览")?;writeln!(out,"\n图标：{}",if choice.nerd{"Nerd Font"}else{"Unicode"})?;writeln!(out,"补全：{}",if choice.auto{"自动显示"}else{"手动触发"})?;writeln!(out,"自动启动：{}",if choice.startup{"启用"}else{"关闭"})?;writeln!(out,"配置：{}",fit(&path.display().to_string(),(cols as usize).saturating_sub(6)))?}}execute!(out,MoveTo(0,rows.saturating_sub(1)))?;write!(out,"←→/Space 修改 · Enter 下一步/保存 · Backspace 上一步 · Esc 退出")?;out.flush()?;Ok(())}
+fn write_config(path:&Path,choice:&Choices)->Result<()>{let text=fs::read_to_string(path).unwrap_or_else(|_|config::example().to_owned());let mut doc=text.parse::<DocumentMut>().context("配置 TOML 无法解析；请先运行 blueberry config check")?;doc["ui"]["icon_style"]=value(if choice.nerd{"nerd"}else{"unicode"});doc["completion"]["auto_trigger"]=value(choice.auto);let temp=path.with_extension("toml.tmp");if let Some(parent)=path.parent(){fs::create_dir_all(parent)?}fs::write(&temp,doc.to_string())?;if path.exists(){let backup=path.with_extension("toml.bak");let _=fs::remove_file(&backup);fs::rename(path,&backup)?;if let Err(error)=fs::rename(&temp,path){let _=fs::rename(&backup,path);return Err(error.into());}let _=fs::remove_file(backup);}else{fs::rename(temp,path)?;}Ok(())}
