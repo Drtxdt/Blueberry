@@ -736,7 +736,8 @@ impl Reader {
         // is already the layout-resolved character; retaining Ctrl+Alt would
         // make a printable AltGr character look like a shell shortcut. Keep
         // Ctrl+Alt for zero-Unicode shortcuts such as Ctrl+Alt+Space.
-        if modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT)
+        if key.control_state & RIGHT_ALT_PRESSED != 0
+            && modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT)
             && is_printable_unicode(key.unicode)
         {
             modifiers.remove(KeyModifiers::CONTROL | KeyModifiers::ALT);

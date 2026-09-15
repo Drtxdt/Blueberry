@@ -763,7 +763,7 @@ impl State {
             self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates:vec![Candidate{label:format!("填写参数：{name}"),insert_text:preview,description:if query.is_empty(){"输入参数值后按 Enter".into()}else{format!("当前值：{query}")},kind:crate::model::CandidateKind::Value,id:format!("hub-form:{name}"),source:"Blueberry 工作台/参数表单".into(),append_space:false,..Default::default()}],incomplete:false,argument_hint:format!("参数 {}/{} · {}",form.index+1,form.fields.len(),name)};self.selected=0;self.dismissed=false;self.searching=true;return
         }
         let selected=self.completion.candidates.get(self.selected).map(|c|c.identity().to_owned());
-        let candidates=crate::hub::candidates_with_history(&self.config,query,&self.hub_history,self.hub_history_path.as_deref());
+        let candidates=crate::hub::candidates_with_history(&self.config,query,&self.hub_history,None);
         self.selected=selected.and_then(|id|candidates.iter().position(|c|c.identity()==id)).unwrap_or(0);
         self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates,incomplete:self.history_pending,argument_hint:"输入关键词搜索；Enter 填回，Tab/F1 预览，Esc 返回".into()};
         self.menu_focus=true;self.explicit=true;self.dismissed=false;self.searching=true;
@@ -1064,10 +1064,9 @@ impl State {
                 if request_number(&value["request_id"]) == self.native_request {
                     self.native_request=None;
                 }
-                if let Ok(commands)=serde_json::from_value::<Vec<String>>(value["commands"].clone()) {
-                    self.hub_history=commands;
-                }
+                let commands=serde_json::from_value::<Vec<String>>(value["commands"].clone()).unwrap_or_default();
                 self.hub_history_path=value["path"].as_str().filter(|p|!p.is_empty()).map(PathBuf::from);
+                self.hub_history=crate::hub::merged_history(self.config.workbench.history_limit,&commands,self.hub_history_path.as_deref());
                 self.history_pending=false;
                 if self.hub_query.is_some(){self.refresh_hub();}
             }
@@ -2156,7 +2155,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         && !state.native_menu =>
                 {
                     if state.hub_query.is_none()&&state.cursor==state.line.len()&&!state.line.contains(['\n','\r']) {
-                        let suggestions=crate::hub::suggestions(&state.config,&state.line,&state.cwd,&state.hub_history,state.hub_history_path.as_deref());
+                        let suggestions=crate::hub::suggestions(&state.config,&state.line,&state.hub_history);
                         let mut seen=completion.candidates.iter().map(|candidate|candidate.insert_text.to_lowercase()).collect::<std::collections::HashSet<_>>();
                         completion.candidates.extend(suggestions.into_iter().filter(|candidate|seen.insert(candidate.insert_text.to_lowercase())));
                     }
