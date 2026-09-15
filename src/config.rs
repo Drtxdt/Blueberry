@@ -77,9 +77,11 @@ impl Default for ResourceConfig {
 #[serde(default, deny_unknown_fields)]
 pub struct WorkbenchConfig {
     pub history_limit: usize,
+    pub suggestions: bool,
+    pub suggestion_limit: usize,
 }
 impl Default for WorkbenchConfig {
-    fn default() -> Self { Self { history_limit: 2_000 } }
+    fn default() -> Self { Self { history_limit: 2_000, suggestions: true, suggestion_limit: 6 } }
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -213,6 +215,9 @@ impl Config {
         }
         if !(1..=20_000).contains(&self.workbench.history_limit) {
             bail!("workbench.history_limit must be 1 through 20000");
+        }
+        if !(1..=50).contains(&self.workbench.suggestion_limit) {
+            bail!("workbench.suggestion_limit must be 1 through 50");
         }
         for (key, value) in &self.descriptions {
             if key.trim().is_empty() || key.chars().count() > 512 {
@@ -388,6 +393,8 @@ cache_seconds = 30
 
 [workbench]
 history_limit = 2000
+suggestions = true
+suggestion_limit = 6
 
 [learning]
 enabled = true # local selection counts only; learning clear removes them

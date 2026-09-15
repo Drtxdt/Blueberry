@@ -33,9 +33,20 @@ pub struct Candidate {
     pub source: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub detail: String,
+    /// Optional candidate-specific UTF-8 replacement range. Full-command
+    /// suggestions use this while ordinary completion keeps the range on
+    /// [`Completion`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replacement: Option<Replacement>,
     /// Completion behavior is kept separate from the literal replacement.
     #[serde(skip)]
     pub append_space: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Replacement {
+    pub start: usize,
+    pub end: usize,
 }
 
 impl Candidate {

@@ -257,6 +257,14 @@ const FIELDS: &[Field] = &[
         "workbench", "history_limit", "工作台", "历史读取数量",
         "历史选择器最多读取多少条 PSReadLine 历史。", Kind::Number(1, 20000)
     ),
+    field!(
+        "workbench", "suggestions", "工作台", "普通菜单显示常用命令",
+        "输入后将收藏、项目操作和最近历史加入补全菜单。", Kind::Toggle
+    ),
+    field!(
+        "workbench", "suggestion_limit", "工作台", "常用命令数量",
+        "普通补全菜单最多加入多少条完整命令建议。", Kind::Number(1, 50)
+    ),
 ];
 const ACTIONS: &[&str] = &[
     "保存",

@@ -682,6 +682,8 @@ impl CommandSnapshot {
     }
 }
 
+struct HubForm { template:String, fields:Vec<String>, index:usize, values:BTreeMap<String,String> }
+
 struct State {
     pipe: Option<crate::pipe::PipeServer>,
     parser: vt100::Parser,
@@ -749,11 +751,17 @@ struct State {
     hub_history_path: Option<PathBuf>,
     history_ready: bool,
     history_pending: bool,
+    hub_form: Option<HubForm>,
 }
 
 impl State {
     fn refresh_hub(&mut self) {
         let Some(query)=self.hub_query.as_deref() else{return};
+        if let Some(form)=self.hub_form.as_ref(){
+            let name=form.fields.get(form.index).cloned().unwrap_or_default();
+            let preview=crate::hub::fill_placeholders(&form.template,&form.values);
+            self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates:vec![Candidate{label:format!("填写参数：{name}"),insert_text:preview,description:if query.is_empty(){"输入参数值后按 Enter".into()}else{format!("当前值：{query}")},kind:crate::model::CandidateKind::Value,id:format!("hub-form:{name}"),source:"Blueberry 工作台/参数表单".into(),append_space:false,..Default::default()}],incomplete:false,argument_hint:format!("参数 {}/{} · {}",form.index+1,form.fields.len(),name)};self.selected=0;self.dismissed=false;self.searching=true;return
+        }
         let selected=self.completion.candidates.get(self.selected).map(|c|c.identity().to_owned());
         let candidates=crate::hub::candidates_with_history(&self.config,query,&self.hub_history,self.hub_history_path.as_deref());
         self.selected=selected.and_then(|id|candidates.iter().position(|c|c.identity()==id)).unwrap_or(0);
@@ -1327,8 +1335,9 @@ impl State {
             return Ok(());
         };
         self.searching = false;
-        let start = protocol::byte_to_utf16(&self.line, self.completion.replace_start);
-        let end = protocol::byte_to_utf16(&self.line, self.completion.replace_end);
+        let replacement=candidate.replacement.unwrap_or(crate::model::Replacement{start:self.completion.replace_start,end:self.completion.replace_end});
+        let start = protocol::byte_to_utf16(&self.line, replacement.start);
+        let end = protocol::byte_to_utf16(&self.line, replacement.end);
         let cursor = protocol::byte_to_utf16(&self.line, self.cursor);
         if let (Some(start), Some(end), Some(cursor)) = (start, end, cursor) {
             if end < start {
@@ -1338,7 +1347,7 @@ impl State {
             let mut text = candidate.insert_text.clone();
             if self.config.completion.append_space
                 && candidate.append_space
-                && self.completion.replace_end == self.line.len()
+                && replacement.end == self.line.len()
                 && !text.ends_with(char::is_whitespace)
                 && crate::engine::space_after(&text)
             {
@@ -1375,7 +1384,7 @@ impl State {
                 }
                 Event::Key(key)=>{
                     if input::configured(&Event::Key(key),&self.config.keys).is_some_and(|i|matches!(i,Input::Hub))||key.code==KeyCode::Esc {
-                        self.hub_query=None;self.searching=false;self.invalidate();self.dismissed=true;return Ok(())
+                        self.hub_query=None;self.hub_form=None;self.searching=false;self.invalidate();self.dismissed=true;return Ok(())
                     }
                     match key.code {
                         KeyCode::Char(ch) if !key.modifiers.intersects(KeyModifiers::CONTROL|KeyModifiers::ALT)=>{self.hub_query.as_mut().unwrap().push(ch);self.refresh_hub();return Ok(())}
@@ -1385,7 +1394,16 @@ impl State {
                         KeyCode::PageUp=>{self.selected=self.selected.saturating_sub(self.config.ui.max_rows.max(1));return Ok(())}
                         KeyCode::PageDown=>{self.selected=(self.selected+self.config.ui.max_rows.max(1)).min(self.completion.candidates.len().saturating_sub(1));return Ok(())}
                         KeyCode::Tab|KeyCode::F(1)=>{self.details=!self.details;self.detail_page=0;return Ok(())}
-                        KeyCode::Enter=>{self.hub_query=None;self.searching=false;return self.accept(writer)}
+                        KeyCode::Enter=>{
+                            if self.hub_form.is_some(){
+                                let value=self.hub_query.as_ref().cloned().unwrap_or_default();if value.trim().is_empty(){self.notification=Some("参数值不能为空".into());return Ok(())}
+                                let form=self.hub_form.as_mut().unwrap();let name=form.fields[form.index].clone();form.values.insert(name,value);form.index+=1;
+                                if form.index<form.fields.len(){*self.hub_query.as_mut().unwrap()=String::new();self.refresh_hub();return Ok(())}
+                                let form=self.hub_form.take().unwrap();let command=crate::hub::fill_placeholders(&form.template,&form.values);self.hub_query=None;self.searching=false;self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates:vec![Candidate{label:command.clone(),insert_text:command,description:"已填写命令模板".into(),kind:crate::model::CandidateKind::Command,id:"hub:resolved-template".into(),source:"Blueberry 工作台/模板".into(),append_space:false,..Default::default()}],incomplete:false,argument_hint:String::new()};self.selected=0;return self.accept(writer)
+                            }
+                            if let Some(candidate)=self.completion.candidates.get(self.selected){let fields=crate::hub::placeholder_names(&candidate.insert_text);if !fields.is_empty(){self.hub_form=Some(HubForm{template:candidate.insert_text.clone(),fields,index:0,values:BTreeMap::new()});*self.hub_query.as_mut().unwrap()=String::new();self.refresh_hub();return Ok(())}}
+                            self.hub_query=None;self.searching=false;return self.accept(writer)
+                        }
                         _=>return Ok(())
                     }
                 }
@@ -1707,7 +1725,7 @@ impl State {
                 return Ok(());
             }
             Input::Hub if self.prompt && self.ready => {
-                self.hub_query=Some(String::new());self.history_pending=self.history_ready;self.details=false;self.selected=0;self.refresh_hub();
+                self.hub_query=Some(String::new());self.hub_form=None;self.history_pending=self.history_ready;self.details=false;self.selected=0;self.refresh_hub();
                 return Ok(());
             }
             Input::Tab => vec![b'\t'],
@@ -2021,6 +2039,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         hub_history_path: None,
         history_ready: false,
         history_pending: false,
+        hub_form: None,
     };
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
@@ -2126,12 +2145,17 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         writer.flush()?;
                     }
                 }
-                HostEvent::Completion(revision, completion)
+                HostEvent::Completion(revision, mut completion)
                     if revision == state.revision
                         && state.prompt
                         && !state.dismissed
                         && !state.native_menu =>
                 {
+                    if state.hub_query.is_none()&&state.cursor==state.line.len()&&!state.line.contains(['\n','\r']) {
+                        let suggestions=crate::hub::suggestions(&state.config,&state.line,&state.cwd,&state.hub_history,state.hub_history_path.as_deref());
+                        let mut seen=completion.candidates.iter().map(|candidate|candidate.insert_text.to_lowercase()).collect::<std::collections::HashSet<_>>();
+                        completion.candidates.extend(suggestions.into_iter().filter(|candidate|seen.insert(candidate.insert_text.to_lowercase())));
+                    }
                     ui_dirty |= state.completion != completion;
                     let selected_label = state
                         .completion

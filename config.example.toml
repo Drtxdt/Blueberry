@@ -44,6 +44,8 @@ cache_seconds = 30
 
 [workbench]
 history_limit = 2000
+suggestions = true # add favorites, project actions and recent history after typing
+suggestion_limit = 6
 
 [help]
 enabled = true # background help for recognized installations
