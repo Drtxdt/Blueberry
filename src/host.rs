@@ -684,6 +684,12 @@ impl CommandSnapshot {
 
 struct HubForm { template:String, fields:Vec<String>, index:usize, values:BTreeMap<String,String> }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum InteractionMode {
+    Completion,
+    History,
+}
+
 struct State {
     pipe: Option<crate::pipe::PipeServer>,
     parser: vt100::Parser,
@@ -751,7 +757,7 @@ struct State {
     hub_history_path: Option<PathBuf>,
     history_ready: bool,
     history_pending: bool,
-    history_navigation: bool,
+    interaction_mode: InteractionMode,
     hub_form: Option<HubForm>,
 }
 
@@ -813,7 +819,7 @@ impl State {
                 self.dirty = self.prompt;
                 self.explicit = true;
                 self.dismissed = false;
-                self.history_navigation = false;
+                self.interaction_mode = InteractionMode::Completion;
             }
             Err(error) => {
                 self.diagnostic = Some(format!("配置无效，保留上次有效设置：{error}"));
@@ -893,7 +899,7 @@ impl State {
             }
             "prompt_start" => {
                 self.notification = None;
-                self.history_navigation = false;
+                self.interaction_mode = InteractionMode::Completion;
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -952,7 +958,7 @@ impl State {
                 }
             }
             "execute" => {
-                self.history_navigation = false;
+                self.interaction_mode = InteractionMode::Completion;
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -967,7 +973,7 @@ impl State {
                 self.metadata_pending = None;
             }
             "editing" if value["state"] == "continuation" => {
-                self.history_navigation = false;
+                self.interaction_mode = InteractionMode::Completion;
                 self.prompt = true;
                 self.native_request = None;
                 self.pending_query = None;
@@ -1005,7 +1011,8 @@ impl State {
                 self.line = line.into();
                 self.cursor = cursor;
                 self.context = decode_context(line, &value["context"]);
-                if !self.dismissed
+                if self.interaction_mode == InteractionMode::Completion
+                    && !self.dismissed
                     && (self.explicit
                         || (self.config.completion.auto_trigger && !line.trim().is_empty()))
                 {
@@ -1341,7 +1348,7 @@ impl State {
             return Ok(());
         };
         self.searching = false;
-        self.history_navigation = false;
+        self.interaction_mode = InteractionMode::Completion;
         let replacement=candidate.replacement.unwrap_or(crate::model::Replacement{start:self.completion.replace_start,end:self.completion.replace_end});
         let start = protocol::byte_to_utf16(&self.line, replacement.start);
         let end = protocol::byte_to_utf16(&self.line, replacement.end);
@@ -1417,7 +1424,23 @@ impl State {
                 _=>return Ok(())
             }
         }
-        if self.history_navigation {
+        if self.interaction_mode == InteractionMode::History {
+            if let Event::Key(key) = &event
+                && key.kind != crossterm::event::KeyEventKind::Release
+                && key.modifiers.is_empty()
+                && key.code == crossterm::event::KeyCode::Esc
+            {
+                self.interaction_mode = InteractionMode::Completion;
+                self.invalidate();
+                self.dismissed = false;
+                self.explicit = true;
+                self.dirty = self.prompt;
+                worker.update(|work| {
+                    work.cancel = true;
+                    work.query = None;
+                });
+                return Ok(());
+            }
             if let Event::Key(key) = &event
                 && key.kind != crossterm::event::KeyEventKind::Release
                 && key.modifiers.is_empty()
@@ -1443,7 +1466,7 @@ impl State {
                 _ => false,
             };
             if editing_event {
-                self.history_navigation = false;
+                self.interaction_mode = InteractionMode::Completion;
                 self.dismissed = false;
             }
         }
@@ -1647,6 +1670,12 @@ impl State {
         let starts_history_navigation = !visible
             && self.config.completion.up_arrow_history
             && matches!(&input, Input::Previous | Input::Next);
+        if starts_history_navigation {
+            worker.update(|work| {
+                work.cancel = true;
+                work.query = None;
+            });
+        }
         let bytes = match input {
             Input::Resize(cols, rows) => {
                 #[cfg(windows)]
@@ -1711,7 +1740,11 @@ impl State {
             }
             Input::Dismiss if visible => {
                 if self.config.completion.up_arrow_history {
-                    self.history_navigation = true;
+                    self.interaction_mode = InteractionMode::History;
+                    worker.update(|work| {
+                        work.cancel = true;
+                        work.query = None;
+                    });
                 }
                 self.dismissed = true;
                 self.invalidate();
@@ -1798,7 +1831,7 @@ impl State {
             Input::Bytes(bytes) => bytes,
         };
         self.invalidate();
-        self.history_navigation = starts_history_navigation;
+        self.interaction_mode = if starts_history_navigation { InteractionMode::History } else { InteractionMode::Completion };
         self.dismissed = starts_history_navigation;
         // After submitting a line the next input may belong to a native program.
         // Do not inject a PSReadLine chord until the next prompt marker.
@@ -2084,7 +2117,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         hub_history_path: None,
         history_ready: false,
         history_pending: false,
-        history_navigation: false,
+        interaction_mode: InteractionMode::Completion,
         hub_form: None,
     };
     let stdout = std::io::stdout();
@@ -2195,7 +2228,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if revision == state.revision
                         && state.prompt
                         && !state.dismissed
-                        && !state.history_navigation
+                        && state.interaction_mode == InteractionMode::Completion
                         && !state.native_menu =>
                 {
                     if state.hub_query.is_none()&&state.cursor==state.line.len()&&!state.line.contains(['\n','\r']) {
