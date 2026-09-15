@@ -1594,7 +1594,7 @@ impl State {
                     Input::Refresh => "refresh",
                     Input::Reload => "reload",
                     Input::Resources => "resources",
-                    Input::Hub => "hub",
+                    Input::Hub => return true,
                     _ => return true,
                 };
                 self.public_keys.get(name).copied().unwrap_or(true)
