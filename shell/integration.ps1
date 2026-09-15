@@ -1317,7 +1317,7 @@ function ConvertFrom-BlueberryRequestJson {
     if ($null -eq $rootValue -or $rootValue.ValueKind -ne $script:BLUEBERRY_JsonValueKind::Object) {
         return $null
     }
-    if (-not (Test-BlueberryJsonFields $rootValue @('id','kind','public_keys_json','public_keys','command'))) { return $null }
+    if (-not (Test-BlueberryJsonFields $rootValue @('id','kind','public_keys_json','public_keys','command','limit'))) { return $null }
 
 
     $idElement = $script:BLUEBERRY_JsonElement::new()
@@ -1370,11 +1370,19 @@ function ConvertFrom-BlueberryRequestJson {
     $commandName = ''
     $commandElement = $script:BLUEBERRY_JsonElement::new()
     if ($rootValue.TryGetProperty('command', [ref]$commandElement) -and $commandElement.ValueKind -eq $script:BLUEBERRY_JsonValueKind::String) { $commandName = $commandElement.GetString() }
+    $limit = 2000
+    $limitElement = $script:BLUEBERRY_JsonElement::new()
+    if ($rootValue.TryGetProperty('limit', [ref]$limitElement)) {
+        $parsedLimit = [int64]0
+        if (-not $limitElement.TryGetInt64([ref]$parsedLimit) -or $parsedLimit -lt 1 -or $parsedLimit -gt 20000) { return $null }
+        $limit = [int]$parsedLimit
+    }
     return [pscustomobject]@{
         command          = $commandName
         id               = [string]$id
         kind             = [string]$kind
         public_keys_json = $publicKeysJson
+        limit            = $limit
     }
 }
 
@@ -1382,7 +1390,7 @@ function Read-BlueberryRequest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('native', 'command_metadata', 'commands_reset', 'commands_next')]
+        [ValidateSet('native', 'command_metadata', 'history', 'commands_reset', 'commands_next')]
         [string[]]$ExpectedKind
     )
 
@@ -2539,12 +2547,41 @@ function Get-BlueberryCommandMetadata {
     return $null
 }
 
+function Get-BlueberryHistorySnapshot {
+    [CmdletBinding()]
+    param([int]$Limit = 2000)
+
+    $commands = [System.Collections.Generic.List[string]]::new()
+    try {
+        foreach ($entry in @(Microsoft.PowerShell.Core\Get-History -Count $Limit -ErrorAction SilentlyContinue)) {
+            $text = [string]$entry.CommandLine
+            if (-not [string]::IsNullOrWhiteSpace($text)) { [void]$commands.Add($text) }
+        }
+    } catch { }
+    $path = ''
+    $style = ''
+    try {
+        $option = Get-PSReadLineOption -ErrorAction Stop
+        $path = [string]$option.HistorySavePath
+        $style = [string]$option.HistorySaveStyle
+    } catch { }
+    return [ordered]@{ commands = @($commands.ToArray()); path = $path; save_style = $style }
+}
+
 function Invoke-BlueberryNativeKeyHandler {
     [CmdletBinding()]
     param()
-    $request = Read-BlueberryRequest -ExpectedKind @('native', 'command_metadata')
+    $request = Read-BlueberryRequest -ExpectedKind @('native', 'command_metadata', 'history')
     if ($null -ne $request) {
-        if ($request.kind -eq 'command_metadata') {
+        if ($request.kind -eq 'history') {
+            $snapshot = Get-BlueberryHistorySnapshot -Limit ([int]$request.limit)
+            Send-BlueberryEvent -Event 'history' -Data ([ordered]@{
+                request_id = [string]$request.id
+                commands = $snapshot.commands
+                path = $snapshot.path
+                save_style = $snapshot.save_style
+            })
+        } elseif ($request.kind -eq 'command_metadata') {
             $page = $null
             $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
             try { $page = Get-BlueberryCommandMetadata -Name $request.command } catch { }
@@ -2924,6 +2961,7 @@ function Send-BlueberryCapabilities {
             [bool]$script:BLUEBERRY_KEY_HANDLERS.shift_enter)
         manual_native     = $true
         command_metadata  = [bool]$script:BLUEBERRY_KEY_HANDLERS.native
+        history           = [bool]$script:BLUEBERRY_KEY_HANDLERS.native
     }
     # Keep the field absent when the host did not opt into public-key
     # arbitration, preserving the alpha protocol shape for existing launchers.

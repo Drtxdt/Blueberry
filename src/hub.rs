@@ -1,7 +1,7 @@
 use crate::{config, model::{Candidate, CandidateKind}};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, env, fs, io::{self, IsTerminal, Write}, path::Path};
+use std::{collections::HashSet, env, fs, io::{self, IsTerminal, Write}, path::{Path, PathBuf}};
 
 #[derive(Clone,Default,Deserialize,Serialize)]
 struct SavedCommand { name:String, command:String, #[serde(default)] description:String, #[serde(default)] tags:Vec<String> }
@@ -24,17 +24,41 @@ fn builtins()->Vec<SavedCommand>{[
     ("查看 Compose 日志","docker compose logs -f <SERVICE>"),("查看 Kubernetes 日志","kubectl logs <RESOURCE>")
 ].into_iter().map(|(n,c)|SavedCommand{name:n.into(),command:c.into(),description:"内置命令模板".into(),tags:Vec::new()}).collect()}
 
+fn actions()->Vec<SavedCommand>{[
+    ("打开设置","blueberry config edit","调整外观、补全和快捷键"),
+    ("管理工具","blueberry tools","查看工具入口、规则和学习状态"),
+    ("运行诊断","blueberry doctor","检查配置、适配器和安装状态"),
+    ("重新运行引导","blueberry setup","重新选择常用初始设置")
+].into_iter().map(|(n,c,d)|SavedCommand{name:n.into(),command:c.into(),description:d.into(),tags:vec!["Blueberry 操作".into()]}).collect()}
+
+pub fn read_history_file(path:&Path)->Vec<String>{
+    let Ok(text)=fs::read_to_string(path) else{return Vec::new()};
+    let mut lines=Vec::new();let mut current=String::new();
+    for line in text.lines(){current.push_str(line);if current.ends_with('`'){current.pop();current.push('\n');}else if !current.trim().is_empty(){lines.push(std::mem::take(&mut current));}}
+    if !current.trim().is_empty(){lines.push(current)}
+    lines
+}
+
+fn history_files()->Vec<PathBuf>{
+    let Some(root)=env::var_os("APPDATA").map(PathBuf::from) else{return Vec::new()};
+    let Ok(entries)=fs::read_dir(root.join("Microsoft/Windows/PowerShell/PSReadLine")) else{return Vec::new()};
+    entries.flatten().map(|e|e.path()).filter(|p|p.extension().and_then(|x|x.to_str())==Some("txt")).collect()
+}
+
+pub fn merged_history(limit:usize,session:&[String],exact_path:Option<&Path>)->Vec<String>{
+    let files=exact_path.map(|p|vec![p.to_path_buf()]).unwrap_or_else(history_files);
+    let mut lines=files.iter().flat_map(|p|read_history_file(p)).collect::<Vec<_>>();lines.extend(session.iter().cloned());
+    let mut seen=HashSet::new();lines.into_iter().rev().filter(|line|!line.trim().is_empty()&&seen.insert(line.clone())).take(limit).collect()
+}
+
 fn history(limit:usize)->Vec<SavedCommand>{
-    let root=env::var_os("APPDATA").map(std::path::PathBuf::from); let Some(root)=root else{return Vec::new()};
-    let dir=root.join("Microsoft/Windows/PowerShell/PSReadLine"); let Ok(entries)=fs::read_dir(dir) else{return Vec::new()};
-    let mut lines=Vec::new(); for entry in entries.flatten(){if entry.path().extension().and_then(|x|x.to_str())==Some("txt"){if let Ok(text)=fs::read_to_string(entry.path()){let mut current=String::new();for line in text.lines(){current.push_str(line);if current.ends_with('`'){current.pop();current.push('\n');}else if !current.is_empty(){lines.push(std::mem::take(&mut current));}}if !current.is_empty(){lines.push(current);}}}}
-    let mut seen=HashSet::new(); lines.into_iter().rev().filter(|line|!line.trim().is_empty()&&seen.insert(line.clone())).take(limit).map(|command|SavedCommand{name:command.lines().next().unwrap_or("").to_owned(),command,description:"PSReadLine 历史".into(),tags:Vec::new()}).collect()
+    merged_history(limit,&[],None).into_iter().map(|command|SavedCommand{name:command.lines().next().unwrap_or("").to_owned(),command,description:"PSReadLine 历史".into(),tags:Vec::new()}).collect()
 }
 
 pub fn run(config_path:Option<&Path>, query:Option<&str>)->Result<u32>{
     let settings=config::load(config_path)?; let path=config::commands_path();
     let saved:Commands=fs::read_to_string(&path).ok().and_then(|s|toml::from_str(&s).ok()).unwrap_or_default();
-    let mut items=saved.favorites; items.extend(saved.templates); items.extend(builtins()); items.extend(history(settings.workbench.history_limit));
+    let mut items=saved.favorites; items.extend(saved.templates); items.extend(builtins());items.extend(actions()); items.extend(history(settings.workbench.history_limit));
     let query=query.unwrap_or("").trim().to_lowercase(); if !query.is_empty(){items.retain(|i|format!("{} {} {}",i.name,i.description,i.tags.join(" ")).to_lowercase().contains(&query));}
     if !io::stdin().is_terminal(){for item in items.iter().take(100){println!("{}\t{}",item.command,item.name);}return Ok(0)}
     println!("Blueberry 命令工作台（输入序号，将命令填到输出；直接回车退出）\n"); for (i,item) in items.iter().take(30).enumerate(){println!("{:>2}. {:<24} {}",i+1,item.name,item.command)}
@@ -45,9 +69,13 @@ pub fn run(config_path:Option<&Path>, query:Option<&str>)->Result<u32>{
 }
 
 pub fn candidates(settings:&config::Config, query:&str)->Vec<Candidate>{
+    candidates_with_history(settings,query,&[],None)
+}
+
+pub fn candidates_with_history(settings:&config::Config,query:&str,session:&[String],history_path:Option<&Path>)->Vec<Candidate>{
     let path=config::commands_path();
     let saved:Commands=fs::read_to_string(path).ok().and_then(|s|toml::from_str(&s).ok()).unwrap_or_default();
-    let mut items=saved.favorites;items.extend(saved.templates);items.extend(builtins());items.extend(history(settings.workbench.history_limit));
+    let mut items=saved.favorites;items.extend(saved.templates);items.extend(builtins());items.extend(actions());items.extend(merged_history(settings.workbench.history_limit,session,history_path).into_iter().map(|command|SavedCommand{name:command.lines().next().unwrap_or("").to_owned(),command,description:"PowerShell 历史".into(),tags:Vec::new()}));
     let words=query.to_lowercase().split_whitespace().map(str::to_owned).collect::<Vec<_>>();
-    items.into_iter().filter(|item|{let text=format!("{} {} {} {}",item.name,item.description,item.command,item.tags.join(" ")).to_lowercase();words.iter().all(|word|text.contains(word))}).take(settings.completion.max_results).map(|item|Candidate{label:item.name,insert_text:item.command,description:item.description,kind:CandidateKind::Value,source:"Blueberry 工作台".into(),append_space:false,..Default::default()}).collect()
+    items.into_iter().enumerate().filter(|(_,item)|{let text=format!("{} {} {} {}",item.name,item.description,item.command,item.tags.join(" ")).to_lowercase();words.iter().all(|word|text.contains(word))}).take(settings.completion.max_results).map(|(index,item)|Candidate{label:item.name,insert_text:item.command.clone(),description:item.description.clone(),kind:CandidateKind::Value,id:format!("hub:{index}:{}",item.command),source:if item.description.contains("历史"){"Blueberry 工作台/历史".into()}else if item.tags.iter().any(|t|t.contains("操作")){"Blueberry 工作台/操作".into()}else{"Blueberry 工作台".into()},detail:format!("{}\n\n命令\n  {}\n\n来源\n  {}",item.description,item.command,item.tags.join("、")),append_space:false,..Default::default()}).collect()
 }
