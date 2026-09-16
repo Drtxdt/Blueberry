@@ -359,3 +359,163 @@ help = "sectioned"
 required = ["create", "decrypt", "edit", "encrypt", "view"]
 providers = []
 resources = "manual"
+
+[[tools]]
+name = "scoop"
+aliases = ["scoop.cmd", "scoop.ps1"]
+help = "scoop"
+required = ["install", "uninstall", "update", "search", "list"]
+providers = ["windows.scoop_packages"]
+resources = "local"
+
+[[tools]]
+name = "choco"
+aliases = ["choco.exe"]
+help = "choco"
+required = ["install", "uninstall", "upgrade", "search", "list"]
+providers = ["windows.choco_packages"]
+resources = "local"
+
+[[tools]]
+name = "wsl"
+aliases = ["wsl.exe"]
+help = "sectioned"
+required = []
+providers = ["windows.wsl_distros"]
+resources = "local"
+
+[[tools]]
+name = "7z"
+aliases = ["7z.exe", "7za", "7za.exe", "7zz", "7zz.exe"]
+help = "sevenzip"
+required = ["a", "e", "l", "t", "x"]
+providers = []
+resources = "local"
+
+[[tools]]
+name = "robocopy"
+aliases = ["robocopy.exe"]
+help = "windows-slash"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "where"
+aliases = ["where.exe"]
+help = "windows-slash"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "tasklist"
+aliases = ["tasklist.exe"]
+help = "windows-slash"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "taskkill"
+aliases = ["taskkill.exe"]
+help = "windows-slash"
+required = []
+providers = ["windows.processes"]
+resources = "local"
+
+[[tools]]
+name = "ipconfig"
+aliases = ["ipconfig.exe"]
+help = "windows-slash"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "netstat"
+aliases = ["netstat.exe"]
+help = "windows-slash"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "sc"
+aliases = ["sc.exe"]
+help = "windows-slash"
+required = ["query", "start", "stop", "create", "delete", "config"]
+providers = ["windows.services"]
+resources = "local"
+
+[[tools]]
+name = "reg"
+aliases = ["reg.exe"]
+help = "windows-slash"
+required = ["add", "delete", "export", "import", "query"]
+providers = []
+resources = "local"
+
+[[tools]]
+name = "Get-Module"
+aliases = ["get-module", "gmo"]
+help = "powershell"
+required = []
+providers = ["powershell.modules"]
+resources = "local"
+
+[[tools]]
+name = "Import-Module"
+aliases = ["import-module", "ipmo"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "Remove-Module"
+aliases = ["remove-module", "rmo"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "Install-Module"
+aliases = ["install-module"]
+help = "powershell"
+required = []
+providers = []
+resources = "manual"
+
+[[tools]]
+name = "Get-Command"
+aliases = ["get-command", "gcm"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "Get-Help"
+aliases = ["get-help", "help", "man"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "Compress-Archive"
+aliases = ["compress-archive"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "Expand-Archive"
+aliases = ["expand-archive"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"

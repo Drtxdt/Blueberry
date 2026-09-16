@@ -1,0 +1,925 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[option_sets]]
+id = "WINDOWS_HELP_OPTIONS"
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示当前工具或子命令的帮助。"
+value_kind = "none"
+
+[[option_sets]]
+id = "POWERSHELL_MANAGEMENT_OPTIONS"
+[[option_sets.options]]
+name = "-Verbose"
+description = "显示详细执行信息"
+detail = "显示 PowerShell 命令的详细执行信息。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-ErrorAction"
+description = "指定错误处理方式"
+detail = "指定 PowerShell 遇到错误时的处理方式。"
+value_kind = "text"
+values = [{ name = "Continue", description = "显示错误并继续" }, { name = "Stop", description = "将错误作为终止错误" }, { name = "SilentlyContinue", description = "隐藏错误并继续" }]
+
+[[nodes]]
+path = "scoop"
+name = "scoop"
+description = "管理 Scoop 软件包"
+detail = "管理 Scoop 软件包；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = ["scoop install", "scoop uninstall", "scoop update", "scoop search", "scoop list", "scoop info", "scoop bucket", "scoop cache", "scoop cleanup", "scoop config", "scoop export", "scoop import", "scoop status", "scoop checkup", "scoop reset", "scoop shim"]
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop --help"]
+keywords = ["管理 Scoop 软件包", "Windows"]
+
+[[nodes]]
+path = "scoop install"
+name = "install"
+description = "管理 Scoop 软件包：install"
+detail = "管理 Scoop 软件包：install。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop install --help"]
+keywords = ["管理 Scoop 软件包", "install"]
+
+[[nodes]]
+path = "scoop uninstall"
+name = "uninstall"
+description = "管理 Scoop 软件包：uninstall"
+detail = "管理 Scoop 软件包：uninstall。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop uninstall --help"]
+keywords = ["管理 Scoop 软件包", "uninstall"]
+provider = "windows.scoop_packages"
+
+[[nodes]]
+path = "scoop update"
+name = "update"
+description = "管理 Scoop 软件包：update"
+detail = "管理 Scoop 软件包：update。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop update --help"]
+keywords = ["管理 Scoop 软件包", "update"]
+provider = "windows.scoop_packages"
+
+[[nodes]]
+path = "scoop search"
+name = "search"
+description = "管理 Scoop 软件包：search"
+detail = "管理 Scoop 软件包：search。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop search --help"]
+keywords = ["管理 Scoop 软件包", "search"]
+
+[[nodes]]
+path = "scoop list"
+name = "list"
+description = "管理 Scoop 软件包：list"
+detail = "管理 Scoop 软件包：list。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop list --help"]
+keywords = ["管理 Scoop 软件包", "list"]
+
+[[nodes]]
+path = "scoop info"
+name = "info"
+description = "管理 Scoop 软件包：info"
+detail = "管理 Scoop 软件包：info。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop info --help"]
+keywords = ["管理 Scoop 软件包", "info"]
+provider = "windows.scoop_packages"
+
+[[nodes]]
+path = "scoop bucket"
+name = "bucket"
+description = "管理 Scoop 软件包：bucket"
+detail = "管理 Scoop 软件包：bucket。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop bucket --help"]
+keywords = ["管理 Scoop 软件包", "bucket"]
+
+[[nodes]]
+path = "scoop cache"
+name = "cache"
+description = "管理 Scoop 软件包：cache"
+detail = "管理 Scoop 软件包：cache。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop cache --help"]
+keywords = ["管理 Scoop 软件包", "cache"]
+
+[[nodes]]
+path = "scoop cleanup"
+name = "cleanup"
+description = "管理 Scoop 软件包：cleanup"
+detail = "管理 Scoop 软件包：cleanup。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop cleanup --help"]
+keywords = ["管理 Scoop 软件包", "cleanup"]
+
+[[nodes]]
+path = "scoop config"
+name = "config"
+description = "管理 Scoop 软件包：config"
+detail = "管理 Scoop 软件包：config。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop config --help"]
+keywords = ["管理 Scoop 软件包", "config"]
+
+[[nodes]]
+path = "scoop export"
+name = "export"
+description = "管理 Scoop 软件包：export"
+detail = "管理 Scoop 软件包：export。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop export --help"]
+keywords = ["管理 Scoop 软件包", "export"]
+
+[[nodes]]
+path = "scoop import"
+name = "import"
+description = "管理 Scoop 软件包：import"
+detail = "管理 Scoop 软件包：import。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop import --help"]
+keywords = ["管理 Scoop 软件包", "import"]
+
+[[nodes]]
+path = "scoop status"
+name = "status"
+description = "管理 Scoop 软件包：status"
+detail = "管理 Scoop 软件包：status。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop status --help"]
+keywords = ["管理 Scoop 软件包", "status"]
+
+[[nodes]]
+path = "scoop checkup"
+name = "checkup"
+description = "管理 Scoop 软件包：checkup"
+detail = "管理 Scoop 软件包：checkup。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop checkup --help"]
+keywords = ["管理 Scoop 软件包", "checkup"]
+
+[[nodes]]
+path = "scoop reset"
+name = "reset"
+description = "管理 Scoop 软件包：reset"
+detail = "管理 Scoop 软件包：reset。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop reset --help"]
+keywords = ["管理 Scoop 软件包", "reset"]
+
+[[nodes]]
+path = "scoop shim"
+name = "shim"
+description = "管理 Scoop 软件包：shim"
+detail = "管理 Scoop 软件包：shim。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["scoop shim --help"]
+keywords = ["管理 Scoop 软件包", "shim"]
+
+[[nodes]]
+path = "choco"
+name = "choco"
+description = "管理 Chocolatey 软件包"
+detail = "管理 Chocolatey 软件包；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = ["choco install", "choco uninstall", "choco upgrade", "choco search", "choco list", "choco info", "choco pack", "choco push", "choco source", "choco config", "choco feature", "choco pin"]
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco --help"]
+keywords = ["管理 Chocolatey 软件包", "Windows"]
+
+[[nodes]]
+path = "choco install"
+name = "install"
+description = "管理 Chocolatey 软件包：install"
+detail = "管理 Chocolatey 软件包：install。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco install --help"]
+keywords = ["管理 Chocolatey 软件包", "install"]
+
+[[nodes]]
+path = "choco uninstall"
+name = "uninstall"
+description = "管理 Chocolatey 软件包：uninstall"
+detail = "管理 Chocolatey 软件包：uninstall。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco uninstall --help"]
+keywords = ["管理 Chocolatey 软件包", "uninstall"]
+provider = "windows.choco_packages"
+
+[[nodes]]
+path = "choco upgrade"
+name = "upgrade"
+description = "管理 Chocolatey 软件包：upgrade"
+detail = "管理 Chocolatey 软件包：upgrade。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco upgrade --help"]
+keywords = ["管理 Chocolatey 软件包", "upgrade"]
+provider = "windows.choco_packages"
+
+[[nodes]]
+path = "choco search"
+name = "search"
+description = "管理 Chocolatey 软件包：search"
+detail = "管理 Chocolatey 软件包：search。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco search --help"]
+keywords = ["管理 Chocolatey 软件包", "search"]
+
+[[nodes]]
+path = "choco list"
+name = "list"
+description = "管理 Chocolatey 软件包：list"
+detail = "管理 Chocolatey 软件包：list。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco list --help"]
+keywords = ["管理 Chocolatey 软件包", "list"]
+
+[[nodes]]
+path = "choco info"
+name = "info"
+description = "管理 Chocolatey 软件包：info"
+detail = "管理 Chocolatey 软件包：info。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco info --help"]
+keywords = ["管理 Chocolatey 软件包", "info"]
+provider = "windows.choco_packages"
+
+[[nodes]]
+path = "choco pack"
+name = "pack"
+description = "管理 Chocolatey 软件包：pack"
+detail = "管理 Chocolatey 软件包：pack。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco pack --help"]
+keywords = ["管理 Chocolatey 软件包", "pack"]
+
+[[nodes]]
+path = "choco push"
+name = "push"
+description = "管理 Chocolatey 软件包：push"
+detail = "管理 Chocolatey 软件包：push。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco push --help"]
+keywords = ["管理 Chocolatey 软件包", "push"]
+
+[[nodes]]
+path = "choco source"
+name = "source"
+description = "管理 Chocolatey 软件包：source"
+detail = "管理 Chocolatey 软件包：source。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco source --help"]
+keywords = ["管理 Chocolatey 软件包", "source"]
+
+[[nodes]]
+path = "choco config"
+name = "config"
+description = "管理 Chocolatey 软件包：config"
+detail = "管理 Chocolatey 软件包：config。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco config --help"]
+keywords = ["管理 Chocolatey 软件包", "config"]
+
+[[nodes]]
+path = "choco feature"
+name = "feature"
+description = "管理 Chocolatey 软件包：feature"
+detail = "管理 Chocolatey 软件包：feature。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco feature --help"]
+keywords = ["管理 Chocolatey 软件包", "feature"]
+
+[[nodes]]
+path = "choco pin"
+name = "pin"
+description = "管理 Chocolatey 软件包：pin"
+detail = "管理 Chocolatey 软件包：pin。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["choco pin --help"]
+keywords = ["管理 Chocolatey 软件包", "pin"]
+
+[[nodes]]
+path = "wsl"
+name = "wsl"
+description = "管理 Windows Subsystem for Linux"
+detail = "管理 Windows Subsystem for Linux；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["wsl --help"]
+keywords = ["管理 Windows Subsystem for Linux", "Windows"]
+provider = "windows.wsl_distros"
+
+[[nodes]]
+path = "7z"
+name = "7z"
+description = "创建、检查和解压归档文件"
+detail = "创建、检查和解压归档文件；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "path"
+children = ["7z a", "7z b", "7z d", "7z e", "7z h", "7z i", "7z l", "7z rn", "7z t", "7z u", "7z x"]
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z --help"]
+keywords = ["创建、检查和解压归档文件", "Windows"]
+
+[[nodes]]
+path = "7z a"
+name = "a"
+description = "创建、检查和解压归档文件：a"
+detail = "创建、检查和解压归档文件：a。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z a --help"]
+keywords = ["创建、检查和解压归档文件", "a"]
+
+[[nodes]]
+path = "7z b"
+name = "b"
+description = "创建、检查和解压归档文件：b"
+detail = "创建、检查和解压归档文件：b。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z b --help"]
+keywords = ["创建、检查和解压归档文件", "b"]
+
+[[nodes]]
+path = "7z d"
+name = "d"
+description = "创建、检查和解压归档文件：d"
+detail = "创建、检查和解压归档文件：d。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z d --help"]
+keywords = ["创建、检查和解压归档文件", "d"]
+
+[[nodes]]
+path = "7z e"
+name = "e"
+description = "创建、检查和解压归档文件：e"
+detail = "创建、检查和解压归档文件：e。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z e --help"]
+keywords = ["创建、检查和解压归档文件", "e"]
+
+[[nodes]]
+path = "7z h"
+name = "h"
+description = "创建、检查和解压归档文件：h"
+detail = "创建、检查和解压归档文件：h。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z h --help"]
+keywords = ["创建、检查和解压归档文件", "h"]
+
+[[nodes]]
+path = "7z i"
+name = "i"
+description = "创建、检查和解压归档文件：i"
+detail = "创建、检查和解压归档文件：i。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z i --help"]
+keywords = ["创建、检查和解压归档文件", "i"]
+
+[[nodes]]
+path = "7z l"
+name = "l"
+description = "创建、检查和解压归档文件：l"
+detail = "创建、检查和解压归档文件：l。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z l --help"]
+keywords = ["创建、检查和解压归档文件", "l"]
+
+[[nodes]]
+path = "7z rn"
+name = "rn"
+description = "创建、检查和解压归档文件：rn"
+detail = "创建、检查和解压归档文件：rn。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z rn --help"]
+keywords = ["创建、检查和解压归档文件", "rn"]
+
+[[nodes]]
+path = "7z t"
+name = "t"
+description = "创建、检查和解压归档文件：t"
+detail = "创建、检查和解压归档文件：t。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z t --help"]
+keywords = ["创建、检查和解压归档文件", "t"]
+
+[[nodes]]
+path = "7z u"
+name = "u"
+description = "创建、检查和解压归档文件：u"
+detail = "创建、检查和解压归档文件：u。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z u --help"]
+keywords = ["创建、检查和解压归档文件", "u"]
+
+[[nodes]]
+path = "7z x"
+name = "x"
+description = "创建、检查和解压归档文件：x"
+detail = "创建、检查和解压归档文件：x。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["7z x --help"]
+keywords = ["创建、检查和解压归档文件", "x"]
+
+[[nodes]]
+path = "robocopy"
+name = "robocopy"
+description = "可靠复制目录和文件"
+detail = "可靠复制目录和文件；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "directory"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["robocopy --help"]
+keywords = ["可靠复制目录和文件", "Windows"]
+
+[[nodes]]
+path = "where"
+name = "where"
+description = "查找命令或文件位置"
+detail = "查找命令或文件位置；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "path"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["where --help"]
+keywords = ["查找命令或文件位置", "Windows"]
+
+[[nodes]]
+path = "tasklist"
+name = "tasklist"
+description = "列出本机进程"
+detail = "列出本机进程；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["tasklist --help"]
+keywords = ["列出本机进程", "Windows"]
+
+[[nodes]]
+path = "taskkill"
+name = "taskkill"
+description = "结束本机进程"
+detail = "结束本机进程；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["taskkill --help"]
+keywords = ["结束本机进程", "Windows"]
+provider = "windows.processes"
+
+[[nodes]]
+path = "ipconfig"
+name = "ipconfig"
+description = "查看和更新网络配置"
+detail = "查看和更新网络配置；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["ipconfig --help"]
+keywords = ["查看和更新网络配置", "Windows"]
+
+[[nodes]]
+path = "netstat"
+name = "netstat"
+description = "查看网络连接与监听端口"
+detail = "查看网络连接与监听端口；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["netstat --help"]
+keywords = ["查看网络连接与监听端口", "Windows"]
+
+[[nodes]]
+path = "sc"
+name = "sc"
+description = "管理 Windows 服务"
+detail = "管理 Windows 服务；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = ["sc query", "sc queryex", "sc start", "sc stop", "sc create", "sc delete", "sc config", "sc description", "sc failure", "sc qc"]
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc --help"]
+keywords = ["管理 Windows 服务", "Windows"]
+
+[[nodes]]
+path = "sc query"
+name = "query"
+description = "管理 Windows 服务：query"
+detail = "管理 Windows 服务：query。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc query --help"]
+keywords = ["管理 Windows 服务", "query"]
+provider = "windows.services"
+
+[[nodes]]
+path = "sc queryex"
+name = "queryex"
+description = "管理 Windows 服务：queryex"
+detail = "管理 Windows 服务：queryex。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc queryex --help"]
+keywords = ["管理 Windows 服务", "queryex"]
+provider = "windows.services"
+
+[[nodes]]
+path = "sc start"
+name = "start"
+description = "管理 Windows 服务：start"
+detail = "管理 Windows 服务：start。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc start --help"]
+keywords = ["管理 Windows 服务", "start"]
+provider = "windows.services"
+
+[[nodes]]
+path = "sc stop"
+name = "stop"
+description = "管理 Windows 服务：stop"
+detail = "管理 Windows 服务：stop。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc stop --help"]
+keywords = ["管理 Windows 服务", "stop"]
+provider = "windows.services"
+
+[[nodes]]
+path = "sc create"
+name = "create"
+description = "管理 Windows 服务：create"
+detail = "管理 Windows 服务：create。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc create --help"]
+keywords = ["管理 Windows 服务", "create"]
+
+[[nodes]]
+path = "sc delete"
+name = "delete"
+description = "管理 Windows 服务：delete"
+detail = "管理 Windows 服务：delete。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc delete --help"]
+keywords = ["管理 Windows 服务", "delete"]
+provider = "windows.services"
+
+[[nodes]]
+path = "sc config"
+name = "config"
+description = "管理 Windows 服务：config"
+detail = "管理 Windows 服务：config。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc config --help"]
+keywords = ["管理 Windows 服务", "config"]
+provider = "windows.services"
+
+[[nodes]]
+path = "sc description"
+name = "description"
+description = "管理 Windows 服务：description"
+detail = "管理 Windows 服务：description。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc description --help"]
+keywords = ["管理 Windows 服务", "description"]
+
+[[nodes]]
+path = "sc failure"
+name = "failure"
+description = "管理 Windows 服务：failure"
+detail = "管理 Windows 服务：failure。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc failure --help"]
+keywords = ["管理 Windows 服务", "failure"]
+
+[[nodes]]
+path = "sc qc"
+name = "qc"
+description = "管理 Windows 服务：qc"
+detail = "管理 Windows 服务：qc。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["sc qc --help"]
+keywords = ["管理 Windows 服务", "qc"]
+
+[[nodes]]
+path = "reg"
+name = "reg"
+description = "查询和修改 Windows 注册表"
+detail = "查询和修改 Windows 注册表；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = ["reg add", "reg compare", "reg copy", "reg delete", "reg export", "reg import", "reg load", "reg query", "reg restore", "reg save", "reg unload"]
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg --help"]
+keywords = ["查询和修改 Windows 注册表", "Windows"]
+
+[[nodes]]
+path = "reg add"
+name = "add"
+description = "查询和修改 Windows 注册表：add"
+detail = "查询和修改 Windows 注册表：add。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg add --help"]
+keywords = ["查询和修改 Windows 注册表", "add"]
+
+[[nodes]]
+path = "reg compare"
+name = "compare"
+description = "查询和修改 Windows 注册表：compare"
+detail = "查询和修改 Windows 注册表：compare。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg compare --help"]
+keywords = ["查询和修改 Windows 注册表", "compare"]
+
+[[nodes]]
+path = "reg copy"
+name = "copy"
+description = "查询和修改 Windows 注册表：copy"
+detail = "查询和修改 Windows 注册表：copy。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg copy --help"]
+keywords = ["查询和修改 Windows 注册表", "copy"]
+
+[[nodes]]
+path = "reg delete"
+name = "delete"
+description = "查询和修改 Windows 注册表：delete"
+detail = "查询和修改 Windows 注册表：delete。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg delete --help"]
+keywords = ["查询和修改 Windows 注册表", "delete"]
+
+[[nodes]]
+path = "reg export"
+name = "export"
+description = "查询和修改 Windows 注册表：export"
+detail = "查询和修改 Windows 注册表：export。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg export --help"]
+keywords = ["查询和修改 Windows 注册表", "export"]
+
+[[nodes]]
+path = "reg import"
+name = "import"
+description = "查询和修改 Windows 注册表：import"
+detail = "查询和修改 Windows 注册表：import。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg import --help"]
+keywords = ["查询和修改 Windows 注册表", "import"]
+
+[[nodes]]
+path = "reg load"
+name = "load"
+description = "查询和修改 Windows 注册表：load"
+detail = "查询和修改 Windows 注册表：load。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg load --help"]
+keywords = ["查询和修改 Windows 注册表", "load"]
+
+[[nodes]]
+path = "reg query"
+name = "query"
+description = "查询和修改 Windows 注册表：query"
+detail = "查询和修改 Windows 注册表：query。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg query --help"]
+keywords = ["查询和修改 Windows 注册表", "query"]
+
+[[nodes]]
+path = "reg restore"
+name = "restore"
+description = "查询和修改 Windows 注册表：restore"
+detail = "查询和修改 Windows 注册表：restore。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg restore --help"]
+keywords = ["查询和修改 Windows 注册表", "restore"]
+
+[[nodes]]
+path = "reg save"
+name = "save"
+description = "查询和修改 Windows 注册表：save"
+detail = "查询和修改 Windows 注册表：save。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg save --help"]
+keywords = ["查询和修改 Windows 注册表", "save"]
+
+[[nodes]]
+path = "reg unload"
+name = "unload"
+description = "查询和修改 Windows 注册表：unload"
+detail = "查询和修改 Windows 注册表：unload。"
+positional = "value"
+children = []
+option_sets = ["WINDOWS_HELP_OPTIONS"]
+examples = ["reg unload --help"]
+keywords = ["查询和修改 Windows 注册表", "unload"]
+
+[[nodes]]
+path = "Get-Module"
+name = "Get-Module"
+description = "查看 PowerShell 模块"
+detail = "查看 PowerShell 模块；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Get-Module -ListAvailable"]
+keywords = ["查看 PowerShell 模块", "Windows"]
+provider = "powershell.modules"
+
+[[nodes]]
+path = "Import-Module"
+name = "Import-Module"
+description = "导入 PowerShell 模块"
+detail = "导入 PowerShell 模块；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Import-Module Microsoft.PowerShell.Management"]
+keywords = ["导入 PowerShell 模块", "Windows"]
+provider = "powershell.modules"
+
+[[nodes]]
+path = "Remove-Module"
+name = "Remove-Module"
+description = "移除 PowerShell 模块"
+detail = "移除 PowerShell 模块；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Remove-Module Microsoft.PowerShell.Management"]
+keywords = ["移除 PowerShell 模块", "Windows"]
+provider = "powershell.modules"
+
+[[nodes]]
+path = "Install-Module"
+name = "Install-Module"
+description = "安装 PowerShell 模块"
+detail = "安装 PowerShell 模块；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Install-Module Pester"]
+keywords = ["安装 PowerShell 模块", "Windows"]
+
+[[nodes]]
+path = "Get-Command"
+name = "Get-Command"
+description = "查找 PowerShell 命令"
+detail = "查找 PowerShell 命令；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Get-Command Get-ChildItem"]
+keywords = ["查找 PowerShell 命令", "Windows"]
+
+[[nodes]]
+path = "Get-Help"
+name = "Get-Help"
+description = "查看 PowerShell 帮助"
+detail = "查看 PowerShell 帮助；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "value"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Get-Help Get-ChildItem"]
+keywords = ["查看 PowerShell 帮助", "Windows"]
+
+[[nodes]]
+path = "Compress-Archive"
+name = "Compress-Archive"
+description = "创建 ZIP 归档"
+detail = "创建 ZIP 归档；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "path"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Compress-Archive .\\src .\\src.zip"]
+keywords = ["创建 ZIP 归档", "Windows"]
+
+[[nodes]]
+path = "Expand-Archive"
+name = "Expand-Archive"
+description = "解压 ZIP 归档"
+detail = "解压 ZIP 归档；本机版本的完整参数会按需学习或由 PowerShell 会话提供。"
+positional = "path"
+children = []
+option_sets = ["POWERSHELL_MANAGEMENT_OPTIONS"]
+examples = ["Expand-Archive .\\src.zip .\\src"]
+keywords = ["解压 ZIP 归档", "Windows"]
+
+

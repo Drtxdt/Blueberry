@@ -647,6 +647,7 @@ fn builtin_examples_never_contain_generated_placeholders() {
         include_str!("../specs/builtin/containers.toml"),
         include_str!("../specs/builtin/devops.toml"),
         include_str!("../specs/builtin/remote.toml"),
+        include_str!("../specs/builtin/windows.toml"),
     );
     assert!(!catalog.contains(" 示例\""));
 }

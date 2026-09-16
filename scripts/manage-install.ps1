@@ -45,6 +45,7 @@ $script:RequiredPackageFiles = @(
     'specs/builtin/containers.toml',
     'specs/builtin/devops.toml',
     'specs/builtin/remote.toml',
+    'specs/builtin/windows.toml',
     'manage-install.ps1',
     'install-common.ps1',
     'install.ps1'

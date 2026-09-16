@@ -100,6 +100,7 @@ pub enum ProviderKind {
     Helm,
     Ssh,
     DevTools,
+    WindowsTools,
 }
 
 /// Select a project provider for an executable name or path.
@@ -127,6 +128,8 @@ pub fn provider_for_command(command: &str) -> Option<ProviderKind> {
         | "terraform" | "tofu" | "ansible" | "ansible-playbook" => {
             Some(ProviderKind::DevTools)
         }
+        "scoop" | "choco" | "wsl" | "taskkill" | "sc" | "get-module"
+        | "import-module" | "remove-module" => Some(ProviderKind::WindowsTools),
         _ => None,
     }
 }
@@ -593,6 +596,7 @@ pub fn collect(query: &ProjectQuery, cancelled: &AtomicBool) -> ProviderResult {
         ProviderKind::Helm => collect_helm(query, cancelled),
         ProviderKind::Ssh => collect_ssh(query, cancelled),
         ProviderKind::DevTools => collect_dev_tools(query, cancelled),
+        ProviderKind::WindowsTools => collect_windows_tools(query, cancelled),
     }
 }
 
@@ -612,6 +616,9 @@ pub fn collect_project(query: &ProjectQuery, cancelled: &AtomicBool) -> Provider
 fn selected_provider(query: &ProjectQuery) -> Option<ProviderKind> {
     if let Some(provider) = query.provider.as_deref() {
         let lower = provider.to_ascii_lowercase();
+        if lower == "powershell.modules" || lower.starts_with("windows.") {
+            return Some(ProviderKind::WindowsTools);
+        }
         let family = lower
             .split_once('.')
             .map(|(family, _)| family)
@@ -3975,6 +3982,60 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
         _ => {}
     }
     add_values(&mut result, values, description, source, &query.prefix);
+    result.finish()
+}
+
+fn collect_windows_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
+    let mut result = ProviderResult::default();
+    let provider = query.provider.as_deref().unwrap_or("");
+    match provider {
+        "windows.scoop_packages" => {
+            let root = query
+                .environment
+                .get("SCOOP")
+                .map(PathBuf::from)
+                .or_else(|| query.environment.get("USERPROFILE").map(|p| PathBuf::from(p).join("scoop")));
+            if let Some(dir) = root.map(|root| root.join("apps")) {
+                add_watch_path(&mut result, &dir);
+                if let Ok(entries) = fs::read_dir(dir) {
+                    add_values(&mut result, entries.flatten().filter(|entry| entry.path().is_dir()).filter_map(|entry| entry.file_name().into_string().ok()), "已安装 Scoop 软件包", "windows.scoop.package", &query.prefix);
+                }
+            }
+        }
+        "windows.choco_packages" => {
+            let root = query.environment.get("ChocolateyInstall").map(PathBuf::from)
+                .or_else(|| query.environment.get("ProgramData").map(|p| PathBuf::from(p).join("chocolatey")));
+            if let Some(dir) = root.map(|root| root.join("lib")) {
+                add_watch_path(&mut result, &dir);
+                if let Ok(entries) = fs::read_dir(dir) {
+                    add_values(&mut result, entries.flatten().filter(|entry| entry.path().is_dir()).filter_map(|entry| entry.file_name().into_string().ok()).map(|name| name.trim_end_matches(".install").to_owned()), "已安装 Chocolatey 软件包", "windows.choco.package", &query.prefix);
+                }
+            }
+        }
+        "powershell.modules" => {
+            if let Some(paths) = query.environment.get("PSModulePath") {
+                for dir in env::split_paths(paths) {
+                    add_watch_path(&mut result, &dir);
+                    if let Ok(entries) = fs::read_dir(dir) {
+                        add_values(&mut result, entries.flatten().filter(|entry| entry.path().is_dir()).filter_map(|entry| entry.file_name().into_string().ok()), "本机 PowerShell 模块", "powershell.module", &query.prefix);
+                    }
+                }
+            }
+        }
+        "windows.wsl_distros" => match run_bounded_query(query, "wsl", &["-l", "-q"], cancelled_flag) {
+            Ok(values) => add_values(&mut result, values.into_iter().map(|value| value.replace('\0', "").trim().to_owned()).filter(|value| !value.is_empty()), "已安装 WSL 发行版", "windows.wsl.distro", &query.prefix),
+            Err(error) => result.diagnostics.push(format!("读取 WSL 发行版失败：{error}")),
+        },
+        "windows.processes" => match run_bounded_query(query, "tasklist", &["/fo", "csv", "/nh"], cancelled_flag) {
+            Ok(values) => add_values(&mut result, values.into_iter().filter_map(|line| line.trim_matches('"').split("\",\"").next().map(str::to_owned)), "本机进程映像名称", "windows.process", &query.prefix),
+            Err(error) => result.diagnostics.push(format!("读取进程列表失败：{error}")),
+        },
+        "windows.services" => match run_bounded_query(query, "sc", &["query", "state=", "all"], cancelled_flag) {
+            Ok(values) => add_values(&mut result, values.into_iter().filter_map(|line| line.strip_prefix("SERVICE_NAME:").map(str::trim).map(str::to_owned)), "本机 Windows 服务", "windows.service", &query.prefix),
+            Err(error) => result.diagnostics.push(format!("读取服务列表失败：{error}")),
+        },
+        _ => {}
+    }
     result.finish()
 }
 

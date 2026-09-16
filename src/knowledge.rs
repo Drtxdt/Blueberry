@@ -886,13 +886,27 @@ pub fn learn(
         args.extend(suffix);
         args
     };
-    let help_flag = if entry.command == "git" && !context.is_empty() {
-        "-h"
-    } else {
-        "--help"
+    let adapter = crate::tool_registry::definition(&entry.command)
+        .map(|tool| tool.help)
+        .unwrap_or("sectioned");
+    let mut help_args = match adapter {
+        "scoop" => std::iter::once("help".to_owned())
+            .chain(context.iter().cloned())
+            .collect(),
+        _ => context.clone(),
     };
-    let mut help_args = context.clone();
-    help_args.push(help_flag.into());
+    if adapter != "scoop" {
+        help_args.push(
+            match adapter {
+                "windows-slash" => "/?",
+                "sevenzip" => "-h",
+                "choco" => "-?",
+                _ if entry.command == "git" && !context.is_empty() => "-h",
+                _ => "--help",
+            }
+            .into(),
+        );
+    }
     let result = capture(
         &entry.target,
         &arguments(help_args),
@@ -901,10 +915,7 @@ pub fn learn(
     )
     .and_then(|text| {
         let mut page = parse_help(&text);
-        page.adapter = crate::tool_registry::definition(&entry.command)
-            .map(|tool| tool.help)
-            .unwrap_or("sectioned")
-            .to_owned();
+        page.adapter = adapter.to_owned();
         if entry.command == "cargo" && context.is_empty() {
             let listing = capture(
                 &entry.target,
