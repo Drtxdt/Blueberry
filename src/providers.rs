@@ -99,6 +99,7 @@ pub enum ProviderKind {
     Kubectl,
     Helm,
     Ssh,
+    DevTools,
 }
 
 /// Select a project provider for an executable name or path.
@@ -122,6 +123,10 @@ pub fn provider_for_command(command: &str) -> Option<ProviderKind> {
         "kubectl" => Some(ProviderKind::Kubectl),
         "helm" => Some(ProviderKind::Helm),
         "ssh" | "scp" | "sftp" => Some(ProviderKind::Ssh),
+        "deno" | "mvn" | "gradle" | "make" | "gmake" | "ninja" | "just" | "task"
+        | "terraform" | "tofu" | "ansible" | "ansible-playbook" => {
+            Some(ProviderKind::DevTools)
+        }
         _ => None,
     }
 }
@@ -587,6 +592,7 @@ pub fn collect(query: &ProjectQuery, cancelled: &AtomicBool) -> ProviderResult {
         ProviderKind::Kubectl => collect_kubeconfig(query, cancelled),
         ProviderKind::Helm => collect_helm(query, cancelled),
         ProviderKind::Ssh => collect_ssh(query, cancelled),
+        ProviderKind::DevTools => collect_dev_tools(query, cancelled),
     }
 }
 
@@ -628,6 +634,8 @@ fn selected_provider(query: &ProjectQuery) -> Option<ProviderKind> {
             "kubectl" => Some(ProviderKind::Kubectl),
             "helm" => Some(ProviderKind::Helm),
             "ssh" => Some(ProviderKind::Ssh),
+            "deno" | "maven" | "gradle" | "make" | "ninja" | "just" | "task"
+            | "terraform" | "tofu" | "ansible" => Some(ProviderKind::DevTools),
             _ => None,
         };
     }
@@ -3736,6 +3744,237 @@ fn collect_cmake(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
         let values=json.get(key).and_then(|v|v.as_array()).into_iter().flatten().filter_map(|v|v.get("name")?.as_str()).map(str::to_owned);
         add_values(&mut result,values,"CMake 预设","cmake.preset",&query.prefix);
     }
+    result.finish()
+}
+
+fn quoted_name(line: &str, keyword: &str) -> Option<String> {
+    let rest = line.trim().strip_prefix(keyword)?.trim_start();
+    let quote = rest.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let value = rest[quote.len_utf8()..].split(quote).next()?.trim();
+    (!value.is_empty()).then(|| value.to_owned())
+}
+
+fn simple_yaml_keys(text: &str, section: &str) -> Vec<String> {
+    let mut in_section = false;
+    let mut values = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed == format!("{section}:") {
+            in_section = true;
+            continue;
+        }
+        if in_section && !line.starts_with([' ', '\t']) && !trimmed.is_empty() {
+            in_section = false;
+        }
+        if in_section
+            && line.starts_with("  ")
+            && !line.starts_with("    ")
+            && trimmed.ends_with(':')
+        {
+            let value = trimmed.trim_end_matches(':').trim_matches(['"', '\'']);
+            if !value.is_empty() {
+                values.push(value.to_owned());
+            }
+        }
+    }
+    values
+}
+
+fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
+    let mut result = ProviderResult::default();
+    if cancelled(cancelled_flag) {
+        result.incomplete = true;
+        return result;
+    }
+    let family = query
+        .provider
+        .as_deref()
+        .and_then(|provider| provider.split('.').next())
+        .map(str::to_owned)
+        .unwrap_or_else(|| executable_stem(&query.command));
+    let mut values = BTreeSet::new();
+    let mut source = "dev.project";
+    let mut description = "当前项目候选";
+    match family.as_str() {
+        "deno" => {
+            if let Some(path) = find_upwards(&query.cwd, "deno.json")
+                .or_else(|| find_upwards(&query.cwd, "deno.jsonc"))
+            {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                        values.extend(
+                            json.get("tasks")
+                                .and_then(serde_json::Value::as_object)
+                                .into_iter()
+                                .flat_map(|tasks| tasks.keys().cloned()),
+                        );
+                    }
+                }
+            }
+            source = "deno.task";
+            description = "deno.json 项目任务";
+        }
+        "maven" => {
+            if let Some(path) = find_upwards(&query.cwd, "pom.xml") {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    for tag in ["module", "id"] {
+                        let open = format!("<{tag}>");
+                        let close = format!("</{tag}>");
+                        for tail in text.split(&open).skip(1) {
+                            if let Some((value, _)) = tail.split_once(&close) {
+                                let value = value.trim();
+                                if !value.is_empty() && !value.contains('<') {
+                                    values.insert(value.to_owned());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            source = "maven.module";
+            description = "Maven 模块或 profile";
+        }
+        "gradle" => {
+            let path = ["build.gradle.kts", "build.gradle"]
+                .iter()
+                .find_map(|name| find_upwards(&query.cwd, name));
+            if let Some(path) = path {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    for line in text.lines() {
+                        let trimmed = line.trim();
+                        if let Some(value) = trimmed.strip_prefix("task ") {
+                            let value = value.split([' ', '(', '{']).next().unwrap_or("");
+                            if !value.is_empty() { values.insert(value.into()); }
+                        }
+                        for prefix in ["tasks.register(\"", "tasks.named(\""] {
+                            if let Some(value) = trimmed.strip_prefix(prefix).and_then(|v| v.split('"').next()) {
+                                values.insert(value.into());
+                            }
+                        }
+                    }
+                }
+            }
+            source = "gradle.task";
+            description = "Gradle 文件中声明的任务";
+        }
+        "make" => {
+            if let Some(path) = ["Makefile", "makefile", "GNUmakefile"]
+                .iter().find_map(|name| find_upwards(&query.cwd, name))
+            {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    for line in text.lines().filter(|line| !line.chars().next().is_some_and(|c| [' ', '\t', '.', '#'].contains(&c))) {
+                        if let Some((target, _)) = line.split_once(':') {
+                            let target = target.trim();
+                            if !target.is_empty() && !target.contains(['%', '=', '$']) {
+                                values.insert(target.into());
+                            }
+                        }
+                    }
+                }
+            }
+            source = "make.target";
+            description = "Makefile 构建目标";
+        }
+        "ninja" => {
+            if let Some(path) = find_upwards(&query.cwd, "build.ninja") {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    for line in text.lines() {
+                        if let Some(target) = line.trim().strip_prefix("build ").and_then(|v| v.split(':').next()) {
+                            values.extend(target.split_whitespace().map(str::to_owned));
+                        }
+                    }
+                }
+            }
+            source = "ninja.target";
+            description = "Ninja 构建目标";
+        }
+        "just" => {
+            if let Some(path) = ["Justfile", "justfile"]
+                .iter().find_map(|name| find_upwards(&query.cwd, name))
+            {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    for line in text.lines().filter(|line| !line.chars().next().is_some_and(|c| [' ', '\t', '#', '@'].contains(&c))) {
+                        if let Some((recipe, _)) = line.split_once(':') {
+                            let recipe = recipe.split_whitespace().next().unwrap_or("");
+                            if !recipe.is_empty() && !recipe.contains('=') { values.insert(recipe.into()); }
+                        }
+                    }
+                }
+            }
+            source = "just.recipe";
+            description = "Justfile 配方";
+        }
+        "task" => {
+            if let Some(path) = ["Taskfile.yml", "Taskfile.yaml", "taskfile.yml", "taskfile.yaml"]
+                .iter().find_map(|name| find_upwards(&query.cwd, name))
+            {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    values.extend(simple_yaml_keys(&text, "tasks"));
+                }
+            }
+            source = "task.task";
+            description = "Taskfile 任务";
+        }
+        "terraform" | "tofu" => {
+            let root = query.cwd.clone();
+            result.project_root = Some(root.clone());
+            add_watch_path(&mut result, &root);
+            if let Ok(entries) = fs::read_dir(&root) {
+                for path in entries.flatten().map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|ext| ext == "tf")) {
+                    add_watch_path(&mut result, &path);
+                    if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                        for line in text.lines() {
+                            if let Some(value) = quoted_name(line, "variable").or_else(|| quoted_name(line, "module")) {
+                                values.insert(value);
+                            }
+                        }
+                    }
+                }
+            }
+            source = if family == "tofu" { "tofu.symbol" } else { "terraform.symbol" };
+            description = "当前基础设施项目的模块或变量";
+        }
+        "ansible" => {
+            let explicit = query.environment.get("ANSIBLE_INVENTORY").map(PathBuf::from);
+            let path = explicit.filter(|path| path.is_file()).or_else(|| {
+                ["inventory", "hosts", "inventory.yml", "inventory.yaml"]
+                    .iter().find_map(|name| find_upwards(&query.cwd, name))
+            });
+            if let Some(path) = path {
+                result.project_root = path.parent().map(Path::to_path_buf);
+                add_watch_path(&mut result, &path);
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+                    for line in text.lines() {
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() || trimmed.chars().next().is_some_and(|c| ['#', '[', '-', '{'].contains(&c)) || trimmed.ends_with(':') { continue; }
+                        let host = trimmed.split_whitespace().next().unwrap_or("");
+                        if !host.is_empty() && !host.contains('=') { values.insert(host.into()); }
+                    }
+                }
+            }
+            source = "ansible.inventory";
+            description = "静态 Ansible inventory 主机";
+        }
+        _ => {}
+    }
+    add_values(&mut result, values, description, source, &query.prefix);
     result.finish()
 }
 

@@ -43,6 +43,7 @@ $script:RequiredPackageFiles = @(
     'specs/builtin/javascript.toml',
     'specs/builtin/build.toml',
     'specs/builtin/containers.toml',
+    'specs/builtin/devops.toml',
     'specs/builtin/remote.toml',
     'manage-install.ps1',
     'install-common.ps1',

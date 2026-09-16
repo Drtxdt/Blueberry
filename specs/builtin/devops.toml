@@ -1,0 +1,1321 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[option_sets]]
+id = "DEV_TOOL_HELP_OPTIONS"
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示当前工具或子命令的帮助。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--version"
+description = "显示工具版本"
+detail = "显示当前工具的版本信息。"
+value_kind = "none"
+
+[[nodes]]
+path = "deno"
+name = "deno"
+description = "运行 Deno JavaScript 与 TypeScript 工具链"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["deno add", "deno bench", "deno cache", "deno check", "deno compile", "deno coverage", "deno doc", "deno eval", "deno fmt", "deno info", "deno install", "deno jupyter", "deno lint", "deno publish", "deno repl", "deno run", "deno serve", "deno task", "deno test", "deno uninstall", "deno upgrade"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "开发工具"]
+
+[[nodes]]
+path = "deno add"
+name = "add"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：add"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：add。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno add --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "add"]
+
+[[nodes]]
+path = "deno bench"
+name = "bench"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：bench"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：bench。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno bench --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "bench"]
+
+[[nodes]]
+path = "deno cache"
+name = "cache"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：cache"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：cache。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno cache --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "cache"]
+
+[[nodes]]
+path = "deno check"
+name = "check"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：check"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：check。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno check --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "check"]
+
+[[nodes]]
+path = "deno compile"
+name = "compile"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：compile"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：compile。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno compile --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "compile"]
+
+[[nodes]]
+path = "deno coverage"
+name = "coverage"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：coverage"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：coverage。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno coverage --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "coverage"]
+
+[[nodes]]
+path = "deno doc"
+name = "doc"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：doc"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：doc。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno doc --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "doc"]
+
+[[nodes]]
+path = "deno eval"
+name = "eval"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：eval"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：eval。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno eval --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "eval"]
+
+[[nodes]]
+path = "deno fmt"
+name = "fmt"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：fmt"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：fmt。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno fmt --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "fmt"]
+
+[[nodes]]
+path = "deno info"
+name = "info"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：info"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：info。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno info --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "info"]
+
+[[nodes]]
+path = "deno install"
+name = "install"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：install"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：install。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno install --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "install"]
+
+[[nodes]]
+path = "deno jupyter"
+name = "jupyter"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：jupyter"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：jupyter。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno jupyter --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "jupyter"]
+
+[[nodes]]
+path = "deno lint"
+name = "lint"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：lint"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：lint。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno lint --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "lint"]
+
+[[nodes]]
+path = "deno publish"
+name = "publish"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：publish"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：publish。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno publish --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "publish"]
+
+[[nodes]]
+path = "deno repl"
+name = "repl"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：repl"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：repl。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno repl --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "repl"]
+
+[[nodes]]
+path = "deno run"
+name = "run"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：run"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：run。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno run --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "run"]
+
+[[nodes]]
+path = "deno serve"
+name = "serve"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：serve"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：serve。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno serve --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "serve"]
+
+[[nodes]]
+path = "deno task"
+name = "task"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：task"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：task。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno task --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "task"]
+provider = "deno.tasks"
+
+[[nodes]]
+path = "deno test"
+name = "test"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：test"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：test。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno test --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "test"]
+
+[[nodes]]
+path = "deno uninstall"
+name = "uninstall"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：uninstall"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：uninstall。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno uninstall --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "uninstall"]
+
+[[nodes]]
+path = "deno upgrade"
+name = "upgrade"
+description = "运行 Deno JavaScript 与 TypeScript 工具链：upgrade"
+detail = "运行 Deno JavaScript 与 TypeScript 工具链：upgrade。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["deno upgrade --help"]
+keywords = ["运行 Deno JavaScript 与 TypeScript 工具链", "upgrade"]
+
+[[nodes]]
+path = "corepack"
+name = "corepack"
+description = "管理 Node.js 包管理器版本"
+detail = "管理 Node.js 包管理器版本；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["corepack cache", "corepack disable", "corepack enable", "corepack install", "corepack pack", "corepack up", "corepack use", "corepack hydrate", "corepack prepare"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack --help"]
+keywords = ["管理 Node.js 包管理器版本", "开发工具"]
+
+[[nodes]]
+path = "corepack cache"
+name = "cache"
+description = "管理 Node.js 包管理器版本：cache"
+detail = "管理 Node.js 包管理器版本：cache。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack cache --help"]
+keywords = ["管理 Node.js 包管理器版本", "cache"]
+
+[[nodes]]
+path = "corepack disable"
+name = "disable"
+description = "管理 Node.js 包管理器版本：disable"
+detail = "管理 Node.js 包管理器版本：disable。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack disable --help"]
+keywords = ["管理 Node.js 包管理器版本", "disable"]
+
+[[nodes]]
+path = "corepack enable"
+name = "enable"
+description = "管理 Node.js 包管理器版本：enable"
+detail = "管理 Node.js 包管理器版本：enable。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack enable --help"]
+keywords = ["管理 Node.js 包管理器版本", "enable"]
+
+[[nodes]]
+path = "corepack install"
+name = "install"
+description = "管理 Node.js 包管理器版本：install"
+detail = "管理 Node.js 包管理器版本：install。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack install --help"]
+keywords = ["管理 Node.js 包管理器版本", "install"]
+
+[[nodes]]
+path = "corepack pack"
+name = "pack"
+description = "管理 Node.js 包管理器版本：pack"
+detail = "管理 Node.js 包管理器版本：pack。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack pack --help"]
+keywords = ["管理 Node.js 包管理器版本", "pack"]
+
+[[nodes]]
+path = "corepack up"
+name = "up"
+description = "管理 Node.js 包管理器版本：up"
+detail = "管理 Node.js 包管理器版本：up。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack up --help"]
+keywords = ["管理 Node.js 包管理器版本", "up"]
+
+[[nodes]]
+path = "corepack use"
+name = "use"
+description = "管理 Node.js 包管理器版本：use"
+detail = "管理 Node.js 包管理器版本：use。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack use --help"]
+keywords = ["管理 Node.js 包管理器版本", "use"]
+
+[[nodes]]
+path = "corepack hydrate"
+name = "hydrate"
+description = "管理 Node.js 包管理器版本：hydrate"
+detail = "管理 Node.js 包管理器版本：hydrate。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack hydrate --help"]
+keywords = ["管理 Node.js 包管理器版本", "hydrate"]
+
+[[nodes]]
+path = "corepack prepare"
+name = "prepare"
+description = "管理 Node.js 包管理器版本：prepare"
+detail = "管理 Node.js 包管理器版本：prepare。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["corepack prepare --help"]
+keywords = ["管理 Node.js 包管理器版本", "prepare"]
+
+[[nodes]]
+path = "java"
+name = "java"
+description = "运行 Java 应用程序"
+detail = "运行 Java 应用程序；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["java --help"]
+keywords = ["运行 Java 应用程序", "开发工具"]
+
+[[nodes]]
+path = "javac"
+name = "javac"
+description = "编译 Java 源文件"
+detail = "编译 Java 源文件；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["javac --help"]
+keywords = ["编译 Java 源文件", "开发工具"]
+
+[[nodes]]
+path = "mvn"
+name = "mvn"
+description = "构建和管理 Maven 项目"
+detail = "构建和管理 Maven 项目；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["mvn --help"]
+keywords = ["构建和管理 Maven 项目", "开发工具"]
+provider = "maven.modules"
+
+[[nodes]]
+path = "gradle"
+name = "gradle"
+description = "构建和管理 Gradle 项目"
+detail = "构建和管理 Gradle 项目；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["gradle build", "gradle clean", "gradle dependencies", "gradle help", "gradle projects", "gradle properties", "gradle run", "gradle tasks", "gradle test", "gradle wrapper"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle --help"]
+keywords = ["构建和管理 Gradle 项目", "开发工具"]
+provider = "gradle.tasks"
+
+[[nodes]]
+path = "gradle build"
+name = "build"
+description = "构建和管理 Gradle 项目：build"
+detail = "构建和管理 Gradle 项目：build。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle build --help"]
+keywords = ["构建和管理 Gradle 项目", "build"]
+
+[[nodes]]
+path = "gradle clean"
+name = "clean"
+description = "构建和管理 Gradle 项目：clean"
+detail = "构建和管理 Gradle 项目：clean。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle clean --help"]
+keywords = ["构建和管理 Gradle 项目", "clean"]
+
+[[nodes]]
+path = "gradle dependencies"
+name = "dependencies"
+description = "构建和管理 Gradle 项目：dependencies"
+detail = "构建和管理 Gradle 项目：dependencies。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle dependencies --help"]
+keywords = ["构建和管理 Gradle 项目", "dependencies"]
+
+[[nodes]]
+path = "gradle help"
+name = "help"
+description = "构建和管理 Gradle 项目：help"
+detail = "构建和管理 Gradle 项目：help。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle help --help"]
+keywords = ["构建和管理 Gradle 项目", "help"]
+
+[[nodes]]
+path = "gradle projects"
+name = "projects"
+description = "构建和管理 Gradle 项目：projects"
+detail = "构建和管理 Gradle 项目：projects。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle projects --help"]
+keywords = ["构建和管理 Gradle 项目", "projects"]
+
+[[nodes]]
+path = "gradle properties"
+name = "properties"
+description = "构建和管理 Gradle 项目：properties"
+detail = "构建和管理 Gradle 项目：properties。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle properties --help"]
+keywords = ["构建和管理 Gradle 项目", "properties"]
+
+[[nodes]]
+path = "gradle run"
+name = "run"
+description = "构建和管理 Gradle 项目：run"
+detail = "构建和管理 Gradle 项目：run。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle run --help"]
+keywords = ["构建和管理 Gradle 项目", "run"]
+
+[[nodes]]
+path = "gradle tasks"
+name = "tasks"
+description = "构建和管理 Gradle 项目：tasks"
+detail = "构建和管理 Gradle 项目：tasks。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle tasks --help"]
+keywords = ["构建和管理 Gradle 项目", "tasks"]
+
+[[nodes]]
+path = "gradle test"
+name = "test"
+description = "构建和管理 Gradle 项目：test"
+detail = "构建和管理 Gradle 项目：test。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle test --help"]
+keywords = ["构建和管理 Gradle 项目", "test"]
+
+[[nodes]]
+path = "gradle wrapper"
+name = "wrapper"
+description = "构建和管理 Gradle 项目：wrapper"
+detail = "构建和管理 Gradle 项目：wrapper。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["gradle wrapper --help"]
+keywords = ["构建和管理 Gradle 项目", "wrapper"]
+
+[[nodes]]
+path = "make"
+name = "make"
+description = "执行 Makefile 构建目标"
+detail = "执行 Makefile 构建目标；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["make --help"]
+keywords = ["执行 Makefile 构建目标", "开发工具"]
+provider = "make.targets"
+
+[[nodes]]
+path = "ninja"
+name = "ninja"
+description = "执行 Ninja 构建目标"
+detail = "执行 Ninja 构建目标；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ninja --help"]
+keywords = ["执行 Ninja 构建目标", "开发工具"]
+provider = "ninja.targets"
+
+[[nodes]]
+path = "just"
+name = "just"
+description = "执行 Justfile 配方"
+detail = "执行 Justfile 配方；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["just --help"]
+keywords = ["执行 Justfile 配方", "开发工具"]
+provider = "just.recipes"
+
+[[nodes]]
+path = "task"
+name = "task"
+description = "执行 Taskfile 任务"
+detail = "执行 Taskfile 任务；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["task init", "task list"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["task --help"]
+keywords = ["执行 Taskfile 任务", "开发工具"]
+provider = "task.tasks"
+
+[[nodes]]
+path = "task init"
+name = "init"
+description = "执行 Taskfile 任务：init"
+detail = "执行 Taskfile 任务：init。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["task init --help"]
+keywords = ["执行 Taskfile 任务", "init"]
+
+[[nodes]]
+path = "task list"
+name = "list"
+description = "执行 Taskfile 任务：list"
+detail = "执行 Taskfile 任务：list。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["task list --help"]
+keywords = ["执行 Taskfile 任务", "list"]
+
+[[nodes]]
+path = "terraform"
+name = "terraform"
+description = "管理 Terraform 基础设施"
+detail = "管理 Terraform 基础设施；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["terraform apply", "terraform console", "terraform destroy", "terraform fmt", "terraform force-unlock", "terraform get", "terraform graph", "terraform import", "terraform init", "terraform login", "terraform logout", "terraform metadata", "terraform modules", "terraform output", "terraform plan", "terraform providers", "terraform refresh", "terraform show", "terraform state", "terraform taint", "terraform test", "terraform untaint", "terraform validate", "terraform version", "terraform workspace"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform --help"]
+keywords = ["管理 Terraform 基础设施", "开发工具"]
+
+[[nodes]]
+path = "terraform apply"
+name = "apply"
+description = "管理 Terraform 基础设施：apply"
+detail = "管理 Terraform 基础设施：apply。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform apply --help"]
+keywords = ["管理 Terraform 基础设施", "apply"]
+provider = "terraform.symbols"
+
+[[nodes]]
+path = "terraform console"
+name = "console"
+description = "管理 Terraform 基础设施：console"
+detail = "管理 Terraform 基础设施：console。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform console --help"]
+keywords = ["管理 Terraform 基础设施", "console"]
+
+[[nodes]]
+path = "terraform destroy"
+name = "destroy"
+description = "管理 Terraform 基础设施：destroy"
+detail = "管理 Terraform 基础设施：destroy。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform destroy --help"]
+keywords = ["管理 Terraform 基础设施", "destroy"]
+provider = "terraform.symbols"
+
+[[nodes]]
+path = "terraform fmt"
+name = "fmt"
+description = "管理 Terraform 基础设施：fmt"
+detail = "管理 Terraform 基础设施：fmt。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform fmt --help"]
+keywords = ["管理 Terraform 基础设施", "fmt"]
+
+[[nodes]]
+path = "terraform force-unlock"
+name = "force-unlock"
+description = "管理 Terraform 基础设施：force-unlock"
+detail = "管理 Terraform 基础设施：force-unlock。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform force-unlock --help"]
+keywords = ["管理 Terraform 基础设施", "force-unlock"]
+
+[[nodes]]
+path = "terraform get"
+name = "get"
+description = "管理 Terraform 基础设施：get"
+detail = "管理 Terraform 基础设施：get。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform get --help"]
+keywords = ["管理 Terraform 基础设施", "get"]
+
+[[nodes]]
+path = "terraform graph"
+name = "graph"
+description = "管理 Terraform 基础设施：graph"
+detail = "管理 Terraform 基础设施：graph。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform graph --help"]
+keywords = ["管理 Terraform 基础设施", "graph"]
+
+[[nodes]]
+path = "terraform import"
+name = "import"
+description = "管理 Terraform 基础设施：import"
+detail = "管理 Terraform 基础设施：import。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform import --help"]
+keywords = ["管理 Terraform 基础设施", "import"]
+
+[[nodes]]
+path = "terraform init"
+name = "init"
+description = "管理 Terraform 基础设施：init"
+detail = "管理 Terraform 基础设施：init。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform init --help"]
+keywords = ["管理 Terraform 基础设施", "init"]
+
+[[nodes]]
+path = "terraform login"
+name = "login"
+description = "管理 Terraform 基础设施：login"
+detail = "管理 Terraform 基础设施：login。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform login --help"]
+keywords = ["管理 Terraform 基础设施", "login"]
+
+[[nodes]]
+path = "terraform logout"
+name = "logout"
+description = "管理 Terraform 基础设施：logout"
+detail = "管理 Terraform 基础设施：logout。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform logout --help"]
+keywords = ["管理 Terraform 基础设施", "logout"]
+
+[[nodes]]
+path = "terraform metadata"
+name = "metadata"
+description = "管理 Terraform 基础设施：metadata"
+detail = "管理 Terraform 基础设施：metadata。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform metadata --help"]
+keywords = ["管理 Terraform 基础设施", "metadata"]
+
+[[nodes]]
+path = "terraform modules"
+name = "modules"
+description = "管理 Terraform 基础设施：modules"
+detail = "管理 Terraform 基础设施：modules。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform modules --help"]
+keywords = ["管理 Terraform 基础设施", "modules"]
+
+[[nodes]]
+path = "terraform output"
+name = "output"
+description = "管理 Terraform 基础设施：output"
+detail = "管理 Terraform 基础设施：output。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform output --help"]
+keywords = ["管理 Terraform 基础设施", "output"]
+
+[[nodes]]
+path = "terraform plan"
+name = "plan"
+description = "管理 Terraform 基础设施：plan"
+detail = "管理 Terraform 基础设施：plan。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform plan --help"]
+keywords = ["管理 Terraform 基础设施", "plan"]
+provider = "terraform.symbols"
+
+[[nodes]]
+path = "terraform providers"
+name = "providers"
+description = "管理 Terraform 基础设施：providers"
+detail = "管理 Terraform 基础设施：providers。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform providers --help"]
+keywords = ["管理 Terraform 基础设施", "providers"]
+
+[[nodes]]
+path = "terraform refresh"
+name = "refresh"
+description = "管理 Terraform 基础设施：refresh"
+detail = "管理 Terraform 基础设施：refresh。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform refresh --help"]
+keywords = ["管理 Terraform 基础设施", "refresh"]
+
+[[nodes]]
+path = "terraform show"
+name = "show"
+description = "管理 Terraform 基础设施：show"
+detail = "管理 Terraform 基础设施：show。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform show --help"]
+keywords = ["管理 Terraform 基础设施", "show"]
+
+[[nodes]]
+path = "terraform state"
+name = "state"
+description = "管理 Terraform 基础设施：state"
+detail = "管理 Terraform 基础设施：state。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform state --help"]
+keywords = ["管理 Terraform 基础设施", "state"]
+
+[[nodes]]
+path = "terraform taint"
+name = "taint"
+description = "管理 Terraform 基础设施：taint"
+detail = "管理 Terraform 基础设施：taint。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform taint --help"]
+keywords = ["管理 Terraform 基础设施", "taint"]
+
+[[nodes]]
+path = "terraform test"
+name = "test"
+description = "管理 Terraform 基础设施：test"
+detail = "管理 Terraform 基础设施：test。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform test --help"]
+keywords = ["管理 Terraform 基础设施", "test"]
+
+[[nodes]]
+path = "terraform untaint"
+name = "untaint"
+description = "管理 Terraform 基础设施：untaint"
+detail = "管理 Terraform 基础设施：untaint。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform untaint --help"]
+keywords = ["管理 Terraform 基础设施", "untaint"]
+
+[[nodes]]
+path = "terraform validate"
+name = "validate"
+description = "管理 Terraform 基础设施：validate"
+detail = "管理 Terraform 基础设施：validate。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform validate --help"]
+keywords = ["管理 Terraform 基础设施", "validate"]
+
+[[nodes]]
+path = "terraform version"
+name = "version"
+description = "管理 Terraform 基础设施：version"
+detail = "管理 Terraform 基础设施：version。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform version --help"]
+keywords = ["管理 Terraform 基础设施", "version"]
+
+[[nodes]]
+path = "terraform workspace"
+name = "workspace"
+description = "管理 Terraform 基础设施：workspace"
+detail = "管理 Terraform 基础设施：workspace。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["terraform workspace --help"]
+keywords = ["管理 Terraform 基础设施", "workspace"]
+
+[[nodes]]
+path = "tofu"
+name = "tofu"
+description = "管理 OpenTofu 基础设施"
+detail = "管理 OpenTofu 基础设施；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["tofu apply", "tofu console", "tofu destroy", "tofu fmt", "tofu force-unlock", "tofu get", "tofu graph", "tofu import", "tofu init", "tofu login", "tofu logout", "tofu metadata", "tofu modules", "tofu output", "tofu plan", "tofu providers", "tofu refresh", "tofu show", "tofu state", "tofu taint", "tofu test", "tofu untaint", "tofu validate", "tofu version", "tofu workspace"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu --help"]
+keywords = ["管理 OpenTofu 基础设施", "开发工具"]
+
+[[nodes]]
+path = "tofu apply"
+name = "apply"
+description = "管理 OpenTofu 基础设施：apply"
+detail = "管理 OpenTofu 基础设施：apply。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu apply --help"]
+keywords = ["管理 OpenTofu 基础设施", "apply"]
+provider = "tofu.symbols"
+
+[[nodes]]
+path = "tofu console"
+name = "console"
+description = "管理 OpenTofu 基础设施：console"
+detail = "管理 OpenTofu 基础设施：console。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu console --help"]
+keywords = ["管理 OpenTofu 基础设施", "console"]
+
+[[nodes]]
+path = "tofu destroy"
+name = "destroy"
+description = "管理 OpenTofu 基础设施：destroy"
+detail = "管理 OpenTofu 基础设施：destroy。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu destroy --help"]
+keywords = ["管理 OpenTofu 基础设施", "destroy"]
+provider = "tofu.symbols"
+
+[[nodes]]
+path = "tofu fmt"
+name = "fmt"
+description = "管理 OpenTofu 基础设施：fmt"
+detail = "管理 OpenTofu 基础设施：fmt。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu fmt --help"]
+keywords = ["管理 OpenTofu 基础设施", "fmt"]
+
+[[nodes]]
+path = "tofu force-unlock"
+name = "force-unlock"
+description = "管理 OpenTofu 基础设施：force-unlock"
+detail = "管理 OpenTofu 基础设施：force-unlock。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu force-unlock --help"]
+keywords = ["管理 OpenTofu 基础设施", "force-unlock"]
+
+[[nodes]]
+path = "tofu get"
+name = "get"
+description = "管理 OpenTofu 基础设施：get"
+detail = "管理 OpenTofu 基础设施：get。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu get --help"]
+keywords = ["管理 OpenTofu 基础设施", "get"]
+
+[[nodes]]
+path = "tofu graph"
+name = "graph"
+description = "管理 OpenTofu 基础设施：graph"
+detail = "管理 OpenTofu 基础设施：graph。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu graph --help"]
+keywords = ["管理 OpenTofu 基础设施", "graph"]
+
+[[nodes]]
+path = "tofu import"
+name = "import"
+description = "管理 OpenTofu 基础设施：import"
+detail = "管理 OpenTofu 基础设施：import。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu import --help"]
+keywords = ["管理 OpenTofu 基础设施", "import"]
+
+[[nodes]]
+path = "tofu init"
+name = "init"
+description = "管理 OpenTofu 基础设施：init"
+detail = "管理 OpenTofu 基础设施：init。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu init --help"]
+keywords = ["管理 OpenTofu 基础设施", "init"]
+
+[[nodes]]
+path = "tofu login"
+name = "login"
+description = "管理 OpenTofu 基础设施：login"
+detail = "管理 OpenTofu 基础设施：login。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu login --help"]
+keywords = ["管理 OpenTofu 基础设施", "login"]
+
+[[nodes]]
+path = "tofu logout"
+name = "logout"
+description = "管理 OpenTofu 基础设施：logout"
+detail = "管理 OpenTofu 基础设施：logout。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu logout --help"]
+keywords = ["管理 OpenTofu 基础设施", "logout"]
+
+[[nodes]]
+path = "tofu metadata"
+name = "metadata"
+description = "管理 OpenTofu 基础设施：metadata"
+detail = "管理 OpenTofu 基础设施：metadata。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu metadata --help"]
+keywords = ["管理 OpenTofu 基础设施", "metadata"]
+
+[[nodes]]
+path = "tofu modules"
+name = "modules"
+description = "管理 OpenTofu 基础设施：modules"
+detail = "管理 OpenTofu 基础设施：modules。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu modules --help"]
+keywords = ["管理 OpenTofu 基础设施", "modules"]
+
+[[nodes]]
+path = "tofu output"
+name = "output"
+description = "管理 OpenTofu 基础设施：output"
+detail = "管理 OpenTofu 基础设施：output。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu output --help"]
+keywords = ["管理 OpenTofu 基础设施", "output"]
+
+[[nodes]]
+path = "tofu plan"
+name = "plan"
+description = "管理 OpenTofu 基础设施：plan"
+detail = "管理 OpenTofu 基础设施：plan。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu plan --help"]
+keywords = ["管理 OpenTofu 基础设施", "plan"]
+provider = "tofu.symbols"
+
+[[nodes]]
+path = "tofu providers"
+name = "providers"
+description = "管理 OpenTofu 基础设施：providers"
+detail = "管理 OpenTofu 基础设施：providers。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu providers --help"]
+keywords = ["管理 OpenTofu 基础设施", "providers"]
+
+[[nodes]]
+path = "tofu refresh"
+name = "refresh"
+description = "管理 OpenTofu 基础设施：refresh"
+detail = "管理 OpenTofu 基础设施：refresh。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu refresh --help"]
+keywords = ["管理 OpenTofu 基础设施", "refresh"]
+
+[[nodes]]
+path = "tofu show"
+name = "show"
+description = "管理 OpenTofu 基础设施：show"
+detail = "管理 OpenTofu 基础设施：show。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu show --help"]
+keywords = ["管理 OpenTofu 基础设施", "show"]
+
+[[nodes]]
+path = "tofu state"
+name = "state"
+description = "管理 OpenTofu 基础设施：state"
+detail = "管理 OpenTofu 基础设施：state。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu state --help"]
+keywords = ["管理 OpenTofu 基础设施", "state"]
+
+[[nodes]]
+path = "tofu taint"
+name = "taint"
+description = "管理 OpenTofu 基础设施：taint"
+detail = "管理 OpenTofu 基础设施：taint。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu taint --help"]
+keywords = ["管理 OpenTofu 基础设施", "taint"]
+
+[[nodes]]
+path = "tofu test"
+name = "test"
+description = "管理 OpenTofu 基础设施：test"
+detail = "管理 OpenTofu 基础设施：test。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu test --help"]
+keywords = ["管理 OpenTofu 基础设施", "test"]
+
+[[nodes]]
+path = "tofu untaint"
+name = "untaint"
+description = "管理 OpenTofu 基础设施：untaint"
+detail = "管理 OpenTofu 基础设施：untaint。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu untaint --help"]
+keywords = ["管理 OpenTofu 基础设施", "untaint"]
+
+[[nodes]]
+path = "tofu validate"
+name = "validate"
+description = "管理 OpenTofu 基础设施：validate"
+detail = "管理 OpenTofu 基础设施：validate。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu validate --help"]
+keywords = ["管理 OpenTofu 基础设施", "validate"]
+
+[[nodes]]
+path = "tofu version"
+name = "version"
+description = "管理 OpenTofu 基础设施：version"
+detail = "管理 OpenTofu 基础设施：version。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu version --help"]
+keywords = ["管理 OpenTofu 基础设施", "version"]
+
+[[nodes]]
+path = "tofu workspace"
+name = "workspace"
+description = "管理 OpenTofu 基础设施：workspace"
+detail = "管理 OpenTofu 基础设施：workspace。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["tofu workspace --help"]
+keywords = ["管理 OpenTofu 基础设施", "workspace"]
+
+[[nodes]]
+path = "ansible"
+name = "ansible"
+description = "执行 Ansible 临时任务"
+detail = "执行 Ansible 临时任务；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible --help"]
+keywords = ["执行 Ansible 临时任务", "开发工具"]
+provider = "ansible.inventory"
+
+[[nodes]]
+path = "ansible-playbook"
+name = "ansible-playbook"
+description = "运行 Ansible Playbook"
+detail = "运行 Ansible Playbook；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-playbook --help"]
+keywords = ["运行 Ansible Playbook", "开发工具"]
+provider = "ansible.inventory"
+
+[[nodes]]
+path = "ansible-galaxy"
+name = "ansible-galaxy"
+description = "管理 Ansible collection 与 role"
+detail = "管理 Ansible collection 与 role；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["ansible-galaxy collection", "ansible-galaxy role"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-galaxy --help"]
+keywords = ["管理 Ansible collection 与 role", "开发工具"]
+
+[[nodes]]
+path = "ansible-galaxy collection"
+name = "collection"
+description = "管理 Ansible collection 与 role：collection"
+detail = "管理 Ansible collection 与 role：collection。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-galaxy collection --help"]
+keywords = ["管理 Ansible collection 与 role", "collection"]
+
+[[nodes]]
+path = "ansible-galaxy role"
+name = "role"
+description = "管理 Ansible collection 与 role：role"
+detail = "管理 Ansible collection 与 role：role。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-galaxy role --help"]
+keywords = ["管理 Ansible collection 与 role", "role"]
+
+[[nodes]]
+path = "ansible-vault"
+name = "ansible-vault"
+description = "管理 Ansible Vault 加密数据"
+detail = "管理 Ansible Vault 加密数据；本机安装版本的完整参数会在进入上下文后按需学习。"
+positional = "value"
+children = ["ansible-vault create", "ansible-vault decrypt", "ansible-vault edit", "ansible-vault encrypt", "ansible-vault encrypt_string", "ansible-vault rekey", "ansible-vault view"]
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault --help"]
+keywords = ["管理 Ansible Vault 加密数据", "开发工具"]
+
+[[nodes]]
+path = "ansible-vault create"
+name = "create"
+description = "管理 Ansible Vault 加密数据：create"
+detail = "管理 Ansible Vault 加密数据：create。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault create --help"]
+keywords = ["管理 Ansible Vault 加密数据", "create"]
+
+[[nodes]]
+path = "ansible-vault decrypt"
+name = "decrypt"
+description = "管理 Ansible Vault 加密数据：decrypt"
+detail = "管理 Ansible Vault 加密数据：decrypt。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault decrypt --help"]
+keywords = ["管理 Ansible Vault 加密数据", "decrypt"]
+
+[[nodes]]
+path = "ansible-vault edit"
+name = "edit"
+description = "管理 Ansible Vault 加密数据：edit"
+detail = "管理 Ansible Vault 加密数据：edit。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault edit --help"]
+keywords = ["管理 Ansible Vault 加密数据", "edit"]
+
+[[nodes]]
+path = "ansible-vault encrypt"
+name = "encrypt"
+description = "管理 Ansible Vault 加密数据：encrypt"
+detail = "管理 Ansible Vault 加密数据：encrypt。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault encrypt --help"]
+keywords = ["管理 Ansible Vault 加密数据", "encrypt"]
+
+[[nodes]]
+path = "ansible-vault encrypt_string"
+name = "encrypt_string"
+description = "管理 Ansible Vault 加密数据：encrypt_string"
+detail = "管理 Ansible Vault 加密数据：encrypt_string。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault encrypt_string --help"]
+keywords = ["管理 Ansible Vault 加密数据", "encrypt_string"]
+
+[[nodes]]
+path = "ansible-vault rekey"
+name = "rekey"
+description = "管理 Ansible Vault 加密数据：rekey"
+detail = "管理 Ansible Vault 加密数据：rekey。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault rekey --help"]
+keywords = ["管理 Ansible Vault 加密数据", "rekey"]
+
+[[nodes]]
+path = "ansible-vault view"
+name = "view"
+description = "管理 Ansible Vault 加密数据：view"
+detail = "管理 Ansible Vault 加密数据：view。"
+positional = "value"
+children = []
+option_sets = ["DEV_TOOL_HELP_OPTIONS"]
+examples = ["ansible-vault view --help"]
+keywords = ["管理 Ansible Vault 加密数据", "view"]
+
+

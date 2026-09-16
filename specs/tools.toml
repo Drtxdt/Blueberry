@@ -231,3 +231,131 @@ help = "powershell"
 required = []
 providers = []
 resources = "local"
+
+[[tools]]
+name = "deno"
+aliases = ["deno.exe"]
+help = "sectioned"
+required = ["run", "task", "test", "fmt", "lint"]
+providers = ["deno.tasks"]
+resources = "local"
+
+[[tools]]
+name = "corepack"
+aliases = ["corepack.cmd", "corepack.exe"]
+help = "sectioned"
+required = ["enable", "install", "use"]
+providers = []
+resources = "local"
+
+[[tools]]
+name = "java"
+aliases = ["java.exe"]
+help = "sectioned"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "javac"
+aliases = ["javac.exe"]
+help = "sectioned"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "mvn"
+aliases = ["mvn.cmd", "mvn.exe"]
+help = "sectioned"
+required = []
+providers = ["maven.modules"]
+resources = "local"
+
+[[tools]]
+name = "gradle"
+aliases = ["gradle.bat", "gradle.exe"]
+help = "sectioned"
+required = ["build", "tasks", "test"]
+providers = ["gradle.tasks"]
+resources = "manual"
+
+[[tools]]
+name = "make"
+aliases = ["make.exe", "gmake", "gmake.exe"]
+help = "sectioned"
+required = []
+providers = ["make.targets"]
+resources = "local"
+
+[[tools]]
+name = "ninja"
+aliases = ["ninja.exe"]
+help = "sectioned"
+required = []
+providers = ["ninja.targets"]
+resources = "local"
+
+[[tools]]
+name = "just"
+aliases = ["just.exe"]
+help = "sectioned"
+required = []
+providers = ["just.recipes"]
+resources = "local"
+
+[[tools]]
+name = "task"
+aliases = ["task.exe"]
+help = "sectioned"
+required = ["init", "list"]
+providers = ["task.tasks"]
+resources = "local"
+
+[[tools]]
+name = "terraform"
+aliases = ["terraform.exe"]
+help = "sectioned"
+required = ["init", "plan", "apply", "destroy", "validate", "workspace"]
+providers = ["terraform.symbols"]
+resources = "manual"
+
+[[tools]]
+name = "tofu"
+aliases = ["tofu.exe"]
+help = "sectioned"
+required = ["init", "plan", "apply", "destroy", "validate", "workspace"]
+providers = ["tofu.symbols"]
+resources = "manual"
+
+[[tools]]
+name = "ansible"
+aliases = ["ansible.exe"]
+help = "sectioned"
+required = []
+providers = ["ansible.inventory"]
+resources = "manual"
+
+[[tools]]
+name = "ansible-playbook"
+aliases = ["ansible-playbook.exe"]
+help = "sectioned"
+required = []
+providers = []
+resources = "manual"
+
+[[tools]]
+name = "ansible-galaxy"
+aliases = ["ansible-galaxy.exe"]
+help = "sectioned"
+required = ["collection", "role"]
+providers = []
+resources = "manual"
+
+[[tools]]
+name = "ansible-vault"
+aliases = ["ansible-vault.exe"]
+help = "sectioned"
+required = ["create", "decrypt", "edit", "encrypt", "view"]
+providers = []
+resources = "manual"
