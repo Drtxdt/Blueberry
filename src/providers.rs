@@ -125,14 +125,13 @@ pub fn provider_for_command(command: &str) -> Option<ProviderKind> {
         "kubectl" => Some(ProviderKind::Kubectl),
         "helm" => Some(ProviderKind::Helm),
         "ssh" | "scp" | "sftp" => Some(ProviderKind::Ssh),
-        "deno" | "mvn" | "gradle" | "make" | "gmake" | "ninja" | "just" | "task"
-        | "terraform" | "tofu" | "ansible" | "ansible-playbook" => {
-            Some(ProviderKind::DevTools)
+        "deno" | "mvn" | "gradle" | "make" | "gmake" | "ninja" | "just" | "task" | "terraform"
+        | "tofu" | "ansible" | "ansible-playbook" => Some(ProviderKind::DevTools),
+        "scoop" | "choco" | "wsl" | "taskkill" | "sc" | "get-module" | "import-module"
+        | "remove-module" => Some(ProviderKind::WindowsTools),
+        "aws" | "az" | "gcloud" | "psql" | "mysql" | "sqlite3" | "redis-cli" | "mongosh" => {
+            Some(ProviderKind::CloudData)
         }
-        "scoop" | "choco" | "wsl" | "taskkill" | "sc" | "get-module"
-        | "import-module" | "remove-module" => Some(ProviderKind::WindowsTools),
-        "aws" | "az" | "gcloud" | "psql" | "mysql" | "sqlite3" | "redis-cli"
-        | "mongosh" => Some(ProviderKind::CloudData),
         _ => None,
     }
 }
@@ -648,8 +647,8 @@ fn selected_provider(query: &ProjectQuery) -> Option<ProviderKind> {
             "kubectl" => Some(ProviderKind::Kubectl),
             "helm" => Some(ProviderKind::Helm),
             "ssh" => Some(ProviderKind::Ssh),
-            "deno" | "maven" | "gradle" | "make" | "ninja" | "just" | "task"
-            | "terraform" | "tofu" | "ansible" => Some(ProviderKind::DevTools),
+            "deno" | "maven" | "gradle" | "make" | "ninja" | "just" | "task" | "terraform"
+            | "tofu" | "ansible" => Some(ProviderKind::DevTools),
             _ => None,
         };
     }
@@ -3596,17 +3595,97 @@ fn node_project_root(query: &ProjectQuery) -> Option<PathBuf> {
         .and_then(|manifest| manifest.parent().map(lexical_normalize))
 }
 
-pub fn project_actions(cwd:&Path, query:&str)->Vec<ProviderCandidate>{
-    let query=query.trim().to_lowercase();let mut actions=Vec::new();
-    let matches=|words:&[&str]|query.is_empty()||words.iter().any(|word|word.to_lowercase().contains(&query)||query.contains(&word.to_lowercase()));
-    if let Some(path)=find_upwards(cwd,"package.json") && let Ok(text)=read_limited(&path,MANIFEST_LIMIT) && let Ok(value)=serde_json::from_str::<serde_json::Value>(&text) && let Some(scripts)=value.get("scripts").and_then(serde_json::Value::as_object) {
-        for name in scripts.keys(){let words=if name.contains("test"){vec!["测试","运行测试"]}else if name.contains("dev")||name.contains("start"){vec!["开发服务","启动服务"]}else{vec!["运行脚本"]};if matches(&words){actions.push(ProviderCandidate{value:format!("npm run {name}"),description:format!("package.json 脚本 · {}",words[0]),kind:CandidateKind::Command,source:"project.action.node".into()});}}
+pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProviderCandidate> {
+    let query = query.trim().to_lowercase();
+    let mut actions = Vec::new();
+    let matches = |words: &[&str]| {
+        query.is_empty()
+            || words.iter().any(|word| {
+                word.to_lowercase().contains(&query) || query.contains(&word.to_lowercase())
+            })
+    };
+    if let Some(path) = find_upwards(cwd, "package.json")
+        && let Ok(text) = read_limited(&path, MANIFEST_LIMIT)
+        && let Ok(value) = serde_json::from_str::<serde_json::Value>(&text)
+        && let Some(scripts) = value.get("scripts").and_then(serde_json::Value::as_object)
+    {
+        for name in scripts.keys() {
+            let words = if name.contains("test") {
+                vec!["测试", "运行测试"]
+            } else if name.contains("dev") || name.contains("start") {
+                vec!["开发服务", "启动服务"]
+            } else {
+                vec!["运行脚本"]
+            };
+            if matches(&words) {
+                actions.push(ProviderCandidate {
+                    value: format!("npm run {name}"),
+                    description: format!("package.json 脚本 · {}", words[0]),
+                    kind: CandidateKind::Command,
+                    source: "project.action.node".into(),
+                });
+            }
+        }
     }
-    if find_upwards(cwd,"Cargo.toml").is_some() && matches(&["测试","运行测试"]){actions.push(ProviderCandidate{value:"cargo test".into(),description:"当前 Rust 项目测试".into(),kind:CandidateKind::Command,source:"project.action.cargo".into()});}
-    if find_upwards(cwd,"go.mod").is_some() && matches(&["测试","运行测试"]){actions.push(ProviderCandidate{value:"go test ./...".into(),description:"当前 Go 模块测试".into(),kind:CandidateKind::Command,source:"project.action.go".into()});}
-    if find_upwards(cwd,"pyproject.toml").is_some() && matches(&["测试","运行测试"]){actions.push(ProviderCandidate{value:"uv run pytest".into(),description:"当前 Python 项目测试".into(),kind:CandidateKind::Command,source:"project.action.python".into()});}
-    if let Some(path)=["compose.yaml","compose.yml","docker-compose.yaml","docker-compose.yml"].iter().find_map(|name|find_upwards(cwd,name)) && let Ok(text)=read_limited(&path,MANIFEST_LIMIT) {
-        let mut in_services=false;for line in text.lines(){if line.trim()=="services:"{in_services=true;continue}if in_services&&!line.starts_with(' ')&&!line.trim().is_empty(){in_services=false}if in_services&&line.starts_with("  ")&&!line.starts_with("    ")&&line.trim().ends_with(':'){let service=line.trim().trim_end_matches(':');if matches(&["日志","服务日志","查看日志"]){actions.push(ProviderCandidate{value:format!("docker compose logs -f {service}"),description:"当前 Compose 服务日志".into(),kind:CandidateKind::Command,source:"project.action.compose".into()});}}}
+    if find_upwards(cwd, "Cargo.toml").is_some() && matches(&["测试", "运行测试"]) {
+        actions.push(ProviderCandidate {
+            value: "cargo test".into(),
+            description: "当前 Rust 项目测试".into(),
+            kind: CandidateKind::Command,
+            source: "project.action.cargo".into(),
+        });
+    }
+    if find_upwards(cwd, "go.mod").is_some() && matches(&["测试", "运行测试"]) {
+        actions.push(ProviderCandidate {
+            value: "go test ./...".into(),
+            description: "当前 Go 模块测试".into(),
+            kind: CandidateKind::Command,
+            source: "project.action.go".into(),
+        });
+    }
+    if find_upwards(cwd, "pyproject.toml").is_some() && matches(&["测试", "运行测试"]) {
+        actions.push(ProviderCandidate {
+            value: "uv run pytest".into(),
+            description: "当前 Python 项目测试".into(),
+            kind: CandidateKind::Command,
+            source: "project.action.python".into(),
+        });
+    }
+    if let Some(path) = [
+        "compose.yaml",
+        "compose.yml",
+        "docker-compose.yaml",
+        "docker-compose.yml",
+    ]
+    .iter()
+    .find_map(|name| find_upwards(cwd, name))
+        && let Ok(text) = read_limited(&path, MANIFEST_LIMIT)
+    {
+        let mut in_services = false;
+        for line in text.lines() {
+            if line.trim() == "services:" {
+                in_services = true;
+                continue;
+            }
+            if in_services && !line.starts_with(' ') && !line.trim().is_empty() {
+                in_services = false
+            }
+            if in_services
+                && line.starts_with("  ")
+                && !line.starts_with("    ")
+                && line.trim().ends_with(':')
+            {
+                let service = line.trim().trim_end_matches(':');
+                if matches(&["日志", "服务日志", "查看日志"]) {
+                    actions.push(ProviderCandidate {
+                        value: format!("docker compose logs -f {service}"),
+                        description: "当前 Compose 服务日志".into(),
+                        kind: CandidateKind::Command,
+                        source: "project.action.compose".into(),
+                    });
+                }
+            }
+        }
     }
     actions
 }
@@ -3615,56 +3694,191 @@ fn active_scope<'a>(query: &'a ProjectQuery, family: &str) -> &'a str {
     provider_scope(query, family).unwrap_or("")
 }
 
-fn run_bounded_query(query:&ProjectQuery, program:&str, args:&[&str], cancelled_flag:&AtomicBool)->Result<Vec<String>,String>{
-    if cancelled(cancelled_flag){return Err("查询已取消".into())}
-    let output_path=env::temp_dir().join(format!("blueberry-query-{}.txt",uuid::Uuid::new_v4()));
-    let mut output=File::create(&output_path).map_err(|e|e.to_string())?;
-    let stdout=output.try_clone().map_err(|e|e.to_string())?;
-    let mut command=Command::new(program);command.args(args).current_dir(&query.cwd).env_clear().envs(&query.environment).stdin(Stdio::null()).stdout(Stdio::from(stdout)).stderr(Stdio::null());
-    #[cfg(windows)] command.creation_flags(CREATE_NO_WINDOW);
-    let mut child=match command.spawn(){Ok(child)=>child,Err(error)=>{let _=fs::remove_file(&output_path);return Err(error.to_string())}};
-    let deadline=Instant::now()+Duration::from_secs(2);let status=loop{if cancelled(cancelled_flag)||Instant::now()>=deadline{let _=child.kill();let _=child.wait();let _=fs::remove_file(&output_path);return Err(if cancelled(cancelled_flag){"查询已取消"}else{"查询超时"}.into())}match child.try_wait(){Ok(Some(status))=>break status,Ok(None)=>std::thread::sleep(Duration::from_millis(5)),Err(error)=>{let _=child.kill();let _=fs::remove_file(&output_path);return Err(error.to_string())}}};
-    if !status.success(){let _=fs::remove_file(&output_path);return Err(format!("命令退出码 {}",status.code().unwrap_or(-1)))}
-    output.seek(SeekFrom::Start(0)).map_err(|e|e.to_string())?;let mut bytes=Vec::new();output.take(2*1024*1024+1).read_to_end(&mut bytes).map_err(|e|e.to_string())?;let _=fs::remove_file(&output_path);if bytes.len()>2*1024*1024{return Err("查询输出超过 2 MiB".into())}
-    Ok(String::from_utf8_lossy(&bytes).lines().map(str::trim).filter(|line|!line.is_empty()).map(str::to_owned).collect())
+fn run_bounded_query(
+    query: &ProjectQuery,
+    program: &str,
+    args: &[&str],
+    cancelled_flag: &AtomicBool,
+) -> Result<Vec<String>, String> {
+    if cancelled(cancelled_flag) {
+        return Err("查询已取消".into());
+    }
+    let output_path = env::temp_dir().join(format!("blueberry-query-{}.txt", uuid::Uuid::new_v4()));
+    let mut output = File::create(&output_path).map_err(|e| e.to_string())?;
+    let stdout = output.try_clone().map_err(|e| e.to_string())?;
+    let mut command = Command::new(program);
+    command
+        .args(args)
+        .current_dir(&query.cwd)
+        .env_clear()
+        .envs(&query.environment)
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(stdout))
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            let _ = fs::remove_file(&output_path);
+            return Err(error.to_string());
+        }
+    };
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let status = loop {
+        if cancelled(cancelled_flag) || Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = fs::remove_file(&output_path);
+            return Err(if cancelled(cancelled_flag) {
+                "查询已取消"
+            } else {
+                "查询超时"
+            }
+            .into());
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(Duration::from_millis(5)),
+            Err(error) => {
+                let _ = child.kill();
+                let _ = fs::remove_file(&output_path);
+                return Err(error.to_string());
+            }
+        }
+    };
+    if !status.success() {
+        let _ = fs::remove_file(&output_path);
+        return Err(format!("命令退出码 {}", status.code().unwrap_or(-1)));
+    }
+    output.seek(SeekFrom::Start(0)).map_err(|e| e.to_string())?;
+    let mut bytes = Vec::new();
+    output
+        .take(2 * 1024 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    let _ = fs::remove_file(&output_path);
+    if bytes.len() > 2 * 1024 * 1024 {
+        return Err("查询输出超过 2 MiB".into());
+    }
+    Ok(String::from_utf8_lossy(&bytes)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect())
 }
 
-fn add_values<I>(result: &mut ProviderResult, values: I, description: &str, source: &str, prefix: &str)
-where
+fn add_values<I>(
+    result: &mut ProviderResult,
+    values: I,
+    description: &str,
+    source: &str,
+    prefix: &str,
+) where
     I: IntoIterator,
     I::Item: Into<String>,
 {
     for value in values {
-        add_filtered(result, value.into(), description, CandidateKind::Value, source, prefix);
+        add_filtered(
+            result,
+            value.into(),
+            description,
+            CandidateKind::Value,
+            source,
+            prefix,
+        );
     }
 }
 
 fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
     let mut result = ProviderResult::default();
-    if active_scope(query,"python")=="dependencies" || matches!(executable_stem(&query.command).as_str(),"pip"|"pip3") {
-        if let Some(root)=query.environment.get("VIRTUAL_ENV").or_else(||query.environment.get("CONDA_PREFIX")) {
-            let root=PathBuf::from(root);
-            let candidates=[root.join("Lib/site-packages"),root.join("lib")];
-            for dir in candidates { add_watch_path(&mut result,&dir); if let Ok(entries)=fs::read_dir(dir){let packages=entries.flatten().filter_map(|e|{let name=e.file_name().to_string_lossy().into_owned();name.strip_suffix(".dist-info").or_else(||name.strip_suffix(".egg-info")).map(|n|n.split('-').next().unwrap_or(n).replace('_',"-"))});add_values(&mut result,packages,"当前 Python 环境已安装包","python.installed",&query.prefix);} }
+    if (active_scope(query, "python") == "dependencies"
+        || matches!(executable_stem(&query.command).as_str(), "pip" | "pip3"))
+        && let Some(root) = query
+            .environment
+            .get("VIRTUAL_ENV")
+            .or_else(|| query.environment.get("CONDA_PREFIX"))
+    {
+        let root = PathBuf::from(root);
+        let candidates = [root.join("Lib/site-packages"), root.join("lib")];
+        for dir in candidates {
+            add_watch_path(&mut result, &dir);
+            if let Ok(entries) = fs::read_dir(dir) {
+                let packages = entries.flatten().filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().into_owned();
+                    name.strip_suffix(".dist-info")
+                        .or_else(|| name.strip_suffix(".egg-info"))
+                        .map(|n| n.split('-').next().unwrap_or(n).replace('_', "-"))
+                });
+                add_values(
+                    &mut result,
+                    packages,
+                    "当前 Python 环境已安装包",
+                    "python.installed",
+                    &query.prefix,
+                );
+            }
         }
     }
-    let Some(manifest) = find_upwards(&query.cwd, "pyproject.toml") else { return result };
+
+    let Some(manifest) = find_upwards(&query.cwd, "pyproject.toml") else {
+        return result;
+    };
     result.project_root = manifest.parent().map(Path::to_path_buf);
     add_watch_path(&mut result, &manifest);
-    if cancelled(cancelled_flag) { result.incomplete = true; return result; }
+    if cancelled(cancelled_flag) {
+        result.incomplete = true;
+        return result;
+    }
     if let Ok(text) = read_limited(&manifest, MANIFEST_LIMIT) {
         let scope = query.provider.as_deref().unwrap_or("");
         if scope.ends_with("scripts") || query.args.iter().any(|a| a == "run") {
-            let Ok(value) = text.parse::<toml::Value>() else { return result.finish() };
-            let scripts = value.get("project").and_then(|v| v.get("scripts")).and_then(toml::Value::as_table)
-                .into_iter().flat_map(|t| t.keys().cloned())
-                .chain(value.get("tool").and_then(|v| v.get("poetry")).and_then(|v| v.get("scripts")).and_then(toml::Value::as_table).into_iter().flat_map(|t| t.keys().cloned()));
-            add_values(&mut result, scripts, "Python 项目脚本", "python.script", &query.prefix);
+            let Ok(value) = text.parse::<toml::Value>() else {
+                return result.finish();
+            };
+            let scripts = value
+                .get("project")
+                .and_then(|v| v.get("scripts"))
+                .and_then(toml::Value::as_table)
+                .into_iter()
+                .flat_map(|t| t.keys().cloned())
+                .chain(
+                    value
+                        .get("tool")
+                        .and_then(|v| v.get("poetry"))
+                        .and_then(|v| v.get("scripts"))
+                        .and_then(toml::Value::as_table)
+                        .into_iter()
+                        .flat_map(|t| t.keys().cloned()),
+                );
+            add_values(
+                &mut result,
+                scripts,
+                "Python 项目脚本",
+                "python.script",
+                &query.prefix,
+            );
         } else {
-            let Ok(value) = text.parse::<toml::Value>() else { return result.finish() };
-            let dependencies = value.get("project").and_then(|v| v.get("dependencies")).and_then(toml::Value::as_array)
-                .into_iter().flatten().filter_map(toml::Value::as_str).filter_map(|s| s.split([' ', '<', '>', '=', '[', ';']).next()).map(str::to_owned);
-            add_values(&mut result, dependencies, "pyproject.toml 依赖", "python.dependency", &query.prefix);
+            let Ok(value) = text.parse::<toml::Value>() else {
+                return result.finish();
+            };
+            let dependencies = value
+                .get("project")
+                .and_then(|v| v.get("dependencies"))
+                .and_then(toml::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(toml::Value::as_str)
+                .filter_map(|s| s.split([' ', '<', '>', '=', '[', ';']).next())
+                .map(str::to_owned);
+            add_values(
+                &mut result,
+                dependencies,
+                "pyproject.toml 依赖",
+                "python.dependency",
+                &query.prefix,
+            );
         }
     }
     result.finish()
@@ -3674,51 +3888,125 @@ fn collect_conda(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
     let mut result = ProviderResult::default();
     let mut roots = BTreeSet::new();
     for key in ["CONDA_PREFIX", "CONDA_ROOT", "MAMBA_ROOT_PREFIX"] {
-        if let Some(value) = query.environment.get(key).filter(|v| !v.is_empty()) { roots.insert(PathBuf::from(value)); }
+        if let Some(value) = query.environment.get(key).filter(|v| !v.is_empty()) {
+            roots.insert(PathBuf::from(value));
+        }
     }
     let mut envs = BTreeSet::new();
     for root in roots {
-        if let Some(name) = root.file_name().and_then(|v| v.to_str()) { envs.insert(name.to_owned()); }
+        if let Some(name) = root.file_name().and_then(|v| v.to_str()) {
+            envs.insert(name.to_owned());
+        }
         let env_dir = root.join("envs");
         add_watch_path(&mut result, &env_dir);
         if let Ok(entries) = fs::read_dir(env_dir) {
-            envs.extend(entries.flatten().filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()));
+            envs.extend(
+                entries
+                    .flatten()
+                    .filter(|e| e.path().is_dir())
+                    .filter_map(|e| e.file_name().into_string().ok()),
+            );
         }
     }
-    if active_scope(query,"conda")=="packages" {
-        if let Some(prefix)=query.environment.get("CONDA_PREFIX") {
-            let dir=PathBuf::from(prefix).join("conda-meta");add_watch_path(&mut result,&dir);
-            if let Ok(entries)=fs::read_dir(dir){let packages=entries.flatten().filter_map(|e|e.file_name().into_string().ok()).filter_map(|n|n.strip_suffix(".json").map(str::to_owned)).map(|n|n.rsplitn(3,'-').last().unwrap_or(&n).to_owned());add_values(&mut result,packages,"当前 Conda 环境已安装包","conda.package",&query.prefix);}
+    if active_scope(query, "conda") == "packages" {
+        if let Some(prefix) = query.environment.get("CONDA_PREFIX") {
+            let dir = PathBuf::from(prefix).join("conda-meta");
+            add_watch_path(&mut result, &dir);
+            if let Ok(entries) = fs::read_dir(dir) {
+                let packages = entries
+                    .flatten()
+                    .filter_map(|e| e.file_name().into_string().ok())
+                    .filter_map(|n| n.strip_suffix(".json").map(str::to_owned))
+                    .map(|n| n.rsplitn(3, '-').last().unwrap_or(&n).to_owned());
+                add_values(
+                    &mut result,
+                    packages,
+                    "当前 Conda 环境已安装包",
+                    "conda.package",
+                    &query.prefix,
+                );
+            }
         }
     } else {
-        add_values(&mut result, envs, "本机 Conda 环境", "conda.environment", &query.prefix);
+        add_values(
+            &mut result,
+            envs,
+            "本机 Conda 环境",
+            "conda.environment",
+            &query.prefix,
+        );
     }
     result.finish()
 }
 
 fn collect_rustup(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
     let mut result = ProviderResult::default();
-    let root = query.environment.get("RUSTUP_HOME").map(PathBuf::from).or_else(|| query.environment.get("USERPROFILE").map(|p| PathBuf::from(p).join(".rustup")));
+    let root = query
+        .environment
+        .get("RUSTUP_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            query
+                .environment
+                .get("USERPROFILE")
+                .map(|p| PathBuf::from(p).join(".rustup"))
+        });
     let Some(root) = root else { return result };
-    let folder = match active_scope(query, "rustup") { "targets" => "toolchains", "components" => "toolchains", _ => "toolchains" };
-    let dir = root.join(folder); add_watch_path(&mut result, &dir);
-    if let Ok(entries) = fs::read_dir(dir) { add_values(&mut result, entries.flatten().filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()), "已安装 Rust 工具链", "rustup.toolchain", &query.prefix); }
+    let folder = match active_scope(query, "rustup") {
+        "targets" => "toolchains",
+        "components" => "toolchains",
+        _ => "toolchains",
+    };
+    let dir = root.join(folder);
+    add_watch_path(&mut result, &dir);
+    if let Ok(entries) = fs::read_dir(dir) {
+        add_values(
+            &mut result,
+            entries
+                .flatten()
+                .filter(|e| e.path().is_dir())
+                .filter_map(|e| e.file_name().into_string().ok()),
+            "已安装 Rust 工具链",
+            "rustup.toolchain",
+            &query.prefix,
+        );
+    }
     result.finish()
 }
 
 fn collect_go(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
     let mut result = ProviderResult::default();
-    let manifest = find_upwards(&query.cwd, "go.mod").or_else(|| find_upwards(&query.cwd, "go.work"));
-    result.project_root = manifest.as_ref().and_then(|p| p.parent()).map(Path::to_path_buf);
-    if let Some(path) = manifest { add_watch_path(&mut result, &path); }
-    let root = result.project_root.clone().unwrap_or_else(|| query.cwd.clone());
+    let manifest =
+        find_upwards(&query.cwd, "go.mod").or_else(|| find_upwards(&query.cwd, "go.work"));
+    result.project_root = manifest
+        .as_ref()
+        .and_then(|p| p.parent())
+        .map(Path::to_path_buf);
+    if let Some(path) = manifest {
+        add_watch_path(&mut result, &path);
+    }
+    let root = result
+        .project_root
+        .clone()
+        .unwrap_or_else(|| query.cwd.clone());
     if let Ok(entries) = fs::read_dir(&root) {
         let values = entries.flatten().filter_map(|e| {
-            let p=e.path();
-            if p.is_dir() { Some(format!("./{}", e.file_name().to_string_lossy())) }
-            else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("go")) { Some(e.file_name().to_string_lossy().into_owned()) } else { None }
+            let p = e.path();
+            if p.is_dir() {
+                Some(format!("./{}", e.file_name().to_string_lossy()))
+            } else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("go")) {
+                Some(e.file_name().to_string_lossy().into_owned())
+            } else {
+                None
+            }
         });
-        add_values(&mut result, values, "当前 Go 项目", "go.project", &query.prefix);
+        add_values(
+            &mut result,
+            values,
+            "当前 Go 项目",
+            "go.project",
+            &query.prefix,
+        );
     }
     result.finish()
 }
@@ -3744,19 +4032,59 @@ fn collect_dotnet(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
         }
         current = dir.parent();
     }
-    result.project_root=Some(root.clone()); add_watch_path(&mut result, &root);
-    if let Ok(entries)=fs::read_dir(root) { add_values(&mut result, entries.flatten().filter_map(|e| { let p=e.path(); let ext=p.extension()?.to_str()?; matches!(ext.to_ascii_lowercase().as_str(), "sln"|"csproj"|"fsproj"|"vbproj").then(|| e.file_name().to_string_lossy().into_owned()) }), "解决方案或项目", "dotnet.project", &query.prefix); }
+    result.project_root = Some(root.clone());
+    add_watch_path(&mut result, &root);
+    if let Ok(entries) = fs::read_dir(root) {
+        add_values(
+            &mut result,
+            entries.flatten().filter_map(|e| {
+                let p = e.path();
+                let ext = p.extension()?.to_str()?;
+                matches!(
+                    ext.to_ascii_lowercase().as_str(),
+                    "sln" | "csproj" | "fsproj" | "vbproj"
+                )
+                .then(|| e.file_name().to_string_lossy().into_owned())
+            }),
+            "解决方案或项目",
+            "dotnet.project",
+            &query.prefix,
+        );
+    }
     result.finish()
 }
 
 fn collect_cmake(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
-    let mut result=ProviderResult::default();
-    let Some(path)=find_upwards(&query.cwd,"CMakePresets.json").or_else(|| find_upwards(&query.cwd,"CMakeUserPresets.json")) else { return result };
-    result.project_root=path.parent().map(Path::to_path_buf); add_watch_path(&mut result,&path);
-    if let Ok(text)=read_limited(&path,MANIFEST_LIMIT) && let Ok(json)=serde_json::from_str::<serde_json::Value>(&text) {
-        let key=match active_scope(query,"cmake") { "build_presets"=>"buildPresets", "test_presets"=>"testPresets", _=>"configurePresets" };
-        let values=json.get(key).and_then(|v|v.as_array()).into_iter().flatten().filter_map(|v|v.get("name")?.as_str()).map(str::to_owned);
-        add_values(&mut result,values,"CMake 预设","cmake.preset",&query.prefix);
+    let mut result = ProviderResult::default();
+    let Some(path) = find_upwards(&query.cwd, "CMakePresets.json")
+        .or_else(|| find_upwards(&query.cwd, "CMakeUserPresets.json"))
+    else {
+        return result;
+    };
+    result.project_root = path.parent().map(Path::to_path_buf);
+    add_watch_path(&mut result, &path);
+    if let Ok(text) = read_limited(&path, MANIFEST_LIMIT)
+        && let Ok(json) = serde_json::from_str::<serde_json::Value>(&text)
+    {
+        let key = match active_scope(query, "cmake") {
+            "build_presets" => "buildPresets",
+            "test_presets" => "testPresets",
+            _ => "configurePresets",
+        };
+        let values = json
+            .get(key)
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|v| v.get("name")?.as_str())
+            .map(str::to_owned);
+        add_values(
+            &mut result,
+            values,
+            "CMake 预设",
+            "cmake.preset",
+            &query.prefix,
+        );
     }
     result.finish()
 }
@@ -3819,15 +4147,15 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
             {
                 result.project_root = path.parent().map(Path::to_path_buf);
                 add_watch_path(&mut result, &path);
-                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
-                        values.extend(
-                            json.get("tasks")
-                                .and_then(serde_json::Value::as_object)
-                                .into_iter()
-                                .flat_map(|tasks| tasks.keys().cloned()),
-                        );
-                    }
+                if let Ok(text) = read_limited(&path, MANIFEST_LIMIT)
+                    && let Ok(json) = serde_json::from_str::<serde_json::Value>(&text)
+                {
+                    values.extend(
+                        json.get("tasks")
+                            .and_then(serde_json::Value::as_object)
+                            .into_iter()
+                            .flat_map(|tasks| tasks.keys().cloned()),
+                    );
                 }
             }
             source = "deno.task";
@@ -3867,10 +4195,15 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
                         let trimmed = line.trim();
                         if let Some(value) = trimmed.strip_prefix("task ") {
                             let value = value.split([' ', '(', '{']).next().unwrap_or("");
-                            if !value.is_empty() { values.insert(value.into()); }
+                            if !value.is_empty() {
+                                values.insert(value.into());
+                            }
                         }
                         for prefix in ["tasks.register(\"", "tasks.named(\""] {
-                            if let Some(value) = trimmed.strip_prefix(prefix).and_then(|v| v.split('"').next()) {
+                            if let Some(value) = trimmed
+                                .strip_prefix(prefix)
+                                .and_then(|v| v.split('"').next())
+                            {
                                 values.insert(value.into());
                             }
                         }
@@ -3882,12 +4215,18 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
         }
         "make" => {
             if let Some(path) = ["Makefile", "makefile", "GNUmakefile"]
-                .iter().find_map(|name| find_upwards(&query.cwd, name))
+                .iter()
+                .find_map(|name| find_upwards(&query.cwd, name))
             {
                 result.project_root = path.parent().map(Path::to_path_buf);
                 add_watch_path(&mut result, &path);
                 if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
-                    for line in text.lines().filter(|line| !line.chars().next().is_some_and(|c| [' ', '\t', '.', '#'].contains(&c))) {
+                    for line in text.lines().filter(|line| {
+                        !line
+                            .chars()
+                            .next()
+                            .is_some_and(|c| [' ', '\t', '.', '#'].contains(&c))
+                    }) {
                         if let Some((target, _)) = line.split_once(':') {
                             let target = target.trim();
                             if !target.is_empty() && !target.contains(['%', '=', '$']) {
@@ -3906,7 +4245,11 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
                 add_watch_path(&mut result, &path);
                 if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
                     for line in text.lines() {
-                        if let Some(target) = line.trim().strip_prefix("build ").and_then(|v| v.split(':').next()) {
+                        if let Some(target) = line
+                            .trim()
+                            .strip_prefix("build ")
+                            .and_then(|v| v.split(':').next())
+                        {
                             values.extend(target.split_whitespace().map(str::to_owned));
                         }
                     }
@@ -3917,15 +4260,23 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
         }
         "just" => {
             if let Some(path) = ["Justfile", "justfile"]
-                .iter().find_map(|name| find_upwards(&query.cwd, name))
+                .iter()
+                .find_map(|name| find_upwards(&query.cwd, name))
             {
                 result.project_root = path.parent().map(Path::to_path_buf);
                 add_watch_path(&mut result, &path);
                 if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
-                    for line in text.lines().filter(|line| !line.chars().next().is_some_and(|c| [' ', '\t', '#', '@'].contains(&c))) {
+                    for line in text.lines().filter(|line| {
+                        !line
+                            .chars()
+                            .next()
+                            .is_some_and(|c| [' ', '\t', '#', '@'].contains(&c))
+                    }) {
                         if let Some((recipe, _)) = line.split_once(':') {
                             let recipe = recipe.split_whitespace().next().unwrap_or("");
-                            if !recipe.is_empty() && !recipe.contains('=') { values.insert(recipe.into()); }
+                            if !recipe.is_empty() && !recipe.contains('=') {
+                                values.insert(recipe.into());
+                            }
                         }
                     }
                 }
@@ -3934,8 +4285,14 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
             description = "Justfile 配方";
         }
         "task" => {
-            if let Some(path) = ["Taskfile.yml", "Taskfile.yaml", "taskfile.yml", "taskfile.yaml"]
-                .iter().find_map(|name| find_upwards(&query.cwd, name))
+            if let Some(path) = [
+                "Taskfile.yml",
+                "Taskfile.yaml",
+                "taskfile.yml",
+                "taskfile.yaml",
+            ]
+            .iter()
+            .find_map(|name| find_upwards(&query.cwd, name))
             {
                 result.project_root = path.parent().map(Path::to_path_buf);
                 add_watch_path(&mut result, &path);
@@ -3951,25 +4308,39 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
             result.project_root = Some(root.clone());
             add_watch_path(&mut result, &root);
             if let Ok(entries) = fs::read_dir(&root) {
-                for path in entries.flatten().map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|ext| ext == "tf")) {
+                for path in entries
+                    .flatten()
+                    .map(|entry| entry.path())
+                    .filter(|path| path.extension().is_some_and(|ext| ext == "tf"))
+                {
                     add_watch_path(&mut result, &path);
                     if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
                         for line in text.lines() {
-                            if let Some(value) = quoted_name(line, "variable").or_else(|| quoted_name(line, "module")) {
+                            if let Some(value) = quoted_name(line, "variable")
+                                .or_else(|| quoted_name(line, "module"))
+                            {
                                 values.insert(value);
                             }
                         }
                     }
                 }
             }
-            source = if family == "tofu" { "tofu.symbol" } else { "terraform.symbol" };
+            source = if family == "tofu" {
+                "tofu.symbol"
+            } else {
+                "terraform.symbol"
+            };
             description = "当前基础设施项目的模块或变量";
         }
         "ansible" => {
-            let explicit = query.environment.get("ANSIBLE_INVENTORY").map(PathBuf::from);
+            let explicit = query
+                .environment
+                .get("ANSIBLE_INVENTORY")
+                .map(PathBuf::from);
             let path = explicit.filter(|path| path.is_file()).or_else(|| {
                 ["inventory", "hosts", "inventory.yml", "inventory.yaml"]
-                    .iter().find_map(|name| find_upwards(&query.cwd, name))
+                    .iter()
+                    .find_map(|name| find_upwards(&query.cwd, name))
             });
             if let Some(path) = path {
                 result.project_root = path.parent().map(Path::to_path_buf);
@@ -3977,9 +4348,19 @@ fn collect_dev_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provi
                 if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
                     for line in text.lines() {
                         let trimmed = line.trim();
-                        if trimmed.is_empty() || trimmed.chars().next().is_some_and(|c| ['#', '[', '-', '{'].contains(&c)) || trimmed.ends_with(':') { continue; }
+                        if trimmed.is_empty()
+                            || trimmed
+                                .chars()
+                                .next()
+                                .is_some_and(|c| ['#', '[', '-', '{'].contains(&c))
+                            || trimmed.ends_with(':')
+                        {
+                            continue;
+                        }
                         let host = trimmed.split_whitespace().next().unwrap_or("");
-                        if !host.is_empty() && !host.contains('=') { values.insert(host.into()); }
+                        if !host.is_empty() && !host.contains('=') {
+                            values.insert(host.into());
+                        }
                     }
                 }
             }
@@ -4001,21 +4382,53 @@ fn collect_windows_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> P
                 .environment
                 .get("SCOOP")
                 .map(PathBuf::from)
-                .or_else(|| query.environment.get("USERPROFILE").map(|p| PathBuf::from(p).join("scoop")));
+                .or_else(|| {
+                    query
+                        .environment
+                        .get("USERPROFILE")
+                        .map(|p| PathBuf::from(p).join("scoop"))
+                });
             if let Some(dir) = root.map(|root| root.join("apps")) {
                 add_watch_path(&mut result, &dir);
                 if let Ok(entries) = fs::read_dir(dir) {
-                    add_values(&mut result, entries.flatten().filter(|entry| entry.path().is_dir()).filter_map(|entry| entry.file_name().into_string().ok()), "已安装 Scoop 软件包", "windows.scoop.package", &query.prefix);
+                    add_values(
+                        &mut result,
+                        entries
+                            .flatten()
+                            .filter(|entry| entry.path().is_dir())
+                            .filter_map(|entry| entry.file_name().into_string().ok()),
+                        "已安装 Scoop 软件包",
+                        "windows.scoop.package",
+                        &query.prefix,
+                    );
                 }
             }
         }
         "windows.choco_packages" => {
-            let root = query.environment.get("ChocolateyInstall").map(PathBuf::from)
-                .or_else(|| query.environment.get("ProgramData").map(|p| PathBuf::from(p).join("chocolatey")));
+            let root = query
+                .environment
+                .get("ChocolateyInstall")
+                .map(PathBuf::from)
+                .or_else(|| {
+                    query
+                        .environment
+                        .get("ProgramData")
+                        .map(|p| PathBuf::from(p).join("chocolatey"))
+                });
             if let Some(dir) = root.map(|root| root.join("lib")) {
                 add_watch_path(&mut result, &dir);
                 if let Ok(entries) = fs::read_dir(dir) {
-                    add_values(&mut result, entries.flatten().filter(|entry| entry.path().is_dir()).filter_map(|entry| entry.file_name().into_string().ok()).map(|name| name.trim_end_matches(".install").to_owned()), "已安装 Chocolatey 软件包", "windows.choco.package", &query.prefix);
+                    add_values(
+                        &mut result,
+                        entries
+                            .flatten()
+                            .filter(|entry| entry.path().is_dir())
+                            .filter_map(|entry| entry.file_name().into_string().ok())
+                            .map(|name| name.trim_end_matches(".install").to_owned()),
+                        "已安装 Chocolatey 软件包",
+                        "windows.choco.package",
+                        &query.prefix,
+                    );
                 }
             }
         }
@@ -4024,23 +4437,74 @@ fn collect_windows_tools(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> P
                 for dir in env::split_paths(paths) {
                     add_watch_path(&mut result, &dir);
                     if let Ok(entries) = fs::read_dir(dir) {
-                        add_values(&mut result, entries.flatten().filter(|entry| entry.path().is_dir()).filter_map(|entry| entry.file_name().into_string().ok()), "本机 PowerShell 模块", "powershell.module", &query.prefix);
+                        add_values(
+                            &mut result,
+                            entries
+                                .flatten()
+                                .filter(|entry| entry.path().is_dir())
+                                .filter_map(|entry| entry.file_name().into_string().ok()),
+                            "本机 PowerShell 模块",
+                            "powershell.module",
+                            &query.prefix,
+                        );
                     }
                 }
             }
         }
-        "windows.wsl_distros" => match run_bounded_query(query, "wsl", &["-l", "-q"], cancelled_flag) {
-            Ok(values) => add_values(&mut result, values.into_iter().map(|value| value.replace('\0', "").trim().to_owned()).filter(|value| !value.is_empty()), "已安装 WSL 发行版", "windows.wsl.distro", &query.prefix),
-            Err(error) => result.diagnostics.push(format!("读取 WSL 发行版失败：{error}")),
-        },
-        "windows.processes" => match run_bounded_query(query, "tasklist", &["/fo", "csv", "/nh"], cancelled_flag) {
-            Ok(values) => add_values(&mut result, values.into_iter().filter_map(|line| line.trim_matches('"').split("\",\"").next().map(str::to_owned)), "本机进程映像名称", "windows.process", &query.prefix),
-            Err(error) => result.diagnostics.push(format!("读取进程列表失败：{error}")),
-        },
-        "windows.services" => match run_bounded_query(query, "sc", &["query", "state=", "all"], cancelled_flag) {
-            Ok(values) => add_values(&mut result, values.into_iter().filter_map(|line| line.strip_prefix("SERVICE_NAME:").map(str::trim).map(str::to_owned)), "本机 Windows 服务", "windows.service", &query.prefix),
-            Err(error) => result.diagnostics.push(format!("读取服务列表失败：{error}")),
-        },
+        "windows.wsl_distros" => {
+            match run_bounded_query(query, "wsl", &["-l", "-q"], cancelled_flag) {
+                Ok(values) => add_values(
+                    &mut result,
+                    values
+                        .into_iter()
+                        .map(|value| value.replace('\0', "").trim().to_owned())
+                        .filter(|value| !value.is_empty()),
+                    "已安装 WSL 发行版",
+                    "windows.wsl.distro",
+                    &query.prefix,
+                ),
+                Err(error) => result
+                    .diagnostics
+                    .push(format!("读取 WSL 发行版失败：{error}")),
+            }
+        }
+        "windows.processes" => {
+            match run_bounded_query(query, "tasklist", &["/fo", "csv", "/nh"], cancelled_flag) {
+                Ok(values) => add_values(
+                    &mut result,
+                    values.into_iter().filter_map(|line| {
+                        line.trim_matches('"')
+                            .split("\",\"")
+                            .next()
+                            .map(str::to_owned)
+                    }),
+                    "本机进程映像名称",
+                    "windows.process",
+                    &query.prefix,
+                ),
+                Err(error) => result
+                    .diagnostics
+                    .push(format!("读取进程列表失败：{error}")),
+            }
+        }
+        "windows.services" => {
+            match run_bounded_query(query, "sc", &["query", "state=", "all"], cancelled_flag) {
+                Ok(values) => add_values(
+                    &mut result,
+                    values.into_iter().filter_map(|line| {
+                        line.strip_prefix("SERVICE_NAME:")
+                            .map(str::trim)
+                            .map(str::to_owned)
+                    }),
+                    "本机 Windows 服务",
+                    "windows.service",
+                    &query.prefix,
+                ),
+                Err(error) => result
+                    .diagnostics
+                    .push(format!("读取服务列表失败：{error}")),
+            }
+        }
         _ => {}
     }
     result.finish()
@@ -4105,7 +4569,13 @@ fn collect_cloud_data(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Prov
                 values.extend(ini_sections(&home.join(".aws/config"), &mut result));
                 values.extend(ini_sections(&home.join(".aws/credentials"), &mut result));
             }
-            add_values(&mut result, values, "本机 AWS profile", "cloud.aws.profile", &query.prefix);
+            add_values(
+                &mut result,
+                values,
+                "本机 AWS profile",
+                "cloud.aws.profile",
+                &query.prefix,
+            );
         }
         "cloud.azure_profiles" => {
             if let Some(home) = &home {
@@ -4114,103 +4584,401 @@ fn collect_cloud_data(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Prov
                 if let Ok(text) = read_limited(&path, 2 * MANIFEST_LIMIT)
                     && let Ok(json) = serde_json::from_str::<serde_json::Value>(&text)
                 {
-                    let values = json.get("subscriptions").and_then(|v| v.as_array()).into_iter()
-                        .flatten().filter_map(|item| item.get("name").and_then(|v| v.as_str()));
-                    add_values(&mut result, values, "本机 Azure 订阅", "cloud.azure.profile", &query.prefix);
+                    let values = json
+                        .get("subscriptions")
+                        .and_then(|v| v.as_array())
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|item| item.get("name").and_then(|v| v.as_str()));
+                    add_values(
+                        &mut result,
+                        values,
+                        "本机 Azure 订阅",
+                        "cloud.azure.profile",
+                        &query.prefix,
+                    );
                 }
             }
         }
         "cloud.gcloud_profiles" => {
-            let config_root = query.environment.get("APPDATA")
+            let config_root = query
+                .environment
+                .get("APPDATA")
                 .map(|root| PathBuf::from(root).join("gcloud/configurations"))
-                .or_else(|| home.as_ref().map(|root| root.join(".config/gcloud/configurations")));
+                .or_else(|| {
+                    home.as_ref()
+                        .map(|root| root.join(".config/gcloud/configurations"))
+                });
             if let Some(root) = config_root {
                 add_watch_path(&mut result, &root);
                 if let Ok(entries) = fs::read_dir(root) {
                     let values = entries.flatten().filter_map(|entry| {
-                        entry.file_name().to_str()?.strip_prefix("config_").map(str::to_owned)
+                        entry
+                            .file_name()
+                            .to_str()?
+                            .strip_prefix("config_")
+                            .map(str::to_owned)
                     });
-                    add_values(&mut result, values, "本机 gcloud 配置", "cloud.gcloud.profile", &query.prefix);
+                    add_values(
+                        &mut result,
+                        values,
+                        "本机 gcloud 配置",
+                        "cloud.gcloud.profile",
+                        &query.prefix,
+                    );
                 }
             }
         }
         "db.postgres" if !remote => {
             if let Some(home) = &home {
-                let path = query.environment.get("APPDATA")
+                let path = query
+                    .environment
+                    .get("APPDATA")
                     .map(|root| PathBuf::from(root).join("postgresql/.pg_service.conf"))
                     .filter(|path| path.is_file())
                     .unwrap_or_else(|| home.join(".pg_service.conf"));
                 let values = ini_sections(&path, &mut result);
-                add_values(&mut result, values, "本机 PostgreSQL 服务配置", "db.postgres.service", &query.prefix);
+                add_values(
+                    &mut result,
+                    values,
+                    "本机 PostgreSQL 服务配置",
+                    "db.postgres.service",
+                    &query.prefix,
+                );
             }
         }
         "db.mysql" if !remote => {
             if let Some(home) = &home {
                 let values = ini_sections(&home.join(".my.cnf"), &mut result);
-                add_values(&mut result, values, "本机 MySQL 配置组", "db.mysql.profile", &query.prefix);
+                add_values(
+                    &mut result,
+                    values,
+                    "本机 MySQL 配置组",
+                    "db.mysql.profile",
+                    &query.prefix,
+                );
             }
         }
-        "cloud.aws_resources" if remote => remote_values(&mut result, query, "aws", &["s3api", "list-buckets", "--query", "Buckets[].Name", "--output", "text"], "AWS S3 bucket", "cloud.aws.remote", cancelled_flag),
-        "cloud.azure_resources" if remote => remote_values(&mut result, query, "az", &["group", "list", "--query", "[].name", "-o", "tsv"], "Azure 资源组", "cloud.azure.remote", cancelled_flag),
-        "cloud.gcloud_resources" if remote => remote_values(&mut result, query, "gcloud", &["projects", "list", "--format=value(projectId)"], "Google Cloud 项目", "cloud.gcloud.remote", cancelled_flag),
-        "db.postgres" if remote => remote_values(&mut result, query, "psql", &["-Atc", "SELECT datname FROM pg_database WHERE datallowconn"], "PostgreSQL 数据库", "db.postgres.remote", cancelled_flag),
-        "db.mysql" if remote => remote_values(&mut result, query, "mysql", &["-NBe", "SHOW DATABASES"], "MySQL 数据库", "db.mysql.remote", cancelled_flag),
-        "db.redis" if remote => remote_values(&mut result, query, "redis-cli", &["--scan"], "Redis key", "db.redis.remote", cancelled_flag),
-        "db.mongo" if remote => remote_values(&mut result, query, "mongosh", &["--quiet", "--eval", "db.getMongo().getDBNames().join('\\n')"], "MongoDB 数据库", "db.mongo.remote", cancelled_flag),
+        "cloud.aws_resources" if remote => remote_values(
+            &mut result,
+            query,
+            "aws",
+            &[
+                "s3api",
+                "list-buckets",
+                "--query",
+                "Buckets[].Name",
+                "--output",
+                "text",
+            ],
+            "AWS S3 bucket",
+            "cloud.aws.remote",
+            cancelled_flag,
+        ),
+        "cloud.azure_resources" if remote => remote_values(
+            &mut result,
+            query,
+            "az",
+            &["group", "list", "--query", "[].name", "-o", "tsv"],
+            "Azure 资源组",
+            "cloud.azure.remote",
+            cancelled_flag,
+        ),
+        "cloud.gcloud_resources" if remote => remote_values(
+            &mut result,
+            query,
+            "gcloud",
+            &["projects", "list", "--format=value(projectId)"],
+            "Google Cloud 项目",
+            "cloud.gcloud.remote",
+            cancelled_flag,
+        ),
+        "db.postgres" if remote => remote_values(
+            &mut result,
+            query,
+            "psql",
+            &["-Atc", "SELECT datname FROM pg_database WHERE datallowconn"],
+            "PostgreSQL 数据库",
+            "db.postgres.remote",
+            cancelled_flag,
+        ),
+        "db.mysql" if remote => remote_values(
+            &mut result,
+            query,
+            "mysql",
+            &["-NBe", "SHOW DATABASES"],
+            "MySQL 数据库",
+            "db.mysql.remote",
+            cancelled_flag,
+        ),
+        "db.redis" if remote => remote_values(
+            &mut result,
+            query,
+            "redis-cli",
+            &["--scan"],
+            "Redis key",
+            "db.redis.remote",
+            cancelled_flag,
+        ),
+        "db.mongo" if remote => remote_values(
+            &mut result,
+            query,
+            "mongosh",
+            &[
+                "--quiet",
+                "--eval",
+                "db.getMongo().getDBNames().join('\\n')",
+            ],
+            "MongoDB 数据库",
+            "db.mongo.remote",
+            cancelled_flag,
+        ),
         _ => {}
     }
     result.finish()
 }
 
 fn collect_docker(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
-    let mut result=ProviderResult::default();
-    let remote=query.environment.get("DOCKER_HOST").is_some_and(|host|!host.starts_with("npipe://")&&!host.starts_with("unix://")&&!host.contains("localhost")&&!host.contains("127.0.0.1"));
-    if remote && query.environment.get("BLUEBERRY_REMOTE_REQUESTED").is_some_and(|v|v=="1") {
-        match run_bounded_query(query,"docker",&["ps","--format","{{.Names}}"],cancelled_flag){Ok(values)=>add_values(&mut result,values,"远程 Docker 容器","docker.remote.container",&query.prefix),Err(error)=>{result.incomplete=true;result.diagnostics.push(format!("Docker 资源读取失败：{error}"));}}
+    let mut result = ProviderResult::default();
+    let remote = query.environment.get("DOCKER_HOST").is_some_and(|host| {
+        !host.starts_with("npipe://")
+            && !host.starts_with("unix://")
+            && !host.contains("localhost")
+            && !host.contains("127.0.0.1")
+    });
+    if remote
+        && query
+            .environment
+            .get("BLUEBERRY_REMOTE_REQUESTED")
+            .is_some_and(|v| v == "1")
+    {
+        match run_bounded_query(
+            query,
+            "docker",
+            &["ps", "--format", "{{.Names}}"],
+            cancelled_flag,
+        ) {
+            Ok(values) => add_values(
+                &mut result,
+                values,
+                "远程 Docker 容器",
+                "docker.remote.container",
+                &query.prefix,
+            ),
+            Err(error) => {
+                result.incomplete = true;
+                result
+                    .diagnostics
+                    .push(format!("Docker 资源读取失败：{error}"));
+            }
+        }
     }
-    let names=["compose.yaml","compose.yml","docker-compose.yaml","docker-compose.yml"];
-    let Some(path)=names.iter().find_map(|n|find_upwards(&query.cwd,n)) else { return result };
-    result.project_root=path.parent().map(Path::to_path_buf); add_watch_path(&mut result,&path);
-    if let Ok(text)=read_limited(&path,MANIFEST_LIMIT) {
-        let mut in_services=false;
-        let values=text.lines().filter_map(|line| { if line.trim()=="services:" {in_services=true;return None} if in_services && !line.starts_with(' ')&&!line.trim().is_empty(){in_services=false} if in_services { let trimmed=line.trim(); (line.starts_with("  ")&&!line.starts_with("    ")&&trimmed.ends_with(':')).then(||trimmed.trim_end_matches(':').to_owned()) } else {None} });
-        add_values(&mut result,values,"Compose 服务","docker.compose.service",&query.prefix);
+    let names = [
+        "compose.yaml",
+        "compose.yml",
+        "docker-compose.yaml",
+        "docker-compose.yml",
+    ];
+    let Some(path) = names.iter().find_map(|n| find_upwards(&query.cwd, n)) else {
+        return result;
+    };
+    result.project_root = path.parent().map(Path::to_path_buf);
+    add_watch_path(&mut result, &path);
+    if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+        let mut in_services = false;
+        let values = text.lines().filter_map(|line| {
+            if line.trim() == "services:" {
+                in_services = true;
+                return None;
+            }
+            if in_services && !line.starts_with(' ') && !line.trim().is_empty() {
+                in_services = false
+            }
+            if in_services {
+                let trimmed = line.trim();
+                (line.starts_with("  ") && !line.starts_with("    ") && trimmed.ends_with(':'))
+                    .then(|| trimmed.trim_end_matches(':').to_owned())
+            } else {
+                None
+            }
+        });
+        add_values(
+            &mut result,
+            values,
+            "Compose 服务",
+            "docker.compose.service",
+            &query.prefix,
+        );
     }
     result.finish()
 }
 
 fn collect_kubeconfig(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
-    let mut result=ProviderResult::default();
-    let path=query.environment.get("KUBECONFIG").and_then(|v|env::split_paths(v).next()).or_else(||query.environment.get("USERPROFILE").map(|p|PathBuf::from(p).join(".kube/config")));
-    let Some(path)=path else{return result}; add_watch_path(&mut result,&path);
-    if let Ok(text)=read_limited(&path,2*MANIFEST_LIMIT) {
-        let mut wanted=false; let scope=active_scope(query,"kubectl");
-        let values=text.lines().filter_map(|line| {let t=line.trim(); if t=="contexts:" {wanted=true;return None} if wanted&&t.ends_with(':')&&!line.starts_with(' '){wanted=false} if wanted&&t.starts_with("- name:"){Some(t.trim_start_matches("- name:").trim().to_owned())}else if scope=="contexts"&&t.starts_with("current-context:"){Some(t.trim_start_matches("current-context:").trim().to_owned())}else{None}});
-        add_values(&mut result,values,"Kubernetes 上下文","kubectl.context",&query.prefix);
+    let mut result = ProviderResult::default();
+    let path = query
+        .environment
+        .get("KUBECONFIG")
+        .and_then(|v| env::split_paths(v).next())
+        .or_else(|| {
+            query
+                .environment
+                .get("USERPROFILE")
+                .map(|p| PathBuf::from(p).join(".kube/config"))
+        });
+    let Some(path) = path else { return result };
+    add_watch_path(&mut result, &path);
+    if let Ok(text) = read_limited(&path, 2 * MANIFEST_LIMIT) {
+        let mut wanted = false;
+        let scope = active_scope(query, "kubectl");
+        let values = text.lines().filter_map(|line| {
+            let t = line.trim();
+            if t == "contexts:" {
+                wanted = true;
+                return None;
+            }
+            if wanted && t.ends_with(':') && !line.starts_with(' ') {
+                wanted = false
+            }
+            if wanted && t.starts_with("- name:") {
+                Some(t.trim_start_matches("- name:").trim().to_owned())
+            } else if scope == "contexts" && t.starts_with("current-context:") {
+                Some(t.trim_start_matches("current-context:").trim().to_owned())
+            } else {
+                None
+            }
+        });
+        add_values(
+            &mut result,
+            values,
+            "Kubernetes 上下文",
+            "kubectl.context",
+            &query.prefix,
+        );
     }
-    if query.environment.get("BLUEBERRY_REMOTE_REQUESTED").is_some_and(|v|v=="1") {
-        let scope=active_scope(query,"kubectl");
-        let args=if scope=="namespaces"{vec!["get","namespaces","-o","name"]}else{let kind=query.args.iter().find(|arg|matches!(arg.as_str(),"pods"|"pod"|"deployments"|"deployment"|"services"|"service"|"statefulsets"|"daemonsets"|"jobs")).map(String::as_str).unwrap_or("pods");vec!["get",kind,"-o","name"]};
-        match run_bounded_query(query,"kubectl",&args,cancelled_flag){Ok(values)=>add_values(&mut result,values,"当前 Kubernetes 上下文资源","kubectl.remote",&query.prefix),Err(error)=>{result.incomplete=true;result.diagnostics.push(format!("Kubernetes 资源读取失败：{error}"));}}
+    if query
+        .environment
+        .get("BLUEBERRY_REMOTE_REQUESTED")
+        .is_some_and(|v| v == "1")
+    {
+        let scope = active_scope(query, "kubectl");
+        let args = if scope == "namespaces" {
+            vec!["get", "namespaces", "-o", "name"]
+        } else {
+            let kind = query
+                .args
+                .iter()
+                .find(|arg| {
+                    matches!(
+                        arg.as_str(),
+                        "pods"
+                            | "pod"
+                            | "deployments"
+                            | "deployment"
+                            | "services"
+                            | "service"
+                            | "statefulsets"
+                            | "daemonsets"
+                            | "jobs"
+                    )
+                })
+                .map(String::as_str)
+                .unwrap_or("pods");
+            vec!["get", kind, "-o", "name"]
+        };
+        match run_bounded_query(query, "kubectl", &args, cancelled_flag) {
+            Ok(values) => add_values(
+                &mut result,
+                values,
+                "当前 Kubernetes 上下文资源",
+                "kubectl.remote",
+                &query.prefix,
+            ),
+            Err(error) => {
+                result.incomplete = true;
+                result
+                    .diagnostics
+                    .push(format!("Kubernetes 资源读取失败：{error}"));
+            }
+        }
     }
     result.finish()
 }
 
 fn collect_helm(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
-    let mut result=ProviderResult::default();
-    let mut current=Some(query.cwd.as_path());
-    while let Some(dir)=current { let chart=dir.join("Chart.yaml"); if chart.is_file(){result.project_root=Some(dir.to_path_buf());add_watch_path(&mut result,&chart);add_filtered(&mut result,dir.to_string_lossy().into_owned(),"本地 Helm Chart",CandidateKind::Directory,"helm.chart",&query.prefix);break} current=dir.parent(); }
-    if active_scope(query,"helm")=="releases" && query.environment.get("BLUEBERRY_REMOTE_REQUESTED").is_some_and(|v|v=="1") {match run_bounded_query(query,"helm",&["list","-q"],cancelled_flag){Ok(values)=>add_values(&mut result,values,"当前上下文 Helm release","helm.remote.release",&query.prefix),Err(error)=>{result.incomplete=true;result.diagnostics.push(format!("Helm release 读取失败：{error}"));}}}
+    let mut result = ProviderResult::default();
+    let mut current = Some(query.cwd.as_path());
+    while let Some(dir) = current {
+        let chart = dir.join("Chart.yaml");
+        if chart.is_file() {
+            result.project_root = Some(dir.to_path_buf());
+            add_watch_path(&mut result, &chart);
+            add_filtered(
+                &mut result,
+                dir.to_string_lossy().into_owned(),
+                "本地 Helm Chart",
+                CandidateKind::Directory,
+                "helm.chart",
+                &query.prefix,
+            );
+            break;
+        }
+        current = dir.parent();
+    }
+    if active_scope(query, "helm") == "releases"
+        && query
+            .environment
+            .get("BLUEBERRY_REMOTE_REQUESTED")
+            .is_some_and(|v| v == "1")
+    {
+        match run_bounded_query(query, "helm", &["list", "-q"], cancelled_flag) {
+            Ok(values) => add_values(
+                &mut result,
+                values,
+                "当前上下文 Helm release",
+                "helm.remote.release",
+                &query.prefix,
+            ),
+            Err(error) => {
+                result.incomplete = true;
+                result
+                    .diagnostics
+                    .push(format!("Helm release 读取失败：{error}"));
+            }
+        }
+    }
     result.finish()
 }
 
 fn collect_ssh(query: &ProjectQuery, _: &AtomicBool) -> ProviderResult {
-    let mut result=ProviderResult::default();
-    let Some(profile)=query.environment.get("USERPROFILE") else{return result};
-    let path=PathBuf::from(profile).join(".ssh/config"); add_watch_path(&mut result,&path);
-    if let Ok(text)=read_limited(&path,MANIFEST_LIMIT) {
-        let hosts=text.lines().filter_map(|line| {let t=line.trim(); let rest=t.strip_prefix("Host ").or_else(||t.strip_prefix("host "))?; Some(rest.split_whitespace().filter(|h|!h.contains(['*','?','!'])).map(str::to_owned).collect::<Vec<_>>())}).flatten();
-        add_values(&mut result,hosts,"SSH 配置主机","ssh.host",&query.prefix);
+    let mut result = ProviderResult::default();
+    let Some(profile) = query.environment.get("USERPROFILE") else {
+        return result;
+    };
+    let path = PathBuf::from(profile).join(".ssh/config");
+    add_watch_path(&mut result, &path);
+    if let Ok(text) = read_limited(&path, MANIFEST_LIMIT) {
+        let hosts = text
+            .lines()
+            .filter_map(|line| {
+                let t = line.trim();
+                let rest = t
+                    .strip_prefix("Host ")
+                    .or_else(|| t.strip_prefix("host "))?;
+                Some(
+                    rest.split_whitespace()
+                        .filter(|h| !h.contains(['*', '?', '!']))
+                        .map(str::to_owned)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .flatten();
+        add_values(
+            &mut result,
+            hosts,
+            "SSH 配置主机",
+            "ssh.host",
+            &query.prefix,
+        );
     }
     result.finish()
 }

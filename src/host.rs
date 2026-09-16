@@ -391,9 +391,21 @@ impl Worker {
                             &q.descriptions,
                         );
                         if context.command_position {
-                            for action in crate::providers::project_actions(&q.cwd,&q.line) {
-                                if result.candidates.len()>=q.limit { break; }
-                                result.candidates.push(Candidate{label:action.value.clone(),insert_text:action.value,description:action.description,kind:action.kind,id:action.source.clone(),source:action.source,match_reason:"当前项目".into(),append_space:true,..Default::default()});
+                            for action in crate::providers::project_actions(&q.cwd, &q.line) {
+                                if result.candidates.len() >= q.limit {
+                                    break;
+                                }
+                                result.candidates.push(Candidate {
+                                    label: action.value.clone(),
+                                    insert_text: action.value,
+                                    description: action.description,
+                                    kind: action.kind,
+                                    id: action.source.clone(),
+                                    source: action.source,
+                                    match_reason: "当前项目".into(),
+                                    append_space: true,
+                                    ..Default::default()
+                                });
                             }
                         }
                         let _ = output.send(HostEvent::Completion(q.revision, result));
@@ -682,7 +694,12 @@ impl CommandSnapshot {
     }
 }
 
-struct HubForm { template:String, fields:Vec<String>, index:usize, values:BTreeMap<String,String> }
+struct HubForm {
+    template: String,
+    fields: Vec<String>,
+    index: usize,
+    values: BTreeMap<String, String>,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum InteractionMode {
@@ -763,17 +780,58 @@ struct State {
 
 impl State {
     fn refresh_hub(&mut self) {
-        let Some(query)=self.hub_query.as_deref() else{return};
-        if let Some(form)=self.hub_form.as_ref(){
-            let name=form.fields.get(form.index).cloned().unwrap_or_default();
-            let preview=crate::hub::fill_placeholders(&form.template,&form.values);
-            self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates:vec![Candidate{label:format!("填写参数：{name}"),insert_text:preview,description:if query.is_empty(){"输入参数值后按 Enter".into()}else{format!("当前值：{query}")},kind:crate::model::CandidateKind::Value,id:format!("hub-form:{name}"),source:"Blueberry 工作台/参数表单".into(),append_space:false,..Default::default()}],incomplete:false,argument_hint:format!("参数 {}/{} · {}",form.index+1,form.fields.len(),name)};self.selected=0;self.dismissed=false;self.searching=true;return
+        let Some(query) = self.hub_query.as_deref() else {
+            return;
+        };
+        if let Some(form) = self.hub_form.as_ref() {
+            let name = form.fields.get(form.index).cloned().unwrap_or_default();
+            let preview = crate::hub::fill_placeholders(&form.template, &form.values);
+            self.completion = Completion {
+                replace_start: 0,
+                replace_end: self.line.len(),
+                candidates: vec![Candidate {
+                    label: format!("填写参数：{name}"),
+                    insert_text: preview,
+                    description: if query.is_empty() {
+                        "输入参数值后按 Enter".into()
+                    } else {
+                        format!("当前值：{query}")
+                    },
+                    kind: crate::model::CandidateKind::Value,
+                    id: format!("hub-form:{name}"),
+                    source: "Blueberry 工作台/参数表单".into(),
+                    append_space: false,
+                    ..Default::default()
+                }],
+                incomplete: false,
+                argument_hint: format!("参数 {}/{} · {}", form.index + 1, form.fields.len(), name),
+            };
+            self.selected = 0;
+            self.dismissed = false;
+            self.searching = true;
+            return;
         }
-        let selected=self.completion.candidates.get(self.selected).map(|c|c.identity().to_owned());
-        let candidates=crate::hub::candidates_with_history(&self.config,query,&self.hub_history,None);
-        self.selected=selected.and_then(|id|candidates.iter().position(|c|c.identity()==id)).unwrap_or(0);
-        self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates,incomplete:self.history_pending,argument_hint:"输入关键词搜索；Enter 填回，Tab/F1 预览，Esc 返回".into()};
-        self.menu_focus=true;self.explicit=true;self.dismissed=false;self.searching=true;
+        let selected = self
+            .completion
+            .candidates
+            .get(self.selected)
+            .map(|c| c.identity().to_owned());
+        let candidates =
+            crate::hub::candidates_with_history(&self.config, query, &self.hub_history, None);
+        self.selected = selected
+            .and_then(|id| candidates.iter().position(|c| c.identity() == id))
+            .unwrap_or(0);
+        self.completion = Completion {
+            replace_start: 0,
+            replace_end: self.line.len(),
+            candidates,
+            incomplete: self.history_pending,
+            argument_hint: "输入关键词搜索；Enter 填回，Tab/F1 预览，Esc 返回".into(),
+        };
+        self.menu_focus = true;
+        self.explicit = true;
+        self.dismissed = false;
+        self.searching = true;
     }
 
     fn write_payload(&mut self, kind: &str, payload: &Value) -> Result<()> {
@@ -1016,8 +1074,16 @@ impl State {
                     && (self.explicit
                         || (self.config.completion.auto_trigger && !line.trim().is_empty()))
                 {
-                    let tool_name=self.context.as_ref().map(|context|context.command.as_str()).filter(|name|!name.is_empty()).unwrap_or_else(||line.split_whitespace().next().unwrap_or(""));
-                    if self.config.resources_for(tool_name)=="automatic"{Arc::make_mut(&mut self.shell_environment).insert("BLUEBERRY_REMOTE_REQUESTED".into(),"1".into());}
+                    let tool_name = self
+                        .context
+                        .as_ref()
+                        .map(|context| context.command.as_str())
+                        .filter(|name| !name.is_empty())
+                        .unwrap_or_else(|| line.split_whitespace().next().unwrap_or(""));
+                    if self.config.resources_for(tool_name) == "automatic" {
+                        Arc::make_mut(&mut self.shell_environment)
+                            .insert("BLUEBERRY_REMOTE_REQUESTED".into(), "1".into());
+                    }
                     let query = Query {
                         revision,
                         line: line.into(),
@@ -1037,8 +1103,7 @@ impl State {
                         searching: self.searching,
                         help_enabled: self.config.help_for(tool_name),
                     };
-                    Arc::make_mut(&mut self.shell_environment)
-                        .remove("BLUEBERRY_REMOTE_REQUESTED");
+                    Arc::make_mut(&mut self.shell_environment).remove("BLUEBERRY_REMOTE_REQUESTED");
                     self.schedule_metadata();
                     worker.update(|w| w.query = Some(query));
                 }
@@ -1074,13 +1139,23 @@ impl State {
             }
             "history" => {
                 if request_number(&value["request_id"]) == self.native_request {
-                    self.native_request=None;
+                    self.native_request = None;
                 }
-                let commands=serde_json::from_value::<Vec<String>>(value["commands"].clone()).unwrap_or_default();
-                self.hub_history_path=value["path"].as_str().filter(|p|!p.is_empty()).map(PathBuf::from);
-                self.hub_history=crate::hub::merged_history(self.config.workbench.history_limit,&commands,self.hub_history_path.as_deref());
-                self.history_pending=false;
-                if self.hub_query.is_some(){self.refresh_hub();}
+                let commands = serde_json::from_value::<Vec<String>>(value["commands"].clone())
+                    .unwrap_or_default();
+                self.hub_history_path = value["path"]
+                    .as_str()
+                    .filter(|p| !p.is_empty())
+                    .map(PathBuf::from);
+                self.hub_history = crate::hub::merged_history(
+                    self.config.workbench.history_limit,
+                    &commands,
+                    self.hub_history_path.as_deref(),
+                );
+                self.history_pending = false;
+                if self.hub_query.is_some() {
+                    self.refresh_hub();
+                }
             }
             "edit_result" => {
                 let id = request_number(&value["request_id"]);
@@ -1254,9 +1329,10 @@ impl State {
             && self.pending_query.is_none()
             && !self.commands_inflight
         {
-            self.native_request=Some(self.revision);
+            self.native_request = Some(self.revision);
             self.write_payload("request",&json!({"id":self.revision.to_string(),"kind":"history","limit":self.config.workbench.history_limit}))?;
-            writer.write_all(&input::protocol_chord(&self.protocol_prefix,'n'))?;writer.flush()?;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
+            writer.flush()?;
         } else if self.native_queued
             && !self.commands_inflight
             && self.ready
@@ -1349,7 +1425,10 @@ impl State {
         };
         self.searching = false;
         self.interaction_mode = InteractionMode::Completion;
-        let replacement=candidate.replacement.unwrap_or(crate::model::Replacement{start:self.completion.replace_start,end:self.completion.replace_end});
+        let replacement = candidate.replacement.unwrap_or(crate::model::Replacement {
+            start: self.completion.replace_start,
+            end: self.completion.replace_end,
+        });
         let start = protocol::byte_to_utf16(&self.line, replacement.start);
         let end = protocol::byte_to_utf16(&self.line, replacement.end);
         let cursor = protocol::byte_to_utf16(&self.line, self.cursor);
@@ -1388,40 +1467,155 @@ impl State {
         worker: &Worker,
     ) -> Result<()> {
         if self.hub_query.is_some() {
-            if matches!(&event,Event::Key(key) if key.kind==crossterm::event::KeyEventKind::Release){return Ok(())}
-            use crossterm::event::{KeyCode,KeyModifiers};
+            if matches!(&event,Event::Key(key) if key.kind==crossterm::event::KeyEventKind::Release)
+            {
+                return Ok(());
+            }
+            use crossterm::event::{KeyCode, KeyModifiers};
             match event {
-                Event::Paste(text)=>{if let Some(query)=self.hub_query.as_mut(){query.push_str(&text.replace(['\r','\n']," "));}self.refresh_hub();return Ok(())}
-                Event::Resize(cols,rows)=>{
-                    #[cfg(windows)] let (cols,rows)=terminal::size().unwrap_or((cols,rows));
-                    if rows>0&&cols>0&&self.parser.screen().size()!=(rows,cols){master.resize(portable_pty::PtySize{rows,cols,pixel_width:0,pixel_height:0})?;self.parser.screen_mut().set_size(rows,cols);self.overlay=Overlay::default();self.repaint=true;}return Ok(())
+                Event::Paste(text) => {
+                    if let Some(query) = self.hub_query.as_mut() {
+                        query.push_str(&text.replace(['\r', '\n'], " "));
+                    }
+                    self.refresh_hub();
+                    return Ok(());
                 }
-                Event::Key(key)=>{
-                    if input::configured(&Event::Key(key),&self.config.keys).is_some_and(|i|matches!(i,Input::Hub))||key.code==KeyCode::Esc {
-                        self.hub_query=None;self.hub_form=None;self.searching=false;self.invalidate();self.dismissed=true;return Ok(())
+                Event::Resize(cols, rows) => {
+                    #[cfg(windows)]
+                    let (cols, rows) = terminal::size().unwrap_or((cols, rows));
+                    if rows > 0 && cols > 0 && self.parser.screen().size() != (rows, cols) {
+                        master.resize(portable_pty::PtySize {
+                            rows,
+                            cols,
+                            pixel_width: 0,
+                            pixel_height: 0,
+                        })?;
+                        self.parser.screen_mut().set_size(rows, cols);
+                        self.overlay = Overlay::default();
+                        self.repaint = true;
+                    }
+                    return Ok(());
+                }
+                Event::Key(key) => {
+                    if input::configured(&Event::Key(key), &self.config.keys)
+                        .is_some_and(|i| matches!(i, Input::Hub))
+                        || key.code == KeyCode::Esc
+                    {
+                        self.hub_query = None;
+                        self.hub_form = None;
+                        self.searching = false;
+                        self.invalidate();
+                        self.dismissed = true;
+                        return Ok(());
                     }
                     match key.code {
-                        KeyCode::Char(ch) if !key.modifiers.intersects(KeyModifiers::CONTROL|KeyModifiers::ALT)=>{self.hub_query.as_mut().unwrap().push(ch);self.refresh_hub();return Ok(())}
-                        KeyCode::Backspace=>{self.hub_query.as_mut().unwrap().pop();self.refresh_hub();return Ok(())}
-                        KeyCode::Up=>{if !self.completion.candidates.is_empty(){self.selected=self.selected.checked_sub(1).unwrap_or(self.completion.candidates.len()-1);}return Ok(())}
-                        KeyCode::Down=>{if !self.completion.candidates.is_empty(){self.selected=(self.selected+1)%self.completion.candidates.len();}return Ok(())}
-                        KeyCode::PageUp=>{self.selected=self.selected.saturating_sub(self.config.ui.max_rows.max(1));return Ok(())}
-                        KeyCode::PageDown=>{self.selected=(self.selected+self.config.ui.max_rows.max(1)).min(self.completion.candidates.len().saturating_sub(1));return Ok(())}
-                        KeyCode::Tab|KeyCode::F(1)=>{self.details=!self.details;self.detail_page=0;return Ok(())}
-                        KeyCode::Enter=>{
-                            if self.hub_form.is_some(){
-                                let value=self.hub_query.as_ref().cloned().unwrap_or_default();if value.trim().is_empty(){self.notification=Some("参数值不能为空".into());return Ok(())}
-                                let form=self.hub_form.as_mut().unwrap();let name=form.fields[form.index].clone();form.values.insert(name,value);form.index+=1;
-                                if form.index<form.fields.len(){*self.hub_query.as_mut().unwrap()=String::new();self.refresh_hub();return Ok(())}
-                                let form=self.hub_form.take().unwrap();let command=crate::hub::fill_placeholders(&form.template,&form.values);self.hub_query=None;self.searching=false;self.completion=Completion{replace_start:0,replace_end:self.line.len(),candidates:vec![Candidate{label:command.clone(),insert_text:command,description:"已填写命令模板".into(),kind:crate::model::CandidateKind::Command,id:"hub:resolved-template".into(),source:"Blueberry 工作台/模板".into(),append_space:false,..Default::default()}],incomplete:false,argument_hint:String::new()};self.selected=0;return self.accept(writer)
-                            }
-                            if let Some(candidate)=self.completion.candidates.get(self.selected){let fields=crate::hub::placeholder_names(&candidate.insert_text);if !fields.is_empty(){self.hub_form=Some(HubForm{template:candidate.insert_text.clone(),fields,index:0,values:BTreeMap::new()});*self.hub_query.as_mut().unwrap()=String::new();self.refresh_hub();return Ok(())}}
-                            self.hub_query=None;self.searching=false;return self.accept(writer)
+                        KeyCode::Char(ch)
+                            if !key
+                                .modifiers
+                                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                        {
+                            self.hub_query.as_mut().unwrap().push(ch);
+                            self.refresh_hub();
+                            return Ok(());
                         }
-                        _=>return Ok(())
+                        KeyCode::Backspace => {
+                            self.hub_query.as_mut().unwrap().pop();
+                            self.refresh_hub();
+                            return Ok(());
+                        }
+                        KeyCode::Up => {
+                            if !self.completion.candidates.is_empty() {
+                                self.selected = self
+                                    .selected
+                                    .checked_sub(1)
+                                    .unwrap_or(self.completion.candidates.len() - 1);
+                            }
+                            return Ok(());
+                        }
+                        KeyCode::Down => {
+                            if !self.completion.candidates.is_empty() {
+                                self.selected =
+                                    (self.selected + 1) % self.completion.candidates.len();
+                            }
+                            return Ok(());
+                        }
+                        KeyCode::PageUp => {
+                            self.selected =
+                                self.selected.saturating_sub(self.config.ui.max_rows.max(1));
+                            return Ok(());
+                        }
+                        KeyCode::PageDown => {
+                            self.selected = (self.selected + self.config.ui.max_rows.max(1))
+                                .min(self.completion.candidates.len().saturating_sub(1));
+                            return Ok(());
+                        }
+                        KeyCode::Tab | KeyCode::F(1) => {
+                            self.details = !self.details;
+                            self.detail_page = 0;
+                            return Ok(());
+                        }
+                        KeyCode::Enter => {
+                            if self.hub_form.is_some() {
+                                let value = self.hub_query.as_ref().cloned().unwrap_or_default();
+                                if value.trim().is_empty() {
+                                    self.notification = Some("参数值不能为空".into());
+                                    return Ok(());
+                                }
+                                let form = self.hub_form.as_mut().unwrap();
+                                let name = form.fields[form.index].clone();
+                                form.values.insert(name, value);
+                                form.index += 1;
+                                if form.index < form.fields.len() {
+                                    *self.hub_query.as_mut().unwrap() = String::new();
+                                    self.refresh_hub();
+                                    return Ok(());
+                                }
+                                let form = self.hub_form.take().unwrap();
+                                let command =
+                                    crate::hub::fill_placeholders(&form.template, &form.values);
+                                self.hub_query = None;
+                                self.searching = false;
+                                self.completion = Completion {
+                                    replace_start: 0,
+                                    replace_end: self.line.len(),
+                                    candidates: vec![Candidate {
+                                        label: command.clone(),
+                                        insert_text: command,
+                                        description: "已填写命令模板".into(),
+                                        kind: crate::model::CandidateKind::Command,
+                                        id: "hub:resolved-template".into(),
+                                        source: "Blueberry 工作台/模板".into(),
+                                        append_space: false,
+                                        ..Default::default()
+                                    }],
+                                    incomplete: false,
+                                    argument_hint: String::new(),
+                                };
+                                self.selected = 0;
+                                return self.accept(writer);
+                            }
+                            if let Some(candidate) = self.completion.candidates.get(self.selected) {
+                                let fields = crate::hub::placeholder_names(&candidate.insert_text);
+                                if !fields.is_empty() {
+                                    self.hub_form = Some(HubForm {
+                                        template: candidate.insert_text.clone(),
+                                        fields,
+                                        index: 0,
+                                        values: BTreeMap::new(),
+                                    });
+                                    *self.hub_query.as_mut().unwrap() = String::new();
+                                    self.refresh_hub();
+                                    return Ok(());
+                                }
+                            }
+                            self.hub_query = None;
+                            self.searching = false;
+                            return self.accept(writer);
+                        }
+                        _ => return Ok(()),
                     }
                 }
-                _=>return Ok(())
+                _ => return Ok(()),
             }
         }
         if self.interaction_mode == InteractionMode::History {
@@ -1444,12 +1638,21 @@ impl State {
             if let Event::Key(key) = &event
                 && key.kind != crossterm::event::KeyEventKind::Release
                 && key.modifiers.is_empty()
-                && matches!(key.code, crossterm::event::KeyCode::Up | crossterm::event::KeyCode::Down)
+                && matches!(
+                    key.code,
+                    crossterm::event::KeyCode::Up | crossterm::event::KeyCode::Down
+                )
             {
                 let bytes = match key.code {
-                    crossterm::event::KeyCode::Up if self.parser.screen().application_cursor() => b"\x1bOA".as_slice(),
+                    crossterm::event::KeyCode::Up if self.parser.screen().application_cursor() => {
+                        b"\x1bOA".as_slice()
+                    }
                     crossterm::event::KeyCode::Up => b"\x1b[A".as_slice(),
-                    crossterm::event::KeyCode::Down if self.parser.screen().application_cursor() => b"\x1bOB".as_slice(),
+                    crossterm::event::KeyCode::Down
+                        if self.parser.screen().application_cursor() =>
+                    {
+                        b"\x1bOB".as_slice()
+                    }
                     crossterm::event::KeyCode::Down => b"\x1b[B".as_slice(),
                     _ => unreachable!(),
                 };
@@ -1701,8 +1904,7 @@ impl State {
                 return Ok(());
             }
             Input::Tab if visible => return self.accept(writer),
-            Input::Previous if visible =>
-            {
+            Input::Previous if visible => {
                 self.selection_touched = true;
                 self.detail_page = 0;
                 self.selected = self
@@ -1796,17 +1998,33 @@ impl State {
                 return Ok(());
             }
             Input::Resources if self.prompt && self.ready => {
-                let tool=self.context.as_ref().map(|context|context.command.as_str()).filter(|name|!name.is_empty()).unwrap_or_else(||self.line.split_whitespace().next().unwrap_or(""));
-                if self.config.resources_for(tool)=="off"{self.diagnostic=Some(format!("已在 tools.{tool}.resources 中关闭资源读取"));return Ok(())}
+                let tool = self
+                    .context
+                    .as_ref()
+                    .map(|context| context.command.as_str())
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or_else(|| self.line.split_whitespace().next().unwrap_or(""));
+                if self.config.resources_for(tool) == "off" {
+                    self.diagnostic = Some(format!("已在 tools.{tool}.resources 中关闭资源读取"));
+                    return Ok(());
+                }
                 Arc::make_mut(&mut self.shell_environment)
                     .insert("BLUEBERRY_REMOTE_REQUESTED".into(), "1".into());
-                worker.update(|work| work.refresh=true);
-                self.explicit=true; self.dismissed=false; self.dirty=true;
-                self.diagnostic=Some("正在刷新当前本机资源；远程资源仍需在对应工具中明确读取。".into());
+                worker.update(|work| work.refresh = true);
+                self.explicit = true;
+                self.dismissed = false;
+                self.dirty = true;
+                self.diagnostic =
+                    Some("正在刷新当前本机资源；远程资源仍需在对应工具中明确读取。".into());
                 return Ok(());
             }
             Input::Hub if self.prompt && self.ready => {
-                self.hub_query=Some(String::new());self.hub_form=None;self.history_pending=self.history_ready;self.details=false;self.selected=0;self.refresh_hub();
+                self.hub_query = Some(String::new());
+                self.hub_form = None;
+                self.history_pending = self.history_ready;
+                self.details = false;
+                self.selected = 0;
+                self.refresh_hub();
                 return Ok(());
             }
             Input::Tab => vec![b'\t'],
@@ -1835,7 +2053,11 @@ impl State {
             Input::Bytes(bytes) => bytes,
         };
         self.invalidate();
-        self.interaction_mode = if starts_history_navigation { InteractionMode::History } else { InteractionMode::Completion };
+        self.interaction_mode = if starts_history_navigation {
+            InteractionMode::History
+        } else {
+            InteractionMode::Completion
+        };
         self.dismissed = starts_history_navigation;
         // After submitting a line the next input may belong to a native program.
         // Do not inject a PSReadLine chord until the next prompt marker.
@@ -1852,10 +2074,8 @@ impl State {
                 });
             }
         } else {
-            self.dirty = self.prompt
-                && query_after
-                && !self.nested_edit
-                && !starts_history_navigation;
+            self.dirty =
+                self.prompt && query_after && !self.nested_edit && !starts_history_navigation;
         }
         if paste && self.parser.screen().bracketed_paste() {
             writer.write_all(b"\x1b[200~")?;
@@ -2238,10 +2458,22 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         && state.interaction_mode == InteractionMode::Completion
                         && !state.native_menu =>
                 {
-                    if state.hub_query.is_none()&&state.cursor==state.line.len()&&!state.line.contains(['\n','\r']) {
-                        let suggestions=crate::hub::suggestions(&state.config,&state.line,&state.hub_history);
-                        let mut seen=completion.candidates.iter().map(|candidate|candidate.insert_text.to_lowercase()).collect::<std::collections::HashSet<_>>();
-                        completion.candidates.extend(suggestions.into_iter().filter(|candidate|seen.insert(candidate.insert_text.to_lowercase())));
+                    if state.hub_query.is_none()
+                        && state.cursor == state.line.len()
+                        && !state.line.contains(['\n', '\r'])
+                    {
+                        let suggestions =
+                            crate::hub::suggestions(&state.config, &state.line, &state.hub_history);
+                        let mut seen = completion
+                            .candidates
+                            .iter()
+                            .map(|candidate| candidate.insert_text.to_lowercase())
+                            .collect::<std::collections::HashSet<_>>();
+                        completion.candidates.extend(
+                            suggestions.into_iter().filter(|candidate| {
+                                seen.insert(candidate.insert_text.to_lowercase())
+                            }),
+                        );
                     }
                     ui_dirty |= state.completion != completion;
                     let selected_label = state
@@ -2328,7 +2560,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
             } else {
                 &state.completion.candidates
             };
-            let query = state.hub_query.as_deref().unwrap_or_else(||state.line.get(state.completion.replace_start..state.cursor).unwrap_or(""));
+            let query = state.hub_query.as_deref().unwrap_or_else(|| {
+                state
+                    .line
+                    .get(state.completion.replace_start..state.cursor)
+                    .unwrap_or("")
+            });
             state.overlay.draw_with_state(
                 state.parser.screen(),
                 &mut frame,

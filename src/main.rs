@@ -266,9 +266,8 @@ fn complete_line(
     {
         let records = blueberry::knowledge::records(&blueberry::knowledge::cache_dir());
         for record in records.iter().filter(|r| {
-                r.entry.fingerprint == entry.fingerprint && blueberry::knowledge::current(r)
-            })
-        {
+            r.entry.fingerprint == entry.fingerprint && blueberry::knowledge::current(r)
+        }) {
             active_help.push(serde_json::json!({
                 "command": record.entry.command,
                 "context": record.context,
@@ -413,8 +412,11 @@ fn print_completion_explanation(run: &CompletionRun, json: bool) -> Result<()> {
     for help in &run.active_help {
         println!(
             "  本机帮助: {} {} · adapter={} · commands_complete={} · options_complete={}",
-            help["command"], help["context"], help["adapter"],
-            help["commands_complete"], help["options_complete"]
+            help["command"],
+            help["context"],
+            help["adapter"],
+            help["commands_complete"],
+            help["options_complete"]
         );
     }
     println!(
@@ -688,14 +690,20 @@ fn print_help_status() {
 }
 fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
     if json {
-        let path=config_path.map(Path::to_path_buf).unwrap_or_else(config::default_path);
-        let loaded=config::load(config_path);
-        let value=match loaded {
-            Ok(settings)=>serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":true,"cache":config::cache_dir(),"dynamic":settings.completion.dynamic,"keys":settings.keys,"tool_registry":blueberry::tool_registry::TOOLS.iter().map(|tool|serde_json::json!({"name":tool.name,"help":tool.help,"providers":tool.providers,"resources":tool.resources,"required":tool.required})).collect::<Vec<_>>(),"help_cache":blueberry::knowledge::records(&blueberry::knowledge::cache_dir()).iter().map(|record|serde_json::json!({"command":record.entry.command,"context":record.context,"adapter":record.page.adapter,"commands_complete":record.page.commands_complete,"options_complete":record.page.options_complete,"stale":!blueberry::knowledge::current(record),"error":record.error})).collect::<Vec<_>>() }),
-            Err(error)=>serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":false,"error":format!("{error:#}")}),
+        let path = config_path
+            .map(Path::to_path_buf)
+            .unwrap_or_else(config::default_path);
+        let loaded = config::load(config_path);
+        let value = match loaded {
+            Ok(settings) => {
+                serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":true,"cache":config::cache_dir(),"dynamic":settings.completion.dynamic,"keys":settings.keys,"tool_registry":blueberry::tool_registry::TOOLS.iter().map(|tool|serde_json::json!({"name":tool.name,"help":tool.help,"providers":tool.providers,"resources":tool.resources,"required":tool.required})).collect::<Vec<_>>(),"help_cache":blueberry::knowledge::records(&blueberry::knowledge::cache_dir()).iter().map(|record|serde_json::json!({"command":record.entry.command,"context":record.context,"adapter":record.page.adapter,"commands_complete":record.page.commands_complete,"options_complete":record.page.options_complete,"stale":!blueberry::knowledge::current(record),"error":record.error})).collect::<Vec<_>>() })
+            }
+            Err(error) => {
+                serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":false,"error":format!("{error:#}")})
+            }
         };
-        println!("{}",serde_json::to_string_pretty(&value)?);
-        return Ok(if value["valid"]==true {0}else{1});
+        println!("{}", serde_json::to_string_pretty(&value)?);
+        return Ok(if value["valid"] == true { 0 } else { 1 });
     }
     print_help_status();
     let path = config_path
@@ -845,7 +853,9 @@ fn execute() -> Result<u32> {
             transport,
         } => {
             if !no_profile && blueberry::setup::take_first_hint() {
-                println!("Blueberry 提示：首次使用可运行 `blueberry setup`，两分钟了解补全、图标和自动启动设置。");
+                println!(
+                    "Blueberry 提示：首次使用可运行 `blueberry setup`，两分钟了解补全、图标和自动启动设置。"
+                );
             }
             host::run(host::RunOptions {
                 shell,
@@ -855,7 +865,7 @@ fn execute() -> Result<u32> {
                 trace_path: trace,
                 transport,
             })
-        },
+        }
         Command::Startup {
             action,
             profile,
@@ -952,11 +962,22 @@ fn execute() -> Result<u32> {
         Command::Doctor { json } => run_doctor(cli.config.as_deref(), json),
         Command::Tools { json } => blueberry::tools_ui::run(cli.config.as_deref(), json),
         Command::Setup => blueberry::setup::run(cli.config.as_deref()),
-        Command::Hub { query, add, command, remove } => {
-            if let (Some(name),Some(command))=(add,command) { blueberry::hub::add_favorite(&name,&command)?; Ok(0) }
-            else if let Some(name)=remove { blueberry::hub::remove_favorite(&name)?; Ok(0) }
-            else { blueberry::hub::run(cli.config.as_deref(), query.as_deref()) }
-        },
+        Command::Hub {
+            query,
+            add,
+            command,
+            remove,
+        } => {
+            if let (Some(name), Some(command)) = (add, command) {
+                blueberry::hub::add_favorite(&name, &command)?;
+                Ok(0)
+            } else if let Some(name) = remove {
+                blueberry::hub::remove_favorite(&name)?;
+                Ok(0)
+            } else {
+                blueberry::hub::run(cli.config.as_deref(), query.as_deref())
+            }
+        }
         Command::Learning {
             command: LearningCommand::Clear,
         } => {

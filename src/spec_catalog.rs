@@ -970,11 +970,13 @@ impl Catalog {
                 let alias_path = self
                     .subcommand_aliases
                     .get(&format!("{} {token}", node.path));
-                if let Some(child_path) = alias_path.or_else(|| node.children.iter().find(|child_path| {
-                    self.nodes.get(*child_path).is_some_and(|child| {
-                        token_eq(&child.name, token, root_is_insensitive(root))
+                if let Some(child_path) = alias_path.or_else(|| {
+                    node.children.iter().find(|child_path| {
+                        self.nodes.get(*child_path).is_some_and(|child| {
+                            token_eq(&child.name, token, root_is_insensitive(root))
+                        })
                     })
-                })) && let Some(child) = self.nodes.get(child_path).cloned()
+                }) && let Some(child) = self.nodes.get(child_path).cloned()
                 {
                     path.push(child.name.clone());
                     node = child;

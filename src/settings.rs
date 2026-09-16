@@ -12,8 +12,7 @@ use crossterm::{
 };
 use std::{
     collections::BTreeMap,
-    env,
-    fs,
+    env, fs,
     io::{self, IsTerminal, Write},
     path::{Path, PathBuf},
 };
@@ -218,12 +217,20 @@ const FIELDS: &[Field] = &[
         Kind::Key
     ),
     field!(
-        "keys", "resources", "快捷键", "读取远程资源",
-        "在 Docker、Kubernetes 或 Helm 上下文中主动读取远程候选。", Kind::Key
+        "keys",
+        "resources",
+        "快捷键",
+        "读取远程资源",
+        "在 Docker、Kubernetes 或 Helm 上下文中主动读取远程候选。",
+        Kind::Key
     ),
     field!(
-        "keys", "hub", "快捷键", "打开命令工作台",
-        "打开收藏、模板、历史和工具管理入口。", Kind::Key
+        "keys",
+        "hub",
+        "快捷键",
+        "打开命令工作台",
+        "打开收藏、模板、历史和工具管理入口。",
+        Kind::Key
     ),
     field!(
         "help",
@@ -242,28 +249,52 @@ const FIELDS: &[Field] = &[
         Kind::Toggle
     ),
     field!(
-        "resources", "local_automatic", "资源", "自动读取本机资源",
-        "自动读取项目清单、本机环境和本机 Docker 上下文。", Kind::Toggle
+        "resources",
+        "local_automatic",
+        "资源",
+        "自动读取本机资源",
+        "自动读取项目清单、本机环境和本机 Docker 上下文。",
+        Kind::Toggle
     ),
     field!(
-        "resources", "remote_on_demand", "资源", "远程资源按需读取",
-        "远程 Docker、Kubernetes 和 Helm 数据只在主动触发后读取。", Kind::Toggle
+        "resources",
+        "remote_on_demand",
+        "资源",
+        "远程资源按需读取",
+        "远程 Docker、Kubernetes 和 Helm 数据只在主动触发后读取。",
+        Kind::Toggle
     ),
     field!(
-        "resources", "cache_seconds", "资源", "资源缓存秒数",
-        "本机程序查询结果保留的秒数。", Kind::Number(1, 86400)
+        "resources",
+        "cache_seconds",
+        "资源",
+        "资源缓存秒数",
+        "本机程序查询结果保留的秒数。",
+        Kind::Number(1, 86400)
     ),
     field!(
-        "workbench", "history_limit", "工作台", "历史读取数量",
-        "历史选择器最多读取多少条 PSReadLine 历史。", Kind::Number(1, 20000)
+        "workbench",
+        "history_limit",
+        "工作台",
+        "历史读取数量",
+        "历史选择器最多读取多少条 PSReadLine 历史。",
+        Kind::Number(1, 20000)
     ),
     field!(
-        "workbench", "suggestions", "工作台", "普通菜单显示常用命令",
-        "输入后将收藏、项目操作和最近历史加入补全菜单。", Kind::Toggle
+        "workbench",
+        "suggestions",
+        "工作台",
+        "普通菜单显示常用命令",
+        "输入后将收藏、项目操作和最近历史加入补全菜单。",
+        Kind::Toggle
     ),
     field!(
-        "workbench", "suggestion_limit", "工作台", "常用命令数量",
-        "普通补全菜单最多加入多少条完整命令建议。", Kind::Number(1, 50)
+        "workbench",
+        "suggestion_limit",
+        "工作台",
+        "常用命令数量",
+        "普通补全菜单最多加入多少条完整命令建议。",
+        Kind::Number(1, 50)
     ),
 ];
 const ACTIONS: &[&str] = &[
@@ -367,14 +398,25 @@ impl Editor {
             editor.load_error = Some(format!("{e:#}"));
         }
         editor.baseline = editor.bytes();
-        if let Some(session)=env::var_os("BLUEBERRY_SESSION_DIR") {
-            let adapter=PathBuf::from(session).join("adapter.json");
-            if let Ok(bytes)=fs::read(adapter) && let Ok(value)=serde_json::from_slice::<serde_json::Value>(&bytes) {
-                if let Some(keys)=value.pointer("/capabilities/public_keys").and_then(serde_json::Value::as_object) {
-                    for (name,available) in keys { if available==false { editor.key_conflicts.insert(name.clone(),"当前 PSReadLine 已占用此快捷键".into()); } }
+        if let Some(session) = env::var_os("BLUEBERRY_SESSION_DIR") {
+            let adapter = PathBuf::from(session).join("adapter.json");
+            if let Ok(bytes) = fs::read(adapter)
+                && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
+                && let Some(keys) = value
+                    .pointer("/capabilities/public_keys")
+                    .and_then(serde_json::Value::as_object)
+            {
+                for (name, available) in keys {
+                    if available == false {
+                        editor
+                            .key_conflicts
+                            .insert(name.clone(), "当前 PSReadLine 已占用此快捷键".into());
+                    }
                 }
             }
-        } else if editor.notice.is_empty() { editor.notice="未连接 Blueberry 会话，PSReadLine 快捷键冲突尚未检查。".into(); }
+        } else if editor.notice.is_empty() {
+            editor.notice = "未连接 Blueberry 会话，PSReadLine 快捷键冲突尚未检查。".into();
+        }
         editor
     }
 
@@ -447,7 +489,11 @@ impl Editor {
         match preset {
             1 => {
                 let defaults = Config::default();
-                self.set_named("completion", "auto_trigger", value(defaults.completion.auto_trigger))?;
+                self.set_named(
+                    "completion",
+                    "auto_trigger",
+                    value(defaults.completion.auto_trigger),
+                )?;
                 self.set_named("ui", "max_rows", value(defaults.ui.max_rows as i64))?;
                 self.set_named("ui", "descriptions", value(defaults.ui.descriptions))?;
                 self.set_named("ui", "status_bar", value(defaults.ui.status_bar))?;
@@ -460,20 +506,41 @@ impl Editor {
             }
             _ => self.set_named("completion", "auto_trigger", value(false))?,
         }
-        self.notice = format!("已应用{}预设；Ctrl+D 查看差异，Ctrl+S 保存。", ["", "默认", "精简", "手动触发"][preset as usize]);
+        self.notice = format!(
+            "已应用{}预设；Ctrl+D 查看差异，Ctrl+S 保存。",
+            ["", "默认", "精简", "手动触发"][preset as usize]
+        );
         Ok(())
     }
     fn field_visible(&self, index: usize) -> bool {
-        let field=&FIELDS[index];
-        let matches=self.filter.is_empty() || format!("{} {} {}.{} {}",field.group,field.label,field.section,field.key,field.help).to_lowercase().contains(&self.filter.to_lowercase());
-        if !matches { return false; }
-        if !self.modified_only { return true; }
-        let defaults=toml::Value::try_from(Config::default()).unwrap();
+        let field = &FIELDS[index];
+        let matches = self.filter.is_empty()
+            || format!(
+                "{} {} {}.{} {}",
+                field.group, field.label, field.section, field.key, field.help
+            )
+            .to_lowercase()
+            .contains(&self.filter.to_lowercase());
+        if !matches {
+            return false;
+        }
+        if !self.modified_only {
+            return true;
+        }
+        let defaults = toml::Value::try_from(Config::default()).unwrap();
         self.current(index) != defaults[field.section][field.key]
     }
-    fn move_field(&mut self, delta:i32) {
-        if self.selected>=FIELDS.len(){self.selected=self.last_field;}
-        for _ in 0..FIELDS.len(){self.selected=(self.selected as i32+delta).rem_euclid(FIELDS.len() as i32) as usize;if self.field_visible(self.selected){self.last_field=self.selected;break;}}
+    fn move_field(&mut self, delta: i32) {
+        if self.selected >= FIELDS.len() {
+            self.selected = self.last_field;
+        }
+        for _ in 0..FIELDS.len() {
+            self.selected = (self.selected as i32 + delta).rem_euclid(FIELDS.len() as i32) as usize;
+            if self.field_visible(self.selected) {
+                self.last_field = self.selected;
+                break;
+            }
+        }
     }
     fn save(&mut self) -> Result<()> {
         if let Some(e) = &self.load_error {
@@ -648,16 +715,32 @@ impl Editor {
             }
             if let Mode::Search(text) = &mut self.mode {
                 match key.code {
-                    KeyCode::Esc => { text.clear(); self.filter.clear(); self.mode=Mode::Form; }
-                    KeyCode::Enter => { self.filter=text.clone(); self.mode=Mode::Form; if !self.field_visible(self.selected){self.move_field(1);} }
-                    KeyCode::Backspace => { text.pop(); }
-                    KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => text.push(c),
+                    KeyCode::Esc => {
+                        text.clear();
+                        self.filter.clear();
+                        self.mode = Mode::Form;
+                    }
+                    KeyCode::Enter => {
+                        self.filter = text.clone();
+                        self.mode = Mode::Form;
+                        if !self.field_visible(self.selected) {
+                            self.move_field(1);
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        text.pop();
+                    }
+                    KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        text.push(c)
+                    }
                     _ => {}
                 }
                 return Ok(None);
             }
             if matches!(self.mode, Mode::Diff) {
-                if matches!(key.code, KeyCode::Esc | KeyCode::Enter) { self.mode=Mode::Form; }
+                if matches!(key.code, KeyCode::Esc | KeyCode::Enter) {
+                    self.mode = Mode::Form;
+                }
                 return Ok(None);
             }
             if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
@@ -666,21 +749,48 @@ impl Editor {
             }
             if key.modifiers.contains(KeyModifiers::CONTROL) {
                 match key.code {
-                    KeyCode::Char('m') => { self.modified_only=!self.modified_only; if !self.field_visible(self.selected){self.move_field(1);} return Ok(None); }
-                    KeyCode::Char('d') => { self.mode=Mode::Diff; return Ok(None); }
-                    KeyCode::Char('1') => { self.apply_preset(1)?; return Ok(None); }
-                    KeyCode::Char('2') => { self.apply_preset(2)?; return Ok(None); }
-                    KeyCode::Char('3') => { self.apply_preset(3)?; return Ok(None); }
+                    KeyCode::Char('m') => {
+                        self.modified_only = !self.modified_only;
+                        if !self.field_visible(self.selected) {
+                            self.move_field(1);
+                        }
+                        return Ok(None);
+                    }
+                    KeyCode::Char('d') => {
+                        self.mode = Mode::Diff;
+                        return Ok(None);
+                    }
+                    KeyCode::Char('1') => {
+                        self.apply_preset(1)?;
+                        return Ok(None);
+                    }
+                    KeyCode::Char('2') => {
+                        self.apply_preset(2)?;
+                        return Ok(None);
+                    }
+                    KeyCode::Char('3') => {
+                        self.apply_preset(3)?;
+                        return Ok(None);
+                    }
                     _ => {}
                 }
             }
             match key.code {
-                KeyCode::Char('/') => { self.mode=Mode::Search(self.filter.clone()); }
+                KeyCode::Char('/') => {
+                    self.mode = Mode::Search(self.filter.clone());
+                }
                 KeyCode::Esc => return Ok(self.request(Next::Exit)),
-                KeyCode::Down | KeyCode::Tab if self.selected<FIELDS.len() => self.move_field(1),
-                KeyCode::Up | KeyCode::BackTab if self.selected<FIELDS.len() => self.move_field(-1),
-                KeyCode::Down | KeyCode::Tab => self.select((self.selected + 1) % (FIELDS.len() + ACTIONS.len())),
-                KeyCode::Up | KeyCode::BackTab => self.select((self.selected + FIELDS.len() + ACTIONS.len() - 1) % (FIELDS.len() + ACTIONS.len())),
+                KeyCode::Down | KeyCode::Tab if self.selected < FIELDS.len() => self.move_field(1),
+                KeyCode::Up | KeyCode::BackTab if self.selected < FIELDS.len() => {
+                    self.move_field(-1)
+                }
+                KeyCode::Down | KeyCode::Tab => {
+                    self.select((self.selected + 1) % (FIELDS.len() + ACTIONS.len()))
+                }
+                KeyCode::Up | KeyCode::BackTab => self.select(
+                    (self.selected + FIELDS.len() + ACTIONS.len() - 1)
+                        % (FIELDS.len() + ACTIONS.len()),
+                ),
                 KeyCode::Left => return self.activate(-1),
                 KeyCode::Right | KeyCode::Enter | KeyCode::Char(' ') => return self.activate(1),
                 KeyCode::Home => self.select(0),
@@ -801,11 +911,25 @@ impl Editor {
             self.preview(out, 0, 4, cols, rows - 6)?;
             line(out, 0, rows - 1, cols, "Esc / Enter 返回设置", false)?;
         } else if matches!(self.mode, Mode::Diff) {
-            line(out,0,4,cols,"未保存修改（当前值 → 默认值）",true)?;
-            let defaults=toml::Value::try_from(Config::default()).unwrap();
-            let mut row=6;
-            for (index,field) in FIELDS.iter().enumerate(){let current=self.current(index);let default=&defaults[field.section][field.key];if current!=*default && row<rows-2 {line(out,2,row,cols-4,&format!("{}.{}: {} → {}",field.section,field.key,current,default),false)?;row+=1;}}
-            line(out,0,rows-1,cols,"Esc / Enter 返回设置",false)?;
+            line(out, 0, 4, cols, "未保存修改（当前值 → 默认值）", true)?;
+            let defaults = toml::Value::try_from(Config::default()).unwrap();
+            let mut row = 6;
+            for (index, field) in FIELDS.iter().enumerate() {
+                let current = self.current(index);
+                let default = &defaults[field.section][field.key];
+                if current != *default && row < rows - 2 {
+                    line(
+                        out,
+                        2,
+                        row,
+                        cols - 4,
+                        &format!("{}.{}: {} → {}", field.section, field.key, current, default),
+                        false,
+                    )?;
+                    row += 1;
+                }
+            }
+            line(out, 0, rows - 1, cols, "Esc / Enter 返回设置", false)?;
         } else {
             let width = if cols >= 100 { cols / 2 } else { cols };
             let visible = usize::from(rows - 11);
@@ -822,18 +946,25 @@ impl Editor {
                     line(out, 0, 4 + offset as u16, width - 1, text, false)?;
                 }
             } else {
-                let visible_fields=(self.scroll..FIELDS.len()).filter(|index|self.field_visible(*index)).take(visible).collect::<Vec<_>>();
+                let visible_fields = (self.scroll..FIELDS.len())
+                    .filter(|index| self.field_visible(*index))
+                    .take(visible)
+                    .collect::<Vec<_>>();
                 for (offset, index) in visible_fields.into_iter().enumerate() {
                     let f = &FIELDS[index];
                     let key = format!("{}.{}", f.section, f.key);
                     let invalid = self.validation.as_ref().is_some_and(|e| e.contains(&key));
-                    let conflict = f.section=="keys" && self.key_conflicts.contains_key(f.key);
+                    let conflict = f.section == "keys" && self.key_conflicts.contains_key(f.key);
                     let label = format!(
                         "{} · {}：{}{}",
                         f.group,
                         f.label,
                         self.display(index),
-                        if invalid || conflict { "  [需修改]" } else { "" }
+                        if invalid || conflict {
+                            "  [需修改]"
+                        } else {
+                            ""
+                        }
                     );
                     line(
                         out,
@@ -864,8 +995,23 @@ impl Editor {
                     }
                 }
             };
-            let search=match &self.mode {Mode::Search(text)=>format!("搜索：{text}_"),_=>format!("筛选：{}{} · / 搜索 · Ctrl+M 仅修改 · Ctrl+1/2/3 预设 · Ctrl+D 差异",if self.filter.is_empty(){"全部"}else{&self.filter},if self.modified_only{" · 仅修改"}else{""})};
-            line(out,0,rows-8,cols,&search,false)?;
+            let search = match &self.mode {
+                Mode::Search(text) => format!("搜索：{text}_"),
+                _ => format!(
+                    "筛选：{}{} · / 搜索 · Ctrl+M 仅修改 · Ctrl+1/2/3 预设 · Ctrl+D 差异",
+                    if self.filter.is_empty() {
+                        "全部"
+                    } else {
+                        &self.filter
+                    },
+                    if self.modified_only {
+                        " · 仅修改"
+                    } else {
+                        ""
+                    }
+                ),
+            };
+            line(out, 0, rows - 8, cols, &search, false)?;
             line(out, 0, rows - 7, cols, &help, false)?;
             for (i, label) in ACTIONS.iter().enumerate() {
                 // Three short rows stay usable in a narrow terminal.

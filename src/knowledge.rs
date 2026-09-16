@@ -277,7 +277,8 @@ pub fn parse_help(text: &str) -> HelpPage {
                     },
                 );
                 for alias in names.into_iter().skip(1) {
-                    page.command_aliases.insert(alias.to_owned(), name.to_owned());
+                    page.command_aliases
+                        .insert(alias.to_owned(), name.to_owned());
                 }
             } else if indent > 0 {
                 commands_uncertain = true;
@@ -434,7 +435,7 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
     let definition = crate::tool_registry::definition(&invoked_root);
     let root = definition
         .map(|tool| tool.name.to_ascii_lowercase())
-        .unwrap_or(invoked_root);
+        .unwrap_or_else(|| invoked_root.clone());
     let known = definition.is_some_and(|tool| tool.help != "powershell");
     let mut target = launch_path;
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
@@ -541,6 +542,21 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
                 .and_then(|p| fs::canonicalize(PathBuf::from(p).join("npm")).ok())
                 .is_some_and(|p| parent == p)
     });
+    let path_entry = std::env::var_os("PATH").is_some_and(|value| {
+        std::env::split_paths(&value).any(|directory| {
+            let names = [
+                invoked_root.clone(),
+                format!("{invoked_root}.exe"),
+                format!("{invoked_root}.cmd"),
+                format!("{invoked_root}.bat"),
+            ];
+            names.into_iter().any(|name| {
+                fs::canonicalize(directory.join(name))
+                    .ok()
+                    .is_some_and(|candidate| candidate == path)
+            })
+        })
+    });
     let fingerprint = hash(
         format!(
             "{PARSER_VERSION}:{}:{}:{}",
@@ -552,7 +568,7 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
     );
     let trusted = known
         && !in_project
-        && ((packaged && npm_install) || known_install || script.is_none());
+        && ((packaged && npm_install) || known_install || path_entry);
     Some(Entry {
         command: root,
         path,
@@ -916,35 +932,30 @@ pub fn learn(
             .into(),
         );
     }
-    let result = capture(
-        &entry.target,
-        &arguments(help_args),
-        &neutral,
-        cancelled,
-    )
-    .and_then(|text| {
-        let mut page = parse_help(&text);
-        page.adapter = adapter.to_owned();
-        if entry.command == "cargo" && context.is_empty() {
-            let listing = capture(
-                &entry.target,
-                &arguments(vec!["--list".into()]),
-                &neutral,
-                cancelled,
-            )?;
-            let commands = parse_cargo_list(&listing);
-            page.commands = commands.commands;
-            page.command_aliases = commands.command_aliases;
-            page.commands_complete = commands.commands_complete;
-            page.adapter = "cargo-list+help".into();
-            page.complete = page.options_complete && page.commands_complete;
-        }
-        if page.options.is_empty() && page.commands.is_empty() {
-            Err("未识别到可用的命令或选项".into())
-        } else {
-            Ok(page)
-        }
-    });
+    let result =
+        capture(&entry.target, &arguments(help_args), &neutral, cancelled).and_then(|text| {
+            let mut page = parse_help(&text);
+            page.adapter = adapter.to_owned();
+            if entry.command == "cargo" && context.is_empty() {
+                let listing = capture(
+                    &entry.target,
+                    &arguments(vec!["--list".into()]),
+                    &neutral,
+                    cancelled,
+                )?;
+                let commands = parse_cargo_list(&listing);
+                page.commands = commands.commands;
+                page.command_aliases = commands.command_aliases;
+                page.commands_complete = commands.commands_complete;
+                page.adapter = "cargo-list+help".into();
+                page.complete = page.options_complete && page.commands_complete;
+            }
+            if page.options.is_empty() && page.commands.is_empty() {
+                Err("未识别到可用的命令或选项".into())
+            } else {
+                Ok(page)
+            }
+        });
     let record = Record {
         parser_version: PARSER_VERSION,
         entry,

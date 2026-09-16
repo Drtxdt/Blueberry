@@ -34,9 +34,13 @@ pub struct Config {
     pub tools: BTreeMap<String, ToolConfig>,
 }
 
-#[derive(Debug,Clone,Default,Deserialize,Serialize)]
-#[serde(default,deny_unknown_fields)]
-pub struct ToolConfig { pub dynamic:Option<bool>, pub help:Option<bool>, pub resources:Option<String> }
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ToolConfig {
+    pub dynamic: Option<bool>,
+    pub help: Option<bool>,
+    pub resources: Option<String>,
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -75,7 +79,13 @@ pub struct ResourceConfig {
     pub cache_seconds: u64,
 }
 impl Default for ResourceConfig {
-    fn default() -> Self { Self { local_automatic: true, remote_on_demand: true, cache_seconds: 30 } }
+    fn default() -> Self {
+        Self {
+            local_automatic: true,
+            remote_on_demand: true,
+            cache_seconds: 30,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -86,7 +96,13 @@ pub struct WorkbenchConfig {
     pub suggestion_limit: usize,
 }
 impl Default for WorkbenchConfig {
-    fn default() -> Self { Self { history_limit: 2_000, suggestions: true, suggestion_limit: 6 } }
+    fn default() -> Self {
+        Self {
+            history_limit: 2_000,
+            suggestions: true,
+            suggestion_limit: 6,
+        }
+    }
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -185,10 +201,29 @@ impl Default for CompletionConfig {
 }
 
 impl Config {
-    fn tool_override(&self,command:&str)->Option<&ToolConfig>{let name=Path::new(command).file_stem().and_then(|s|s.to_str()).unwrap_or(command).to_ascii_lowercase();self.tools.get(&name).or_else(||self.tools.get(command))}
-    pub fn dynamic_for(&self,command:&str)->bool{self.tool_override(command).and_then(|tool|tool.dynamic).unwrap_or(self.completion.dynamic)}
-    pub fn help_for(&self,command:&str)->bool{self.tool_override(command).and_then(|tool|tool.help).unwrap_or(self.help.enabled)}
-    pub fn resources_for(&self,command:&str)->&str{self.tool_override(command).and_then(|tool|tool.resources.as_deref()).unwrap_or("inherit")}
+    fn tool_override(&self, command: &str) -> Option<&ToolConfig> {
+        let name = Path::new(command)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(command)
+            .to_ascii_lowercase();
+        self.tools.get(&name).or_else(|| self.tools.get(command))
+    }
+    pub fn dynamic_for(&self, command: &str) -> bool {
+        self.tool_override(command)
+            .and_then(|tool| tool.dynamic)
+            .unwrap_or(self.completion.dynamic)
+    }
+    pub fn help_for(&self, command: &str) -> bool {
+        self.tool_override(command)
+            .and_then(|tool| tool.help)
+            .unwrap_or(self.help.enabled)
+    }
+    pub fn resources_for(&self, command: &str) -> &str {
+        self.tool_override(command)
+            .and_then(|tool| tool.resources.as_deref())
+            .unwrap_or("inherit")
+    }
     /// Validate all bounded and enumerated configuration values.
     pub fn validate(&self) -> Result<()> {
         validate_ui(&self.ui)?;
@@ -228,9 +263,15 @@ impl Config {
         if !(1..=50).contains(&self.workbench.suggestion_limit) {
             bail!("workbench.suggestion_limit must be 1 through 50");
         }
-        for (name,tool) in &self.tools {
-            if name.trim().is_empty(){bail!("tool names must not be empty")}
-            if let Some(policy)=tool.resources.as_deref()&&!matches!(policy,"inherit"|"automatic"|"manual"|"off"){bail!("tools.{name}.resources must be inherit, automatic, manual, or off")}
+        for (name, tool) in &self.tools {
+            if name.trim().is_empty() {
+                bail!("tool names must not be empty")
+            }
+            if let Some(policy) = tool.resources.as_deref()
+                && !matches!(policy, "inherit" | "automatic" | "manual" | "off")
+            {
+                bail!("tools.{name}.resources must be inherit, automatic, manual, or off")
+            }
         }
         for (key, value) in &self.descriptions {
             if key.trim().is_empty() || key.chars().count() > 512 {
@@ -299,8 +340,12 @@ pub fn specs_dir(config: &Config, config_path: Option<&Path>) -> PathBuf {
 pub fn statistics_path() -> PathBuf {
     config_root().join("usage.json")
 }
-pub fn state_path() -> PathBuf { config_root().join("state.toml") }
-pub fn commands_path() -> PathBuf { config_root().join("commands.toml") }
+pub fn state_path() -> PathBuf {
+    config_root().join("state.toml")
+}
+pub fn commands_path() -> PathBuf {
+    config_root().join("commands.toml")
+}
 
 impl Config {
     pub(crate) fn apply_theme(&mut self, explicit: Option<&toml::Table>) {

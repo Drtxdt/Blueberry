@@ -251,7 +251,10 @@ fn validate(file: &CatalogFile, registry: &RegistryFile) -> Result<(), String> {
     for node in &file.nodes {
         for child in &node.children {
             if !node_paths.contains(child) {
-                return Err(format!("node {} references missing child {child}", node.path));
+                return Err(format!(
+                    "node {} references missing child {child}",
+                    node.path
+                ));
             }
         }
     }
@@ -367,7 +370,10 @@ fn validate_registry(registry: &RegistryFile, catalog: &CatalogFile) -> Result<(
         if tool.help.trim().is_empty()
             || !matches!(tool.resources.as_str(), "none" | "local" | "manual")
         {
-            return Err(format!("tool {} has invalid help/resource policy", tool.name));
+            return Err(format!(
+                "tool {} has invalid help/resource policy",
+                tool.name
+            ));
         }
         for alias in &tool.aliases {
             if alias.trim().is_empty() || !aliases.insert(alias.to_ascii_lowercase()) {
@@ -378,7 +384,10 @@ fn validate_registry(registry: &RegistryFile, catalog: &CatalogFile) -> Result<(
                 .get(&tool.name)
                 .is_some_and(|values| values.iter().any(|value| value.eq_ignore_ascii_case(alias)));
             if !registered {
-                return Err(format!("tool {} alias {alias} is missing from catalog", tool.name));
+                return Err(format!(
+                    "tool {} alias {alias} is missing from catalog",
+                    tool.name
+                ));
             }
         }
         for required in &tool.required {
@@ -615,7 +624,10 @@ fn main() {
         .unwrap_or_else(|error| panic!("cannot read {}: {error}", catalog_dir.display()))
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "toml"))
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "toml")
+        })
         .collect::<Vec<_>>();
     sources.sort();
     let mut file = CatalogFile {
@@ -675,6 +687,9 @@ fn main() {
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     fs::write(out_dir.join("builtin_specs.rs"), generate(&file))
         .expect("write generated builtin_specs.rs");
-    fs::write(out_dir.join("tool_registry.rs"), generate_registry(&registry))
-        .expect("write generated tool_registry.rs");
+    fs::write(
+        out_dir.join("tool_registry.rs"),
+        generate_registry(&registry),
+    )
+    .expect("write generated tool_registry.rs");
 }

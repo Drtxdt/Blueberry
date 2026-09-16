@@ -39,4 +39,3 @@ pub fn provider_known(provider: &str) -> bool {
         .flat_map(|tool| tool.providers.iter())
         .any(|known| known.eq_ignore_ascii_case(provider))
 }
-

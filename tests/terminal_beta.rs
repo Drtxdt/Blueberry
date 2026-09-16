@@ -691,7 +691,7 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
 }
 
 #[test]
-fn terminal_beta_paste_and_unfocused_up_arrow_preserve_psreadline_editing() -> Result<()> {
+fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<()> {
     let mut host = start_host()?;
     send_command(
         &mut host.harness,
@@ -708,15 +708,16 @@ fn terminal_beta_paste_and_unfocused_up_arrow_preserve_psreadline_editing() -> R
     wait_until(&mut host.harness, "automatic menu", PTY_TIMEOUT, |screen| {
         screen.contains("› ")
     })?;
+    host.harness.send(b"\x1b")?;
     host.harness.send(b"\x1b[A")?;
     let history = read_real_buffer(
         &mut host.harness,
         &host.buffer_marker,
-        "unfocused Up history",
+        "history mode Up",
     )?;
     ensure!(
         history["line"] == "Write-Output SS_UP_HISTORY",
-        "automatic menu stole Up history: {history}"
+        "history mode did not reach PSReadLine history: {history}"
     );
     clear_line(&mut host.harness)?;
     let pasted = "Write-Output '粘贴😀 与空格'";
