@@ -92,7 +92,7 @@ pub fn native_description(candidate: &mut Candidate) {
     annotate(candidate);
 }
 
-const PARSER_VERSION: u32 = 1;
+const PARSER_VERSION: u32 = 2;
 const OUTPUT_LIMIT: usize = 256 * 1024;
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct HelpOption {
@@ -108,6 +108,18 @@ pub struct HelpPage {
     pub description: String,
     pub options: Vec<HelpOption>,
     pub commands: BTreeMap<String, String>,
+    #[serde(default)]
+    pub command_aliases: BTreeMap<String, String>,
+    #[serde(default)]
+    pub options_complete: bool,
+    #[serde(default)]
+    pub commands_complete: bool,
+    #[serde(default)]
+    pub truncated: bool,
+    #[serde(default)]
+    pub adapter: String,
+    /// Legacy protocol/cache field. Version 1 pages are additive only.
+    #[serde(default)]
     pub complete: bool,
 }
 
@@ -117,8 +129,10 @@ pub fn parse_help(text: &str) -> HelpPage {
     let mut page = HelpPage::default();
     let mut section = "";
     let mut active: Option<usize> = None;
-    let mut recognized = false;
-    let mut uncertain = false;
+    let mut saw_options = false;
+    let mut saw_commands = false;
+    let mut options_uncertain = false;
+    let mut commands_uncertain = false;
     let mut command_indent = None;
     let mut enum_list = false;
     for raw in text.lines() {
@@ -138,7 +152,7 @@ pub fn parse_help(text: &str) -> HelpPage {
         {
             section = "options";
             active = None;
-            recognized = true;
+            saw_options = true;
             enum_list = false;
             continue;
         }
@@ -154,7 +168,7 @@ pub fn parse_help(text: &str) -> HelpPage {
         {
             section = "commands";
             active = None;
-            recognized = true;
+            saw_commands = true;
             continue;
         }
         if !raw.starts_with(char::is_whitespace) && line.ends_with(':') {
@@ -180,7 +194,7 @@ pub fn parse_help(text: &str) -> HelpPage {
                 .unwrap_or(line.len());
             let syntax = &line[..boundary];
             if syntax.contains("[=") || syntax.contains("[<") {
-                uncertain = true;
+                options_uncertain = true;
                 continue;
             }
             let names: Vec<String> = syntax
@@ -225,16 +239,35 @@ pub fn parse_help(text: &str) -> HelpPage {
             if command_indent.is_some_and(|old| indent > old) {
                 continue;
             }
-            let mut split = line.splitn(2, char::is_whitespace);
-            let name = split.next().unwrap_or("");
-            let desc = split.next().unwrap_or("").trim();
-            if indent > 0
-                && !name.is_empty()
-                && name
-                    .chars()
+            if line == "..." || line.starts_with("... ") {
+                commands_uncertain = true;
+                continue;
+            }
+            let boundary = line
+                .as_bytes()
+                .windows(2)
+                .position(|window| window == b"  ")
+                .unwrap_or(line.len());
+            let syntax = line[..boundary].trim();
+            let desc = line[boundary..].trim();
+            let syntax = syntax
+                .strip_suffix(')')
+                .and_then(|value| value.split_once(" ("))
+                .map(|(name, aliases)| format!("{name}, {aliases}"))
+                .unwrap_or_else(|| syntax.to_owned());
+            let names = syntax
+                .split([',', '|'])
+                .flat_map(str::split_whitespace)
+                .map(|name| name.trim_matches(['(', ')']))
+                .filter(|name| !name.is_empty())
+                .collect::<Vec<_>>();
+            let valid = |name: &str| {
+                name.chars()
                     .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-            {
+            };
+            if indent > 0 && !names.is_empty() && names.iter().all(|name| valid(name)) {
                 command_indent = Some(indent);
+                let name = names[0];
                 page.commands.insert(
                     name.to_owned(),
                     if desc.is_empty() {
@@ -243,6 +276,11 @@ pub fn parse_help(text: &str) -> HelpPage {
                         desc.to_owned()
                     },
                 );
+                for alias in names.into_iter().skip(1) {
+                    page.command_aliases.insert(alias.to_owned(), name.to_owned());
+                }
+            } else if indent > 0 {
+                commands_uncertain = true;
             }
         } else if let Some(index) = active {
             let option = &mut page.options[index];
@@ -284,8 +322,65 @@ pub fn parse_help(text: &str) -> HelpPage {
                 .to_owned();
         }
     }
-    // Only sectioned help can be authoritative. Unsectioned usage is additive.
-    page.complete = recognized && !page.options.is_empty() && !uncertain;
+    // Authority is section-specific. A missing or uncertain section is
+    // additive, so malformed help can never delete curated built-ins.
+    page.options_complete = saw_options && !page.options.is_empty() && !options_uncertain;
+    page.commands_complete = saw_commands && !page.commands.is_empty() && !commands_uncertain;
+    page.complete = page.options_complete && (!saw_commands || page.commands_complete);
+    page.adapter = "sectioned-help".into();
+    page
+}
+
+fn parse_cargo_list(text: &str) -> HelpPage {
+    let mut page = HelpPage {
+        adapter: "cargo-list".into(),
+        ..Default::default()
+    };
+    let mut header = false;
+    let mut uncertain = false;
+    for raw in clean(text).lines() {
+        let line = raw.trim();
+        if line.eq_ignore_ascii_case("Installed Commands:") {
+            header = true;
+            continue;
+        }
+        if !header || line.is_empty() {
+            continue;
+        }
+        let boundary = line
+            .as_bytes()
+            .windows(2)
+            .position(|window| window == b"  ")
+            .unwrap_or(line.len());
+        let name = line[..boundary].trim();
+        let description = line[boundary..].trim();
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            uncertain = true;
+            continue;
+        }
+        if let Some(target) = description.strip_prefix("alias:").map(str::trim) {
+            if !target.is_empty() {
+                page.command_aliases.insert(name.into(), target.into());
+            } else {
+                uncertain = true;
+            }
+        } else if !description.starts_with("REMOVED:") {
+            page.commands.insert(
+                name.into(),
+                if description.is_empty() {
+                    "本机安装的 Cargo 子命令".into()
+                } else {
+                    description.into()
+                },
+            );
+        }
+    }
+    page.commands_complete = header && !page.commands.is_empty() && !uncertain;
+    page.complete = page.commands_complete;
     page
 }
 
@@ -777,23 +872,55 @@ pub fn learn(
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let neutral = dir.join("work");
     fs::create_dir_all(&neutral).map_err(|e| e.to_string())?;
-    let mut args = context.clone();
-    if let Some(script) = &entry.script {
-        args.insert(0, script.to_string_lossy().into_owned());
-    }
-    if entry.command == "python" || entry.command == "python3" {
-        args.splice(0..0, ["-I".into(), "-S".into()]);
-    }
-    args.push(
-        if entry.command == "git" && !context.is_empty() {
-            "-h"
-        } else {
-            "--help"
+    let arguments = |suffix: Vec<String>| {
+        let mut args = Vec::new();
+        if let Some(script) = &entry.script {
+            args.push(script.to_string_lossy().into_owned());
         }
-        .into(),
-    );
-    let result = capture(&entry.target, &args, &neutral, cancelled).and_then(|text| {
-        let page = parse_help(&text);
+        if entry.command == "python" || entry.command == "python3" {
+            args.extend(["-I".into(), "-S".into()]);
+        }
+        args.extend(suffix);
+        args
+    };
+    let help_flag = if entry.command == "git" && !context.is_empty() {
+        "-h"
+    } else {
+        "--help"
+    };
+    let mut help_args = context.clone();
+    help_args.push(help_flag.into());
+    let result = capture(
+        &entry.target,
+        &arguments(help_args),
+        &neutral,
+        cancelled,
+    )
+    .and_then(|text| {
+        let mut page = parse_help(&text);
+        page.adapter = match entry.command.as_str() {
+            "git" => "git-help",
+            "npm" => "npm-help",
+            "pnpm" => "pnpm-help",
+            "docker" => "docker-help",
+            "gh" => "gh-help",
+            _ => "sectioned-help",
+        }
+        .into();
+        if entry.command == "cargo" && context.is_empty() {
+            let listing = capture(
+                &entry.target,
+                &arguments(vec!["--list".into()]),
+                &neutral,
+                cancelled,
+            )?;
+            let commands = parse_cargo_list(&listing);
+            page.commands = commands.commands;
+            page.command_aliases = commands.command_aliases;
+            page.commands_complete = commands.commands_complete;
+            page.adapter = "cargo-list+help".into();
+            page.complete = page.options_complete && page.commands_complete;
+        }
         if page.options.is_empty() && page.commands.is_empty() {
             Err("未识别到可用的命令或选项".into())
         } else {

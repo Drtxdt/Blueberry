@@ -255,6 +255,7 @@ impl Error for CatalogLoadError {
 pub struct Catalog {
     pub(crate) nodes: BTreeMap<String, Node>,
     aliases: BTreeMap<String, String>,
+    subcommand_aliases: BTreeMap<String, String>,
     diagnostics: Vec<SpecDiagnostic>,
 }
 
@@ -445,7 +446,7 @@ impl Catalog {
             .entry(path.clone())
             .or_insert_with(|| empty(path.clone(), record.page.description.clone()));
         let user_node = node.source != "builtin" && !node.source.starts_with("help:");
-        if record.page.complete && !user_node {
+        if record.page.commands_complete && !record.page.truncated && !user_node {
             node.children.retain(|child| {
                 user_children.contains(child)
                     || record
@@ -454,6 +455,8 @@ impl Catalog {
                         .iter()
                         .any(|(name, _)| child == &format!("{path} {name}"))
             });
+        }
+        if record.page.options_complete && !record.page.truncated && !user_node {
             node.options.retain(|option| {
                 option.source != "builtin" && !option.source.starts_with("help:")
                     || record
@@ -470,7 +473,7 @@ impl Catalog {
                 .find(|o| raw.names.iter().any(|n| o.names.contains(n)))
             {
                 if old.source == "builtin" || old.source.starts_with("help:") {
-                    if record.page.complete {
+                    if record.page.options_complete && !record.page.truncated {
                         old.names = raw.names.clone();
                         old.names.sort_by_key(|name| std::cmp::Reverse(name.len()));
                     }
@@ -479,7 +482,7 @@ impl Catalog {
                         if old.value == ValueKind::None {
                             old.value = ValueKind::Text;
                         }
-                    } else if record.page.complete {
+                    } else if record.page.options_complete && !record.page.truncated {
                         old.value_name.clear();
                         old.value = ValueKind::None;
                     }
@@ -500,7 +503,9 @@ impl Catalog {
                             })
                             .collect();
                     }
-                    old.detail = format!("{}\n{}", old.description, raw.detail);
+                    if !raw.detail.is_empty() && !old.detail.contains(&raw.detail) {
+                        old.detail = format!("{}\n本机帮助：{}", old.detail, raw.detail);
+                    }
                 }
                 continue;
             }
@@ -552,6 +557,13 @@ impl Catalog {
             self.nodes
                 .entry(child.clone())
                 .or_insert_with(|| empty(child, description.clone()));
+        }
+        for (alias, canonical) in &record.page.command_aliases {
+            let canonical_path = format!("{path} {canonical}");
+            if self.nodes.contains_key(&canonical_path) {
+                self.subcommand_aliases
+                    .insert(format!("{path} {alias}"), canonical_path);
+            }
         }
     }
     /// Name and schema version of the generated built-in catalog.
@@ -616,6 +628,7 @@ impl Catalog {
         Self {
             nodes,
             aliases,
+            subcommand_aliases: BTreeMap::new(),
             diagnostics: Vec::new(),
         }
     }
@@ -996,11 +1009,14 @@ impl Catalog {
                 continue;
             }
             if allow_subcommands {
-                if let Some(child_path) = node.children.iter().find(|child_path| {
+                let alias_path = self
+                    .subcommand_aliases
+                    .get(&format!("{} {token}", node.path));
+                if let Some(child_path) = alias_path.or_else(|| node.children.iter().find(|child_path| {
                     self.nodes.get(*child_path).is_some_and(|child| {
                         token_eq(&child.name, token, root_is_insensitive(root))
                     })
-                }) && let Some(child) = self.nodes.get(child_path).cloned()
+                })) && let Some(child) = self.nodes.get(child_path).cloned()
                 {
                     path.push(child.name.clone());
                     node = child;
