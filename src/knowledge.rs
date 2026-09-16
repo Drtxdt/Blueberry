@@ -566,9 +566,8 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
         )
         .as_bytes(),
     );
-    let trusted = known
-        && !in_project
-        && ((packaged && npm_install) || known_install || path_entry);
+    let trusted =
+        known && !in_project && ((packaged && npm_install) || known_install || path_entry);
     Some(Entry {
         command: root,
         path,

@@ -709,12 +709,14 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         screen.contains("› ")
     })?;
     host.harness.send(b"\x1b")?;
-    host.harness.send(b"\x1b[A")?;
-    let history = read_real_buffer(
+    wait_until(
         &mut host.harness,
-        &host.buffer_marker,
-        "history mode Up",
+        "completion menu dismissal before history navigation",
+        PTY_TIMEOUT,
+        |screen| !screen.lines().any(|line| line.contains("› ")),
     )?;
+    host.harness.send(b"\x1b[A")?;
+    let history = read_real_buffer(&mut host.harness, &host.buffer_marker, "history mode Up")?;
     ensure!(
         history["line"] == "Write-Output SS_UP_HISTORY",
         "history mode did not reach PSReadLine history: {history}"
