@@ -1,0 +1,1345 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[option_sets]]
+id = "CARGO_GLOBAL_OPTIONS"
+[[option_sets.options]]
+name = "--help"
+description = "显示 Cargo 帮助"
+detail = "显示 Cargo 帮助。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 Cargo 版本"
+detail = "显示 Cargo 版本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-v"
+description = "使用详细输出"
+detail = "使用详细输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--verbose"
+description = "使用详细输出"
+detail = "使用详细输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-q"
+description = "隐藏 Cargo 输出"
+detail = "隐藏 Cargo 输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "隐藏 Cargo 输出"
+detail = "隐藏 Cargo 输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--color"
+description = "选择彩色输出"
+detail = "选择彩色输出。"
+value_kind = "text"
+values = [{ name = "always", description = "始终使用颜色" }, { name = "auto", description = "在适当时使用颜色" }, { name = "never", description = "禁用颜色" }]
+
+[[option_sets.options]]
+name = "--locked"
+description = "要求 Cargo.lock 保持不变"
+detail = "要求 Cargo.lock 保持不变。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--offline"
+description = "在不访问网络的情况下运行"
+detail = "在不访问网络的情况下运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--frozen"
+description = "使用锁定和离线模式"
+detail = "使用锁定和离线模式。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--manifest-path"
+description = "使用指定 Cargo.toml 文件"
+detail = "使用指定 Cargo.toml 文件。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--package"
+description = "选择包"
+detail = "选择包。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "对整个工作区操作"
+detail = "对整个工作区操作。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--exclude"
+description = "排除工作区包"
+detail = "排除工作区包。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--features"
+description = "启用包特性"
+detail = "启用包特性。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--all-features"
+description = "启用所有包特性"
+detail = "启用所有包特性。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-default-features"
+description = "禁用默认特性"
+detail = "禁用默认特性。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--target"
+description = "选择编译目标"
+detail = "选择编译目标。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--jobs"
+description = "设置并行任务数"
+detail = "设置并行任务数。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-j"
+description = "设置并行任务数"
+detail = "设置并行任务数。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--config"
+description = "覆盖 Cargo 配置值"
+detail = "覆盖 Cargo 配置值。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--future-incompat-report"
+description = "显示未来不兼容报告"
+detail = "显示未来不兼容报告。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Z"
+description = "使用不稳定的 Cargo 选项"
+detail = "使用不稳定的 Cargo 选项。"
+value_kind = "text"
+
+[[option_sets]]
+id = "CARGO_BUILD_OPTIONS"
+[[option_sets.options]]
+name = "--lib"
+description = "构建库目标"
+detail = "构建库目标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--bin"
+description = "构建二进制目标"
+detail = "构建二进制目标。"
+value_kind = "text"
+provider = "cargo.bins"
+
+[[option_sets.options]]
+name = "--example"
+description = "构建示例目标"
+detail = "构建示例目标。"
+value_kind = "text"
+provider = "cargo.examples"
+
+[[option_sets.options]]
+name = "--test"
+description = "构建集成测试目标"
+detail = "构建集成测试目标。"
+value_kind = "text"
+provider = "cargo.tests"
+
+[[option_sets.options]]
+name = "--bench"
+description = "构建基准测试目标"
+detail = "构建基准测试目标。"
+value_kind = "text"
+provider = "cargo.benches"
+
+[[option_sets.options]]
+name = "--all-targets"
+description = "构建所有目标"
+detail = "构建所有目标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--release"
+description = "使用发布配置构建，默认启用优化"
+detail = "使用发布配置构建，默认启用优化。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择 Cargo 配置"
+detail = "选择 Cargo 配置。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--target-dir"
+description = "选择构建输出目录"
+detail = "选择构建输出目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--artifact-dir"
+description = "选择构建产物输出目录"
+detail = "选择构建产物输出目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--timings"
+description = "写入编译耗时报告"
+detail = "写入编译耗时报告。"
+value_kind = "text"
+optional = true
+values = [{ name = "html", description = "写入 HTML 耗时报告" }, { name = "json", description = "写入 JSON 耗时报告" }]
+
+[[option_sets.options]]
+name = "--unit-graph"
+description = "输出单元依赖图"
+detail = "输出单元依赖图。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--build-plan"
+description = "输出实验性构建计划"
+detail = "输出实验性构建计划。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--keep-going"
+description = "继续构建独立包"
+detail = "继续构建独立包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--features"
+description = "选择要启用的 Cargo features"
+detail = "选择要启用的 Cargo features。"
+value_kind = "text"
+provider = "cargo.features"
+value_delimiter = ","
+
+[[option_sets.options]]
+name = "--all-features"
+description = "启用所有 features"
+detail = "启用所有 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-default-features"
+description = "不启用默认 features"
+detail = "不启用默认 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--package"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "-p"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "处理整个 workspace"
+detail = "处理整个 workspace。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--exclude"
+description = "排除 workspace 包"
+detail = "排除 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets]]
+id = "CARGO_CHECK_OPTIONS"
+[[option_sets.options]]
+name = "--lib"
+description = "检查库目标"
+detail = "检查库目标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--bin"
+description = "检查二进制目标"
+detail = "检查二进制目标。"
+value_kind = "text"
+provider = "cargo.bins"
+
+[[option_sets.options]]
+name = "--example"
+description = "检查示例目标"
+detail = "检查示例目标。"
+value_kind = "text"
+provider = "cargo.examples"
+
+[[option_sets.options]]
+name = "--test"
+description = "检查集成测试目标"
+detail = "检查集成测试目标。"
+value_kind = "text"
+provider = "cargo.tests"
+
+[[option_sets.options]]
+name = "--bench"
+description = "检查基准测试目标"
+detail = "检查基准测试目标。"
+value_kind = "text"
+provider = "cargo.benches"
+
+[[option_sets.options]]
+name = "--all-targets"
+description = "检查所有目标"
+detail = "检查所有目标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--release"
+description = "使用发布配置检查"
+detail = "使用发布配置检查。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择 Cargo 配置"
+detail = "选择 Cargo 配置。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--target-dir"
+description = "选择构建输出目录"
+detail = "选择构建输出目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--timings"
+description = "写入编译耗时报告"
+detail = "写入编译耗时报告。"
+value_kind = "text"
+optional = true
+values = [{ name = "html", description = "写入 HTML 耗时报告" }, { name = "json", description = "写入 JSON 耗时报告" }]
+
+[[option_sets.options]]
+name = "--unit-graph"
+description = "输出单元依赖图"
+detail = "输出单元依赖图。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--keep-going"
+description = "继续检查独立包"
+detail = "继续检查独立包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--features"
+description = "选择要启用的 Cargo features"
+detail = "选择要启用的 Cargo features。"
+value_kind = "text"
+provider = "cargo.features"
+value_delimiter = ","
+
+[[option_sets.options]]
+name = "--all-features"
+description = "启用所有 features"
+detail = "启用所有 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-default-features"
+description = "不启用默认 features"
+detail = "不启用默认 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--package"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "-p"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "处理整个 workspace"
+detail = "处理整个 workspace。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--exclude"
+description = "排除 workspace 包"
+detail = "排除 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets]]
+id = "CARGO_RUN_OPTIONS"
+[[option_sets.options]]
+name = "--lib"
+description = "运行库目标"
+detail = "运行库目标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--release"
+description = "使用发布配置运行"
+detail = "使用发布配置运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择 Cargo 配置"
+detail = "选择 Cargo 配置。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--bin"
+description = "选择二进制目标"
+detail = "选择二进制目标。"
+value_kind = "text"
+provider = "cargo.bins"
+
+[[option_sets.options]]
+name = "--example"
+description = "选择示例目标"
+detail = "选择示例目标。"
+value_kind = "text"
+provider = "cargo.examples"
+
+[[option_sets.options]]
+name = "--target-dir"
+description = "选择构建输出目录"
+detail = "选择构建输出目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--message-format"
+description = "选择编译器消息格式"
+detail = "选择编译器消息格式。"
+value_kind = "text"
+values = [{ name = "human", description = "人类可读的编译器消息" }, { name = "json", description = "JSON 编译器消息" }, { name = "short", description = "简短的编译器消息" }, { name = "json-diagnostic-short", description = "紧凑的 JSON 诊断信息" }, { name = "json-diagnostic-rendered-ansi", description = "ANSI 渲染的 JSON 诊断信息" }]
+
+[[option_sets.options]]
+name = "--unit-graph"
+description = "输出单元依赖图"
+detail = "输出单元依赖图。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--keep-going"
+description = "继续运行独立包"
+detail = "继续运行独立包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--features"
+description = "选择要启用的 Cargo features"
+detail = "选择要启用的 Cargo features。"
+value_kind = "text"
+provider = "cargo.features"
+value_delimiter = ","
+
+[[option_sets.options]]
+name = "--all-features"
+description = "启用所有 features"
+detail = "启用所有 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-default-features"
+description = "不启用默认 features"
+detail = "不启用默认 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--package"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "-p"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "处理整个 workspace"
+detail = "处理整个 workspace。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--exclude"
+description = "排除 workspace 包"
+detail = "排除 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets]]
+id = "CARGO_TEST_OPTIONS"
+[[option_sets.options]]
+name = "--no-run"
+description = "编译测试但不运行"
+detail = "编译测试但不运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-fail-fast"
+description = "失败后运行所有测试"
+detail = "失败后运行所有测试。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--doc"
+description = "测试文档"
+detail = "测试文档。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--lib"
+description = "测试库目标"
+detail = "测试库目标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--bin"
+description = "测试二进制目标"
+detail = "测试二进制目标。"
+value_kind = "text"
+provider = "cargo.bins"
+
+[[option_sets.options]]
+name = "--example"
+description = "测试示例目标"
+detail = "测试示例目标。"
+value_kind = "text"
+provider = "cargo.examples"
+
+[[option_sets.options]]
+name = "--test"
+description = "测试集成目标"
+detail = "测试集成目标。"
+value_kind = "text"
+provider = "cargo.tests"
+
+[[option_sets.options]]
+name = "--bench"
+description = "测试基准目标"
+detail = "测试基准目标。"
+value_kind = "text"
+provider = "cargo.benches"
+
+[[option_sets.options]]
+name = "--all-targets"
+description = "测试所有目标"
+detail = "测试所有目标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--release"
+description = "使用发布配置测试"
+detail = "使用发布配置测试。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择 Cargo 配置"
+detail = "选择 Cargo 配置。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--target-dir"
+description = "选择构建输出目录"
+detail = "选择构建输出目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--message-format"
+description = "选择编译器消息格式"
+detail = "选择编译器消息格式。"
+value_kind = "text"
+values = [{ name = "human", description = "人类可读的编译器消息" }, { name = "json", description = "JSON 编译器消息" }, { name = "short", description = "简短的编译器消息" }, { name = "json-diagnostic-short", description = "紧凑的 JSON 诊断信息" }, { name = "json-diagnostic-rendered-ansi", description = "ANSI 渲染的 JSON 诊断信息" }]
+
+[[option_sets.options]]
+name = "--keep-going"
+description = "继续运行独立包"
+detail = "继续运行独立包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--features"
+description = "选择要启用的 Cargo features"
+detail = "选择要启用的 Cargo features。"
+value_kind = "text"
+provider = "cargo.features"
+value_delimiter = ","
+
+[[option_sets.options]]
+name = "--all-features"
+description = "启用所有 features"
+detail = "启用所有 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-default-features"
+description = "不启用默认 features"
+detail = "不启用默认 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--package"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "-p"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "处理整个 workspace"
+detail = "处理整个 workspace。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--exclude"
+description = "排除 workspace 包"
+detail = "排除 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets]]
+id = "CARGO_BENCH_OPTIONS"
+[[option_sets.options]]
+name = "--lib"
+description = "对库目标执行基准测试"
+detail = "对库目标执行基准测试。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--bin"
+description = "对二进制目标执行基准测试"
+detail = "对二进制目标执行基准测试。"
+value_kind = "text"
+provider = "cargo.bins"
+
+[[option_sets.options]]
+name = "--example"
+description = "对示例目标执行基准测试"
+detail = "对示例目标执行基准测试。"
+value_kind = "text"
+provider = "cargo.examples"
+
+[[option_sets.options]]
+name = "--bench"
+description = "选择基准测试目标"
+detail = "选择基准测试目标。"
+value_kind = "text"
+provider = "cargo.benches"
+
+[[option_sets.options]]
+name = "--no-run"
+description = "编译基准测试但不运行"
+detail = "编译基准测试但不运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-fail-fast"
+description = "失败后运行所有基准测试"
+detail = "失败后运行所有基准测试。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--all-targets"
+description = "对所有目标执行基准测试"
+detail = "对所有目标执行基准测试。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--release"
+description = "使用发布配置执行基准测试"
+detail = "使用发布配置执行基准测试。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择 Cargo 配置"
+detail = "选择 Cargo 配置。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--target-dir"
+description = "选择构建输出目录"
+detail = "选择构建输出目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--message-format"
+description = "选择编译器消息格式"
+detail = "选择编译器消息格式。"
+value_kind = "text"
+values = [{ name = "human", description = "人类可读的编译器消息" }, { name = "json", description = "JSON 编译器消息" }, { name = "short", description = "简短的编译器消息" }, { name = "json-diagnostic-short", description = "紧凑的 JSON 诊断信息" }, { name = "json-diagnostic-rendered-ansi", description = "ANSI 渲染的 JSON 诊断信息" }]
+
+[[option_sets.options]]
+name = "--keep-going"
+description = "继续运行独立包"
+detail = "继续运行独立包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--features"
+description = "选择要启用的 Cargo features"
+detail = "选择要启用的 Cargo features。"
+value_kind = "text"
+provider = "cargo.features"
+value_delimiter = ","
+
+[[option_sets.options]]
+name = "--all-features"
+description = "启用所有 features"
+detail = "启用所有 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-default-features"
+description = "不启用默认 features"
+detail = "不启用默认 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--package"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "-p"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "处理整个 workspace"
+detail = "处理整个 workspace。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--exclude"
+description = "排除 workspace 包"
+detail = "排除 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets]]
+id = "CARGO_CLIPPY_OPTIONS"
+[[option_sets.options]]
+name = "--all-targets"
+description = "检查所有目标代码"
+detail = "检查所有目标代码。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--lib"
+description = "检查库目标代码"
+detail = "检查库目标代码。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--bin"
+description = "检查二进制目标代码"
+detail = "检查二进制目标代码。"
+value_kind = "text"
+provider = "cargo.bins"
+
+[[option_sets.options]]
+name = "--example"
+description = "检查示例目标代码"
+detail = "检查示例目标代码。"
+value_kind = "text"
+provider = "cargo.examples"
+
+[[option_sets.options]]
+name = "--test"
+description = "检查集成测试目标代码"
+detail = "检查集成测试目标代码。"
+value_kind = "text"
+provider = "cargo.tests"
+
+[[option_sets.options]]
+name = "--bench"
+description = "检查基准测试目标代码"
+detail = "检查基准测试目标代码。"
+value_kind = "text"
+provider = "cargo.benches"
+
+[[option_sets.options]]
+name = "--fix"
+description = "自动应用 Clippy 建议"
+detail = "自动应用 Clippy 建议。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--allow-dirty"
+description = "允许在有未提交更改的工作树中修复"
+detail = "允许在有未提交更改的工作树中修复。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--allow-staged"
+description = "允许在有暂存更改时修复"
+detail = "允许在有暂存更改时修复。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-deps"
+description = "跳过依赖包"
+detail = "跳过依赖包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--release"
+description = "使用发布配置检查代码"
+detail = "使用发布配置检查代码。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择 Cargo 配置"
+detail = "选择 Cargo 配置。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--target-dir"
+description = "选择构建输出目录"
+detail = "选择构建输出目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--message-format"
+description = "选择编译器消息格式"
+detail = "选择编译器消息格式。"
+value_kind = "text"
+values = [{ name = "human", description = "人类可读的编译器消息" }, { name = "json", description = "JSON 编译器消息" }, { name = "short", description = "简短的编译器消息" }, { name = "json-diagnostic-short", description = "紧凑的 JSON 诊断信息" }, { name = "json-diagnostic-rendered-ansi", description = "ANSI 渲染的 JSON 诊断信息" }]
+
+[[option_sets.options]]
+name = "--keep-going"
+description = "继续检查独立包代码"
+detail = "继续检查独立包代码。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--features"
+description = "选择要启用的 Cargo features"
+detail = "选择要启用的 Cargo features。"
+value_kind = "text"
+provider = "cargo.features"
+value_delimiter = ","
+
+[[option_sets.options]]
+name = "--all-features"
+description = "启用所有 features"
+detail = "启用所有 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-default-features"
+description = "不启用默认 features"
+detail = "不启用默认 features。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--package"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "-p"
+description = "选择 workspace 包"
+detail = "选择 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "处理整个 workspace"
+detail = "处理整个 workspace。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--exclude"
+description = "排除 workspace 包"
+detail = "排除 workspace 包。"
+value_kind = "text"
+provider = "cargo.packages"
+
+[[option_sets]]
+id = "CARGO_FMT_OPTIONS"
+[[option_sets.options]]
+name = "--check"
+description = "检查格式但不更改文件"
+detail = "检查格式但不更改文件。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--all"
+description = "格式化所有工作区包"
+detail = "格式化所有工作区包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-v"
+description = "使用详细输出"
+detail = "使用详细输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--verbose"
+description = "使用详细输出"
+detail = "使用详细输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-q"
+description = "隐藏输出"
+detail = "隐藏输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "隐藏输出"
+detail = "隐藏输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--message-format"
+description = "选择格式化器消息格式"
+detail = "选择格式化器消息格式。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--emit"
+description = "选择格式化器输出模式"
+detail = "选择格式化器输出模式。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--edition"
+description = "选择 Rust 版本"
+detail = "选择 Rust 版本。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--manifest-path"
+description = "使用指定 Cargo.toml 文件"
+detail = "使用指定 Cargo.toml 文件。"
+value_kind = "path"
+
+[[nodes]]
+path = "cargo"
+name = "cargo"
+description = "构建项目并管理 Rust 依赖"
+detail = "构建项目并管理 Rust 依赖。"
+positional = "none"
+children = ["cargo add", "cargo bench", "cargo build", "cargo check", "cargo clean", "cargo clippy", "cargo doc", "cargo fetch", "cargo fix", "cargo fmt", "cargo generate-lockfile", "cargo install", "cargo metadata", "cargo new", "cargo publish", "cargo remove", "cargo report", "cargo run", "cargo rustc", "cargo rustdoc", "cargo search", "cargo test", "cargo tree", "cargo uninstall", "cargo update", "cargo vendor", "cargo version", "cargo locate-project"]
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo check", "cargo test"]
+
+[[nodes]]
+path = "cargo add"
+name = "add"
+description = "将依赖添加到清单"
+detail = "将依赖添加到清单。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo add serde"]
+
+[[nodes]]
+path = "cargo bench"
+name = "bench"
+description = "运行基准测试"
+detail = "运行基准测试。"
+positional = "value"
+children = []
+option_sets = ["CARGO_BENCH_OPTIONS", "CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo bench --bench throughput"]
+
+[[nodes]]
+path = "cargo build"
+name = "build"
+description = "编译包"
+detail = "编译包。"
+positional = "value"
+children = []
+option_sets = ["CARGO_BUILD_OPTIONS", "CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo build --release"]
+
+[[nodes]]
+path = "cargo check"
+name = "check"
+description = "检查包但不生成二进制文件"
+detail = "检查包但不生成二进制文件。"
+positional = "value"
+children = []
+option_sets = ["CARGO_CHECK_OPTIONS", "CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo check --all-targets"]
+
+[[nodes]]
+path = "cargo clean"
+name = "clean"
+description = "删除生成的构建产物"
+detail = "删除生成的构建产物。"
+positional = "path"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo clean --dry-run"]
+
+[[nodes]]
+path = "cargo clippy"
+name = "clippy"
+description = "运行 Clippy 代码检查"
+detail = "运行 Clippy 代码检查。"
+positional = "value"
+children = []
+option_sets = ["CARGO_CLIPPY_OPTIONS", "CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo clippy --all-targets"]
+
+[[nodes]]
+path = "cargo doc"
+name = "doc"
+description = "构建包文档"
+detail = "构建包文档。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo doc --no-deps"]
+
+[[nodes]]
+path = "cargo fetch"
+name = "fetch"
+description = "下载依赖"
+detail = "下载依赖。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo fetch --locked"]
+
+[[nodes]]
+path = "cargo fix"
+name = "fix"
+description = "自动修复编译器警告"
+detail = "自动修复编译器警告。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo fix --edition"]
+
+[[nodes]]
+path = "cargo fmt"
+name = "fmt"
+description = "格式化 Rust 代码"
+detail = "格式化 Rust 代码。"
+positional = "path"
+children = []
+option_sets = ["CARGO_FMT_OPTIONS", "CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo fmt --all --check"]
+
+[[nodes]]
+path = "cargo generate-lockfile"
+name = "generate-lockfile"
+description = "生成 Cargo.lock 文件"
+detail = "生成 Cargo.lock 文件。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo generate-lockfile"]
+
+[[nodes]]
+path = "cargo init"
+name = "init"
+description = "创建空仓库"
+detail = "创建空仓库。"
+positional = "path"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo init --lib"]
+
+[[nodes]]
+path = "cargo install"
+name = "install"
+description = "安装 Rust 二进制"
+detail = "安装 Rust 二进制。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo install ripgrep"]
+
+[[nodes]]
+path = "cargo locate-project"
+name = "locate-project"
+description = "定位 Cargo 项目清单"
+detail = "定位 Cargo 项目清单。"
+positional = "path"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo locate-project --workspace"]
+
+[[nodes]]
+path = "cargo metadata"
+name = "metadata"
+description = "输出包元数据"
+detail = "输出包元数据。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo metadata --no-deps --format-version 1"]
+
+[[nodes]]
+path = "cargo new"
+name = "new"
+description = "创建新包"
+detail = "创建新包。"
+positional = "path"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo new hello"]
+
+[[nodes]]
+path = "cargo publish"
+name = "publish"
+description = "将包发布到包仓库"
+detail = "将包发布到包仓库。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo publish --dry-run"]
+
+[[nodes]]
+path = "cargo remove"
+name = "remove"
+description = "从清单移除依赖"
+detail = "从清单移除依赖。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo remove serde"]
+
+[[nodes]]
+path = "cargo report"
+name = "report"
+description = "显示 Cargo 报告"
+detail = "显示 Cargo 报告。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo report future-incompatibilities"]
+
+[[nodes]]
+path = "cargo run"
+name = "run"
+description = "运行二进制或示例"
+detail = "运行二进制或示例。"
+positional = "value"
+children = []
+option_sets = ["CARGO_RUN_OPTIONS", "CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo run --bin worker"]
+
+[[nodes]]
+path = "cargo rustc"
+name = "rustc"
+description = "使用 rustc 选项编译包"
+detail = "使用 rustc 选项编译包。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo rustc -- --cfg local"]
+
+[[nodes]]
+path = "cargo rustdoc"
+name = "rustdoc"
+description = "使用 rustdoc 选项构建文档"
+detail = "使用 rustdoc 选项构建文档。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo rustdoc -- --document-private-items"]
+
+[[nodes]]
+path = "cargo search"
+name = "search"
+description = "在包仓库中搜索包"
+detail = "在包仓库中搜索包。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo search serde --limit 5"]
+
+[[nodes]]
+path = "cargo test"
+name = "test"
+description = "运行测试"
+detail = "运行测试。"
+positional = "value"
+children = []
+option_sets = ["CARGO_TEST_OPTIONS", "CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo test --workspace", "cargo test --test integration"]
+
+[[nodes]]
+path = "cargo tree"
+name = "tree"
+description = "显示依赖树"
+detail = "显示依赖树。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo tree -d"]
+
+[[nodes]]
+path = "cargo uninstall"
+name = "uninstall"
+description = "卸载 Rust 二进制"
+detail = "卸载 Rust 二进制。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo uninstall ripgrep"]
+
+[[nodes]]
+path = "cargo update"
+name = "update"
+description = "更新依赖"
+detail = "更新依赖。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo update -p serde"]
+
+[[nodes]]
+path = "cargo vendor"
+name = "vendor"
+description = "将所有依赖放入本地目录"
+detail = "将所有依赖放入本地目录。"
+positional = "path"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo vendor vendor"]
+
+[[nodes]]
+path = "cargo version"
+name = "version"
+description = "显示 Cargo 版本"
+detail = "显示 Cargo 版本。"
+positional = "value"
+children = []
+option_sets = ["CARGO_GLOBAL_OPTIONS"]
+examples = ["cargo version"]
+
+[[nodes]]
+path = "rustc"
+description = "编译 Rust 源代码"
+detail = "编译 Rust 源代码。"
+positional = "path"
+option_sets = ["LEARNABLE_rustc"]
+children = []
+examples = ["rustc --edition 2024 main.rs"]
+
+[[nodes]]
+path = "rustup"
+description = "管理 Rust 工具链"
+detail = "安装和选择 Rust 工具链、目标平台及组件。"
+positional = "none"
+children = ["toolchain", "target", "component", "default", "override"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Rust 工具链", "编译目标"]
+examples = ["rustup toolchain list"]
+
+[[nodes]]
+path = "rustup toolchain"
+description = "管理 Rust 工具链"
+detail = "列出、安装或删除本机 Rust 工具链。"
+positional = "value"
+provider = "rustup.toolchains"
+examples = ["rustup toolchain install stable"]
+
+[[nodes]]
+path = "rustup target"
+description = "管理 Rust 编译目标"
+detail = "为工具链添加或移除目标平台。"
+positional = "value"
+provider = "rustup.targets"
+examples = ["rustup target add wasm32-unknown-unknown"]
+
+[[nodes]]
+path = "rustup component"
+description = "管理 Rust 组件"
+detail = "添加或移除 rustfmt、clippy 等组件。"
+positional = "value"
+provider = "rustup.components"
+examples = ["rustup component add clippy"]
+
+[[nodes]]
+path = "rustup default"
+description = "设置默认 Rust 工具链"
+detail = "选择新终端默认使用的 Rust 工具链。"
+positional = "value"
+provider = "rustup.toolchains"
+examples = ["rustup default stable"]
+
+[[nodes]]
+path = "rustup override"
+description = "设置目录工具链"
+detail = "为当前项目目录选择 Rust 工具链。"
+positional = "value"
+provider = "rustup.toolchains"
+examples = ["rustup override set nightly"]
+

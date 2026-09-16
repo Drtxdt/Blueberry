@@ -1,0 +1,1347 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[option_sets]]
+id = "NPM_GLOBAL_OPTIONS"
+[[option_sets.options]]
+name = "--help"
+description = "显示 npm 帮助"
+detail = "显示 npm 帮助。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 npm 版本"
+detail = "显示 npm 版本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-g"
+description = "执行全局操作"
+detail = "执行全局操作。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--global"
+description = "执行全局操作"
+detail = "执行全局操作。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--save"
+description = "保存依赖"
+detail = "保存依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--save-dev"
+description = "保存开发依赖"
+detail = "保存开发依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--save-exact"
+description = "保存精确版本"
+detail = "保存精确版本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--prefix"
+description = "使用其他 npm 前缀"
+detail = "使用其他 npm 前缀。"
+value_kind = "directory"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "指定工作区"
+detail = "指定工作区。"
+value_kind = "text"
+provider = "npm.workspaces"
+
+[[option_sets.options]]
+name = "--workspaces"
+description = "指定所有工作区"
+detail = "指定所有工作区。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--include-workspace-root"
+description = "包含工作区根目录"
+detail = "包含工作区根目录。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--ignore-scripts"
+description = "跳过软件包脚本"
+detail = "跳过软件包脚本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--production"
+description = "省略开发依赖"
+detail = "省略开发依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--omit"
+description = "省略依赖类型"
+detail = "省略依赖类型。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--include"
+description = "包含依赖类型"
+detail = "包含依赖类型。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--json"
+description = "使用 JSON 输出"
+detail = "使用 JSON 输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--silent"
+description = "隐藏输出"
+detail = "隐藏输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--loglevel"
+description = "选择日志详细级别"
+detail = "选择日志详细级别。"
+value_kind = "text"
+values = [{ name = "silent", description = "不显示输出" }, { name = "error", description = "仅显示错误" }, { name = "warn", description = "显示警告和错误" }, { name = "notice", description = "显示提示和警告" }, { name = "http", description = "显示 HTTP 活动" }, { name = "info", description = "显示信息输出" }, { name = "verbose", description = "显示详细输出" }, { name = "silly", description = "显示全部调试输出" }]
+
+[[option_sets.options]]
+name = "--level"
+description = "选择日志详细级别"
+detail = "选择日志详细级别。"
+value_kind = "text"
+values = [{ name = "silent", description = "不显示输出" }, { name = "error", description = "仅显示错误" }, { name = "warn", description = "显示警告和错误" }, { name = "notice", description = "显示提示和警告" }, { name = "http", description = "显示 HTTP 活动" }, { name = "info", description = "显示信息输出" }, { name = "verbose", description = "显示详细输出" }, { name = "silly", description = "显示全部调试输出" }]
+
+[[option_sets.options]]
+name = "--registry"
+description = "使用软件包仓库"
+detail = "使用软件包仓库。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--userconfig"
+description = "使用其他用户配置文件"
+detail = "使用其他用户配置文件。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--cache"
+description = "使用其他 npm 缓存"
+detail = "使用其他 npm 缓存。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--yes"
+description = "对提示自动回答 yes"
+detail = "对提示自动回答 yes。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--force"
+description = "强制执行 npm 操作"
+detail = "强制执行 npm 操作。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--offline"
+description = "仅使用缓存的软件包"
+detail = "仅使用缓存的软件包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--prefer-offline"
+description = "优先使用缓存的软件包"
+detail = "优先使用缓存的软件包。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--prefer-online"
+description = "优先使用最新软件包元数据"
+detail = "优先使用最新软件包元数据。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-audit"
+description = "跳过安全审计"
+detail = "跳过安全审计。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-fund"
+description = "跳过资助信息"
+detail = "跳过资助信息。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-update-notifier"
+description = "禁用更新通知"
+detail = "禁用更新通知。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--foreground-scripts"
+description = "在前台运行脚本"
+detail = "在前台运行脚本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-bin-links"
+description = "不创建二进制链接"
+detail = "不创建二进制链接。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--ignore-optional"
+description = "跳过可选依赖"
+detail = "跳过可选依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--color"
+description = "选择彩色输出"
+detail = "选择彩色输出。"
+value_kind = "text"
+values = [{ name = "always", description = "始终使用颜色" }, { name = "auto", description = "在适当时使用颜色" }, { name = "never", description = "禁用颜色" }]
+
+[[option_sets]]
+id = "PNPM_GLOBAL_OPTIONS"
+[[option_sets.options]]
+name = "--dir"
+description = "指定 pnpm 工作目录"
+detail = "指定 pnpm 工作目录。"
+value_kind = "directory"
+
+[[option_sets.options]]
+name = "-C"
+description = "切换到目录后运行 pnpm"
+detail = "切换到目录后运行 pnpm。"
+value_kind = "directory"
+
+[[option_sets]]
+id = "NPM_INSTALL_OPTIONS"
+[[option_sets.options]]
+name = "--save"
+description = "保存依赖"
+detail = "保存依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-save"
+description = "不保存依赖"
+detail = "不保存依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--save-dev"
+description = "保存开发依赖"
+detail = "保存开发依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--save-optional"
+description = "保存可选依赖"
+detail = "保存可选依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--save-peer"
+description = "保存对等依赖"
+detail = "保存对等依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--save-exact"
+description = "保存精确版本"
+detail = "保存精确版本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--global"
+description = "全局安装"
+detail = "全局安装。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-g"
+description = "全局安装"
+detail = "全局安装。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--dry-run"
+description = "显示将要安装的内容"
+detail = "显示将要安装的内容。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--package-lock"
+description = "更新软件包锁定文件"
+detail = "更新软件包锁定文件。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-package-lock"
+description = "跳过软件包锁定文件"
+detail = "跳过软件包锁定文件。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--ignore-scripts"
+description = "跳过软件包脚本"
+detail = "跳过软件包脚本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--foreground-scripts"
+description = "在前台运行脚本"
+detail = "在前台运行脚本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--audit"
+description = "运行安全审计"
+detail = "运行安全审计。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-audit"
+description = "跳过安全审计"
+detail = "跳过安全审计。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--fund"
+description = "显示资助信息"
+detail = "显示资助信息。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-fund"
+description = "跳过资助信息"
+detail = "跳过资助信息。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--legacy-peer-deps"
+description = "忽略对等依赖冲突"
+detail = "忽略对等依赖冲突。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--strict-peer-deps"
+description = "遇到对等依赖冲突时失败"
+detail = "遇到对等依赖冲突时失败。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--engine-strict"
+description = "拒绝不兼容的运行时"
+detail = "拒绝不兼容的运行时。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--force"
+description = "强制解析依赖"
+detail = "强制解析依赖。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--install-links"
+description = "将文件依赖安装为链接"
+detail = "将文件依赖安装为链接。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--install-strategy"
+description = "选择依赖安装策略"
+detail = "选择依赖安装策略。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--omit"
+description = "省略依赖类型"
+detail = "省略依赖类型。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--include"
+description = "包含依赖类型"
+detail = "包含依赖类型。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "指定工作区"
+detail = "指定工作区。"
+value_kind = "text"
+provider = "npm.workspaces"
+
+[[option_sets.options]]
+name = "--workspaces"
+description = "指定所有工作区"
+detail = "指定所有工作区。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--include-workspace-root"
+description = "包含工作区根目录"
+detail = "包含工作区根目录。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--prefix"
+description = "使用其他 npm 前缀"
+detail = "使用其他 npm 前缀。"
+value_kind = "directory"
+
+[[option_sets]]
+id = "NPM_RUN_OPTIONS"
+[[option_sets.options]]
+name = "--workspace"
+description = "指定工作区"
+detail = "指定工作区。"
+value_kind = "text"
+provider = "npm.workspaces"
+
+[[option_sets.options]]
+name = "--workspaces"
+description = "指定所有工作区"
+detail = "指定所有工作区。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--include-workspace-root"
+description = "包含工作区根目录"
+detail = "包含工作区根目录。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--if-present"
+description = "忽略缺失的脚本"
+detail = "忽略缺失的脚本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--ignore-scripts"
+description = "跳过软件包脚本"
+detail = "跳过软件包脚本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--foreground-scripts"
+description = "在前台运行脚本"
+detail = "在前台运行脚本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--script-shell"
+description = "选择脚本 Shell"
+detail = "选择脚本 Shell。"
+value_kind = "path"
+
+[[option_sets]]
+id = "NPM_INIT_OPTIONS"
+[[option_sets.options]]
+name = "--yes"
+description = "接受所有默认值"
+detail = "接受所有默认值。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--force"
+description = "覆盖现有软件包文件"
+detail = "覆盖现有软件包文件。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--scope"
+description = "设置软件包作用域"
+detail = "设置软件包作用域。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--private"
+description = "将软件包标记为私有"
+detail = "将软件包标记为私有。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--workspace"
+description = "创建工作区软件包"
+detail = "创建工作区软件包。"
+value_kind = "text"
+provider = "npm.workspaces"
+
+[[option_sets]]
+id = "NPM_CONFIG_OPTIONS"
+[[option_sets.options]]
+name = "--global"
+description = "使用全局配置"
+detail = "使用全局配置。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--location"
+description = "选择配置位置"
+detail = "选择配置位置。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--json"
+description = "使用 JSON 输出"
+detail = "使用 JSON 输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--long"
+description = "显示详细配置"
+detail = "显示详细配置。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--parseable"
+description = "使用可解析输出"
+detail = "使用可解析输出。"
+value_kind = "none"
+
+[[nodes]]
+path = "npm"
+name = "npm"
+description = "安装和管理 JavaScript 依赖"
+detail = "安装和管理 JavaScript 依赖。"
+positional = "value"
+children = ["npm access", "npm audit", "npm bugs", "npm cache", "npm ci", "npm completion", "npm config", "npm dedupe", "npm deprecate", "npm diff", "npm dist-tag", "npm doctor", "npm docs", "npm exec", "npm explain", "npm explore", "npm fund", "npm help", "npm hook", "npm init", "npm install", "npm i", "npm install-ci-test", "npm install-test", "npm link", "npm ll", "npm login", "npm logout", "npm ls", "npm org", "npm outdated", "npm owner", "npm pack", "npm ping", "npm pkg", "npm prefix", "npm profile", "npm prune", "npm publish", "npm query", "npm rebuild", "npm repo", "npm restart", "npm root", "npm run", "npm run-script", "npm search", "npm set", "npm shrinkwrap", "npm start", "npm stop", "npm team", "npm test", "npm token", "npm uninstall", "npm remove", "npm unpublish", "npm update", "npm version", "npm view"]
+option_sets = ["NPM_GLOBAL_OPTIONS"]
+examples = ["npm run", "npm install"]
+
+[[nodes]]
+path = "npm access"
+name = "access"
+description = "管理包访问设置"
+detail = "管理包访问设置。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm access list packages"]
+
+[[nodes]]
+path = "npm add"
+name = "add"
+description = "将文件添加到索引"
+detail = "将文件添加到索引。"
+positional = "value"
+children = []
+option_sets = ["NPM_INSTALL_OPTIONS"]
+examples = ["npm add lodash"]
+provider = "npm.dependencies"
+
+[[nodes]]
+path = "npm audit"
+name = "audit"
+description = "运行安全审计"
+detail = "运行安全审计。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm audit --omit=dev"]
+
+[[nodes]]
+path = "npm bugs"
+name = "bugs"
+description = "打开包错误跟踪器"
+detail = "打开包错误跟踪器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm bugs lodash"]
+
+[[nodes]]
+path = "npm cache"
+name = "cache"
+description = "管理 npm 缓存"
+detail = "管理 npm 缓存。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm cache verify"]
+
+[[nodes]]
+path = "npm ci"
+name = "ci"
+description = "从锁定文件安装"
+detail = "从锁定文件安装。"
+positional = "value"
+children = []
+option_sets = ["NPM_INSTALL_OPTIONS"]
+examples = ["npm ci"]
+provider = "npm.dependencies"
+
+[[nodes]]
+path = "npm completion"
+name = "completion"
+description = "启用 Shell 补全"
+detail = "启用 Shell 补全。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm completion"]
+
+[[nodes]]
+path = "npm config"
+name = "config"
+description = "管理 npm 配置"
+detail = "管理 npm 配置。"
+positional = "value"
+children = ["npm config get", "npm config set", "npm config delete", "npm config list", "npm config fix"]
+option_sets = ["NPM_CONFIG_OPTIONS"]
+examples = ["npm config list"]
+
+[[nodes]]
+path = "npm config delete"
+name = "delete"
+description = "删除配置值"
+detail = "删除配置值。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm config delete registry"]
+
+[[nodes]]
+path = "npm config fix"
+name = "fix"
+description = "修复配置问题"
+detail = "修复配置问题。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm config fix"]
+
+[[nodes]]
+path = "npm config get"
+name = "get"
+description = "获取配置值"
+detail = "获取配置值。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm config get registry"]
+
+[[nodes]]
+path = "npm config list"
+name = "list"
+description = "列出配置值"
+detail = "列出配置值。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm config list"]
+
+[[nodes]]
+path = "npm config set"
+name = "set"
+description = "设置配置值"
+detail = "设置配置值。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm config set save-exact true"]
+
+[[nodes]]
+path = "npm dedupe"
+name = "dedupe"
+description = "减少重复依赖"
+detail = "减少重复依赖。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm dedupe --dry-run"]
+
+[[nodes]]
+path = "npm deprecate"
+name = "deprecate"
+description = "弃用软件包版本"
+detail = "弃用软件包版本。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm deprecate my-package@1.0.0 \"请升级到新版本\""]
+
+[[nodes]]
+path = "npm diff"
+name = "diff"
+description = "比较软件包版本"
+detail = "比较软件包版本。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm diff --diff=lodash@4.17.20 --diff=lodash@4.17.21"]
+
+[[nodes]]
+path = "npm dist-tag"
+name = "dist-tag"
+description = "管理发布标签"
+detail = "管理发布标签。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm dist-tag ls lodash"]
+
+[[nodes]]
+path = "npm docs"
+name = "docs"
+description = "打开软件包文档"
+detail = "打开软件包文档。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm docs lodash"]
+
+[[nodes]]
+path = "npm doctor"
+name = "doctor"
+description = "检查 npm 环境"
+detail = "检查 npm 环境。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm doctor"]
+
+[[nodes]]
+path = "npm exec"
+name = "exec"
+description = "从软件包运行命令"
+detail = "从软件包运行命令。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm exec -- tsc --version"]
+
+[[nodes]]
+path = "npm explain"
+name = "explain"
+description = "解释已安装的软件包"
+detail = "解释已安装的软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm explain lodash"]
+
+[[nodes]]
+path = "npm explore"
+name = "explore"
+description = "打开软件包目录"
+detail = "打开软件包目录。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm explore lodash -- node --version"]
+
+[[nodes]]
+path = "npm fund"
+name = "fund"
+description = "显示资助信息"
+detail = "显示资助信息。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm fund"]
+
+[[nodes]]
+path = "npm help"
+name = "help"
+description = "显示 npm 帮助"
+detail = "显示 npm 帮助。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm help install"]
+
+[[nodes]]
+path = "npm hook"
+name = "hook"
+description = "管理软件包仓库钩子"
+detail = "管理软件包仓库钩子。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm hook --help"]
+
+[[nodes]]
+path = "npm i"
+name = "i"
+description = "安装软件包依赖"
+detail = "安装软件包依赖。"
+positional = "value"
+children = []
+option_sets = ["NPM_INSTALL_OPTIONS"]
+examples = ["npm i"]
+provider = "npm.dependencies"
+
+[[nodes]]
+path = "npm init"
+name = "init"
+description = "创建 package.json 文件"
+detail = "创建 package.json 文件。"
+positional = "path"
+children = []
+option_sets = ["NPM_INIT_OPTIONS"]
+examples = ["npm init -y"]
+
+[[nodes]]
+path = "npm install"
+name = "install"
+description = "安装软件包依赖"
+detail = "安装软件包依赖。"
+positional = "value"
+children = []
+option_sets = ["NPM_INSTALL_OPTIONS"]
+examples = ["npm install"]
+provider = "npm.dependencies"
+
+[[nodes]]
+path = "npm install-ci-test"
+name = "install-ci-test"
+description = "安装依赖并运行 CI 测试"
+detail = "安装依赖并运行 CI 测试。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm install-ci-test"]
+
+[[nodes]]
+path = "npm install-test"
+name = "install-test"
+description = "安装依赖并运行测试"
+detail = "安装依赖并运行测试。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm install-test"]
+
+[[nodes]]
+path = "npm link"
+name = "link"
+description = "为软件包创建符号链接"
+detail = "为软件包创建符号链接。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm link"]
+
+[[nodes]]
+path = "npm ll"
+name = "ll"
+description = "列出已安装的软件包"
+detail = "列出已安装的软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm ll"]
+
+[[nodes]]
+path = "npm login"
+name = "login"
+description = "登录软件包仓库"
+detail = "登录软件包仓库。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm login"]
+
+[[nodes]]
+path = "npm logout"
+name = "logout"
+description = "退出软件包仓库"
+detail = "退出软件包仓库。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm logout"]
+
+[[nodes]]
+path = "npm ls"
+name = "ls"
+description = "列出已安装的软件包"
+detail = "列出已安装的软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm ls --depth=0"]
+
+[[nodes]]
+path = "npm org"
+name = "org"
+description = "管理组织"
+detail = "管理组织。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm org ls my-org"]
+
+[[nodes]]
+path = "npm outdated"
+name = "outdated"
+description = "检查过时的软件包"
+detail = "检查过时的软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm outdated"]
+
+[[nodes]]
+path = "npm owner"
+name = "owner"
+description = "管理软件包所有者"
+detail = "管理软件包所有者。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm owner ls lodash"]
+
+[[nodes]]
+path = "npm pack"
+name = "pack"
+description = "创建软件包归档"
+detail = "创建软件包归档。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm pack --dry-run"]
+
+[[nodes]]
+path = "npm ping"
+name = "ping"
+description = "Ping 软件包仓库"
+detail = "Ping 软件包仓库。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm ping"]
+
+[[nodes]]
+path = "npm pkg"
+name = "pkg"
+description = "管理软件包元数据"
+detail = "管理软件包元数据。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm pkg get scripts"]
+
+[[nodes]]
+path = "npm prefix"
+name = "prefix"
+description = "显示 npm 前缀"
+detail = "显示 npm 前缀。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm prefix"]
+
+[[nodes]]
+path = "npm profile"
+name = "profile"
+description = "管理 npm 个人资料"
+detail = "管理 npm 个人资料。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm profile get"]
+
+[[nodes]]
+path = "npm prune"
+name = "prune"
+description = "移除多余的软件包"
+detail = "移除多余的软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm prune --dry-run"]
+
+[[nodes]]
+path = "npm publish"
+name = "publish"
+description = "发布软件包"
+detail = "发布软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm publish --dry-run"]
+
+[[nodes]]
+path = "npm query"
+name = "query"
+description = "查询已安装的软件包"
+detail = "查询已安装的软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm query \"[name=lodash]\""]
+
+[[nodes]]
+path = "npm rebuild"
+name = "rebuild"
+description = "重新构建软件包"
+detail = "重新构建软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm rebuild"]
+
+[[nodes]]
+path = "npm remove"
+name = "remove"
+description = "移除软件包依赖"
+detail = "移除软件包依赖。"
+positional = "value"
+children = []
+option_sets = ["NPM_INSTALL_OPTIONS"]
+examples = ["npm remove lodash"]
+provider = "npm.dependencies"
+
+[[nodes]]
+path = "npm repo"
+name = "repo"
+description = "打开软件包仓库"
+detail = "打开软件包仓库。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm repo lodash"]
+
+[[nodes]]
+path = "npm restart"
+name = "restart"
+description = "运行 restart 脚本"
+detail = "运行 restart 脚本。"
+positional = "value"
+children = []
+option_sets = ["NPM_RUN_OPTIONS"]
+examples = ["npm restart"]
+provider = "npm.scripts"
+
+[[nodes]]
+path = "npm root"
+name = "root"
+description = "显示 npm 根目录"
+detail = "显示 npm 根目录。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm root"]
+
+[[nodes]]
+path = "npm run"
+name = "run"
+description = "运行软件包脚本"
+detail = "运行软件包脚本。"
+positional = "value"
+children = []
+option_sets = ["NPM_RUN_OPTIONS"]
+examples = ["npm run dev"]
+provider = "npm.scripts"
+
+[[nodes]]
+path = "npm run-script"
+name = "run-script"
+description = "运行软件包脚本"
+detail = "运行软件包脚本。"
+positional = "value"
+children = []
+option_sets = ["NPM_RUN_OPTIONS"]
+examples = ["npm run-script build"]
+provider = "npm.scripts"
+
+[[nodes]]
+path = "npm search"
+name = "search"
+description = "搜索软件包仓库"
+detail = "搜索软件包仓库。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm search typescript"]
+
+[[nodes]]
+path = "npm set"
+name = "set"
+description = "设置配置值"
+detail = "设置配置值。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm set save-exact true"]
+
+[[nodes]]
+path = "npm shrinkwrap"
+name = "shrinkwrap"
+description = "创建或更新 shrinkwrap"
+detail = "创建或更新 shrinkwrap。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm shrinkwrap"]
+
+[[nodes]]
+path = "npm start"
+name = "start"
+description = "运行 start 脚本"
+detail = "运行 start 脚本。"
+positional = "value"
+children = []
+option_sets = ["NPM_RUN_OPTIONS"]
+examples = ["npm start"]
+provider = "npm.scripts"
+
+[[nodes]]
+path = "npm stop"
+name = "stop"
+description = "运行 stop 脚本"
+detail = "运行 stop 脚本。"
+positional = "value"
+children = []
+option_sets = ["NPM_RUN_OPTIONS"]
+examples = ["npm stop"]
+provider = "npm.scripts"
+
+[[nodes]]
+path = "npm team"
+name = "team"
+description = "管理团队"
+detail = "管理团队。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm team ls my-org:developers"]
+
+[[nodes]]
+path = "npm test"
+name = "test"
+description = "运行 test 脚本"
+detail = "运行 test 脚本。"
+positional = "value"
+children = []
+option_sets = ["NPM_RUN_OPTIONS"]
+examples = ["npm test"]
+provider = "npm.scripts"
+
+[[nodes]]
+path = "npm token"
+name = "token"
+description = "管理身份验证令牌"
+detail = "管理身份验证令牌。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm token list"]
+
+[[nodes]]
+path = "npm uninstall"
+name = "uninstall"
+description = "移除软件包依赖"
+detail = "移除软件包依赖。"
+positional = "value"
+children = []
+option_sets = ["NPM_INSTALL_OPTIONS"]
+examples = ["npm uninstall lodash"]
+provider = "npm.dependencies"
+
+[[nodes]]
+path = "npm unpublish"
+name = "unpublish"
+description = "从软件包仓库移除软件包"
+detail = "从软件包仓库移除软件包。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm unpublish my-package@1.0.0 --dry-run"]
+
+[[nodes]]
+path = "npm update"
+name = "update"
+description = "更新软件包依赖"
+detail = "更新软件包依赖。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm update --dry-run"]
+
+[[nodes]]
+path = "npm version"
+name = "version"
+description = "提升软件包版本"
+detail = "提升软件包版本。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm version"]
+
+[[nodes]]
+path = "npm view"
+name = "view"
+description = "查看软件包元数据"
+detail = "查看软件包元数据。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["npm view lodash version"]
+
+[[nodes]]
+path = "pnpm"
+name = "pnpm"
+description = "管理高效的 JavaScript 包和 workspace"
+detail = "管理高效的 JavaScript 包和 workspace。"
+positional = "value"
+children = ["pnpm add", "pnpm install", "pnpm i", "pnpm remove", "pnpm rm", "pnpm run", "pnpm test", "pnpm exec", "pnpm update", "pnpm list", "pnpm ls"]
+option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_GLOBAL_OPTIONS"]
+examples = ["pnpm run", "pnpm install"]
+
+[[nodes]]
+path = "pnpm add"
+name = "add"
+description = "添加 workspace 依赖"
+detail = "添加 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
+examples = ["pnpm add lodash"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "pnpm exec"
+name = "exec"
+description = "执行 workspace 命令"
+detail = "执行 workspace 命令。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS"]
+examples = ["pnpm exec tsc --version"]
+
+[[nodes]]
+path = "pnpm i"
+name = "i"
+description = "安装 workspace 依赖"
+detail = "安装 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
+examples = ["pnpm i"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "pnpm install"
+name = "install"
+description = "安装 workspace 依赖"
+detail = "安装 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
+examples = ["pnpm install --frozen-lockfile"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "pnpm list"
+name = "list"
+description = "列出 workspace 依赖"
+detail = "列出 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS"]
+examples = ["pnpm list --depth=0"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "pnpm ls"
+name = "ls"
+description = "列出 workspace 依赖"
+detail = "列出 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS"]
+examples = ["pnpm ls --depth=0"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "pnpm remove"
+name = "remove"
+description = "移除 workspace 依赖"
+detail = "移除 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
+examples = ["pnpm remove lodash"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "pnpm rm"
+name = "rm"
+description = "移除 workspace 依赖"
+detail = "移除 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_INSTALL_OPTIONS"]
+examples = ["pnpm rm lodash"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "pnpm run"
+name = "run"
+description = "运行 workspace 脚本"
+detail = "运行 workspace 脚本。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS", "NPM_RUN_OPTIONS"]
+examples = ["pnpm run dev"]
+provider = "pnpm.scripts"
+
+[[nodes]]
+path = "pnpm test"
+name = "test"
+description = "运行 test 脚本"
+detail = "运行 test 脚本。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS"]
+examples = ["pnpm test"]
+provider = "pnpm.scripts"
+
+[[nodes]]
+path = "pnpm update"
+name = "update"
+description = "更新 workspace 依赖"
+detail = "更新 workspace 依赖。"
+positional = "value"
+children = []
+option_sets = ["PNPM_GLOBAL_OPTIONS"]
+examples = ["pnpm update --interactive"]
+provider = "pnpm.dependencies"
+
+[[nodes]]
+path = "yarn"
+description = "管理 JavaScript 项目"
+detail = "运行 package.json 脚本并管理工作区依赖。"
+positional = "value"
+provider = "yarn.scripts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["前端", "脚本", "依赖"]
+examples = ["yarn test"]
+
+[[nodes]]
+path = "bun"
+description = "运行 JavaScript 和管理项目"
+detail = "运行 package.json 脚本、测试和依赖命令。"
+positional = "value"
+provider = "bun.scripts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["前端", "脚本", "测试"]
+examples = ["bun run test"]
+

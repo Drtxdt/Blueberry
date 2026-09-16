@@ -635,45 +635,7 @@ fn selected_provider(query: &ProjectQuery) -> Option<ProviderKind> {
 }
 
 fn valid_provider_id(provider: &str) -> bool {
-    matches!(
-        provider.to_ascii_lowercase().as_str(),
-        "git"
-            | "git.refs"
-            | "git.branches"
-            | "git.remotes"
-            | "git.paths"
-            | "git.status"
-            | "git.tags"
-            | "git.worktrees"
-            | "cargo"
-            | "cargo.features"
-            | "cargo.packages"
-            | "cargo.bins"
-            | "cargo.examples"
-            | "cargo.tests"
-            | "cargo.benches"
-            | "npm"
-            | "npm.scripts"
-            | "npm.workspaces"
-            | "npm.dependencies"
-            | "pnpm"
-            | "pnpm.scripts"
-            | "pnpm.workspaces"
-            | "pnpm.dependencies"
-            | "python.scripts" | "python.dependencies" | "python.environments"
-            | "conda.environments" | "conda.packages"
-            | "poetry.scripts" | "poetry.dependencies" | "poetry.environments"
-            | "yarn.scripts" | "yarn.workspaces" | "yarn.dependencies"
-            | "bun.scripts" | "bun.workspaces" | "bun.dependencies"
-            | "rustup.toolchains" | "rustup.targets" | "rustup.components"
-            | "go.packages" | "go.files" | "go.workspaces"
-            | "dotnet.projects" | "dotnet.frameworks" | "dotnet.references" | "dotnet.tools"
-            | "cmake.presets" | "cmake.build_presets" | "cmake.test_presets" | "cmake.targets"
-            | "docker.services" | "docker.profiles" | "docker.contexts"
-            | "kubectl.contexts" | "kubectl.namespaces" | "kubectl.resources"
-            | "helm.charts" | "helm.repositories" | "helm.releases"
-            | "ssh.hosts"
-    )
+    crate::tool_registry::provider_known(provider)
 }
 
 fn provider_scope<'a>(query: &'a ProjectQuery, family: &str) -> Option<&'a str> {

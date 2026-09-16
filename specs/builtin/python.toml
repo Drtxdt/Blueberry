@@ -1,0 +1,250 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[nodes]]
+path = "python"
+description = "运行 Python 程序"
+detail = "运行 Python 程序。"
+positional = "path"
+option_sets = ["LEARNABLE_python"]
+children = []
+examples = ["python -m venv .venv"]
+
+[[nodes]]
+path = "uv"
+description = "管理 Python 项目、依赖与虚拟环境"
+detail = "管理 Python 项目、依赖与虚拟环境。"
+positional = "none"
+option_sets = ["LEARNABLE_uv"]
+children = ["uv run", "uv sync", "uv add", "uv remove", "uv init", "uv venv", "uv pip", "uv python", "uv tool", "uv lock"]
+examples = ["uv run python --version"]
+
+[[nodes]]
+path = "uv run"
+description = "在项目环境中运行命令"
+detail = "在项目环境中运行命令。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_run"]
+examples = ["uv run --help"]
+
+[[nodes]]
+path = "uv sync"
+description = "同步项目依赖"
+detail = "同步项目依赖。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_sync"]
+examples = ["uv sync --help"]
+
+[[nodes]]
+path = "uv add"
+description = "添加项目依赖"
+detail = "添加项目依赖。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_add"]
+examples = ["uv add --help"]
+
+[[nodes]]
+path = "uv remove"
+description = "移除项目依赖"
+detail = "移除项目依赖。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_remove"]
+examples = ["uv remove --help"]
+
+[[nodes]]
+path = "uv init"
+description = "创建 Python 项目"
+detail = "创建 Python 项目。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_init"]
+examples = ["uv init --help"]
+
+[[nodes]]
+path = "uv venv"
+description = "创建虚拟环境"
+detail = "创建虚拟环境。"
+positional = "path"
+option_sets = ["LEARNABLE_uv_venv"]
+examples = ["uv venv --help"]
+
+[[nodes]]
+path = "uv pip"
+description = "使用 pip 兼容接口管理依赖"
+detail = "使用 pip 兼容接口管理依赖。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_pip"]
+examples = ["uv pip --help"]
+
+[[nodes]]
+path = "uv python"
+description = "管理 Python 解释器"
+detail = "管理 Python 解释器。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_python"]
+examples = ["uv python --help"]
+
+[[nodes]]
+path = "uv tool"
+description = "管理独立 Python 工具"
+detail = "管理独立 Python 工具。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_tool"]
+examples = ["uv tool --help"]
+
+[[nodes]]
+path = "uv lock"
+description = "生成或更新依赖锁文件"
+detail = "生成或更新依赖锁文件。"
+positional = "none"
+option_sets = ["LEARNABLE_uv_lock"]
+examples = ["uv lock --help"]
+
+[[nodes]]
+path = "pip"
+description = "管理 Python 包"
+detail = "安装、查看和移除当前 Python 环境中的包。"
+positional = "none"
+children = ["install", "uninstall", "show", "list"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Python 包", "依赖"]
+examples = ["pip show requests"]
+
+[[nodes]]
+path = "pip install"
+description = "安装 Python 包"
+detail = "从索引或本地路径安装 Python 包。"
+positional = "path"
+provider = "powershell.paths"
+examples = ["pip install -r requirements.txt"]
+
+[[nodes]]
+path = "pip uninstall"
+description = "移除已安装的 Python 包"
+detail = "从当前 Python 环境移除一个或多个包。"
+positional = "value"
+provider = "python.dependencies"
+examples = ["pip uninstall requests"]
+
+[[nodes]]
+path = "pip show"
+description = "查看已安装包信息"
+detail = "显示当前环境中 Python 包的版本和安装位置。"
+positional = "value"
+provider = "python.dependencies"
+examples = ["pip show requests"]
+
+[[nodes]]
+path = "pip list"
+description = "列出已安装的 Python 包"
+detail = "列出当前 Python 环境已经安装的包。"
+positional = "none"
+examples = ["pip list"]
+
+[[nodes]]
+path = "conda"
+description = "管理 Conda 环境和软件包"
+detail = "创建、切换和管理 Conda 环境及其软件包。"
+positional = "none"
+children = ["activate", "run", "list", "install", "remove", "env"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["环境", "Python", "进入环境"]
+examples = ["conda activate dev"]
+
+[[nodes]]
+path = "conda activate"
+description = "进入 Conda 环境"
+detail = "在当前 PowerShell 会话中激活指定环境。"
+positional = "value"
+provider = "conda.environments"
+keywords = ["进入环境", "切换环境"]
+examples = ["conda activate dev"]
+
+[[nodes]]
+path = "conda run"
+description = "在指定环境中运行命令"
+detail = "不切换当前会话，直接在选定环境里执行命令。"
+positional = "value"
+options = [{ name = "--name", names = ["-n"], description = "选择环境名称", detail = "选择要运行命令的 Conda 环境。", value_kind = "text", provider = "conda.environments", value_name = "ENV" }, { name = "--prefix", names = ["-p"], description = "选择环境路径", detail = "按完整路径选择 Conda 环境。", value_kind = "directory", value_name = "PATH" }]
+examples = ["conda run -n dev python --version"]
+
+[[nodes]]
+path = "conda list"
+description = "列出环境中的软件包"
+detail = "显示当前或指定 Conda 环境安装的软件包。"
+positional = "value"
+provider = "conda.packages"
+examples = ["conda list -n dev"]
+
+[[nodes]]
+path = "conda install"
+description = "向环境安装软件包"
+detail = "将软件包安装到当前或指定 Conda 环境。"
+positional = "value"
+examples = ["conda install numpy"]
+
+[[nodes]]
+path = "conda remove"
+description = "从环境移除软件包"
+detail = "从当前或指定 Conda 环境移除已安装包。"
+positional = "value"
+provider = "conda.packages"
+examples = ["conda remove numpy"]
+
+[[nodes]]
+path = "conda env"
+description = "管理 Conda 环境"
+detail = "创建、导出、更新和删除 Conda 环境。"
+positional = "path"
+provider = "powershell.paths"
+examples = ["conda env create -f environment.yml"]
+
+[[nodes]]
+path = "poetry"
+description = "管理 Python 项目和虚拟环境"
+detail = "读取 pyproject.toml 并管理依赖、脚本和环境。"
+positional = "none"
+children = ["run", "add", "remove", "install", "env"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Python 项目", "依赖", "虚拟环境"]
+examples = ["poetry run pytest"]
+
+[[nodes]]
+path = "poetry run"
+description = "运行项目脚本"
+detail = "在 Poetry 虚拟环境中运行 pyproject.toml 声明的脚本。"
+positional = "value"
+provider = "poetry.scripts"
+keywords = ["运行脚本", "测试"]
+examples = ["poetry run pytest"]
+
+[[nodes]]
+path = "poetry add"
+description = "添加项目依赖"
+detail = "向 pyproject.toml 添加 Python 依赖。"
+positional = "value"
+examples = ["poetry add requests"]
+
+[[nodes]]
+path = "poetry remove"
+description = "移除项目依赖"
+detail = "从 pyproject.toml 移除已有依赖。"
+positional = "value"
+provider = "poetry.dependencies"
+examples = ["poetry remove requests"]
+
+[[nodes]]
+path = "poetry install"
+description = "安装项目依赖"
+detail = "按锁文件安装当前 Poetry 项目的依赖。"
+positional = "none"
+examples = ["poetry install"]
+
+[[nodes]]
+path = "poetry env"
+description = "管理 Poetry 虚拟环境"
+detail = "查看、选择和删除当前项目的虚拟环境。"
+positional = "value"
+provider = "poetry.environments"
+examples = ["poetry env list"]
+

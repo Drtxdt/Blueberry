@@ -1,0 +1,32 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[nodes]]
+path = "ssh"
+description = "连接 SSH 主机"
+detail = "连接 ~/.ssh/config 中配置的主机或指定地址。"
+positional = "value"
+provider = "ssh.hosts"
+options = [{ name = "-i", description = "选择身份文件", detail = "使用指定私钥进行身份验证。", value_kind = "path", value_name = "FILE" }, { name = "-p", description = "指定端口", detail = "连接远程 SSH 端口。", value_kind = "text", value_name = "PORT" }]
+keywords = ["远程连接", "服务器"]
+examples = ["ssh dev-server"]
+
+[[nodes]]
+path = "scp"
+description = "通过 SSH 复制文件"
+detail = "在本机路径与 SSH 主机之间复制文件。"
+positional = "path"
+provider = "ssh.hosts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+examples = ["scp ./app.zip dev-server:/tmp/"]
+
+[[nodes]]
+path = "sftp"
+description = "启动 SSH 文件传输会话"
+detail = "连接 SSH 配置主机并交互传输文件。"
+positional = "value"
+provider = "ssh.hosts"
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+examples = ["sftp dev-server"]
+

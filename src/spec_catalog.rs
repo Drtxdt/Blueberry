@@ -1,6 +1,6 @@
 //! Versioned declarative command specifications.
 //!
-//! Built-in specifications are compiled from `specs/builtin.toml` by
+//! Built-in specifications are compiled from the `specs/builtin` catalog by
 //! `build.rs`; no built-in TOML is parsed while the application starts. User
 //! specifications are deliberately limited to this data-only format. They
 //! can describe command trees and fixed provider identifiers, but cannot run
@@ -18,48 +18,6 @@ use std::{
 };
 
 const SCHEMA_VERSION: u32 = 1;
-
-/// Provider identifiers accepted by the declarative format. The provider
-/// implementation lives in the engine; a spec can only name one of these
-/// fixed, read-only data sources.
-pub const ALLOWED_PROVIDERS: &[&str] = &[
-    "git",
-    "git.refs",
-    "git.branches",
-    "git.remotes",
-    "git.tags",
-    "git.worktrees",
-    "git.status",
-    "git.paths",
-    "cargo.packages",
-    "cargo.features",
-    "cargo.bins",
-    "cargo.examples",
-    "cargo.tests",
-    "cargo.benches",
-    "npm.scripts",
-    "npm.workspaces",
-    "npm.dependencies",
-    "pnpm.scripts",
-    "pnpm.workspaces",
-    "pnpm.dependencies",
-    "python.scripts", "python.dependencies", "python.environments",
-    "conda.environments", "conda.packages",
-    "poetry.scripts", "poetry.dependencies", "poetry.environments",
-    "yarn.scripts", "yarn.workspaces", "yarn.dependencies",
-    "bun.scripts", "bun.workspaces", "bun.dependencies",
-    "rustup.toolchains", "rustup.targets", "rustup.components",
-    "go.packages", "go.files", "go.workspaces",
-    "dotnet.projects", "dotnet.frameworks", "dotnet.references", "dotnet.tools",
-    "cmake.presets", "cmake.build_presets", "cmake.test_presets", "cmake.targets",
-    "docker.services", "docker.profiles", "docker.contexts",
-    "kubectl.contexts", "kubectl.namespaces", "kubectl.resources",
-    "helm.charts", "helm.repositories", "helm.releases",
-    "ssh.hosts",
-    "powershell.env",
-    "powershell.paths",
-    "powershell.redirects",
-];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ValueKind {
@@ -1592,7 +1550,7 @@ fn parse_delimiter(value: &str) -> Result<Option<char>, String> {
 }
 
 fn ensure_provider(provider: &str) -> Result<(), String> {
-    if ALLOWED_PROVIDERS.contains(&provider) {
+    if crate::tool_registry::provider_known(provider) {
         Ok(())
     } else {
         Err(format!("未知 provider {provider}；只能使用固定只读数据源"))

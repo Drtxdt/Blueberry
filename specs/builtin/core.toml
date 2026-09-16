@@ -1,0 +1,1742 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[option_sets]]
+id = "PWSH_OPTIONS"
+[[option_sets.options]]
+name = "-Command"
+description = "运行指定的 PowerShell 命令"
+detail = "运行指定的 PowerShell 命令。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-EncodedCommand"
+description = "运行 Base64 编码的命令"
+detail = "运行 Base64 编码的命令。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-EncodedArguments"
+description = "传递 Base64 编码的参数"
+detail = "传递 Base64 编码的参数。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-ExecutionPolicy"
+description = "设置执行策略"
+detail = "设置执行策略。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-File"
+description = "运行 PowerShell 脚本文件"
+detail = "运行 PowerShell 脚本文件。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "-InputFormat"
+description = "选择输入格式"
+detail = "选择输入格式。"
+value_kind = "text"
+values = [{ name = "Text", description = "读取文本输入" }, { name = "XML", description = "读取 XML 输入" }]
+
+[[option_sets.options]]
+name = "-Login"
+description = "以登录 Shell 启动"
+detail = "以登录 Shell 启动。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Mta"
+description = "使用多线程单元状态"
+detail = "使用多线程单元状态。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-NoExit"
+description = "启动后保持 Shell 打开"
+detail = "启动后保持 Shell 打开。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-NoLogo"
+description = "隐藏启动徽标"
+detail = "隐藏启动徽标。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-NonInteractive"
+description = "禁用交互式提示"
+detail = "禁用交互式提示。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-NoProfile"
+description = "跳过加载 PowerShell 配置文件"
+detail = "跳过加载 PowerShell 配置文件。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-OutputFormat"
+description = "选择输出格式"
+detail = "选择输出格式。"
+value_kind = "text"
+values = [{ name = "Text", description = "写入文本输出" }, { name = "XML", description = "写入 XML 输出" }]
+
+[[option_sets.options]]
+name = "-Sta"
+description = "使用单线程单元状态"
+detail = "使用单线程单元状态。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Version"
+description = "选择 PowerShell 版本"
+detail = "选择 PowerShell 版本。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-WindowStyle"
+description = "选择窗口样式"
+detail = "选择窗口样式。"
+value_kind = "text"
+values = [{ name = "Hidden", description = "以隐藏窗口启动" }, { name = "Minimized", description = "以最小化窗口启动" }, { name = "Maximized", description = "以最大化窗口启动" }, { name = "Normal", description = "以普通窗口启动" }]
+
+[[option_sets.options]]
+name = "-WorkingDirectory"
+description = "设置初始工作目录"
+detail = "设置初始工作目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示 PowerShell 帮助"
+detail = "显示 PowerShell 帮助。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 PowerShell 版本"
+detail = "显示 PowerShell 版本。"
+value_kind = "none"
+
+[[option_sets]]
+id = "SET_LOCATION_OPTIONS"
+[[option_sets.options]]
+name = "-Path"
+description = "设置工作目录"
+detail = "设置工作目录。"
+value_kind = "directory"
+
+[[option_sets.options]]
+name = "-LiteralPath"
+description = "设置工作目录且不展开通配符"
+detail = "设置工作目录且不展开通配符。"
+value_kind = "directory"
+
+[[option_sets.options]]
+name = "-Force"
+description = "包含隐藏位置"
+detail = "包含隐藏位置。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-PassThru"
+description = "返回选定位置"
+detail = "返回选定位置。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-StackName"
+description = "使用位置堆栈"
+detail = "使用位置堆栈。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-UseTransaction"
+description = "使用当前事务"
+detail = "使用当前事务。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Verbose"
+description = "显示详细输出"
+detail = "显示详细输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-ErrorAction"
+description = "选择错误处理方式"
+detail = "选择错误处理方式。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-ErrorVariable"
+description = "将错误存入变量"
+detail = "将错误存入变量。"
+value_kind = "text"
+
+[[option_sets]]
+id = "GET_CHILD_ITEM_OPTIONS"
+[[option_sets.options]]
+name = "-Path"
+description = "选择路径"
+detail = "选择路径。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "-LiteralPath"
+description = "选择路径且不展开通配符"
+detail = "选择路径且不展开通配符。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "-Filter"
+description = "使用提供程序模式筛选项目"
+detail = "使用提供程序模式筛选项目。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-Include"
+description = "包含匹配项目"
+detail = "包含匹配项目。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-Exclude"
+description = "排除匹配项目"
+detail = "排除匹配项目。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-Recurse"
+description = "递归搜索子项目"
+detail = "递归搜索子项目。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Force"
+description = "包含隐藏和系统项目"
+detail = "包含隐藏和系统项目。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Name"
+description = "仅返回项目名称"
+detail = "仅返回项目名称。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Directory"
+description = "仅返回目录"
+detail = "仅返回目录。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-File"
+description = "仅返回文件"
+detail = "仅返回文件。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Depth"
+description = "限制递归深度"
+detail = "限制递归深度。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-Attributes"
+description = "按项目属性筛选"
+detail = "按项目属性筛选。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-FollowSymlink"
+description = "跟随符号链接"
+detail = "跟随符号链接。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-Hidden"
+description = "返回隐藏项目"
+detail = "返回隐藏项目。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-ReadOnly"
+description = "返回只读项目"
+detail = "返回只读项目。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-System"
+description = "返回系统项目"
+detail = "返回系统项目。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-ErrorAction"
+description = "选择错误处理方式"
+detail = "选择错误处理方式。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-ErrorVariable"
+description = "将错误存入变量"
+detail = "将错误存入变量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-Verbose"
+description = "显示详细输出"
+detail = "显示详细输出。"
+value_kind = "none"
+
+[[nodes]]
+path = "Get-ChildItem"
+name = "Get-ChildItem"
+description = "列出文件、目录和其他子项"
+detail = "列出文件、目录和其他子项。"
+positional = "path"
+children = []
+option_sets = ["GET_CHILD_ITEM_OPTIONS"]
+examples = ["Get-ChildItem ."]
+
+[[nodes]]
+path = "pwsh"
+name = "pwsh"
+description = "运行 PowerShell 命令和脚本"
+detail = "运行 PowerShell 命令和脚本。"
+positional = "value"
+children = []
+option_sets = ["PWSH_OPTIONS"]
+examples = ["pwsh -NoLogo"]
+
+[[nodes]]
+path = "Set-Location"
+name = "Set-Location"
+description = "切换当前目录或位置"
+detail = "切换当前目录或位置。"
+positional = "directory"
+children = []
+option_sets = ["SET_LOCATION_OPTIONS"]
+examples = ["Set-Location ."]
+# 动态 provider 仅为固定标识，运行时由 Rust 数据源实现；规格文件禁止脚本执行。
+
+[[option_sets]]
+id = "LEARNABLE_codex"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[option_sets.options]]
+name = "--version"
+description = "显示版本"
+detail = "显示版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--model"
+description = "选择使用的模型"
+detail = "选择使用的模型。"
+value_kind = "text"
+value_name = "<MODEL>"
+names = ["-m"]
+
+[[option_sets.options]]
+name = "--cd"
+description = "指定工作目录"
+detail = "指定工作目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+names = ["-C"]
+
+[[option_sets.options]]
+name = "--image"
+description = "附加图片"
+detail = "附加图片。"
+value_kind = "path"
+value_name = "<FILE>"
+names = ["-i"]
+
+[[option_sets.options]]
+name = "--config"
+description = "覆盖配置项"
+detail = "覆盖配置项。"
+value_kind = "text"
+value_name = "<key=value>"
+names = ["-c"]
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择配置档案"
+detail = "选择配置档案。"
+value_kind = "text"
+value_name = "<PROFILE>"
+names = ["-p"]
+
+[[option_sets.options]]
+name = "--sandbox"
+description = "选择命令执行的沙箱策略"
+detail = "选择命令执行的沙箱策略。"
+value_kind = "text"
+value_name = "<MODE>"
+names = ["-s"]
+values = [{ name = "read-only", description = "选择 read-only" }, { name = "workspace-write", description = "选择 workspace-write" }, { name = "danger-full-access", description = "选择 danger-full-access" }]
+
+[[option_sets.options]]
+name = "--ask-for-approval"
+description = "选择执行命令前的确认策略"
+detail = "选择执行命令前的确认策略。"
+value_kind = "text"
+value_name = "<POLICY>"
+names = ["-a"]
+values = [{ name = "untrusted", description = "选择 untrusted" }, { name = "on-request", description = "选择 on-request" }, { name = "never", description = "选择 never" }]
+
+[[option_sets.options]]
+name = "--add-dir"
+description = "增加可写目录"
+detail = "增加可写目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "--search"
+description = "启用网络搜索"
+detail = "启用网络搜索。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--no-alt-screen"
+description = "在当前屏幕内运行"
+detail = "在当前屏幕内运行。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--oss"
+description = "使用本地开源模型提供方"
+detail = "使用本地开源模型提供方。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "codex"
+description = "使用 AI 编程助手开发与审查代码"
+detail = "使用 AI 编程助手开发与审查代码。"
+positional = "none"
+option_sets = ["LEARNABLE_codex"]
+children = ["codex exec", "codex review", "codex resume", "codex fork", "codex mcp", "codex completion", "codex login", "codex logout", "codex features"]
+examples = ["codex review --uncommitted"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_exec"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[option_sets.options]]
+name = "--version"
+description = "显示版本"
+detail = "显示版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--model"
+description = "选择使用的模型"
+detail = "选择使用的模型。"
+value_kind = "text"
+value_name = "<MODEL>"
+names = ["-m"]
+
+[[option_sets.options]]
+name = "--cd"
+description = "指定工作目录"
+detail = "指定工作目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+names = ["-C"]
+
+[[option_sets.options]]
+name = "--image"
+description = "附加图片"
+detail = "附加图片。"
+value_kind = "path"
+value_name = "<FILE>"
+names = ["-i"]
+
+[[option_sets.options]]
+name = "--config"
+description = "覆盖配置项"
+detail = "覆盖配置项。"
+value_kind = "text"
+value_name = "<key=value>"
+names = ["-c"]
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择配置档案"
+detail = "选择配置档案。"
+value_kind = "text"
+value_name = "<PROFILE>"
+names = ["-p"]
+
+[[option_sets.options]]
+name = "--sandbox"
+description = "选择命令执行的沙箱策略"
+detail = "选择命令执行的沙箱策略。"
+value_kind = "text"
+value_name = "<MODE>"
+names = ["-s"]
+values = [{ name = "read-only", description = "选择 read-only" }, { name = "workspace-write", description = "选择 workspace-write" }, { name = "danger-full-access", description = "选择 danger-full-access" }]
+
+[[option_sets.options]]
+name = "--ask-for-approval"
+description = "选择执行命令前的确认策略"
+detail = "选择执行命令前的确认策略。"
+value_kind = "text"
+value_name = "<POLICY>"
+names = ["-a"]
+values = [{ name = "untrusted", description = "选择 untrusted" }, { name = "on-request", description = "选择 on-request" }, { name = "never", description = "选择 never" }]
+
+[[option_sets.options]]
+name = "--add-dir"
+description = "增加可写目录"
+detail = "增加可写目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "--search"
+description = "启用网络搜索"
+detail = "启用网络搜索。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--no-alt-screen"
+description = "在当前屏幕内运行"
+detail = "在当前屏幕内运行。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--oss"
+description = "使用本地开源模型提供方"
+detail = "使用本地开源模型提供方。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--json"
+description = "按 JSON 事件输出"
+detail = "按 JSON 事件输出。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--output-last-message"
+description = "将最后一条消息写入文件"
+detail = "将最后一条消息写入文件。"
+value_kind = "path"
+value_name = "<FILE>"
+
+[[option_sets.options]]
+name = "--skip-git-repo-check"
+description = "允许在 Git 仓库外运行"
+detail = "允许在 Git 仓库外运行。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "codex exec"
+description = "非交互运行编程任务"
+detail = "非交互运行编程任务。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_exec"]
+examples = ["codex exec --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_review"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[option_sets.options]]
+name = "--uncommitted"
+description = "审查尚未提交的更改"
+detail = "审查尚未提交的更改。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--base"
+description = "相对于指定分支审查"
+detail = "相对于指定分支审查。"
+value_kind = "text"
+value_name = "<BRANCH>"
+
+[[option_sets.options]]
+name = "--commit"
+description = "审查指定提交"
+detail = "审查指定提交。"
+value_kind = "text"
+value_name = "<SHA>"
+
+[[nodes]]
+path = "codex review"
+description = "审查代码更改"
+detail = "审查代码更改。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_review"]
+examples = ["codex review --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_resume"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[option_sets.options]]
+name = "--version"
+description = "显示版本"
+detail = "显示版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--model"
+description = "选择使用的模型"
+detail = "选择使用的模型。"
+value_kind = "text"
+value_name = "<MODEL>"
+names = ["-m"]
+
+[[option_sets.options]]
+name = "--cd"
+description = "指定工作目录"
+detail = "指定工作目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+names = ["-C"]
+
+[[option_sets.options]]
+name = "--image"
+description = "附加图片"
+detail = "附加图片。"
+value_kind = "path"
+value_name = "<FILE>"
+names = ["-i"]
+
+[[option_sets.options]]
+name = "--config"
+description = "覆盖配置项"
+detail = "覆盖配置项。"
+value_kind = "text"
+value_name = "<key=value>"
+names = ["-c"]
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择配置档案"
+detail = "选择配置档案。"
+value_kind = "text"
+value_name = "<PROFILE>"
+names = ["-p"]
+
+[[option_sets.options]]
+name = "--sandbox"
+description = "选择命令执行的沙箱策略"
+detail = "选择命令执行的沙箱策略。"
+value_kind = "text"
+value_name = "<MODE>"
+names = ["-s"]
+values = [{ name = "read-only", description = "选择 read-only" }, { name = "workspace-write", description = "选择 workspace-write" }, { name = "danger-full-access", description = "选择 danger-full-access" }]
+
+[[option_sets.options]]
+name = "--ask-for-approval"
+description = "选择执行命令前的确认策略"
+detail = "选择执行命令前的确认策略。"
+value_kind = "text"
+value_name = "<POLICY>"
+names = ["-a"]
+values = [{ name = "untrusted", description = "选择 untrusted" }, { name = "on-request", description = "选择 on-request" }, { name = "never", description = "选择 never" }]
+
+[[option_sets.options]]
+name = "--add-dir"
+description = "增加可写目录"
+detail = "增加可写目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "--search"
+description = "启用网络搜索"
+detail = "启用网络搜索。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--no-alt-screen"
+description = "在当前屏幕内运行"
+detail = "在当前屏幕内运行。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--oss"
+description = "使用本地开源模型提供方"
+detail = "使用本地开源模型提供方。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--last"
+description = "继续最近一次会话"
+detail = "继续最近一次会话。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--all"
+description = "显示所有工作目录的会话"
+detail = "显示所有工作目录的会话。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "codex resume"
+description = "继续已有会话"
+detail = "继续已有会话。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_resume"]
+examples = ["codex resume --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_fork"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[option_sets.options]]
+name = "--version"
+description = "显示版本"
+detail = "显示版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--model"
+description = "选择使用的模型"
+detail = "选择使用的模型。"
+value_kind = "text"
+value_name = "<MODEL>"
+names = ["-m"]
+
+[[option_sets.options]]
+name = "--cd"
+description = "指定工作目录"
+detail = "指定工作目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+names = ["-C"]
+
+[[option_sets.options]]
+name = "--image"
+description = "附加图片"
+detail = "附加图片。"
+value_kind = "path"
+value_name = "<FILE>"
+names = ["-i"]
+
+[[option_sets.options]]
+name = "--config"
+description = "覆盖配置项"
+detail = "覆盖配置项。"
+value_kind = "text"
+value_name = "<key=value>"
+names = ["-c"]
+
+[[option_sets.options]]
+name = "--profile"
+description = "选择配置档案"
+detail = "选择配置档案。"
+value_kind = "text"
+value_name = "<PROFILE>"
+names = ["-p"]
+
+[[option_sets.options]]
+name = "--sandbox"
+description = "选择命令执行的沙箱策略"
+detail = "选择命令执行的沙箱策略。"
+value_kind = "text"
+value_name = "<MODE>"
+names = ["-s"]
+values = [{ name = "read-only", description = "选择 read-only" }, { name = "workspace-write", description = "选择 workspace-write" }, { name = "danger-full-access", description = "选择 danger-full-access" }]
+
+[[option_sets.options]]
+name = "--ask-for-approval"
+description = "选择执行命令前的确认策略"
+detail = "选择执行命令前的确认策略。"
+value_kind = "text"
+value_name = "<POLICY>"
+names = ["-a"]
+values = [{ name = "untrusted", description = "选择 untrusted" }, { name = "on-request", description = "选择 on-request" }, { name = "never", description = "选择 never" }]
+
+[[option_sets.options]]
+name = "--add-dir"
+description = "增加可写目录"
+detail = "增加可写目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "--search"
+description = "启用网络搜索"
+detail = "启用网络搜索。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--no-alt-screen"
+description = "在当前屏幕内运行"
+detail = "在当前屏幕内运行。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--oss"
+description = "使用本地开源模型提供方"
+detail = "使用本地开源模型提供方。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--last"
+description = "从最近会话创建分支"
+detail = "从最近会话创建分支。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "codex fork"
+description = "从已有会话创建分支"
+detail = "从已有会话创建分支。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_fork"]
+examples = ["codex fork --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_mcp"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[nodes]]
+path = "codex mcp"
+description = "管理 MCP 服务器"
+detail = "管理 MCP 服务器。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_mcp"]
+examples = ["codex mcp --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_completion"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[nodes]]
+path = "codex completion"
+description = "生成 Shell 补全脚本"
+detail = "生成 Shell 补全脚本。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_completion"]
+examples = ["codex completion --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_login"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[nodes]]
+path = "codex login"
+description = "登录账户"
+detail = "登录账户。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_login"]
+examples = ["codex login --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_logout"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[nodes]]
+path = "codex logout"
+description = "退出登录"
+detail = "退出登录。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_logout"]
+examples = ["codex logout --help"]
+
+[[option_sets]]
+id = "LEARNABLE_codex_features"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+names = ["-h"]
+
+[[nodes]]
+path = "codex features"
+description = "查看功能开关"
+detail = "查看功能开关。"
+positional = "none"
+option_sets = ["LEARNABLE_codex_features"]
+examples = ["codex features --help"]
+
+[[option_sets]]
+id = "LEARNABLE_python"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示解释器帮助"
+detail = "显示解释器帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 Python 版本"
+detail = "显示 Python 版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "-m"
+description = "按模块名称运行"
+detail = "按模块名称运行。"
+value_kind = "text"
+value_name = "<MODULE>"
+
+[[option_sets.options]]
+name = "-c"
+description = "执行一段 Python 代码"
+detail = "执行一段 Python 代码。"
+value_kind = "text"
+value_name = "<CODE>"
+
+[[option_sets.options]]
+name = "-i"
+description = "执行后进入交互模式"
+detail = "执行后进入交互模式。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "-I"
+description = "使用隔离模式"
+detail = "使用隔离模式。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "-S"
+description = "不自动导入 site 模块"
+detail = "不自动导入 site 模块。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "-u"
+description = "禁用标准输出缓冲"
+detail = "禁用标准输出缓冲。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 uv 版本"
+detail = "显示 uv 版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--directory"
+description = "指定工作目录"
+detail = "指定工作目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "--project"
+description = "指定项目目录"
+detail = "指定项目目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "--offline"
+description = "禁用网络访问"
+detail = "禁用网络访问。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_run"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--python"
+description = "选择 Python 解释器"
+detail = "选择 Python 解释器。"
+value_kind = "text"
+value_name = "<PYTHON>"
+
+[[option_sets.options]]
+name = "--no-sync"
+description = "不自动同步环境"
+detail = "不自动同步环境。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_sync"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--frozen"
+description = "使用锁文件且不更新"
+detail = "使用锁文件且不更新。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--all-extras"
+description = "安装所有可选依赖"
+detail = "安装所有可选依赖。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_add"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--dev"
+description = "添加为开发依赖"
+detail = "添加为开发依赖。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--group"
+description = "添加到依赖组"
+detail = "添加到依赖组。"
+value_kind = "text"
+value_name = "<GROUP>"
+
+[[option_sets]]
+id = "LEARNABLE_uv_remove"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_init"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_venv"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--python"
+description = "选择 Python 解释器"
+detail = "选择 Python 解释器。"
+value_kind = "text"
+value_name = "<PYTHON>"
+
+[[option_sets]]
+id = "LEARNABLE_uv_pip"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_python"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_tool"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_uv_lock"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_rustc"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示编译器帮助"
+detail = "显示编译器帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 Rust 编译器版本"
+detail = "显示 Rust 编译器版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--edition"
+description = "选择 Rust 语言版本"
+detail = "选择 Rust 语言版本。"
+value_kind = "text"
+value_name = "<EDITION>"
+values = [{ name = "2015", description = "选择 2015" }, { name = "2018", description = "选择 2018" }, { name = "2021", description = "选择 2021" }, { name = "2024", description = "选择 2024" }]
+
+[[option_sets.options]]
+name = "--crate-type"
+description = "指定编译产物类型"
+detail = "指定编译产物类型。"
+value_kind = "text"
+value_name = "<TYPE>"
+values = [{ name = "bin", description = "选择 bin" }, { name = "lib", description = "选择 lib" }, { name = "rlib", description = "选择 rlib" }, { name = "dylib", description = "选择 dylib" }, { name = "cdylib", description = "选择 cdylib" }, { name = "staticlib", description = "选择 staticlib" }, { name = "proc-macro", description = "选择 proc-macro" }]
+
+[[option_sets.options]]
+name = "--target"
+description = "指定编译目标"
+detail = "指定编译目标。"
+value_kind = "text"
+value_name = "<TRIPLE>"
+
+[[option_sets.options]]
+name = "--out-dir"
+description = "指定输出目录"
+detail = "指定输出目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "-o"
+description = "指定输出文件"
+detail = "指定输出文件。"
+value_kind = "path"
+value_name = "<FILE>"
+
+[[option_sets.options]]
+name = "-L"
+description = "添加库搜索路径"
+detail = "添加库搜索路径。"
+value_kind = "directory"
+value_name = "<PATH>"
+
+[[option_sets.options]]
+name = "-C"
+description = "设置代码生成选项"
+detail = "设置代码生成选项。"
+value_kind = "text"
+value_name = "<OPTION>"
+
+[[option_sets.options]]
+name = "--cfg"
+description = "设置条件编译项"
+detail = "设置条件编译项。"
+value_kind = "text"
+value_name = "<SPEC>"
+
+[[option_sets.options]]
+name = "--test"
+description = "构建测试程序"
+detail = "构建测试程序。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_winget"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 winget 版本"
+detail = "显示 winget 版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--info"
+description = "显示诊断信息"
+detail = "显示诊断信息。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget"
+description = "查找、安装与更新 Windows 软件"
+detail = "查找、安装与更新 Windows 软件。"
+positional = "none"
+option_sets = ["LEARNABLE_winget"]
+children = ["winget search", "winget show", "winget install", "winget upgrade", "winget uninstall", "winget list", "winget source", "winget export", "winget import"]
+examples = ["winget search Python"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_search"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--id"
+description = "按软件标识搜索"
+detail = "按软件标识搜索。"
+value_kind = "text"
+value_name = "<ID>"
+
+[[option_sets.options]]
+name = "--name"
+description = "按软件名称搜索"
+detail = "按软件名称搜索。"
+value_kind = "text"
+value_name = "<NAME>"
+
+[[nodes]]
+path = "winget search"
+description = "搜索软件包"
+detail = "搜索软件包。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_search"]
+examples = ["winget search --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_show"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget show"
+description = "查看软件包信息"
+detail = "查看软件包信息。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_show"]
+examples = ["winget show --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_install"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--id"
+description = "按软件标识匹配"
+detail = "按软件标识匹配。"
+value_kind = "text"
+value_name = "<ID>"
+
+[[option_sets.options]]
+name = "--exact"
+description = "精确匹配软件包"
+detail = "精确匹配软件包。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--version"
+description = "选择软件包版本"
+detail = "选择软件包版本。"
+value_kind = "text"
+value_name = "<VERSION>"
+
+[[nodes]]
+path = "winget install"
+description = "安装软件包"
+detail = "安装软件包。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_install"]
+examples = ["winget install --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_upgrade"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget upgrade"
+description = "更新已安装的软件"
+detail = "更新已安装的软件。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_upgrade"]
+examples = ["winget upgrade --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_uninstall"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget uninstall"
+description = "卸载软件"
+detail = "卸载软件。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_uninstall"]
+examples = ["winget uninstall --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_list"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget list"
+description = "列出已安装的软件"
+detail = "列出已安装的软件。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_list"]
+examples = ["winget list --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_source"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget source"
+description = "管理软件源"
+detail = "管理软件源。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_source"]
+examples = ["winget source --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_export"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget export"
+description = "导出已安装的软件列表"
+detail = "导出已安装的软件列表。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_export"]
+examples = ["winget export --help"]
+
+[[option_sets]]
+id = "LEARNABLE_winget_import"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[nodes]]
+path = "winget import"
+description = "按软件列表安装软件"
+detail = "按软件列表安装软件。"
+positional = "none"
+option_sets = ["LEARNABLE_winget_import"]
+examples = ["winget import --help"]
+
+[[option_sets]]
+id = "LEARNABLE_dotnet"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 SDK 版本"
+detail = "显示 SDK 版本。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--info"
+description = "显示 .NET 环境信息"
+detail = "显示 .NET 环境信息。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--list-sdks"
+description = "列出已安装的 SDK"
+detail = "列出已安装的 SDK。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--list-runtimes"
+description = "列出已安装的运行时"
+detail = "列出已安装的运行时。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_new"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_build"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--configuration"
+description = "选择构建配置"
+detail = "选择构建配置。"
+value_kind = "text"
+value_name = "<CONFIGURATION>"
+values = [{ name = "Debug", description = "选择 Debug" }, { name = "Release", description = "选择 Release" }]
+
+[[option_sets.options]]
+name = "--framework"
+description = "选择目标框架"
+detail = "选择目标框架。"
+value_kind = "text"
+value_name = "<FRAMEWORK>"
+
+[[option_sets.options]]
+name = "--no-restore"
+description = "跳过依赖还原"
+detail = "跳过依赖还原。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--output"
+description = "指定输出目录"
+detail = "指定输出目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_run"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--project"
+description = "指定运行的项目"
+detail = "指定运行的项目。"
+value_kind = "path"
+value_name = "<PROJECT>"
+
+[[option_sets.options]]
+name = "--configuration"
+description = "选择构建配置"
+detail = "选择构建配置。"
+value_kind = "text"
+value_name = "<CONFIGURATION>"
+values = [{ name = "Debug", description = "选择 Debug" }, { name = "Release", description = "选择 Release" }]
+
+[[option_sets.options]]
+name = "--no-build"
+description = "跳过构建"
+detail = "跳过构建。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_test"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--filter"
+description = "筛选要运行的测试"
+detail = "筛选要运行的测试。"
+value_kind = "text"
+value_name = "<EXPRESSION>"
+
+[[option_sets.options]]
+name = "--no-build"
+description = "跳过构建"
+detail = "跳过构建。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_publish"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets.options]]
+name = "--output"
+description = "指定发布目录"
+detail = "指定发布目录。"
+value_kind = "directory"
+value_name = "<DIR>"
+
+[[option_sets.options]]
+name = "--configuration"
+description = "选择发布配置"
+detail = "选择发布配置。"
+value_kind = "text"
+value_name = "<CONFIGURATION>"
+values = [{ name = "Debug", description = "选择 Debug" }, { name = "Release", description = "选择 Release" }]
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_restore"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_add"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_list"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_clean"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "LEARNABLE_dotnet_tool"
+
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+value_name = ""
+
+[[option_sets]]
+id = "BLUEBERRY_COMMON_HELP"
+[[option_sets.options]]
+names = ["-h"]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示当前命令的帮助和参数。"
+value_kind = "none"
+[[option_sets.options]]
+name = "--version"
+description = "显示工具版本"
+detail = "显示当前工具的版本信息。"
+value_kind = "none"
+

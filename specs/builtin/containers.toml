@@ -1,0 +1,2658 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[option_sets]]
+id = "DOCKER_GLOBAL_OPTIONS"
+[[option_sets.options]]
+name = "--help"
+description = "显示 Docker 帮助"
+detail = "显示 Docker 帮助。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--version"
+description = "显示 Docker 版本"
+detail = "显示 Docker 版本。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--config"
+description = "使用客户端配置目录"
+detail = "使用客户端配置目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--context"
+description = "使用 Docker 上下文"
+detail = "使用 Docker 上下文。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-D"
+description = "启用调试模式"
+detail = "启用调试模式。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--debug"
+description = "启用调试模式"
+detail = "启用调试模式。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-H"
+description = "连接 Docker 守护进程"
+detail = "连接 Docker 守护进程。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--host"
+description = "连接 Docker 守护进程"
+detail = "连接 Docker 守护进程。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--log-level"
+description = "选择日志详细级别"
+detail = "选择日志详细级别。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--tls"
+description = "使用 TLS"
+detail = "使用 TLS。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--tlscacert"
+description = "使用 TLS CA 证书"
+detail = "使用 TLS CA 证书。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--tlscert"
+description = "使用 TLS 客户端证书"
+detail = "使用 TLS 客户端证书。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--tlskey"
+description = "使用 TLS 客户端密钥"
+detail = "使用 TLS 客户端密钥。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--tlsverify"
+description = "验证 TLS 守护进程"
+detail = "验证 TLS 守护进程。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_BUILD_OPTIONS"
+[[option_sets.options]]
+name = "-f"
+description = "使用 Dockerfile"
+detail = "使用 Dockerfile。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--file"
+description = "使用 Dockerfile"
+detail = "使用 Dockerfile。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "-t"
+description = "为构建的镜像添加标签"
+detail = "为构建的镜像添加标签。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--tag"
+description = "为构建的镜像添加标签"
+detail = "为构建的镜像添加标签。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--build-arg"
+description = "设置构建时变量"
+detail = "设置构建时变量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--label"
+description = "设置镜像标签"
+detail = "设置镜像标签。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--no-cache"
+description = "不使用构建缓存"
+detail = "不使用构建缓存。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--pull"
+description = "选择基础镜像拉取策略"
+detail = "选择基础镜像拉取策略。"
+value_kind = "text"
+values = [{ name = "always", description = "始终拉取镜像" }, { name = "missing", description = "仅在镜像缺失时拉取" }, { name = "never", description = "从不拉取镜像" }]
+
+[[option_sets.options]]
+name = "-q"
+description = "隐藏构建输出"
+detail = "隐藏构建输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "隐藏构建输出"
+detail = "隐藏构建输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--rm"
+description = "移除中间容器"
+detail = "移除中间容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--force-rm"
+description = "始终移除中间容器"
+detail = "始终移除中间容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--memory"
+description = "设置构建内存上限"
+detail = "设置构建内存上限。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--shm-size"
+description = "设置共享内存大小"
+detail = "设置共享内存大小。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--network"
+description = "选择构建网络"
+detail = "选择构建网络。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--platform"
+description = "选择目标平台"
+detail = "选择目标平台。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--progress"
+description = "选择构建进度输出"
+detail = "选择构建进度输出。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--secret"
+description = "暴露构建密钥"
+detail = "暴露构建密钥。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--ssh"
+description = "暴露 SSH 代理"
+detail = "暴露 SSH 代理。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--target"
+description = "选择构建阶段"
+detail = "选择构建阶段。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--cache-from"
+description = "使用外部构建缓存"
+detail = "使用外部构建缓存。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--cache-to"
+description = "导出构建缓存"
+detail = "导出构建缓存。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--build-context"
+description = "添加命名构建上下文"
+detail = "添加命名构建上下文。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-o"
+description = "导出构建输出"
+detail = "导出构建输出。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--output"
+description = "导出构建输出"
+detail = "导出构建输出。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--provenance"
+description = "设置来源证明模式"
+detail = "设置来源证明模式。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--sbom"
+description = "设置 SBOM 证明模式"
+detail = "设置 SBOM 证明模式。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--metadata-file"
+description = "将构建元数据写入文件"
+detail = "将构建元数据写入文件。"
+value_kind = "path"
+
+[[option_sets]]
+id = "DOCKER_RUN_OPTIONS"
+[[option_sets.options]]
+name = "-d"
+description = "以分离模式运行"
+detail = "以分离模式运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--detach"
+description = "以分离模式运行"
+detail = "以分离模式运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-i"
+description = "保持标准输入打开"
+detail = "保持标准输入打开。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--interactive"
+description = "保持标准输入打开"
+detail = "保持标准输入打开。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-t"
+description = "分配伪终端"
+detail = "分配伪终端。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--tty"
+description = "分配伪终端"
+detail = "分配伪终端。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--rm"
+description = "退出后移除容器"
+detail = "退出后移除容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--name"
+description = "指定容器名称"
+detail = "指定容器名称。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-h"
+description = "设置容器主机名"
+detail = "设置容器主机名。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--hostname"
+description = "设置容器主机名"
+detail = "设置容器主机名。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-e"
+description = "设置环境变量"
+detail = "设置环境变量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--env"
+description = "设置环境变量"
+detail = "设置环境变量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--env-file"
+description = "从文件读取环境变量"
+detail = "从文件读取环境变量。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "-p"
+description = "发布容器端口"
+detail = "发布容器端口。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-P"
+description = "发布所有已暴露端口"
+detail = "发布所有已暴露端口。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--publish-all"
+description = "发布所有已暴露端口"
+detail = "发布所有已暴露端口。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-v"
+description = "绑定挂载卷"
+detail = "绑定挂载卷。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--volume"
+description = "绑定挂载卷"
+detail = "绑定挂载卷。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--mount"
+description = "附加文件系统挂载"
+detail = "附加文件系统挂载。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-w"
+description = "设置工作目录"
+detail = "设置工作目录。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--workdir"
+description = "设置工作目录"
+detail = "设置工作目录。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-u"
+description = "设置用户或 UID"
+detail = "设置用户或 UID。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--user"
+description = "设置用户或 UID"
+detail = "设置用户或 UID。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--network"
+description = "连接到网络"
+detail = "连接到网络。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--network-alias"
+description = "添加网络别名"
+detail = "添加网络别名。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--restart"
+description = "选择重启策略"
+detail = "选择重启策略。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--entrypoint"
+description = "覆盖镜像入口点"
+detail = "覆盖镜像入口点。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-l"
+description = "设置容器标签"
+detail = "设置容器标签。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--label"
+description = "设置容器标签"
+detail = "设置容器标签。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--add-host"
+description = "添加主机到 IP 的映射"
+detail = "添加主机到 IP 的映射。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--cap-add"
+description = "添加 Linux 能力"
+detail = "添加 Linux 能力。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--cap-drop"
+description = "丢弃 Linux 能力"
+detail = "丢弃 Linux 能力。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--device"
+description = "添加主机设备"
+detail = "添加主机设备。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--group-add"
+description = "添加附加组"
+detail = "添加附加组。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--init"
+description = "使用 init 进程"
+detail = "使用 init 进程。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--ip"
+description = "设置 IPv4 地址"
+detail = "设置 IPv4 地址。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--ip6"
+description = "设置 IPv6 地址"
+detail = "设置 IPv6 地址。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--mac-address"
+description = "设置 MAC 地址"
+detail = "设置 MAC 地址。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-m"
+description = "设置内存上限"
+detail = "设置内存上限。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--memory"
+description = "设置内存上限"
+detail = "设置内存上限。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--cpus"
+description = "设置 CPU 配额"
+detail = "设置 CPU 配额。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--cpu-shares"
+description = "设置 CPU 份额权重"
+detail = "设置 CPU 份额权重。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--cpuset-cpus"
+description = "设置使用的 CPU 数量"
+detail = "设置使用的 CPU 数量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--pids-limit"
+description = "限制进程数量"
+detail = "限制进程数量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--privileged"
+description = "授予扩展权限"
+detail = "授予扩展权限。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--read-only"
+description = "以只读方式挂载根文件系统"
+detail = "以只读方式挂载根文件系统。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--security-opt"
+description = "设置安全选项"
+detail = "设置安全选项。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--shm-size"
+description = "设置共享内存大小"
+detail = "设置共享内存大小。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--sysctl"
+description = "设置内核参数"
+detail = "设置内核参数。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--ulimit"
+description = "设置 ulimit"
+detail = "设置 ulimit。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--runtime"
+description = "选择容器运行时"
+detail = "选择容器运行时。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--platform"
+description = "选择目标平台"
+detail = "选择目标平台。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--pull"
+description = "选择镜像拉取策略"
+detail = "选择镜像拉取策略。"
+value_kind = "text"
+values = [{ name = "always", description = "始终拉取镜像" }, { name = "missing", description = "仅在镜像缺失时拉取" }, { name = "never", description = "从不拉取镜像" }]
+
+[[option_sets.options]]
+name = "-q"
+description = "隐藏拉取输出"
+detail = "隐藏拉取输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "隐藏拉取输出"
+detail = "隐藏拉取输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--sig-proxy"
+description = "将信号转发给进程"
+detail = "将信号转发给进程。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--stop-signal"
+description = "设置停止信号"
+detail = "设置停止信号。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--stop-timeout"
+description = "设置停止超时"
+detail = "设置停止超时。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--tmpfs"
+description = "挂载临时文件系统"
+detail = "挂载临时文件系统。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--userns"
+description = "选择用户命名空间"
+detail = "选择用户命名空间。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--uts"
+description = "选择 UTS 命名空间"
+detail = "选择 UTS 命名空间。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--pid"
+description = "选择 PID 命名空间"
+detail = "选择 PID 命名空间。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--ipc"
+description = "选择 IPC 命名空间"
+detail = "选择 IPC 命名空间。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--health-cmd"
+description = "设置健康检查命令"
+detail = "设置健康检查命令。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--health-interval"
+description = "设置健康检查间隔"
+detail = "设置健康检查间隔。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--health-timeout"
+description = "设置健康检查超时"
+detail = "设置健康检查超时。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--health-retries"
+description = "设置健康检查重试次数"
+detail = "设置健康检查重试次数。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--health-start-period"
+description = "设置健康检查启动等待时间"
+detail = "设置健康检查启动等待时间。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--no-healthcheck"
+description = "禁用镜像健康检查"
+detail = "禁用镜像健康检查。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_PS_OPTIONS"
+[[option_sets.options]]
+name = "-a"
+description = "显示所有容器"
+detail = "显示所有容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--all"
+description = "显示所有容器"
+detail = "显示所有容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-f"
+description = "筛选容器列表"
+detail = "筛选容器列表。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--filter"
+description = "筛选容器列表"
+detail = "筛选容器列表。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--format"
+description = "设置容器输出格式"
+detail = "设置容器输出格式。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-n"
+description = "显示最新的 n 个容器"
+detail = "显示最新的 n 个容器。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--last"
+description = "显示最新的 n 个容器"
+detail = "显示最新的 n 个容器。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-l"
+description = "显示最新容器"
+detail = "显示最新容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--latest"
+description = "显示最新容器"
+detail = "显示最新容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-trunc"
+description = "不截断输出"
+detail = "不截断输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-q"
+description = "仅显示 ID"
+detail = "仅显示 ID。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "仅显示 ID"
+detail = "仅显示 ID。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-s"
+description = "显示文件总大小"
+detail = "显示文件总大小。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--size"
+description = "显示文件总大小"
+detail = "显示文件总大小。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_EXEC_OPTIONS"
+[[option_sets.options]]
+name = "-d"
+description = "以分离模式运行"
+detail = "以分离模式运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--detach"
+description = "以分离模式运行"
+detail = "以分离模式运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--detach-keys"
+description = "设置分离键序列"
+detail = "设置分离键序列。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-e"
+description = "设置环境变量"
+detail = "设置环境变量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--env"
+description = "设置环境变量"
+detail = "设置环境变量。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--env-file"
+description = "从文件读取环境变量"
+detail = "从文件读取环境变量。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "-i"
+description = "保持标准输入打开"
+detail = "保持标准输入打开。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--interactive"
+description = "保持标准输入打开"
+detail = "保持标准输入打开。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--privileged"
+description = "授予扩展权限"
+detail = "授予扩展权限。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-t"
+description = "分配伪终端"
+detail = "分配伪终端。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--tty"
+description = "分配伪终端"
+detail = "分配伪终端。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-u"
+description = "设置用户或 UID"
+detail = "设置用户或 UID。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--user"
+description = "设置用户或 UID"
+detail = "设置用户或 UID。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-w"
+description = "设置工作目录"
+detail = "设置工作目录。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--workdir"
+description = "设置工作目录"
+detail = "设置工作目录。"
+value_kind = "text"
+
+[[option_sets]]
+id = "DOCKER_IMAGES_OPTIONS"
+[[option_sets.options]]
+name = "-a"
+description = "显示中间镜像"
+detail = "显示中间镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--all"
+description = "显示中间镜像"
+detail = "显示中间镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--digests"
+description = "显示镜像摘要"
+detail = "显示镜像摘要。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-f"
+description = "筛选镜像列表"
+detail = "筛选镜像列表。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--filter"
+description = "筛选镜像列表"
+detail = "筛选镜像列表。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--format"
+description = "设置镜像输出格式"
+detail = "设置镜像输出格式。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--no-trunc"
+description = "不截断输出"
+detail = "不截断输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-q"
+description = "仅显示 ID"
+detail = "仅显示 ID。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "仅显示 ID"
+detail = "仅显示 ID。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_PULL_OPTIONS"
+[[option_sets.options]]
+name = "-a"
+description = "下载所有带标签的镜像"
+detail = "下载所有带标签的镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--all-tags"
+description = "下载所有带标签的镜像"
+detail = "下载所有带标签的镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--platform"
+description = "选择目标平台"
+detail = "选择目标平台。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "-q"
+description = "隐藏拉取输出"
+detail = "隐藏拉取输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "隐藏拉取输出"
+detail = "隐藏拉取输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--disable-content-trust"
+description = "跳过镜像签名"
+detail = "跳过镜像签名。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_PUSH_OPTIONS"
+[[option_sets.options]]
+name = "-a"
+description = "推送所有带标签的镜像"
+detail = "推送所有带标签的镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--all-tags"
+description = "推送所有带标签的镜像"
+detail = "推送所有带标签的镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "-q"
+description = "隐藏推送输出"
+detail = "隐藏推送输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--quiet"
+description = "隐藏推送输出"
+detail = "隐藏推送输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--disable-content-trust"
+description = "跳过镜像签名"
+detail = "跳过镜像签名。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_COMMON_OPTIONS"
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示命令帮助。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_COMPOSE_OPTIONS"
+[[option_sets.options]]
+name = "-f"
+description = "使用 Compose 文件"
+detail = "使用 Compose 文件。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--file"
+description = "使用 Compose 文件"
+detail = "使用 Compose 文件。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "-p"
+description = "设置项目名称"
+detail = "设置项目名称。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--project-name"
+description = "设置项目名称"
+detail = "设置项目名称。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--project-directory"
+description = "设置项目目录"
+detail = "设置项目目录。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--env-file"
+description = "使用环境文件"
+detail = "使用环境文件。"
+value_kind = "path"
+
+[[option_sets.options]]
+name = "--profile"
+description = "启用 Compose profile"
+detail = "启用 Compose profile。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--verbose"
+description = "启用详细输出"
+detail = "启用详细输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--parallel"
+description = "并行构建"
+detail = "并行构建。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--progress"
+description = "选择进度输出"
+detail = "选择进度输出。"
+value_kind = "none"
+
+[[option_sets]]
+id = "DOCKER_COMPOSE_UP_OPTIONS"
+[[option_sets.options]]
+name = "-d"
+description = "以分离模式运行"
+detail = "以分离模式运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--detach"
+description = "以分离模式运行"
+detail = "以分离模式运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--build"
+description = "启动前构建镜像"
+detail = "启动前构建镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-build"
+description = "不构建镜像"
+detail = "不构建镜像。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--force-recreate"
+description = "重新创建容器"
+detail = "重新创建容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-recreate"
+description = "不重新创建现有容器"
+detail = "不重新创建现有容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--no-deps"
+description = "不启动关联服务"
+detail = "不启动关联服务。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--remove-orphans"
+description = "移除孤立容器"
+detail = "移除孤立容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--always-recreate-deps"
+description = "重新创建依赖容器"
+detail = "重新创建依赖容器。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--renew-anon-volumes"
+description = "重新创建匿名卷"
+detail = "重新创建匿名卷。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--wait"
+description = "等待服务运行"
+detail = "等待服务运行。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--wait-timeout"
+description = "设置等待超时"
+detail = "设置等待超时。"
+value_kind = "text"
+
+[[option_sets.options]]
+name = "--quiet-pull"
+description = "拉取时不显示进度输出"
+detail = "拉取时不显示进度输出。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--scale"
+description = "设置服务副本数"
+detail = "设置服务副本数。"
+value_kind = "text"
+
+[[nodes]]
+path = "docker"
+name = "docker"
+description = "构建镜像并管理容器"
+detail = "构建镜像并管理容器。"
+positional = "value"
+children = ["docker build", "docker builder", "docker buildx", "docker checkpoint", "docker commit", "docker compose", "docker config", "docker container", "docker context", "docker cp", "docker create", "docker diff", "docker events", "docker exec", "docker export", "docker history", "docker image", "docker images", "docker info", "docker init", "docker inspect", "docker kill", "docker load", "docker login", "docker logout", "docker logs", "docker manifest", "docker network", "docker node", "docker pause", "docker plugin", "docker port", "docker ps", "docker pull", "docker push", "docker rename", "docker restart", "docker rm", "docker rmi", "docker run", "docker save", "docker search", "docker secret", "docker service", "docker stack", "docker start", "docker stats", "docker stop", "docker swarm", "docker system", "docker tag", "docker top", "docker trust", "docker unpause", "docker update", "docker version", "docker volume", "docker wait"]
+option_sets = ["DOCKER_GLOBAL_OPTIONS"]
+examples = ["docker --help"]
+
+[[nodes]]
+path = "docker build"
+name = "build"
+description = "从 Dockerfile 构建镜像"
+detail = "从 Dockerfile 构建镜像。"
+positional = "path"
+children = []
+option_sets = ["DOCKER_BUILD_OPTIONS"]
+examples = ["docker build --help"]
+
+[[nodes]]
+path = "docker builder"
+name = "builder"
+description = "管理构建"
+detail = "管理构建。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker builder --help"]
+
+[[nodes]]
+path = "docker buildx"
+name = "buildx"
+description = "使用 BuildKit 构建"
+detail = "使用 BuildKit 构建。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker buildx --help"]
+
+[[nodes]]
+path = "docker checkpoint"
+name = "checkpoint"
+description = "管理检查点"
+detail = "管理检查点。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker checkpoint --help"]
+
+[[nodes]]
+path = "docker commit"
+name = "commit"
+description = "从容器创建镜像"
+detail = "从容器创建镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker commit --help"]
+
+[[nodes]]
+path = "docker compose"
+name = "compose"
+description = "定义并运行多容器应用"
+detail = "定义并运行多容器应用。"
+positional = "value"
+children = ["docker compose build", "docker compose config", "docker compose cp", "docker compose create", "docker compose down", "docker compose events", "docker compose exec", "docker compose images", "docker compose kill", "docker compose logs", "docker compose pause", "docker compose port", "docker compose ps", "docker compose pull", "docker compose push", "docker compose restart", "docker compose rm", "docker compose run", "docker compose start", "docker compose stop", "docker compose top", "docker compose unpause", "docker compose up", "docker compose version", "docker compose watch"]
+option_sets = ["DOCKER_COMPOSE_OPTIONS"]
+examples = ["docker compose --help"]
+
+[[nodes]]
+path = "docker compose build"
+name = "build"
+description = "构建或重新构建服务"
+detail = "构建或重新构建服务。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose build --help"]
+
+[[nodes]]
+path = "docker compose config"
+name = "config"
+description = "验证并查看 Compose 文件"
+detail = "验证并查看 Compose 文件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose config --help"]
+
+[[nodes]]
+path = "docker compose cp"
+name = "cp"
+description = "在服务与主机之间复制文件"
+detail = "在服务与主机之间复制文件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose cp --help"]
+
+[[nodes]]
+path = "docker compose create"
+name = "create"
+description = "创建服务"
+detail = "创建服务。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose create --help"]
+
+[[nodes]]
+path = "docker compose down"
+name = "down"
+description = "停止并移除资源"
+detail = "停止并移除资源。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose down --help"]
+
+[[nodes]]
+path = "docker compose events"
+name = "events"
+description = "接收服务实时事件"
+detail = "接收服务实时事件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose events --help"]
+
+[[nodes]]
+path = "docker compose exec"
+name = "exec"
+description = "在服务中运行命令"
+detail = "在服务中运行命令。"
+positional = "value"
+provider = "docker.services"
+children = []
+option_sets = []
+examples = ["docker compose exec --help"]
+
+[[nodes]]
+path = "docker compose images"
+name = "images"
+description = "列出服务使用的镜像"
+detail = "列出服务使用的镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose images --help"]
+
+[[nodes]]
+path = "docker compose kill"
+name = "kill"
+description = "强制停止服务"
+detail = "强制停止服务。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose kill --help"]
+
+[[nodes]]
+path = "docker compose logs"
+name = "logs"
+description = "查看服务输出"
+detail = "查看服务输出。"
+positional = "value"
+provider = "docker.services"
+keywords = ["查看服务日志", "Compose 日志"]
+children = []
+option_sets = []
+examples = ["docker compose logs --help"]
+
+[[nodes]]
+path = "docker compose pause"
+name = "pause"
+description = "暂停服务"
+detail = "暂停服务。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose pause --help"]
+
+[[nodes]]
+path = "docker compose port"
+name = "port"
+description = "输出公开端口绑定"
+detail = "输出公开端口绑定。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose port --help"]
+
+[[nodes]]
+path = "docker compose ps"
+name = "ps"
+description = "列出服务"
+detail = "列出服务。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose ps --help"]
+
+[[nodes]]
+path = "docker compose pull"
+name = "pull"
+description = "拉取服务镜像"
+detail = "拉取服务镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose pull --help"]
+
+[[nodes]]
+path = "docker compose push"
+name = "push"
+description = "推送服务镜像"
+detail = "推送服务镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose push --help"]
+
+[[nodes]]
+path = "docker compose restart"
+name = "restart"
+description = "重启服务"
+detail = "重启服务。"
+positional = "value"
+provider = "docker.services"
+children = []
+option_sets = []
+examples = ["docker compose restart --help"]
+
+[[nodes]]
+path = "docker compose rm"
+name = "rm"
+description = "移除已停止的服务容器"
+detail = "移除已停止的服务容器。"
+positional = "value"
+provider = "docker.services"
+children = []
+option_sets = []
+examples = ["docker compose rm --help"]
+
+[[nodes]]
+path = "docker compose run"
+name = "run"
+description = "运行一次性命令"
+detail = "运行一次性命令。"
+positional = "value"
+provider = "docker.services"
+children = []
+option_sets = []
+examples = ["docker compose run --help"]
+
+[[nodes]]
+path = "docker compose start"
+name = "start"
+description = "启动服务"
+detail = "启动服务。"
+positional = "value"
+provider = "docker.services"
+children = []
+option_sets = []
+examples = ["docker compose start --help"]
+
+[[nodes]]
+path = "docker compose stop"
+name = "stop"
+description = "停止服务"
+detail = "停止服务。"
+positional = "value"
+provider = "docker.services"
+children = []
+option_sets = []
+examples = ["docker compose stop --help"]
+
+[[nodes]]
+path = "docker compose top"
+name = "top"
+description = "显示服务进程"
+detail = "显示服务进程。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose top --help"]
+
+[[nodes]]
+path = "docker compose unpause"
+name = "unpause"
+description = "恢复服务运行"
+detail = "恢复服务运行。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose unpause --help"]
+
+[[nodes]]
+path = "docker compose up"
+name = "up"
+description = "创建并启动服务"
+detail = "创建并启动服务。"
+positional = "value"
+provider = "docker.services"
+children = []
+option_sets = ["DOCKER_COMPOSE_UP_OPTIONS"]
+examples = ["docker compose up --help"]
+
+[[nodes]]
+path = "docker compose version"
+name = "version"
+description = "显示 Compose 版本"
+detail = "显示 Compose 版本。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose version --help"]
+
+[[nodes]]
+path = "docker compose watch"
+name = "watch"
+description = "监视源文件并重新构建服务"
+detail = "监视源文件并重新构建服务。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker compose watch --help"]
+
+[[nodes]]
+path = "docker config"
+name = "config"
+description = "管理 Swarm 配置"
+detail = "管理 Swarm 配置。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker config --help"]
+
+[[nodes]]
+path = "docker container"
+name = "container"
+description = "管理容器"
+detail = "管理容器。"
+positional = "value"
+children = ["docker container attach", "docker container commit", "docker container cp", "docker container create", "docker container diff", "docker container exec", "docker container export", "docker container inspect", "docker container kill", "docker container logs", "docker container ls", "docker container pause", "docker container port", "docker container prune", "docker container rename", "docker container restart", "docker container rm", "docker container run", "docker container start", "docker container stats", "docker container stop", "docker container top", "docker container unpause", "docker container update", "docker container wait"]
+option_sets = ["DOCKER_COMMON_OPTIONS"]
+examples = ["docker container --help"]
+
+[[nodes]]
+path = "docker container attach"
+name = "attach"
+description = "将本地输入输出连接到容器"
+detail = "将本地输入输出连接到容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container attach --help"]
+
+[[nodes]]
+path = "docker container commit"
+name = "commit"
+description = "从容器创建镜像"
+detail = "从容器创建镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container commit --help"]
+
+[[nodes]]
+path = "docker container cp"
+name = "cp"
+description = "在容器与主机之间复制文件"
+detail = "在容器与主机之间复制文件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container cp --help"]
+
+[[nodes]]
+path = "docker container create"
+name = "create"
+description = "创建容器"
+detail = "创建容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container create --help"]
+
+[[nodes]]
+path = "docker container diff"
+name = "diff"
+description = "检查文件系统更改"
+detail = "检查文件系统更改。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container diff --help"]
+
+[[nodes]]
+path = "docker container exec"
+name = "exec"
+description = "在运行中的容器内执行命令"
+detail = "在运行中的容器内执行命令。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container exec --help"]
+
+[[nodes]]
+path = "docker container export"
+name = "export"
+description = "导出容器文件系统"
+detail = "导出容器文件系统。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container export --help"]
+
+[[nodes]]
+path = "docker container inspect"
+name = "inspect"
+description = "显示容器详情"
+detail = "显示容器详情。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container inspect --help"]
+
+[[nodes]]
+path = "docker container kill"
+name = "kill"
+description = "强制终止容器"
+detail = "强制终止容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container kill --help"]
+
+[[nodes]]
+path = "docker container logs"
+name = "logs"
+description = "获取容器日志"
+detail = "获取容器日志。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container logs --help"]
+
+[[nodes]]
+path = "docker container ls"
+name = "ls"
+description = "列出容器"
+detail = "列出容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container ls --help"]
+
+[[nodes]]
+path = "docker container pause"
+name = "pause"
+description = "暂停容器"
+detail = "暂停容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container pause --help"]
+
+[[nodes]]
+path = "docker container port"
+name = "port"
+description = "列出端口映射"
+detail = "列出端口映射。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container port --help"]
+
+[[nodes]]
+path = "docker container prune"
+name = "prune"
+description = "移除未使用的容器"
+detail = "移除未使用的容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container prune --help"]
+
+[[nodes]]
+path = "docker container rename"
+name = "rename"
+description = "重命名容器"
+detail = "重命名容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container rename --help"]
+
+[[nodes]]
+path = "docker container restart"
+name = "restart"
+description = "重启容器"
+detail = "重启容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container restart --help"]
+
+[[nodes]]
+path = "docker container rm"
+name = "rm"
+description = "移除容器"
+detail = "移除容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container rm --help"]
+
+[[nodes]]
+path = "docker container run"
+name = "run"
+description = "在新容器中执行命令"
+detail = "在新容器中执行命令。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container run --help"]
+
+[[nodes]]
+path = "docker container start"
+name = "start"
+description = "启动容器"
+detail = "启动容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container start --help"]
+
+[[nodes]]
+path = "docker container stats"
+name = "stats"
+description = "显示容器资源使用情况"
+detail = "显示容器资源使用情况。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container stats --help"]
+
+[[nodes]]
+path = "docker container stop"
+name = "stop"
+description = "停止容器"
+detail = "停止容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container stop --help"]
+
+[[nodes]]
+path = "docker container top"
+name = "top"
+description = "显示容器中的进程"
+detail = "显示容器中的进程。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container top --help"]
+
+[[nodes]]
+path = "docker container unpause"
+name = "unpause"
+description = "恢复容器运行"
+detail = "恢复容器运行。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container unpause --help"]
+
+[[nodes]]
+path = "docker container update"
+name = "update"
+description = "更新容器配置"
+detail = "更新容器配置。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container update --help"]
+
+[[nodes]]
+path = "docker container wait"
+name = "wait"
+description = "等待容器停止"
+detail = "等待容器停止。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker container wait --help"]
+
+[[nodes]]
+path = "docker context"
+name = "context"
+description = "管理 Docker 上下文"
+detail = "管理 Docker 上下文。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker context --help"]
+
+[[nodes]]
+path = "docker cp"
+name = "cp"
+description = "在容器与主机之间复制文件"
+detail = "在容器与主机之间复制文件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker cp --help"]
+
+[[nodes]]
+path = "docker create"
+name = "create"
+description = "创建新容器"
+detail = "创建新容器。"
+positional = "value"
+children = []
+option_sets = ["DOCKER_RUN_OPTIONS"]
+examples = ["docker create --help"]
+
+[[nodes]]
+path = "docker diff"
+name = "diff"
+description = "检查容器文件系统的更改"
+detail = "检查容器文件系统的更改。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker diff --help"]
+
+[[nodes]]
+path = "docker events"
+name = "events"
+description = "获取服务器实时事件"
+detail = "获取服务器实时事件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker events --help"]
+
+[[nodes]]
+path = "docker exec"
+name = "exec"
+description = "在运行中的容器内执行命令"
+detail = "在运行中的容器内执行命令。"
+positional = "value"
+children = []
+option_sets = ["DOCKER_EXEC_OPTIONS"]
+examples = ["docker exec --help"]
+
+[[nodes]]
+path = "docker export"
+name = "export"
+description = "导出容器文件系统"
+detail = "导出容器文件系统。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker export --help"]
+
+[[nodes]]
+path = "docker history"
+name = "history"
+description = "显示镜像历史记录"
+detail = "显示镜像历史记录。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker history --help"]
+
+[[nodes]]
+path = "docker image"
+name = "image"
+description = "管理镜像"
+detail = "管理镜像。"
+positional = "value"
+children = ["docker image build", "docker image history", "docker image import", "docker image inspect", "docker image load", "docker image ls", "docker image prune", "docker image pull", "docker image push", "docker image rm", "docker image save", "docker image tag"]
+option_sets = ["DOCKER_COMMON_OPTIONS"]
+examples = ["docker image --help"]
+
+[[nodes]]
+path = "docker image build"
+name = "build"
+description = "构建镜像"
+detail = "构建镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image build --help"]
+
+[[nodes]]
+path = "docker image history"
+name = "history"
+description = "显示镜像历史记录"
+detail = "显示镜像历史记录。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image history --help"]
+
+[[nodes]]
+path = "docker image import"
+name = "import"
+description = "从文件系统归档创建镜像"
+detail = "从文件系统归档创建镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image import --help"]
+
+[[nodes]]
+path = "docker image inspect"
+name = "inspect"
+description = "显示镜像详情"
+detail = "显示镜像详情。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image inspect --help"]
+
+[[nodes]]
+path = "docker image load"
+name = "load"
+description = "从归档加载镜像"
+detail = "从归档加载镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image load --help"]
+
+[[nodes]]
+path = "docker image ls"
+name = "ls"
+description = "列出镜像"
+detail = "列出镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image ls --help"]
+
+[[nodes]]
+path = "docker image prune"
+name = "prune"
+description = "移除未使用的镜像"
+detail = "移除未使用的镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image prune --help"]
+
+[[nodes]]
+path = "docker image pull"
+name = "pull"
+description = "拉取镜像"
+detail = "拉取镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image pull --help"]
+
+[[nodes]]
+path = "docker image push"
+name = "push"
+description = "推送镜像"
+detail = "推送镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image push --help"]
+
+[[nodes]]
+path = "docker image rm"
+name = "rm"
+description = "移除镜像"
+detail = "移除镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image rm --help"]
+
+[[nodes]]
+path = "docker image save"
+name = "save"
+description = "将镜像保存到归档"
+detail = "将镜像保存到归档。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image save --help"]
+
+[[nodes]]
+path = "docker image tag"
+name = "tag"
+description = "为镜像添加标签"
+detail = "为镜像添加标签。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker image tag --help"]
+
+[[nodes]]
+path = "docker images"
+name = "images"
+description = "列出镜像"
+detail = "列出镜像。"
+positional = "value"
+children = []
+option_sets = ["DOCKER_IMAGES_OPTIONS"]
+examples = ["docker images --help"]
+
+[[nodes]]
+path = "docker info"
+name = "info"
+description = "显示系统信息"
+detail = "显示系统信息。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker info --help"]
+
+[[nodes]]
+path = "docker init"
+name = "init"
+description = "为容器化项目创建文件"
+detail = "为容器化项目创建文件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker init --help"]
+
+[[nodes]]
+path = "docker inspect"
+name = "inspect"
+description = "返回底层信息"
+detail = "返回底层信息。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker inspect --help"]
+
+[[nodes]]
+path = "docker kill"
+name = "kill"
+description = "强制终止运行中的容器"
+detail = "强制终止运行中的容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker kill --help"]
+
+[[nodes]]
+path = "docker load"
+name = "load"
+description = "从归档加载镜像"
+detail = "从归档加载镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker load --help"]
+
+[[nodes]]
+path = "docker login"
+name = "login"
+description = "登录软件包仓库"
+detail = "登录软件包仓库。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker login --help"]
+
+[[nodes]]
+path = "docker logout"
+name = "logout"
+description = "退出软件包仓库"
+detail = "退出软件包仓库。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker logout --help"]
+
+[[nodes]]
+path = "docker logs"
+name = "logs"
+description = "获取容器日志"
+detail = "获取容器日志。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker logs --help"]
+
+[[nodes]]
+path = "docker manifest"
+name = "manifest"
+description = "管理镜像清单"
+detail = "管理镜像清单。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker manifest --help"]
+
+[[nodes]]
+path = "docker network"
+name = "network"
+description = "管理网络"
+detail = "管理网络。"
+positional = "value"
+children = ["docker network connect", "docker network create", "docker network disconnect", "docker network inspect", "docker network ls", "docker network prune", "docker network rm"]
+option_sets = ["DOCKER_COMMON_OPTIONS"]
+examples = ["docker network --help"]
+
+[[nodes]]
+path = "docker network connect"
+name = "connect"
+description = "将容器连接到网络"
+detail = "将容器连接到网络。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker network connect --help"]
+
+[[nodes]]
+path = "docker network create"
+name = "create"
+description = "创建网络"
+detail = "创建网络。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker network create --help"]
+
+[[nodes]]
+path = "docker network disconnect"
+name = "disconnect"
+description = "断开容器与网络的连接"
+detail = "断开容器与网络的连接。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker network disconnect --help"]
+
+[[nodes]]
+path = "docker network inspect"
+name = "inspect"
+description = "显示网络详情"
+detail = "显示网络详情。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker network inspect --help"]
+
+[[nodes]]
+path = "docker network ls"
+name = "ls"
+description = "列出网络"
+detail = "列出网络。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker network ls --help"]
+
+[[nodes]]
+path = "docker network prune"
+name = "prune"
+description = "移除未使用的网络"
+detail = "移除未使用的网络。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker network prune --help"]
+
+[[nodes]]
+path = "docker network rm"
+name = "rm"
+description = "移除网络"
+detail = "移除网络。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker network rm --help"]
+
+[[nodes]]
+path = "docker node"
+name = "node"
+description = "管理 Swarm 节点"
+detail = "管理 Swarm 节点。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker node --help"]
+
+[[nodes]]
+path = "docker pause"
+name = "pause"
+description = "暂停容器中的所有进程"
+detail = "暂停容器中的所有进程。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker pause --help"]
+
+[[nodes]]
+path = "docker plugin"
+name = "plugin"
+description = "管理插件"
+detail = "管理插件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker plugin --help"]
+
+[[nodes]]
+path = "docker port"
+name = "port"
+description = "列出端口映射"
+detail = "列出端口映射。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker port --help"]
+
+[[nodes]]
+path = "docker ps"
+name = "ps"
+description = "列出容器"
+detail = "列出容器。"
+positional = "value"
+children = []
+option_sets = ["DOCKER_PS_OPTIONS"]
+examples = ["docker ps --help"]
+
+[[nodes]]
+path = "docker pull"
+name = "pull"
+description = "拉取镜像或仓库"
+detail = "拉取镜像或仓库。"
+positional = "value"
+children = []
+option_sets = ["DOCKER_PULL_OPTIONS"]
+examples = ["docker pull --help"]
+
+[[nodes]]
+path = "docker push"
+name = "push"
+description = "推送镜像或仓库"
+detail = "推送镜像或仓库。"
+positional = "value"
+children = []
+option_sets = ["DOCKER_PUSH_OPTIONS"]
+examples = ["docker push --help"]
+
+[[nodes]]
+path = "docker rename"
+name = "rename"
+description = "重命名容器"
+detail = "重命名容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker rename --help"]
+
+[[nodes]]
+path = "docker restart"
+name = "restart"
+description = "重启容器"
+detail = "重启容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker restart --help"]
+
+[[nodes]]
+path = "docker rm"
+name = "rm"
+description = "移除容器"
+detail = "移除容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker rm --help"]
+
+[[nodes]]
+path = "docker rmi"
+name = "rmi"
+description = "移除镜像"
+detail = "移除镜像。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker rmi --help"]
+
+[[nodes]]
+path = "docker run"
+name = "run"
+description = "在新容器中执行命令"
+detail = "在新容器中执行命令。"
+positional = "value"
+children = []
+option_sets = ["DOCKER_RUN_OPTIONS"]
+examples = ["docker run --help"]
+
+[[nodes]]
+path = "docker save"
+name = "save"
+description = "将镜像保存到归档"
+detail = "将镜像保存到归档。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker save --help"]
+
+[[nodes]]
+path = "docker search"
+name = "search"
+description = "搜索 Docker Hub"
+detail = "搜索 Docker Hub。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker search --help"]
+
+[[nodes]]
+path = "docker secret"
+name = "secret"
+description = "管理 Swarm 密钥"
+detail = "管理 Swarm 密钥。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker secret --help"]
+
+[[nodes]]
+path = "docker service"
+name = "service"
+description = "管理 Swarm 服务"
+detail = "管理 Swarm 服务。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker service --help"]
+
+[[nodes]]
+path = "docker stack"
+name = "stack"
+description = "管理 Swarm 堆栈"
+detail = "管理 Swarm 堆栈。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker stack --help"]
+
+[[nodes]]
+path = "docker start"
+name = "start"
+description = "启动已停止的容器"
+detail = "启动已停止的容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker start --help"]
+
+[[nodes]]
+path = "docker stats"
+name = "stats"
+description = "显示容器资源使用情况"
+detail = "显示容器资源使用情况。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker stats --help"]
+
+[[nodes]]
+path = "docker stop"
+name = "stop"
+description = "停止运行中的容器"
+detail = "停止运行中的容器。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker stop --help"]
+
+[[nodes]]
+path = "docker swarm"
+name = "swarm"
+description = "管理 Swarm"
+detail = "管理 Swarm。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker swarm --help"]
+
+[[nodes]]
+path = "docker system"
+name = "system"
+description = "管理 Docker 数据"
+detail = "管理 Docker 数据。"
+positional = "value"
+children = ["docker system df", "docker system events", "docker system info", "docker system prune"]
+option_sets = ["DOCKER_COMMON_OPTIONS"]
+examples = ["docker system --help"]
+
+[[nodes]]
+path = "docker system df"
+name = "df"
+description = "显示 Docker 磁盘使用情况"
+detail = "显示 Docker 磁盘使用情况。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker system df --help"]
+
+[[nodes]]
+path = "docker system events"
+name = "events"
+description = "显示 Docker 事件"
+detail = "显示 Docker 事件。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker system events --help"]
+
+[[nodes]]
+path = "docker system info"
+name = "info"
+description = "显示 Docker 系统信息"
+detail = "显示 Docker 系统信息。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker system info --help"]
+
+[[nodes]]
+path = "docker system prune"
+name = "prune"
+description = "移除未使用的 Docker 数据"
+detail = "移除未使用的 Docker 数据。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker system prune --help"]
+
+[[nodes]]
+path = "docker tag"
+name = "tag"
+description = "为镜像创建标签"
+detail = "为镜像创建标签。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker tag --help"]
+
+[[nodes]]
+path = "docker top"
+name = "top"
+description = "显示运行中的进程"
+detail = "显示运行中的进程。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker top --help"]
+
+[[nodes]]
+path = "docker trust"
+name = "trust"
+description = "管理镜像信任"
+detail = "管理镜像信任。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker trust --help"]
+
+[[nodes]]
+path = "docker unpause"
+name = "unpause"
+description = "恢复容器中进程运行"
+detail = "恢复容器中进程运行。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker unpause --help"]
+
+[[nodes]]
+path = "docker update"
+name = "update"
+description = "更新容器配置"
+detail = "更新容器配置。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker update --help"]
+
+[[nodes]]
+path = "docker version"
+name = "version"
+description = "显示 Docker 版本信息"
+detail = "显示 Docker 版本信息。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker version --help"]
+
+[[nodes]]
+path = "docker volume"
+name = "volume"
+description = "管理卷"
+detail = "管理卷。"
+positional = "value"
+children = ["docker volume create", "docker volume inspect", "docker volume ls", "docker volume prune", "docker volume rm"]
+option_sets = ["DOCKER_COMMON_OPTIONS"]
+examples = ["docker volume --help"]
+
+[[nodes]]
+path = "docker volume create"
+name = "create"
+description = "创建卷"
+detail = "创建卷。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker volume create --help"]
+
+[[nodes]]
+path = "docker volume inspect"
+name = "inspect"
+description = "显示卷详情"
+detail = "显示卷详情。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker volume inspect --help"]
+
+[[nodes]]
+path = "docker volume ls"
+name = "ls"
+description = "列出卷"
+detail = "列出卷。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker volume ls --help"]
+
+[[nodes]]
+path = "docker volume prune"
+name = "prune"
+description = "移除未使用的卷"
+detail = "移除未使用的卷。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker volume prune --help"]
+
+[[nodes]]
+path = "docker volume rm"
+name = "rm"
+description = "移除卷"
+detail = "移除卷。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker volume rm --help"]
+
+[[nodes]]
+path = "docker wait"
+name = "wait"
+description = "等待容器停止"
+detail = "等待容器停止。"
+positional = "value"
+children = []
+option_sets = []
+examples = ["docker wait --help"]
+
+[[nodes]]
+path = "kubectl"
+description = "管理 Kubernetes 集群资源"
+detail = "查看和管理当前 Kubernetes 上下文中的工作负载与服务。远程资源需主动读取。"
+positional = "none"
+children = ["get", "describe", "logs", "exec", "delete", "config", "apply"]
+options = [{ name = "--context", description = "选择 Kubernetes 上下文", detail = "选择 kubeconfig 中的上下文。", value_kind = "text", provider = "kubectl.contexts", value_name = "CONTEXT" }, { name = "--namespace", names = ["-n"], description = "选择命名空间", detail = "在指定命名空间执行命令；按资源读取键获取远程候选。", value_kind = "text", provider = "kubectl.namespaces", value_name = "NAMESPACE" }, { name = "--kubeconfig", description = "指定 kubeconfig", detail = "使用指定 Kubernetes 配置文件。", value_kind = "path", value_name = "FILE" }]
+keywords = ["Kubernetes", "集群", "容器编排"]
+examples = ["kubectl get pods"]
+
+[[nodes]]
+path = "kubectl get"
+description = "列出 Kubernetes 资源"
+detail = "列出指定种类的资源；资源名称由主动读取提供。"
+positional = "value"
+provider = "kubectl.resources"
+keywords = ["查看资源", "列出 Pod"]
+examples = ["kubectl get pods"]
+
+[[nodes]]
+path = "kubectl describe"
+description = "查看资源详情"
+detail = "显示 Kubernetes 资源的详细状态和事件。"
+positional = "value"
+provider = "kubectl.resources"
+examples = ["kubectl describe deployment api"]
+
+[[nodes]]
+path = "kubectl logs"
+description = "查看容器日志"
+detail = "显示 Pod 或工作负载中的容器日志。"
+positional = "value"
+provider = "kubectl.resources"
+keywords = ["查看日志", "服务日志"]
+examples = ["kubectl logs deployment/api"]
+
+[[nodes]]
+path = "kubectl exec"
+description = "在容器中执行命令"
+detail = "连接 Pod 中的容器并运行命令。"
+positional = "value"
+provider = "kubectl.resources"
+examples = ["kubectl exec -it pod/api -- sh"]
+
+[[nodes]]
+path = "kubectl delete"
+description = "删除 Kubernetes 资源"
+detail = "删除指定种类和名称的集群资源。"
+positional = "value"
+provider = "kubectl.resources"
+examples = ["kubectl delete pod api"]
+
+[[nodes]]
+path = "kubectl config"
+description = "管理 Kubernetes 上下文"
+detail = "查看或切换 kubeconfig 中保存的上下文。"
+positional = "value"
+provider = "kubectl.contexts"
+examples = ["kubectl config use-context dev"]
+
+[[nodes]]
+path = "kubectl apply"
+description = "应用资源清单"
+detail = "从 YAML 或 JSON 文件创建或更新资源。"
+positional = "path"
+provider = "powershell.paths"
+examples = ["kubectl apply -f deployment.yaml"]
+
+[[nodes]]
+path = "helm"
+description = "管理 Kubernetes Helm Chart"
+detail = "安装、升级和管理当前集群中的 Helm release。远程 release 需主动读取。"
+positional = "none"
+children = ["list", "status", "install", "upgrade", "uninstall", "template", "lint", "repo"]
+option_sets = ["BLUEBERRY_COMMON_HELP"]
+keywords = ["Helm", "Kubernetes 发布"]
+examples = ["helm list"]
+
+[[nodes]]
+path = "helm list"
+description = "列出 Helm release"
+detail = "列出当前上下文和命名空间中的 Helm release。"
+positional = "none"
+examples = ["helm list --all-namespaces"]
+
+[[nodes]]
+path = "helm status"
+description = "查看 Helm release 状态"
+detail = "显示指定 release 的资源和部署状态。"
+positional = "value"
+provider = "helm.releases"
+examples = ["helm status api"]
+
+[[nodes]]
+path = "helm install"
+description = "安装 Helm Chart"
+detail = "以新 release 名称安装本地 Chart 或仓库 Chart。"
+positional = "path"
+provider = "helm.charts"
+examples = ["helm install api ./chart"]
+
+[[nodes]]
+path = "helm upgrade"
+description = "升级 Helm release"
+detail = "使用新的 Chart 或 values 更新现有 release。"
+positional = "value"
+provider = "helm.releases"
+examples = ["helm upgrade api ./chart"]
+
+[[nodes]]
+path = "helm uninstall"
+description = "卸载 Helm release"
+detail = "从集群移除指定 Helm release。"
+positional = "value"
+provider = "helm.releases"
+examples = ["helm uninstall api"]
+
+[[nodes]]
+path = "helm template"
+description = "在本地渲染 Chart"
+detail = "渲染 Kubernetes 清单但不连接集群安装。"
+positional = "path"
+provider = "helm.charts"
+examples = ["helm template api ./chart"]
+
+[[nodes]]
+path = "helm lint"
+description = "检查 Helm Chart"
+detail = "检查 Chart 结构和值是否符合要求。"
+positional = "path"
+provider = "helm.charts"
+examples = ["helm lint ./chart"]
+
+[[nodes]]
+path = "helm repo"
+description = "管理 Helm 仓库"
+detail = "添加、更新和列出本机 Helm 仓库。"
+positional = "value"
+provider = "helm.repositories"
+examples = ["helm repo list"]
+

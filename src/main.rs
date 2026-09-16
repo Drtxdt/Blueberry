@@ -214,6 +214,7 @@ struct CompletionRun {
     source_diagnostics: Vec<String>,
     project_incomplete: bool,
     paths_incomplete: bool,
+    active_help: Vec<serde_json::Value>,
 }
 
 fn validate_cursor(line: &str, cursor: usize) -> Result<()> {
@@ -258,16 +259,25 @@ fn complete_line(
     } else {
         &context.command
     };
+    let mut active_help = Vec::new();
     if let Some(entry) = index
         .executable(command)
         .and_then(|p| blueberry::knowledge::entry(command, &p, cwd))
     {
-        for record in blueberry::knowledge::records(&blueberry::knowledge::cache_dir())
-            .iter()
-            .filter(|r| {
+        let records = blueberry::knowledge::records(&blueberry::knowledge::cache_dir());
+        for record in records.iter().filter(|r| {
                 r.entry.fingerprint == entry.fingerprint && blueberry::knowledge::current(r)
             })
         {
+            active_help.push(serde_json::json!({
+                "command": record.entry.command,
+                "context": record.context,
+                "adapter": record.page.adapter,
+                "commands_complete": record.page.commands_complete,
+                "options_complete": record.page.options_complete,
+                "truncated": record.page.truncated,
+                "source": record.entry.path,
+            }));
             catalog.apply_help(record);
         }
     }
@@ -312,6 +322,7 @@ fn complete_line(
         source_diagnostics,
         project_incomplete,
         paths_incomplete,
+        active_help,
     })
 }
 
@@ -363,6 +374,7 @@ fn print_completion_explanation(run: &CompletionRun, json: bool) -> Result<()> {
                 "catalog": {
                     "directory": run.catalog_path,
                     "diagnostics": diagnostics,
+                    "learned_help": run.active_help,
                 },
                 "sources": {
                     "project_requested": request.project,
@@ -398,6 +410,13 @@ fn print_completion_explanation(run: &CompletionRun, json: bool) -> Result<()> {
         run.catalog_path.display(),
         diagnostics.len()
     );
+    for help in &run.active_help {
+        println!(
+            "  本机帮助: {} {} · adapter={} · commands_complete={} · options_complete={}",
+            help["command"], help["context"], help["adapter"],
+            help["commands_complete"], help["options_complete"]
+        );
+    }
     println!(
         "数据源: project={} paths={} provider={} incomplete={} (project={}, paths={})",
         request.project,
@@ -591,7 +610,7 @@ fn run_specs_command(command: SpecsCommand, config_path: Option<&Path>) -> Resul
                     "{}",
                     serde_json::to_string_pretty(&serde_json::json!({
                         "directory": directory,
-                        "help_cache": blueberry::knowledge::records(&blueberry::knowledge::cache_dir()).iter().map(|r|serde_json::json!({"command":r.entry.command,"context":r.context,"source":r.entry.path,"stale":!blueberry::knowledge::current(r),"error":r.error})).collect::<Vec<_>>(),
+                        "help_cache": blueberry::knowledge::records(&blueberry::knowledge::cache_dir()).iter().map(|r|serde_json::json!({"command":r.entry.command,"context":r.context,"source":r.entry.path,"adapter":r.page.adapter,"commands_complete":r.page.commands_complete,"options_complete":r.page.options_complete,"truncated":r.page.truncated,"stale":!blueberry::knowledge::current(r),"error":r.error})).collect::<Vec<_>>(),
                         "count": nodes.len(),
                         "nodes": nodes,
                         "diagnostics": diagnostics,
@@ -649,7 +668,7 @@ fn command_available(name: &str) -> bool {
 fn print_help_status() {
     for r in blueberry::knowledge::records(&blueberry::knowledge::cache_dir()) {
         println!(
-            "帮助：{} {} · {} · {} · 入口：{}",
+            "帮助：{} {} · {} · {} · adapter={} · commands={} · options={} · 入口：{}",
             r.entry.command,
             r.context.join(" "),
             if !blueberry::knowledge::current(&r) {
@@ -660,6 +679,9 @@ fn print_help_status() {
                 "可用"
             },
             r.error.as_deref().unwrap_or("本地帮助缓存"),
+            r.page.adapter,
+            r.page.commands_complete,
+            r.page.options_complete,
             r.entry.path.display()
         );
     }
@@ -669,7 +691,7 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         let path=config_path.map(Path::to_path_buf).unwrap_or_else(config::default_path);
         let loaded=config::load(config_path);
         let value=match loaded {
-            Ok(settings)=>serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":true,"cache":config::cache_dir(),"dynamic":settings.completion.dynamic,"keys":settings.keys}),
+            Ok(settings)=>serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":true,"cache":config::cache_dir(),"dynamic":settings.completion.dynamic,"keys":settings.keys,"tool_registry":blueberry::tool_registry::TOOLS.iter().map(|tool|serde_json::json!({"name":tool.name,"help":tool.help,"providers":tool.providers,"resources":tool.resources,"required":tool.required})).collect::<Vec<_>>(),"help_cache":blueberry::knowledge::records(&blueberry::knowledge::cache_dir()).iter().map(|record|serde_json::json!({"command":record.entry.command,"context":record.context,"adapter":record.page.adapter,"commands_complete":record.page.commands_complete,"options_complete":record.page.options_complete,"stale":!blueberry::knowledge::current(record),"error":record.error})).collect::<Vec<_>>() }),
             Err(error)=>serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":false,"error":format!("{error:#}")}),
         };
         println!("{}",serde_json::to_string_pretty(&value)?);

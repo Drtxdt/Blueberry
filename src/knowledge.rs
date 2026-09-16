@@ -426,16 +426,16 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
         .next()
         .unwrap_or(command)
         .to_ascii_lowercase();
-    let root = root
+    let invoked_root = root
         .trim_end_matches(".exe")
         .trim_end_matches(".cmd")
         .trim_end_matches(".ps1")
         .to_owned();
-    let known = [
-        "codex", "git", "cargo", "rustc", "python", "python3", "uv", "winget", "dotnet", "npm",
-        "pnpm", "docker", "pwsh", "gh",
-    ]
-    .contains(&root.as_str());
+    let definition = crate::tool_registry::definition(&invoked_root);
+    let root = definition
+        .map(|tool| tool.name.to_ascii_lowercase())
+        .unwrap_or(invoked_root);
+    let known = definition.is_some_and(|tool| tool.help != "powershell");
     let mut target = launch_path;
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
     let mut packaged = false;
@@ -550,13 +550,16 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
         )
         .as_bytes(),
     );
+    let trusted = known
+        && !in_project
+        && ((packaged && npm_install) || known_install || script.is_none());
     Some(Entry {
         command: root,
         path,
         target,
         fingerprint,
         script,
-        trusted: known && !in_project && ((packaged && npm_install) || known_install),
+        trusted,
     })
 }
 
@@ -898,15 +901,10 @@ pub fn learn(
     )
     .and_then(|text| {
         let mut page = parse_help(&text);
-        page.adapter = match entry.command.as_str() {
-            "git" => "git-help",
-            "npm" => "npm-help",
-            "pnpm" => "pnpm-help",
-            "docker" => "docker-help",
-            "gh" => "gh-help",
-            _ => "sectioned-help",
-        }
-        .into();
+        page.adapter = crate::tool_registry::definition(&entry.command)
+            .map(|tool| tool.help)
+            .unwrap_or("sectioned")
+            .to_owned();
         if entry.command == "cargo" && context.is_empty() {
             let listing = capture(
                 &entry.target,

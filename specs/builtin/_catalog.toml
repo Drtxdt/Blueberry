@@ -1,0 +1,36 @@
+# Blueberry 内置规格目录（版本 1）
+# 本目录按工具族维护；build.rs 合并、验证并生成 Rust 静态数据。
+schema_version = 1
+name = "Blueberry built-in"
+version = "0.4"
+
+[aliases]
+codex = ["codex", "codex.exe", "codex.cmd", "codex.ps1"]
+python = ["python", "python3", "python.exe", "python3.exe"]
+uv = ["uv", "uv.exe"]
+rustc = ["rustc", "rustc.exe"]
+winget = ["winget", "winget.exe"]
+dotnet = ["dotnet", "dotnet.exe"]
+git = ["git", "git.exe"]
+cargo = ["cargo", "cargo.exe"]
+npm = ["npm", "npm.cmd", "npm.exe"]
+pnpm = ["pnpm", "pnpm.cmd", "pnpm.exe"]
+docker = ["docker", "docker.exe"]
+pwsh = ["pwsh", "powershell", "pwsh.exe", "powershell.exe"]
+gh = ["gh", "gh.exe"]
+pip = ["pip", "pip3", "pip.exe", "pip3.exe"]
+conda = ["conda", "conda.exe", "conda.bat", "mamba", "mamba.exe", "mamba.bat", "micromamba", "micromamba.exe"]
+poetry = ["poetry", "poetry.exe"]
+yarn = ["yarn", "yarn.cmd", "yarn.exe"]
+bun = ["bun", "bun.exe"]
+rustup = ["rustup", "rustup.exe"]
+go = ["go", "go.exe"]
+cmake = ["cmake", "cmake.exe"]
+ctest = ["ctest", "ctest.exe"]
+kubectl = ["kubectl", "kubectl.exe"]
+helm = ["helm", "helm.exe"]
+ssh = ["ssh", "ssh.exe"]
+scp = ["scp", "scp.exe"]
+sftp = ["sftp", "sftp.exe"]
+Set-Location = ["Set-Location", "set-location", "cd", "chdir", "sl"]
+Get-ChildItem = ["Get-ChildItem", "get-childitem", "gci", "dir", "ls"]

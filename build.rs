@@ -9,44 +9,27 @@ use std::{
 
 const SCHEMA_VERSION: u32 = 1;
 
-const ALLOWED_PROVIDERS: &[&str] = &[
-    "git",
-    "git.refs",
-    "git.branches",
-    "git.remotes",
-    "git.tags",
-    "git.worktrees",
-    "git.status",
-    "git.paths",
-    "cargo.packages",
-    "cargo.features",
-    "cargo.bins",
-    "cargo.examples",
-    "cargo.tests",
-    "cargo.benches",
-    "npm.scripts",
-    "npm.workspaces",
-    "npm.dependencies",
-    "pnpm.scripts",
-    "pnpm.workspaces",
-    "pnpm.dependencies",
-    "python.scripts", "python.dependencies", "python.environments",
-    "conda.environments", "conda.packages",
-    "poetry.scripts", "poetry.dependencies", "poetry.environments",
-    "yarn.scripts", "yarn.workspaces", "yarn.dependencies",
-    "bun.scripts", "bun.workspaces", "bun.dependencies",
-    "rustup.toolchains", "rustup.targets", "rustup.components",
-    "go.packages", "go.files", "go.workspaces",
-    "dotnet.projects", "dotnet.frameworks", "dotnet.references", "dotnet.tools",
-    "cmake.presets", "cmake.build_presets", "cmake.test_presets", "cmake.targets",
-    "docker.services", "docker.profiles", "docker.contexts",
-    "kubectl.contexts", "kubectl.namespaces", "kubectl.resources",
-    "helm.charts", "helm.repositories", "helm.releases",
-    "ssh.hosts",
-    "powershell.env",
-    "powershell.paths",
-    "powershell.redirects",
-];
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RegistryFile {
+    schema_version: u32,
+    #[serde(default)]
+    tools: Vec<ToolSpec>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ToolSpec {
+    name: String,
+    #[serde(default)]
+    aliases: Vec<String>,
+    help: String,
+    #[serde(default)]
+    required: Vec<String>,
+    #[serde(default)]
+    providers: Vec<String>,
+    resources: String,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -147,8 +130,11 @@ fn has_chinese(value: &str) -> bool {
         .any(|character| ('\u{3400}'..='\u{9fff}').contains(&character))
 }
 
-fn valid_provider(provider: &str) -> bool {
-    ALLOWED_PROVIDERS.contains(&provider)
+fn valid_provider(provider: &str, registry: &RegistryFile) -> bool {
+    registry
+        .tools
+        .iter()
+        .any(|tool| tool.providers.iter().any(|known| known == provider))
 }
 
 fn parse_delimiter(value: &Option<String>, where_: &str) -> Result<Option<char>, String> {
@@ -167,7 +153,7 @@ fn parse_delimiter(value: &Option<String>, where_: &str) -> Result<Option<char>,
     Ok(Some(character))
 }
 
-fn validate(file: &CatalogFile) -> Result<(), String> {
+fn validate(file: &CatalogFile, registry: &RegistryFile) -> Result<(), String> {
     if file.schema_version != SCHEMA_VERSION {
         return Err(format!(
             "schema_version {} is unsupported; expected {}",
@@ -182,6 +168,9 @@ fn validate(file: &CatalogFile) -> Result<(), String> {
     for node in &file.nodes {
         if node.detail.contains("按 F1 查看") {
             return Err(format!("placeholder detail: {}", node.path));
+        }
+        if node.examples.is_empty() {
+            return Err(format!("missing example: {}", node.path));
         }
         for example in &node.examples {
             if example.trim().is_empty() || example.contains('\n') || example.contains('\x1b') {
@@ -202,6 +191,7 @@ fn validate(file: &CatalogFile) -> Result<(), String> {
             validate_option(
                 option,
                 &format!("option_sets[{}].options[{}]", set.id, index),
+                registry,
             )?;
             if !names.insert(&option.name) {
                 return Err(format!(
@@ -238,7 +228,7 @@ fn validate(file: &CatalogFile) -> Result<(), String> {
             ));
         }
         if let Some(provider) = &node.provider
-            && !valid_provider(provider)
+            && !valid_provider(provider, registry)
         {
             return Err(format!("{where_}: unknown provider {provider}"));
         }
@@ -249,7 +239,7 @@ fn validate(file: &CatalogFile) -> Result<(), String> {
             }
         }
         for option in &node.options {
-            validate_option(option, &format!("{where_}.options"))?;
+            validate_option(option, &format!("{where_}.options"), registry)?;
         }
     }
 
@@ -258,10 +248,21 @@ fn validate(file: &CatalogFile) -> Result<(), String> {
             return Err("aliases cannot contain empty names".to_owned());
         }
     }
+    for node in &file.nodes {
+        for child in &node.children {
+            if !node_paths.contains(child) {
+                return Err(format!("node {} references missing child {child}", node.path));
+            }
+        }
+    }
     Ok(())
 }
 
-fn validate_option(option: &OptionSpec, where_: &str) -> Result<(), String> {
+fn validate_option(
+    option: &OptionSpec,
+    where_: &str,
+    registry: &RegistryFile,
+) -> Result<(), String> {
     if !option.name.starts_with('-')
         || option.description == "参数选项"
         || option.detail.contains("按 F1 查看")
@@ -327,7 +328,7 @@ fn validate_option(option: &OptionSpec, where_: &str) -> Result<(), String> {
         }
     }
     if let Some(provider) = &option.provider
-        && !valid_provider(provider)
+        && !valid_provider(provider, registry)
     {
         return Err(format!(
             "{where_} {}: unknown provider {provider}",
@@ -338,6 +339,63 @@ fn validate_option(option: &OptionSpec, where_: &str) -> Result<(), String> {
         &option.value_delimiter,
         &format!("{where_} {}", option.name),
     )?;
+    Ok(())
+}
+
+fn validate_registry(registry: &RegistryFile, catalog: &CatalogFile) -> Result<(), String> {
+    if registry.schema_version != 1 {
+        return Err(format!(
+            "unsupported tool registry schema {}",
+            registry.schema_version
+        ));
+    }
+    let mut names = BTreeSet::new();
+    let mut aliases = BTreeSet::new();
+    let mut providers = BTreeSet::new();
+    let paths = catalog
+        .nodes
+        .iter()
+        .map(|node| node.path.as_str())
+        .collect::<BTreeSet<_>>();
+    for tool in &registry.tools {
+        if tool.name.trim().is_empty() || !names.insert(tool.name.to_ascii_lowercase()) {
+            return Err(format!("duplicate or empty tool name: {}", tool.name));
+        }
+        if !paths.contains(tool.name.as_str()) {
+            return Err(format!("tool {} has no built-in root node", tool.name));
+        }
+        if tool.help.trim().is_empty()
+            || !matches!(tool.resources.as_str(), "none" | "local" | "manual")
+        {
+            return Err(format!("tool {} has invalid help/resource policy", tool.name));
+        }
+        for alias in &tool.aliases {
+            if alias.trim().is_empty() || !aliases.insert(alias.to_ascii_lowercase()) {
+                return Err(format!("duplicate or empty tool alias: {alias}"));
+            }
+            let registered = catalog
+                .aliases
+                .get(&tool.name)
+                .is_some_and(|values| values.iter().any(|value| value.eq_ignore_ascii_case(alias)));
+            if !registered {
+                return Err(format!("tool {} alias {alias} is missing from catalog", tool.name));
+            }
+        }
+        for required in &tool.required {
+            let path = format!("{} {required}", tool.name);
+            if !paths.contains(path.as_str()) {
+                return Err(format!(
+                    "tool {} is missing required context {required}",
+                    tool.name
+                ));
+            }
+        }
+        for provider in &tool.providers {
+            if provider.trim().is_empty() || !providers.insert(provider.clone()) {
+                return Err(format!("duplicate or empty provider: {provider}"));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -429,7 +487,7 @@ fn option_static(out: &mut String, option: &OptionSpec) {
 
 fn generate(file: &CatalogFile) -> String {
     let mut out = String::new();
-    out.push_str("// @generated by build.rs from specs/builtin.toml; do not edit.\n");
+    out.push_str("// @generated by build.rs from specs/builtin/*.toml; do not edit.\n");
     let _ = writeln!(
         out,
         "pub(crate) static BUILTIN_CATALOG_NAME: &str = {};",
@@ -530,19 +588,93 @@ fn generate(file: &CatalogFile) -> String {
     out
 }
 
+fn generate_registry(registry: &RegistryFile) -> String {
+    let mut out = String::from("// @generated by build.rs from specs/tools.toml; do not edit.\n");
+    out.push_str("pub static TOOLS: &[ToolDefinition] = &[\n");
+    for tool in &registry.tools {
+        let _ = writeln!(
+            out,
+            "    ToolDefinition {{ name: {}, aliases: {}, help: {}, required: {}, providers: {}, resources: {} }},",
+            rust_str(&tool.name),
+            rust_str_slice(&tool.aliases),
+            rust_str(&tool.help),
+            rust_str_slice(&tool.required),
+            rust_str_slice(&tool.providers),
+            rust_str(&tool.resources),
+        );
+    }
+    out.push_str("];\n");
+    out
+}
+
 fn main() {
-    println!("cargo:rerun-if-changed=specs/builtin.toml");
-    let source = PathBuf::from("specs/builtin.toml");
-    let text = fs::read_to_string(&source).unwrap_or_else(|error| {
-        panic!("cannot read {}: {error}", source.display());
+    println!("cargo:rerun-if-changed=specs/builtin");
+    println!("cargo:rerun-if-changed=specs/tools.toml");
+    let catalog_dir = PathBuf::from("specs/builtin");
+    let mut sources = fs::read_dir(&catalog_dir)
+        .unwrap_or_else(|error| panic!("cannot read {}: {error}", catalog_dir.display()))
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "toml"))
+        .collect::<Vec<_>>();
+    sources.sort();
+    let mut file = CatalogFile {
+        schema_version: SCHEMA_VERSION,
+        name: String::new(),
+        version: String::new(),
+        aliases: BTreeMap::new(),
+        option_sets: Vec::new(),
+        nodes: Vec::new(),
+    };
+    for source in &sources {
+        println!("cargo:rerun-if-changed={}", source.display());
+        let text = fs::read_to_string(source)
+            .unwrap_or_else(|error| panic!("cannot read {}: {error}", source.display()));
+        let fragment: CatalogFile = toml::from_str(&text)
+            .unwrap_or_else(|error| panic!("cannot parse {}: {error}", source.display()));
+        if fragment.schema_version != SCHEMA_VERSION {
+            panic!("invalid schema in {}", source.display());
+        }
+        if !fragment.name.is_empty() {
+            file.name = fragment.name;
+        }
+        if !fragment.version.is_empty() {
+            file.version = fragment.version;
+        }
+        for (canonical, aliases) in fragment.aliases {
+            if file.aliases.insert(canonical.clone(), aliases).is_some() {
+                panic!("duplicate alias root {canonical} in {}", source.display());
+            }
+        }
+        file.option_sets.extend(fragment.option_sets);
+        file.nodes.extend(fragment.nodes);
+    }
+    if sources.is_empty() || file.name.is_empty() || file.version.is_empty() {
+        panic!("specs/builtin must contain catalog metadata and tool fragments");
+    }
+    for node in &mut file.nodes {
+        for child in &mut node.children {
+            if !child.contains(' ') {
+                *child = format!("{} {child}", node.path);
+            }
+        }
+    }
+    let registry_source = PathBuf::from("specs/tools.toml");
+    let registry_text = fs::read_to_string(&registry_source).unwrap_or_else(|error| {
+        panic!("cannot read {}: {error}", registry_source.display());
     });
-    let file: CatalogFile = toml::from_str(&text).unwrap_or_else(|error| {
-        panic!("cannot parse {}: {error}", source.display());
+    let registry: RegistryFile = toml::from_str(&registry_text).unwrap_or_else(|error| {
+        panic!("cannot parse {}: {error}", registry_source.display());
     });
-    if let Err(error) = validate(&file) {
-        panic!("invalid {}: {error}", source.display());
+    if let Err(error) = validate_registry(&registry, &file) {
+        panic!("invalid {}: {error}", registry_source.display());
+    }
+    if let Err(error) = validate(&file, &registry) {
+        panic!("invalid built-in catalog: {error}");
     }
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     fs::write(out_dir.join("builtin_specs.rs"), generate(&file))
         .expect("write generated builtin_specs.rs");
+    fs::write(out_dir.join("tool_registry.rs"), generate_registry(&registry))
+        .expect("write generated tool_registry.rs");
 }

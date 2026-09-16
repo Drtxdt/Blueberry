@@ -636,5 +636,16 @@ fn builtin_roots_do_not_invent_git_or_project_script_commands() {
 
 #[test]
 fn builtin_examples_never_contain_generated_placeholders() {
-    assert!(!include_str!("../specs/builtin.toml").contains(" 示例\""));
+    let catalog = concat!(
+        include_str!("../specs/builtin/_catalog.toml"),
+        include_str!("../specs/builtin/core.toml"),
+        include_str!("../specs/builtin/vcs.toml"),
+        include_str!("../specs/builtin/rust.toml"),
+        include_str!("../specs/builtin/python.toml"),
+        include_str!("../specs/builtin/javascript.toml"),
+        include_str!("../specs/builtin/build.toml"),
+        include_str!("../specs/builtin/containers.toml"),
+        include_str!("../specs/builtin/remote.toml"),
+    );
+    assert!(!catalog.contains(" 示例\""));
 }

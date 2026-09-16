@@ -1,0 +1,233 @@
+schema_version = 1
+
+[[tools]]
+name = "cargo"
+aliases = ["cargo.exe"]
+help = "cargo"
+required = ["build", "check", "run", "test"]
+providers = ["cargo", "cargo.packages", "cargo.features", "cargo.bins", "cargo.examples", "cargo.tests", "cargo.benches"]
+resources = "local"
+
+[[tools]]
+name = "git"
+aliases = ["git.exe"]
+help = "git"
+required = ["add", "branch", "commit", "push", "status"]
+providers = ["git", "git.refs", "git.branches", "git.remotes", "git.tags", "git.worktrees", "git.status", "git.paths"]
+resources = "local"
+
+[[tools]]
+name = "gh"
+aliases = ["gh.exe"]
+help = "gh"
+required = ["auth", "issue", "pr", "release", "repo", "workflow"]
+providers = []
+resources = "manual"
+
+[[tools]]
+name = "rustc"
+aliases = ["rustc.exe"]
+help = "sectioned"
+required = []
+providers = []
+resources = "none"
+
+[[tools]]
+name = "rustup"
+aliases = ["rustup.exe"]
+help = "sectioned"
+required = ["toolchain", "target", "component", "default", "override"]
+providers = ["rustup.toolchains", "rustup.targets", "rustup.components"]
+resources = "local"
+
+[[tools]]
+name = "python"
+aliases = ["python3", "python.exe", "python3.exe"]
+help = "python"
+required = []
+providers = ["python.scripts", "python.dependencies", "python.environments"]
+resources = "local"
+
+[[tools]]
+name = "pip"
+aliases = ["pip3", "pip.exe", "pip3.exe"]
+help = "sectioned"
+required = ["install", "uninstall", "show", "list"]
+providers = []
+resources = "local"
+
+[[tools]]
+name = "uv"
+aliases = ["uv.exe"]
+help = "sectioned"
+required = ["run", "sync", "add", "remove", "python", "tool"]
+providers = []
+resources = "local"
+
+[[tools]]
+name = "conda"
+aliases = ["conda.exe", "conda.bat", "mamba", "mamba.exe", "mamba.bat", "micromamba", "micromamba.exe"]
+help = "sectioned"
+required = ["activate", "run", "list", "install", "remove", "env"]
+providers = ["conda.environments", "conda.packages"]
+resources = "local"
+
+[[tools]]
+name = "poetry"
+aliases = ["poetry.exe"]
+help = "sectioned"
+required = ["run", "add", "remove", "install", "env"]
+providers = ["poetry.scripts", "poetry.dependencies", "poetry.environments"]
+resources = "local"
+
+[[tools]]
+name = "npm"
+aliases = ["npm.cmd", "npm.exe"]
+help = "npm"
+required = ["install", "run", "test", "uninstall", "update"]
+providers = ["npm", "npm.scripts", "npm.workspaces", "npm.dependencies"]
+resources = "local"
+
+[[tools]]
+name = "pnpm"
+aliases = ["pnpm.cmd", "pnpm.exe"]
+help = "pnpm"
+required = ["add", "install", "remove", "run", "test"]
+providers = ["pnpm", "pnpm.scripts", "pnpm.workspaces", "pnpm.dependencies"]
+resources = "local"
+
+[[tools]]
+name = "yarn"
+aliases = ["yarn.cmd", "yarn.exe"]
+help = "sectioned"
+required = []
+providers = ["yarn.scripts", "yarn.workspaces", "yarn.dependencies"]
+resources = "local"
+
+[[tools]]
+name = "bun"
+aliases = ["bun.exe"]
+help = "sectioned"
+required = []
+providers = ["bun.scripts", "bun.workspaces", "bun.dependencies"]
+resources = "local"
+
+[[tools]]
+name = "go"
+aliases = ["go.exe"]
+help = "sectioned"
+required = ["run", "build", "test", "list", "mod", "work"]
+providers = ["go.packages", "go.files", "go.workspaces"]
+resources = "local"
+
+[[tools]]
+name = "dotnet"
+aliases = ["dotnet.exe"]
+help = "sectioned"
+required = ["new", "build", "run", "test", "publish", "tool"]
+providers = ["dotnet.projects", "dotnet.frameworks", "dotnet.references", "dotnet.tools"]
+resources = "local"
+
+[[tools]]
+name = "cmake"
+aliases = ["cmake.exe"]
+help = "sectioned"
+required = ["--build", "--install", "--workflow"]
+providers = ["cmake.presets", "cmake.build_presets", "cmake.test_presets", "cmake.targets"]
+resources = "local"
+
+[[tools]]
+name = "ctest"
+aliases = ["ctest.exe"]
+help = "sectioned"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "docker"
+aliases = ["docker.exe"]
+help = "docker"
+required = ["build", "compose", "container", "image", "network", "volume"]
+providers = ["docker.services", "docker.profiles", "docker.contexts"]
+resources = "manual"
+
+[[tools]]
+name = "kubectl"
+aliases = ["kubectl.exe"]
+help = "sectioned"
+required = ["get", "describe", "logs", "exec", "delete", "config", "apply"]
+providers = ["kubectl.contexts", "kubectl.namespaces", "kubectl.resources"]
+resources = "manual"
+
+[[tools]]
+name = "helm"
+aliases = ["helm.exe"]
+help = "sectioned"
+required = ["list", "status", "install", "upgrade", "uninstall", "template", "lint", "repo"]
+providers = ["helm.charts", "helm.repositories", "helm.releases"]
+resources = "manual"
+
+[[tools]]
+name = "ssh"
+aliases = ["ssh.exe"]
+help = "sectioned"
+required = []
+providers = ["ssh.hosts"]
+resources = "local"
+
+[[tools]]
+name = "scp"
+aliases = ["scp.exe"]
+help = "sectioned"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "sftp"
+aliases = ["sftp.exe"]
+help = "sectioned"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "codex"
+aliases = ["codex.exe", "codex.cmd", "codex.ps1"]
+help = "sectioned"
+required = ["exec", "review", "resume", "fork", "mcp", "completion"]
+providers = []
+resources = "none"
+
+[[tools]]
+name = "winget"
+aliases = ["winget.exe"]
+help = "sectioned"
+required = ["search", "show", "install", "upgrade", "uninstall", "list"]
+providers = []
+resources = "local"
+
+[[tools]]
+name = "pwsh"
+aliases = ["powershell", "pwsh.exe", "powershell.exe"]
+help = "sectioned"
+required = []
+providers = ["powershell.env", "powershell.paths", "powershell.redirects"]
+resources = "local"
+
+[[tools]]
+name = "Get-ChildItem"
+aliases = ["get-childitem", "gci", "dir", "ls"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "Set-Location"
+aliases = ["set-location", "cd", "chdir", "sl"]
+help = "powershell"
+required = []
+providers = []
+resources = "local"

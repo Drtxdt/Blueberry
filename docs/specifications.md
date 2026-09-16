@@ -1,6 +1,6 @@
 # Blueberry 规格目录
 
-Blueberry 的内置命令知识来自 [`specs/builtin.toml`](../specs/builtin.toml)。该文件使用版本 1 的声明式格式，构建时由 `build.rs` 校验并生成 Rust 静态数据。运行时不会解析内置 TOML，也不会执行其中的脚本。用户规格只从用户配置目录读取 `*.toml`，不能引用任意脚本、程序或在线服务。
+Blueberry 的内置命令知识来自 [`specs/builtin`](../specs/builtin) 中按工具族拆分的 TOML，以及统一的 [`specs/tools.toml`](../specs/tools.toml) 工具登记表。构建时由 `build.rs` 合并、校验并生成 Rust 静态数据。运行时不会解析内置 TOML，也不会执行其中的脚本。用户规格只从用户配置目录读取 `*.toml`，不能引用任意脚本、程序或在线服务。
 
 ## 版本 1 格式
 
