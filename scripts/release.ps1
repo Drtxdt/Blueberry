@@ -45,6 +45,7 @@ $requiredPayload = @(
     'specs/builtin/devops.toml',
     'specs/builtin/remote.toml',
     'specs/builtin/windows.toml',
+    'specs/builtin/cloud_database.toml',
     'manage-install.ps1',
     'install-common.ps1',
     'install.ps1'
@@ -427,6 +428,7 @@ try {
         @{ Source = (Join-Path $repoRoot 'specs/builtin/devops.toml'); Destination = 'specs/builtin/devops.toml' },
         @{ Source = (Join-Path $repoRoot 'specs/builtin/remote.toml'); Destination = 'specs/builtin/remote.toml' },
         @{ Source = (Join-Path $repoRoot 'specs/builtin/windows.toml'); Destination = 'specs/builtin/windows.toml' },
+        @{ Source = (Join-Path $repoRoot 'specs/builtin/cloud_database.toml'); Destination = 'specs/builtin/cloud_database.toml' },
         @{ Source = (Join-Path $repoRoot 'scripts/manage-install.ps1'); Destination = 'manage-install.ps1' },
         @{ Source = (Join-Path $repoRoot 'scripts/install-common.ps1'); Destination = 'install-common.ps1' },
         @{ Source = (Join-Path $repoRoot 'install.ps1'); Destination = 'install.ps1' }

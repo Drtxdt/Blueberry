@@ -714,6 +714,9 @@ pub fn capture(
         .env("TERM", "dumb")
         .env("GIT_PAGER", "cat")
         .env("PAGER", "cat")
+        .env("AWS_PAGER", "")
+        .env("AZURE_CORE_ONLY_SHOW_ERRORS", "true")
+        .env("CLOUDSDK_CORE_DISABLE_PROMPTS", "1")
         .env("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1")
         .env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
     #[cfg(windows)]
@@ -893,14 +896,20 @@ pub fn learn(
         "scoop" => std::iter::once("help".to_owned())
             .chain(context.iter().cloned())
             .collect(),
+        "aws" => context
+            .iter()
+            .cloned()
+            .chain(std::iter::once("help".to_owned()))
+            .collect(),
         _ => context.clone(),
     };
-    if adapter != "scoop" {
+    if adapter != "scoop" && adapter != "aws" {
         help_args.push(
             match adapter {
                 "windows-slash" => "/?",
                 "sevenzip" => "-h",
                 "choco" => "-?",
+                "sqlite" => "-help",
                 _ if entry.command == "git" && !context.is_empty() => "-h",
                 _ => "--help",
             }

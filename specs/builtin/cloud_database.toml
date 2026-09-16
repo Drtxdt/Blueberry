@@ -1,0 +1,548 @@
+schema_version = 1
+name = ""
+version = ""
+
+[[option_sets]]
+id = "CLOUD_DATABASE_HELP_OPTIONS"
+[[option_sets.options]]
+name = "--help"
+description = "显示命令帮助"
+detail = "显示当前工具或子命令的帮助。"
+value_kind = "none"
+
+[[option_sets.options]]
+name = "--version"
+description = "显示工具版本"
+detail = "显示当前工具版本。"
+value_kind = "none"
+
+[[nodes]]
+path = "aws"
+name = "aws"
+description = "管理 AWS 服务与资源"
+detail = "管理 AWS 服务与资源；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "value"
+children = ["aws configure", "aws s3", "aws s3api", "aws ec2", "aws iam", "aws sts", "aws lambda", "aws cloudformation", "aws eks", "aws ecs", "aws logs"]
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws --help"]
+keywords = ["管理 AWS 服务与资源", "云平台", "数据库"]
+provider = "cloud.aws_profiles"
+
+[[nodes]]
+path = "aws configure"
+name = "configure"
+description = "管理 AWS 服务与资源：configure"
+detail = "管理 AWS 服务与资源：configure。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws configure --help"]
+keywords = ["管理 AWS 服务与资源", "configure"]
+
+[[nodes]]
+path = "aws s3"
+name = "s3"
+description = "管理 AWS 服务与资源：s3"
+detail = "管理 AWS 服务与资源：s3。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws s3 --help"]
+keywords = ["管理 AWS 服务与资源", "s3"]
+provider = "cloud.aws_resources"
+
+[[nodes]]
+path = "aws s3api"
+name = "s3api"
+description = "管理 AWS 服务与资源：s3api"
+detail = "管理 AWS 服务与资源：s3api。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws s3api --help"]
+keywords = ["管理 AWS 服务与资源", "s3api"]
+
+[[nodes]]
+path = "aws ec2"
+name = "ec2"
+description = "管理 AWS 服务与资源：ec2"
+detail = "管理 AWS 服务与资源：ec2。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws ec2 --help"]
+keywords = ["管理 AWS 服务与资源", "ec2"]
+provider = "cloud.aws_resources"
+
+[[nodes]]
+path = "aws iam"
+name = "iam"
+description = "管理 AWS 服务与资源：iam"
+detail = "管理 AWS 服务与资源：iam。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws iam --help"]
+keywords = ["管理 AWS 服务与资源", "iam"]
+
+[[nodes]]
+path = "aws sts"
+name = "sts"
+description = "管理 AWS 服务与资源：sts"
+detail = "管理 AWS 服务与资源：sts。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws sts --help"]
+keywords = ["管理 AWS 服务与资源", "sts"]
+
+[[nodes]]
+path = "aws lambda"
+name = "lambda"
+description = "管理 AWS 服务与资源：lambda"
+detail = "管理 AWS 服务与资源：lambda。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws lambda --help"]
+keywords = ["管理 AWS 服务与资源", "lambda"]
+
+[[nodes]]
+path = "aws cloudformation"
+name = "cloudformation"
+description = "管理 AWS 服务与资源：cloudformation"
+detail = "管理 AWS 服务与资源：cloudformation。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws cloudformation --help"]
+keywords = ["管理 AWS 服务与资源", "cloudformation"]
+
+[[nodes]]
+path = "aws eks"
+name = "eks"
+description = "管理 AWS 服务与资源：eks"
+detail = "管理 AWS 服务与资源：eks。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws eks --help"]
+keywords = ["管理 AWS 服务与资源", "eks"]
+
+[[nodes]]
+path = "aws ecs"
+name = "ecs"
+description = "管理 AWS 服务与资源：ecs"
+detail = "管理 AWS 服务与资源：ecs。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws ecs --help"]
+keywords = ["管理 AWS 服务与资源", "ecs"]
+
+[[nodes]]
+path = "aws logs"
+name = "logs"
+description = "管理 AWS 服务与资源：logs"
+detail = "管理 AWS 服务与资源：logs。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["aws logs --help"]
+keywords = ["管理 AWS 服务与资源", "logs"]
+
+[[nodes]]
+path = "az"
+name = "az"
+description = "管理 Microsoft Azure 资源"
+detail = "管理 Microsoft Azure 资源；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "value"
+children = ["az login", "az account", "az group", "az resource", "az vm", "az storage", "az network", "az acr", "az aks", "az webapp", "az functionapp", "az extension", "az config", "az cloud", "az deployment"]
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az --help"]
+keywords = ["管理 Microsoft Azure 资源", "云平台", "数据库"]
+provider = "cloud.azure_profiles"
+
+[[nodes]]
+path = "az login"
+name = "login"
+description = "管理 Microsoft Azure 资源：login"
+detail = "管理 Microsoft Azure 资源：login。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az login --help"]
+keywords = ["管理 Microsoft Azure 资源", "login"]
+
+[[nodes]]
+path = "az account"
+name = "account"
+description = "管理 Microsoft Azure 资源：account"
+detail = "管理 Microsoft Azure 资源：account。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az account --help"]
+keywords = ["管理 Microsoft Azure 资源", "account"]
+provider = "cloud.azure_resources"
+
+[[nodes]]
+path = "az group"
+name = "group"
+description = "管理 Microsoft Azure 资源：group"
+detail = "管理 Microsoft Azure 资源：group。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az group --help"]
+keywords = ["管理 Microsoft Azure 资源", "group"]
+provider = "cloud.azure_resources"
+
+[[nodes]]
+path = "az resource"
+name = "resource"
+description = "管理 Microsoft Azure 资源：resource"
+detail = "管理 Microsoft Azure 资源：resource。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az resource --help"]
+keywords = ["管理 Microsoft Azure 资源", "resource"]
+
+[[nodes]]
+path = "az vm"
+name = "vm"
+description = "管理 Microsoft Azure 资源：vm"
+detail = "管理 Microsoft Azure 资源：vm。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az vm --help"]
+keywords = ["管理 Microsoft Azure 资源", "vm"]
+
+[[nodes]]
+path = "az storage"
+name = "storage"
+description = "管理 Microsoft Azure 资源：storage"
+detail = "管理 Microsoft Azure 资源：storage。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az storage --help"]
+keywords = ["管理 Microsoft Azure 资源", "storage"]
+
+[[nodes]]
+path = "az network"
+name = "network"
+description = "管理 Microsoft Azure 资源：network"
+detail = "管理 Microsoft Azure 资源：network。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az network --help"]
+keywords = ["管理 Microsoft Azure 资源", "network"]
+
+[[nodes]]
+path = "az acr"
+name = "acr"
+description = "管理 Microsoft Azure 资源：acr"
+detail = "管理 Microsoft Azure 资源：acr。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az acr --help"]
+keywords = ["管理 Microsoft Azure 资源", "acr"]
+
+[[nodes]]
+path = "az aks"
+name = "aks"
+description = "管理 Microsoft Azure 资源：aks"
+detail = "管理 Microsoft Azure 资源：aks。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az aks --help"]
+keywords = ["管理 Microsoft Azure 资源", "aks"]
+
+[[nodes]]
+path = "az webapp"
+name = "webapp"
+description = "管理 Microsoft Azure 资源：webapp"
+detail = "管理 Microsoft Azure 资源：webapp。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az webapp --help"]
+keywords = ["管理 Microsoft Azure 资源", "webapp"]
+
+[[nodes]]
+path = "az functionapp"
+name = "functionapp"
+description = "管理 Microsoft Azure 资源：functionapp"
+detail = "管理 Microsoft Azure 资源：functionapp。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az functionapp --help"]
+keywords = ["管理 Microsoft Azure 资源", "functionapp"]
+
+[[nodes]]
+path = "az extension"
+name = "extension"
+description = "管理 Microsoft Azure 资源：extension"
+detail = "管理 Microsoft Azure 资源：extension。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az extension --help"]
+keywords = ["管理 Microsoft Azure 资源", "extension"]
+
+[[nodes]]
+path = "az config"
+name = "config"
+description = "管理 Microsoft Azure 资源：config"
+detail = "管理 Microsoft Azure 资源：config。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az config --help"]
+keywords = ["管理 Microsoft Azure 资源", "config"]
+
+[[nodes]]
+path = "az cloud"
+name = "cloud"
+description = "管理 Microsoft Azure 资源：cloud"
+detail = "管理 Microsoft Azure 资源：cloud。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az cloud --help"]
+keywords = ["管理 Microsoft Azure 资源", "cloud"]
+
+[[nodes]]
+path = "az deployment"
+name = "deployment"
+description = "管理 Microsoft Azure 资源：deployment"
+detail = "管理 Microsoft Azure 资源：deployment。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["az deployment --help"]
+keywords = ["管理 Microsoft Azure 资源", "deployment"]
+
+[[nodes]]
+path = "gcloud"
+name = "gcloud"
+description = "管理 Google Cloud 资源"
+detail = "管理 Google Cloud 资源；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "value"
+children = ["gcloud auth", "gcloud config", "gcloud projects", "gcloud compute", "gcloud container", "gcloud run", "gcloud functions", "gcloud storage", "gcloud sql", "gcloud iam", "gcloud services", "gcloud components", "gcloud info"]
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud --help"]
+keywords = ["管理 Google Cloud 资源", "云平台", "数据库"]
+provider = "cloud.gcloud_profiles"
+
+[[nodes]]
+path = "gcloud auth"
+name = "auth"
+description = "管理 Google Cloud 资源：auth"
+detail = "管理 Google Cloud 资源：auth。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud auth --help"]
+keywords = ["管理 Google Cloud 资源", "auth"]
+
+[[nodes]]
+path = "gcloud config"
+name = "config"
+description = "管理 Google Cloud 资源：config"
+detail = "管理 Google Cloud 资源：config。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud config --help"]
+keywords = ["管理 Google Cloud 资源", "config"]
+
+[[nodes]]
+path = "gcloud projects"
+name = "projects"
+description = "管理 Google Cloud 资源：projects"
+detail = "管理 Google Cloud 资源：projects。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud projects --help"]
+keywords = ["管理 Google Cloud 资源", "projects"]
+provider = "cloud.gcloud_resources"
+
+[[nodes]]
+path = "gcloud compute"
+name = "compute"
+description = "管理 Google Cloud 资源：compute"
+detail = "管理 Google Cloud 资源：compute。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud compute --help"]
+keywords = ["管理 Google Cloud 资源", "compute"]
+
+[[nodes]]
+path = "gcloud container"
+name = "container"
+description = "管理 Google Cloud 资源：container"
+detail = "管理 Google Cloud 资源：container。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud container --help"]
+keywords = ["管理 Google Cloud 资源", "container"]
+
+[[nodes]]
+path = "gcloud run"
+name = "run"
+description = "管理 Google Cloud 资源：run"
+detail = "管理 Google Cloud 资源：run。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud run --help"]
+keywords = ["管理 Google Cloud 资源", "run"]
+
+[[nodes]]
+path = "gcloud functions"
+name = "functions"
+description = "管理 Google Cloud 资源：functions"
+detail = "管理 Google Cloud 资源：functions。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud functions --help"]
+keywords = ["管理 Google Cloud 资源", "functions"]
+
+[[nodes]]
+path = "gcloud storage"
+name = "storage"
+description = "管理 Google Cloud 资源：storage"
+detail = "管理 Google Cloud 资源：storage。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud storage --help"]
+keywords = ["管理 Google Cloud 资源", "storage"]
+
+[[nodes]]
+path = "gcloud sql"
+name = "sql"
+description = "管理 Google Cloud 资源：sql"
+detail = "管理 Google Cloud 资源：sql。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud sql --help"]
+keywords = ["管理 Google Cloud 资源", "sql"]
+
+[[nodes]]
+path = "gcloud iam"
+name = "iam"
+description = "管理 Google Cloud 资源：iam"
+detail = "管理 Google Cloud 资源：iam。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud iam --help"]
+keywords = ["管理 Google Cloud 资源", "iam"]
+
+[[nodes]]
+path = "gcloud services"
+name = "services"
+description = "管理 Google Cloud 资源：services"
+detail = "管理 Google Cloud 资源：services。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud services --help"]
+keywords = ["管理 Google Cloud 资源", "services"]
+
+[[nodes]]
+path = "gcloud components"
+name = "components"
+description = "管理 Google Cloud 资源：components"
+detail = "管理 Google Cloud 资源：components。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud components --help"]
+keywords = ["管理 Google Cloud 资源", "components"]
+
+[[nodes]]
+path = "gcloud info"
+name = "info"
+description = "管理 Google Cloud 资源：info"
+detail = "管理 Google Cloud 资源：info。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["gcloud info --help"]
+keywords = ["管理 Google Cloud 资源", "info"]
+
+[[nodes]]
+path = "psql"
+name = "psql"
+description = "连接和管理 PostgreSQL 数据库"
+detail = "连接和管理 PostgreSQL 数据库；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["psql --help"]
+keywords = ["连接和管理 PostgreSQL 数据库", "云平台", "数据库"]
+provider = "db.postgres"
+
+[[nodes]]
+path = "mysql"
+name = "mysql"
+description = "连接和管理 MySQL 数据库"
+detail = "连接和管理 MySQL 数据库；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["mysql --help"]
+keywords = ["连接和管理 MySQL 数据库", "云平台", "数据库"]
+provider = "db.mysql"
+
+[[nodes]]
+path = "sqlite3"
+name = "sqlite3"
+description = "查询和管理 SQLite 数据库"
+detail = "查询和管理 SQLite 数据库；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "path"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["sqlite3 ./data.db"]
+keywords = ["查询和管理 SQLite 数据库", "云平台", "数据库"]
+
+[[nodes]]
+path = "redis-cli"
+name = "redis-cli"
+description = "连接和管理 Redis"
+detail = "连接和管理 Redis；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["redis-cli --help"]
+keywords = ["连接和管理 Redis", "云平台", "数据库"]
+provider = "db.redis"
+
+[[nodes]]
+path = "mongosh"
+name = "mongosh"
+description = "连接和管理 MongoDB"
+detail = "连接和管理 MongoDB；本地配置自动读取，远程资源仅在主动刷新后查询。"
+positional = "value"
+children = []
+option_sets = ["CLOUD_DATABASE_HELP_OPTIONS"]
+examples = ["mongosh --help"]
+keywords = ["连接和管理 MongoDB", "云平台", "数据库"]
+provider = "db.mongo"
+
+

@@ -519,3 +519,67 @@ help = "powershell"
 required = []
 providers = []
 resources = "local"
+
+[[tools]]
+name = "aws"
+aliases = ["aws.exe"]
+help = "aws"
+required = ["configure", "s3", "ec2", "iam", "sts", "lambda"]
+providers = ["cloud.aws_profiles", "cloud.aws_resources"]
+resources = "manual"
+
+[[tools]]
+name = "az"
+aliases = ["az.cmd", "az.exe"]
+help = "sectioned"
+required = ["login", "account", "group", "resource", "vm", "storage"]
+providers = ["cloud.azure_profiles", "cloud.azure_resources"]
+resources = "manual"
+
+[[tools]]
+name = "gcloud"
+aliases = ["gcloud.cmd", "gcloud.exe"]
+help = "sectioned"
+required = ["auth", "config", "projects", "compute", "container", "run"]
+providers = ["cloud.gcloud_profiles", "cloud.gcloud_resources"]
+resources = "manual"
+
+[[tools]]
+name = "psql"
+aliases = ["psql.exe"]
+help = "sectioned"
+required = []
+providers = ["db.postgres"]
+resources = "manual"
+
+[[tools]]
+name = "mysql"
+aliases = ["mysql.exe"]
+help = "sectioned"
+required = []
+providers = ["db.mysql"]
+resources = "manual"
+
+[[tools]]
+name = "sqlite3"
+aliases = ["sqlite3.exe"]
+help = "sqlite"
+required = []
+providers = []
+resources = "local"
+
+[[tools]]
+name = "redis-cli"
+aliases = ["redis-cli.exe"]
+help = "sectioned"
+required = []
+providers = ["db.redis"]
+resources = "manual"
+
+[[tools]]
+name = "mongosh"
+aliases = ["mongosh.exe"]
+help = "sectioned"
+required = []
+providers = ["db.mongo"]
+resources = "manual"

@@ -63,9 +63,24 @@ blueberry startup status
 | 命令工作台 | Ctrl+Alt+P 搜索收藏、结构化模板、当前会话历史、项目操作和 Blueberry 管理入口 |
 | 常用命令建议 | 输入完整命令前缀时，在普通菜单中补充收藏、项目操作和最近历史 |
 
-内置规则涵盖 Git、Cargo、rustup、Python、pip、uv、Conda／Mamba、Poetry、npm、pnpm、Yarn、Bun、Go、dotnet、CMake、Docker Compose、kubectl、Helm、SSH、Codex 和 winget。项目补全可读取脚本、依赖、环境、工作区、解决方案、CMake 预设、Compose 服务、Kubernetes 上下文和 SSH Host。
+内置规则涵盖 PowerShell、Git/GitHub、Rust、Python、Conda、前端工具、Go、.NET、CMake、容器与集群工具、SSH、Codex 和 winget。本轮还加入 Deno、Java/Maven/Gradle、Make/Ninja/Just/Task、Terraform/OpenTofu、Ansible、常用 Windows 命令、AWS/Azure/Google Cloud CLI，以及 PostgreSQL、MySQL、SQLite、Redis 和 MongoDB 客户端。项目补全可读取脚本、依赖、环境、工作区、构建目标、基础设施变量、Compose 服务、Kubernetes 上下文和 SSH Host。
 
-本机项目与环境数据自动更新。远程 Docker、Kubernetes 和 Helm 资源使用 **Ctrl+Alt+D** 主动读取，避免输入普通命令时连接远程服务。
+本机项目、环境、云配置名称和数据库连接配置自动更新。远程 Docker、Kubernetes、Helm、云资源和数据库对象使用 **Ctrl+Alt+D** 主动读取。Gradle 任务查询和 Ansible 插件解析等可能执行项目代码的操作也只允许手动刷新。
+
+### 补全知识从哪里来
+
+Blueberry 将几类知识合并后生成菜单：用户 TOML 规格与说明覆盖拥有最高优先级；内置规格提供稳定的中文命令、参数、格式和示例；本机程序帮助补充当前安装版本及插件命令；项目和本机动态提供器读取脚本、环境、目标和资源；PowerShell 原生补全的有效 ToolTip 可作为当前会话说明。
+
+本机帮助按工具登记固定调用方式。Cargo 根命令分别读取 `cargo --list` 和 `cargo --help`，Git、pnpm、Docker 等使用各自适配器。只有帮助适配器和解析器都确认命令段或选项段完整时，Blueberry 才会隐藏本机版本不存在的内置项目；输出截断、格式未知或标题缺失时只追加知识。别名会指向规范命令，例如 `cargo b` 使用 `cargo build` 的规则。
+
+学习缓存绑定实际程序入口、文件指纹、帮助适配器和解析器版本。升级程序或解析器后缓存会自动失效。以下命令可以查看每个候选的来源、学习状态、动态提供器和隐藏依据：
+
+```powershell
+blueberry complete --explain "cargo b"
+blueberry specs list
+blueberry doctor --json
+blueberry tools
+```
 
 未知工具可以手动学习：
 
