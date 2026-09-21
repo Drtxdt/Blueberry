@@ -54,8 +54,7 @@ fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion
     let _ = request_buffer(&mut host.harness, "查看分支")?;
     host.harness.send(b"\x1b[102;7u")?;
     host.harness.wait_text("git branch", PTY_TIMEOUT)?;
-    let _ = accept_selected(&mut host.harness)?;
-    let buffer = request_buffer(&mut host.harness, "git branch")?;
+    let buffer = accept_selected(&mut host.harness)?;
     ensure!(
         buffer["line"]
             .as_str()
@@ -507,47 +506,35 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     host.harness.send(b"\x1b[D\x1b[D")?;
     let _ = request_buffer(&mut host.harness, "git")?;
     select_candidate(&mut host.harness, "git")?;
-    let _ = accept_selected(&mut host.harness)?;
-    wait_until(
-        &mut host.harness,
-        "g|it acceptance",
-        PTY_TIMEOUT,
-        |screen| {
-            screen
-                .lines()
-                .any(|line| line.trim_end().ends_with("> git"))
-        },
-    )?;
+    let git = accept_selected(&mut host.harness)?;
+    ensure!(
+        git["line"] == "git" && git["cursor"] == 3,
+        "g|it acceptance duplicated its suffix: {git}"
+    );
 
     clear_line(&mut host.harness)?;
     host.harness.send(b"giXYZ")?;
     host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
     let _ = request_buffer(&mut host.harness, "giXYZ")?;
     select_candidate(&mut host.harness, "git")?;
-    let _ = accept_selected(&mut host.harness)?;
-    wait_until(
-        &mut host.harness,
-        "right-hand suffix acceptance",
-        PTY_TIMEOUT,
-        |screen| screen.contains("> gitXYZ"),
-    )?;
+    let suffix = accept_selected(&mut host.harness)?;
+    ensure!(
+        suffix["line"] == "gitXYZ",
+        "acceptance did not preserve the right-hand suffix: {suffix}"
+    );
 
     clear_line(&mut host.harness)?;
     host.harness
         .send("Get-ChildItem -Name '中文😀".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "Get-ChildItem -Name '中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    let _ = accept_selected(&mut host.harness)?;
-    wait_until(
-        &mut host.harness,
-        "single quote and Unicode acceptance",
-        PTY_TIMEOUT,
-        |screen| {
-            screen.lines().any(|line| {
-                line.contains("Get-ChildItem -Name '") && line.contains("中文😀 文件.txt'")
-            })
-        },
-    )?;
+    let single = accept_selected(&mut host.harness)?;
+    ensure!(
+        single["line"].as_str().is_some_and(|line| {
+            line.contains("Get-ChildItem -Name '") && line.contains("中文😀 文件.txt'")
+        }),
+        "single quote or Unicode was not preserved: {single}"
+    );
 
     // A refreshed menu may legitimately own editor keys immediately after
     // acceptance. Start a fresh prompt for the independent double-quote case
@@ -558,17 +545,13 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
         .send("Get-ChildItem -Name \"中文😀".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    let _ = accept_selected(&mut host.harness)?;
-    wait_until(
-        &mut host.harness,
-        "double quote and Unicode acceptance",
-        PTY_TIMEOUT,
-        |screen| {
-            screen.lines().any(|line| {
-                line.contains("Get-ChildItem -Name \"") && line.contains("中文😀 文件.txt\"")
-            })
-        },
-    )?;
+    let double = accept_selected(&mut host.harness)?;
+    ensure!(
+        double["line"].as_str().is_some_and(|line| {
+            line.contains("Get-ChildItem -Name \"") && line.contains("中文😀 文件.txt\"")
+        }),
+        "double quote or Unicode was not preserved: {double}"
+    );
 
     host.harness.stop()?;
     Ok(())

@@ -1484,13 +1484,23 @@ function Send-BlueberryEditResult {
         [string]$RequestId,
 
         [Parameter(Mandatory = $true)]
-        [bool]$Applied
+        [bool]$Applied,
+
+        [AllowNull()]
+        [string]$Line,
+
+        [int]$Cursor = 0
     )
 
-    Send-BlueberryEvent -Event 'edit_result' -Data ([ordered]@{
+    $data = [ordered]@{
         request_id = $RequestId
         applied    = [bool]$Applied
-    })
+    }
+    if ($null -ne $Line) {
+        $data.line = [string]$Line
+        $data.cursor = [int]$Cursor
+    }
+    Send-BlueberryEvent -Event 'edit_result' -Data $data
 }
 
 function Invoke-BlueberryApplyEdit {
@@ -1576,25 +1586,24 @@ function Invoke-BlueberryApplyEdit {
         } catch {
             $replaceError = $_
         }
-        Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied
+        $resultLine = [string]$line
+        $resultCursor = [int]$cursor
         if ($replaceApplied) {
             # Replace deterministically leaves the cursor after the inserted
             # UTF-16 text. Report that known state without calling
             # GetBufferState again from inside PSReadLine's key handler; that
             # nested query can stall on Windows PowerShell runners.
-            $appliedLine = ([string]$line).Substring(0, [int]$edit.start) + `
+            $resultLine = ([string]$line).Substring(0, [int]$edit.start) + `
                 [string]$edit.text + `
                 ([string]$line).Substring([int]$edit.start + [int]$edit.length)
-            Send-BlueberryEvent -Event 'buffer' -Data ([ordered]@{
-                line   = $appliedLine
-                cursor = [int]$edit.start + ([string]$edit.text).Length
-            })
-        } else {
-            Send-BlueberryEvent -Event 'buffer' -Data ([ordered]@{
-                line   = [string]$line
-                cursor = [int]$cursor
-            })
+            $resultCursor = [int]$edit.start + ([string]$edit.text).Length
         }
+        Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied `
+            -Line $resultLine -Cursor $resultCursor
+        Send-BlueberryEvent -Event 'buffer' -Data ([ordered]@{
+            line   = $resultLine
+            cursor = $resultCursor
+        })
         if ($null -ne $replaceError) {
             Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code        = 'edit_failed'
