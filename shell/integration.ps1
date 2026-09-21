@@ -1484,23 +1484,13 @@ function Send-BlueberryEditResult {
         [string]$RequestId,
 
         [Parameter(Mandatory = $true)]
-        [bool]$Applied,
-
-        [AllowNull()]
-        [string]$Line,
-
-        [int]$Cursor = 0
+        [bool]$Applied
     )
 
-    $data = [ordered]@{
+    Send-BlueberryEvent -Event 'edit_result' -Data ([ordered]@{
         request_id = $RequestId
         applied    = [bool]$Applied
-    }
-    if ($null -ne $Line) {
-        $data.line = [string]$Line
-        $data.cursor = [int]$Cursor
-    }
-    Send-BlueberryEvent -Event 'edit_result' -Data $data
+    })
 }
 
 function Invoke-BlueberryApplyEdit {
@@ -1598,8 +1588,7 @@ function Invoke-BlueberryApplyEdit {
                 ([string]$line).Substring([int]$edit.start + [int]$edit.length)
             $resultCursor = [int]$edit.start + ([string]$edit.text).Length
         }
-        Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied `
-            -Line $resultLine -Cursor $resultCursor
+        Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied
         Send-BlueberryEvent -Event 'buffer' -Data ([ordered]@{
             line   = $resultLine
             cursor = $resultCursor
