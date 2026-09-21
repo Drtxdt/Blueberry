@@ -1212,17 +1212,13 @@ fn coalesce_unmarked_multiline_events(events: Vec<Event>) -> Vec<Event> {
                     text_units += 1;
                     last_was_newline = false;
                 }
-                KeyCode::Enter if key.modifiers.is_empty() => {
+                KeyCode::Enter if paste_enter_modifiers(key.modifiers) => {
                     if !last_was_newline {
                         first_newline.get_or_insert(text_units);
                         text.push('\n');
                     }
                     last_was_newline = true;
                 }
-                // ConPTY represents the LF half of a pasted CRLF pair as a
-                // Ctrl+Enter record. It immediately follows the ordinary
-                // Enter generated for CR and carries no additional newline.
-                KeyCode::Enter if key.modifiers == KeyModifiers::CONTROL && last_was_newline => {}
                 _ => break,
             }
             index += 1;
@@ -1279,13 +1275,12 @@ fn text_event_run(events: &[Event], start: usize) -> (usize, String) {
                 text.push('\t');
                 last_was_newline = false;
             }
-            KeyCode::Enter if key.modifiers.is_empty() => {
+            KeyCode::Enter if paste_enter_modifiers(key.modifiers) => {
                 if !last_was_newline {
                     text.push('\n');
                 }
                 last_was_newline = true;
             }
-            KeyCode::Enter if key.modifiers == KeyModifiers::CONTROL && last_was_newline => {}
             _ => break,
         }
         index += 1;
@@ -1324,7 +1319,7 @@ fn text_event_run_against(events: &[Event], start: usize, target: &str) -> (usiz
                 }
                 '\t'
             }
-            KeyCode::Enter if key.modifiers.is_empty() => {
+            KeyCode::Enter if paste_enter_modifiers(key.modifiers) => {
                 if last_was_newline {
                     index += 1;
                     continue;
@@ -1333,10 +1328,6 @@ fn text_event_run_against(events: &[Event], start: usize, target: &str) -> (usiz
                     break;
                 }
                 '\n'
-            }
-            KeyCode::Enter if key.modifiers == KeyModifiers::CONTROL && last_was_newline => {
-                index += 1;
-                continue;
             }
             _ => break,
         };
@@ -1382,7 +1373,13 @@ fn is_unmarked_text_key(key: &KeyEvent) -> bool {
             if !character.is_control()
                 && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT)
     ) || matches!(key.code, KeyCode::Tab if key.modifiers.is_empty())
-        || matches!(key.code, KeyCode::Enter if key.modifiers.is_empty() || key.modifiers == KeyModifiers::CONTROL)
+        || matches!(key.code, KeyCode::Enter if paste_enter_modifiers(key.modifiers))
+}
+
+fn paste_enter_modifiers(modifiers: KeyModifiers) -> bool {
+    modifiers
+        .difference(KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+        .is_empty()
 }
 
 fn clipboard_multiline_text() -> Option<String> {
