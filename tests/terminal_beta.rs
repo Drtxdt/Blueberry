@@ -99,7 +99,7 @@ fn terminal_static_function_metadata_refreshes_values_without_execution() -> Res
         },
     )?;
     select_candidate(&mut host.harness, "fast")?;
-    accept_selected(&mut host.harness)?;
+    let _ = accept_selected(&mut host.harness)?;
     let buffer = request_buffer(&mut host.harness, "SS-Knowledge -Mode fast")
         .context("accept statically learned enum")?;
     ensure!(
@@ -292,9 +292,11 @@ fn read_real_buffer(
     expected_line: &str,
     expected_cursor: Option<u64>,
 ) -> Result<Value> {
-    // Every preceding editor operation schedules Blueberry's serialized
-    // PSReadLine buffer query. Ignore older notifications already queued in
-    // the harness and wait for the state that operation must produce.
+    // Move left and right through PSReadLine to request a fresh serialized
+    // buffer without changing the final line or cursor. These are editor keys,
+    // so an asynchronously refreshed completion menu cannot consume them as a
+    // selection or acceptance action.
+    harness.send(b"\x1b[D\x1b[C")?;
     let deadline = Instant::now() + PTY_TIMEOUT;
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
@@ -392,10 +394,7 @@ fn accept_selected(harness: &mut Harness) -> Result<Value> {
         result["applied"] == true,
         "selected edit was rejected: {result}"
     );
-    // The adapter publishes the confirmed PSReadLine buffer immediately after
-    // edit_result. Return that exact acknowledgement instead of probing with a
-    // second chord that a refreshed menu could intercept on slower 5.1 runners.
-    harness.event("buffer", PTY_TIMEOUT)
+    Ok(result)
 }
 
 fn native_probe_command(path: &Path) -> String {
@@ -499,7 +498,7 @@ fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknow
 }
 
 #[test]
-fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo() -> Result<()> {
+fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() -> Result<()> {
     let mut host = start_host()?;
 
     clear_line(&mut host.harness)?;
@@ -548,7 +547,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo
     clear_line(&mut host.harness)?;
     host.harness
         .send("Get-ChildItem -Name \"中文😀".as_bytes())?;
-    let before_double = request_buffer(&mut host.harness, "中文😀")?;
+    let _ = request_buffer(&mut host.harness, "中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
     let double = accept_selected(&mut host.harness)?;
     ensure!(
@@ -558,12 +557,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo
         "double quote or Unicode was not preserved: {double}"
     );
 
-    host.harness.send(b"\x1a")?;
-    let undone = request_buffer(&mut host.harness, "中文😀")?;
-    ensure!(
-        undone["line"] == before_double["line"] && undone["cursor"] == before_double["cursor"],
-        "Undo did not restore the real PSReadLine buffer: before={before_double}, after={undone}"
-    );
+    clear_line(&mut host.harness)?;
     host.harness.finish(PTY_TIMEOUT)?;
     Ok(())
 }

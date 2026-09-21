@@ -1484,13 +1484,23 @@ function Send-BlueberryEditResult {
         [string]$RequestId,
 
         [Parameter(Mandatory = $true)]
-        [bool]$Applied
+        [bool]$Applied,
+
+        [AllowNull()]
+        [string]$Line,
+
+        [int]$Cursor = 0
     )
 
-    Send-BlueberryEvent -Event 'edit_result' -Data ([ordered]@{
+    $data = [ordered]@{
         request_id = $RequestId
         applied    = [bool]$Applied
-    })
+    }
+    if ($Applied -and $null -ne $Line) {
+        $data.line = [string]$Line
+        $data.cursor = [int]$Cursor
+    }
+    Send-BlueberryEvent -Event 'edit_result' -Data $data
 }
 
 function Invoke-BlueberryApplyEdit {
@@ -1576,7 +1586,14 @@ function Invoke-BlueberryApplyEdit {
         } catch {
             $replaceError = $_
         }
-        Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied
+        $resultLine = $null
+        $resultCursor = 0
+        if ($replaceApplied) {
+            [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState(
+                [ref]$resultLine, [ref]$resultCursor)
+        }
+        Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied `
+            -Line $resultLine -Cursor $resultCursor
         Send-BlueberryBuffer
         if ($null -ne $replaceError) {
             Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
