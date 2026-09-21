@@ -370,9 +370,9 @@ impl Reader {
         let injected_records = !events
             .iter()
             .any(|event| matches!(event, Event::Key(key) if key.kind == KeyEventKind::Release));
-        let has_enter = events.iter().any(
-            |event| matches!(event, Event::Key(key) if key.kind != KeyEventKind::Release && key.code == KeyCode::Enter),
-        );
+        let has_enter = events.iter().any(|event| {
+            matches!(event, Event::Key(key) if key.kind != KeyEventKind::Release && matches!(key.code, KeyCode::Enter | KeyCode::Char('\r' | '\n')))
+        });
         #[cfg(debug_assertions)]
         let deterministic_probe = test_clipboard_text().is_some();
         #[cfg(not(debug_assertions))]
@@ -1197,6 +1197,13 @@ fn coalesce_unmarked_multiline_events(events: Vec<Event>) -> Vec<Event> {
                 continue;
             }
             match key.code {
+                KeyCode::Char('\r' | '\n') => {
+                    if !last_was_newline {
+                        first_newline.get_or_insert(text_units);
+                        text.push('\n');
+                    }
+                    last_was_newline = true;
+                }
                 KeyCode::Char(character)
                     if !character.is_control()
                         && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT) =>
@@ -1263,6 +1270,16 @@ fn text_event_run_against(events: &[Event], start: usize, target: &str) -> (usiz
             continue;
         }
         let next = match key.code {
+            KeyCode::Char('\r' | '\n') => {
+                if last_was_newline {
+                    index += 1;
+                    continue;
+                }
+                if expected.next() != Some('\n') {
+                    break;
+                }
+                '\n'
+            }
             KeyCode::Char(character) if !character.is_control() => {
                 let Some(wanted) = expected.next() else { break };
                 if character == wanted
