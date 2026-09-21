@@ -22,7 +22,6 @@ struct RunningHost {
     data_dir: TempDir,
     _cwd: TempDir,
     edit_path: PathBuf,
-    buffer_marker: PathBuf,
     native_marker: PathBuf,
 }
 
@@ -50,22 +49,12 @@ fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion
     let mut config: config::Config = toml::from_str(&fs::read_to_string(&config_path)?)?;
     config.ui.icon_style = "nerd".into();
     fs::write(config_path, toml::to_string(&config)?)?;
-    send_command(
-        &mut host.harness,
-        &buffer_probe_command(&host.buffer_marker),
-        "SS_BUFFER_READY",
-    )?;
     clear_line(&mut host.harness)?;
     host.harness.send("查看分支".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "查看分支")?;
     host.harness.send(b"\x1b[102;7u")?;
     host.harness.wait_text("git branch", PTY_TIMEOUT)?;
-    accept_selected(&mut host.harness)?;
-    let buffer = read_real_buffer(
-        &mut host.harness,
-        &host.buffer_marker,
-        "purpose search inserted command",
-    )?;
+    let buffer = accept_selected(&mut host.harness)?;
     ensure!(
         buffer["line"]
             .as_str()
@@ -74,13 +63,8 @@ fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion
     );
     clear_line(&mut host.harness)?;
     host.harness.send(b"codex --model ")?;
-    let _ = request_buffer(&mut host.harness, "codex --model")?;
+    let buffer = request_buffer(&mut host.harness, "codex --model")?;
     host.harness.wait_text("<MODEL>", PTY_TIMEOUT)?;
-    let buffer = read_real_buffer(
-        &mut host.harness,
-        &host.buffer_marker,
-        "noninsertable argument hint",
-    )?;
     ensure!(
         buffer["line"]
             .as_str()
@@ -154,7 +138,6 @@ fn start_host() -> Result<RunningHost> {
     paths.extend(std::env::split_paths(&inherited_path));
     let path = std::env::join_paths(paths).context("construct deterministic PATH")?;
     let token = format!("terminal-beta-{}", uuid::Uuid::new_v4());
-    let buffer_marker = cwd.path().join("buffer-state.json");
     let native_marker = cwd.path().join("native-called.txt");
     let input_trace = cwd.path().join("input-trace.txt");
     let clipboard_fixture = cwd.path().join("clipboard-fixture.txt");
@@ -167,10 +150,6 @@ fn start_host() -> Result<RunningHost> {
         // Debug hosts mirror protocol frames to this probe token without
         // changing the private child-shell token used by the live adapter.
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
-        (
-            "BLUEBERRY_TEST_BUFFER".to_owned(),
-            buffer_marker.to_string_lossy().into_owned(),
-        ),
         (
             "BLUEBERRY_NATIVE_MARKER".to_owned(),
             native_marker.to_string_lossy().into_owned(),
@@ -234,7 +213,6 @@ fn start_host() -> Result<RunningHost> {
         edit_path: session_dir.join("edit.json"),
         data_dir,
         _cwd: cwd,
-        buffer_marker,
         native_marker,
     })
 }
@@ -308,36 +286,30 @@ fn request_buffer(harness: &mut Harness, expected_fragment: &str) -> Result<Valu
     }
 }
 
-fn read_marker(harness: &mut Harness, path: &Path, description: &str) -> Result<Value> {
+fn read_real_buffer(
+    harness: &mut Harness,
+    description: &str,
+    expected_line: &str,
+    expected_cursor: Option<u64>,
+) -> Result<Value> {
+    // Every preceding editor operation schedules Blueberry's serialized
+    // PSReadLine buffer query. Ignore older notifications already queued in
+    // the harness and wait for the state that operation must produce.
     let deadline = Instant::now() + PTY_TIMEOUT;
     loop {
-        if let Ok(bytes) = fs::read(path)
-            && !bytes.is_empty()
-            && let Ok(value) = serde_json::from_slice::<Value>(&bytes)
-        {
-            return Ok(value);
-        }
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            bail!(
-                "timed out waiting for {description}; screen:\n{}",
-                harness.viewport_contents()
-            );
+            bail!("timed out reading real PSReadLine buffer for {description}");
         }
-        // A custom F10 handler writes the marker without necessarily
-        // redrawing the terminal. Pump opportunistically while polling the
-        // marker instead of guessing with a fixed sleep.
-        let _ = harness.pump(remaining.min(Duration::from_millis(50)));
+        let value = harness.event("buffer", remaining)?;
+        let line_matches = value["line"]
+            .as_str()
+            .is_some_and(|line| line.contains(expected_line));
+        let cursor_matches = expected_cursor.is_none_or(|cursor| value["cursor"] == cursor);
+        if line_matches && cursor_matches {
+            return Ok(value);
+        }
     }
-}
-
-fn read_real_buffer(harness: &mut Harness, path: &Path, description: &str) -> Result<Value> {
-    let _ = fs::remove_file(path);
-    // Keep the probe on one physical key. A multi-key PSReadLine chord can be
-    // split when Blueberry opens a refreshed completion menu between the
-    // prefix and suffix on slower Windows PowerShell 5.1 runners.
-    harness.send(b"\x1b[21~")?;
-    read_marker(harness, path, description)
 }
 
 fn wait_absent(harness: &mut Harness, path: &Path, description: &str) -> Result<()> {
@@ -413,7 +385,7 @@ fn loading_notice_is_not_a_selectable_candidate() {
     );
 }
 
-fn accept_selected(harness: &mut Harness) -> Result<()> {
+fn accept_selected(harness: &mut Harness) -> Result<Value> {
     harness.send(b"\t")?;
     let result = harness.event("edit_result", PTY_TIMEOUT)?;
     ensure!(
@@ -421,18 +393,9 @@ fn accept_selected(harness: &mut Harness) -> Result<()> {
         "selected edit was rejected: {result}"
     );
     // The adapter publishes the confirmed PSReadLine buffer immediately after
-    // edit_result. Waiting for it serializes the next key chord with the
-    // applied edit and prevents a fast completion refresh from racing the
-    // probe on slower Windows PowerShell 5.1 runners.
-    let _ = harness.event("buffer", PTY_TIMEOUT)?;
-    Ok(())
-}
-
-fn buffer_probe_command(path: &Path) -> String {
-    format!(
-        "Set-PSReadLineKeyHandler -Chord 'F10' -ScriptBlock {{ $line=$null; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); $state=[object][ordered]@{{line=$line;cursor=$cursor}}; $json=($state | ConvertTo-Json -Compress -Depth 8); [IO.File]::WriteAllText({}, $json, [Text.UTF8Encoding]::new($false)) }}; Write-Output SS_BUFFER_READY",
-        ps_quote(path)
-    )
+    // edit_result. Return that exact acknowledgement instead of probing with a
+    // second chord that a refreshed menu could intercept on slower 5.1 runners.
+    harness.event("buffer", PTY_TIMEOUT)
 }
 
 fn native_probe_command(path: &Path) -> String {
@@ -538,19 +501,13 @@ fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknow
 #[test]
 fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo() -> Result<()> {
     let mut host = start_host()?;
-    send_command(
-        &mut host.harness,
-        &buffer_probe_command(&host.buffer_marker),
-        "SS_BUFFER_READY",
-    )?;
 
     clear_line(&mut host.harness)?;
     host.harness.send(b"git")?;
     host.harness.send(b"\x1b[D\x1b[D")?;
     let _ = request_buffer(&mut host.harness, "git")?;
     select_candidate(&mut host.harness, "git")?;
-    accept_selected(&mut host.harness)?;
-    let git = read_real_buffer(&mut host.harness, &host.buffer_marker, "g|it buffer")?;
+    let git = accept_selected(&mut host.harness)?;
     ensure!(
         git["line"] == "git",
         "g|it acceptance duplicated its suffix: {git}"
@@ -565,8 +522,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo
     host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
     let _ = request_buffer(&mut host.harness, "giXYZ")?;
     select_candidate(&mut host.harness, "git")?;
-    accept_selected(&mut host.harness)?;
-    let suffix = read_real_buffer(&mut host.harness, &host.buffer_marker, "gi|XYZ buffer")?;
+    let suffix = accept_selected(&mut host.harness)?;
     ensure!(
         suffix["line"] == "gitXYZ",
         "acceptance did not preserve the right-hand suffix: {suffix}"
@@ -577,12 +533,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo
         .send("Get-ChildItem -Name '中文😀".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "Get-ChildItem -Name '中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    accept_selected(&mut host.harness)?;
-    let single = read_real_buffer(
-        &mut host.harness,
-        &host.buffer_marker,
-        "single-quoted Unicode path",
-    )?;
+    let single = accept_selected(&mut host.harness)?;
     ensure!(
         single["line"]
             .as_str()
@@ -597,19 +548,9 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo
     clear_line(&mut host.harness)?;
     host.harness
         .send("Get-ChildItem -Name \"中文😀".as_bytes())?;
-    let _ = request_buffer(&mut host.harness, "中文😀")?;
-    let before_double = read_real_buffer(
-        &mut host.harness,
-        &host.buffer_marker,
-        "pre-acceptance double-quoted buffer",
-    )?;
+    let before_double = request_buffer(&mut host.harness, "中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    accept_selected(&mut host.harness)?;
-    let double = read_real_buffer(
-        &mut host.harness,
-        &host.buffer_marker,
-        "double-quoted Unicode path",
-    )?;
+    let double = accept_selected(&mut host.harness)?;
     ensure!(
         double["line"]
             .as_str()
@@ -618,7 +559,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_unicode_and_undo
     );
 
     host.harness.send(b"\x1a")?;
-    let undone = read_real_buffer(&mut host.harness, &host.buffer_marker, "PSReadLine undo")?;
+    let undone = request_buffer(&mut host.harness, "中文😀")?;
     ensure!(
         undone["line"] == before_double["line"] && undone["cursor"] == before_double["cursor"],
         "Undo did not restore the real PSReadLine buffer: before={before_double}, after={undone}"
@@ -714,11 +655,6 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     let mut host = start_host()?;
     send_command(
         &mut host.harness,
-        &buffer_probe_command(&host.buffer_marker),
-        "SS_BUFFER_READY",
-    )?;
-    send_command(
-        &mut host.harness,
         "Write-Output SS_UP_HISTORY",
         "SS_UP_HISTORY",
     )?;
@@ -735,7 +671,13 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         |screen| !screen.lines().any(|line| line.contains("› ")),
     )?;
     host.harness.send(b"\x1b[A")?;
-    let history = read_real_buffer(&mut host.harness, &host.buffer_marker, "history mode Up")?;
+    wait_until(
+        &mut host.harness,
+        "complete PSReadLine history repaint",
+        PTY_TIMEOUT,
+        |screen| screen.contains("Write-Output SS_UP_HISTORY"),
+    )?;
+    let history = request_buffer(&mut host.harness, "Write-Output SS_UP_HISTORY")?;
     ensure!(
         history["line"] == "Write-Output SS_UP_HISTORY",
         "history mode did not reach PSReadLine history: {history}"
@@ -744,7 +686,7 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     let pasted = "Write-Output '粘贴😀 与空格'";
     host.harness
         .send(format!("\x1b[200~{pasted}\x1b[201~").as_bytes())?;
-    let actual = read_real_buffer(&mut host.harness, &host.buffer_marker, "bracketed paste")?;
+    let actual = read_real_buffer(&mut host.harness, "bracketed paste", pasted, None)?;
     ensure!(
         actual["line"] == pasted,
         "bracketed paste changed input: {actual}"
@@ -759,8 +701,9 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         .send(format!("\x1b[200~{multiline}\x1b[201~").as_bytes())?;
     let actual = read_real_buffer(
         &mut host.harness,
-        &host.buffer_marker,
         "multiline bracketed paste",
+        multiline,
+        None,
     )?;
     ensure!(
         actual["line"] == multiline,
@@ -787,8 +730,9 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     }
     let actual = read_real_buffer(
         &mut host.harness,
-        &host.buffer_marker,
         "unmarked Windows Terminal multiline paste",
+        "Get-PnpDevice -PresentOnly |\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\nFormat-List *",
+        None,
     )
     .with_context(|| {
         format!(
@@ -809,15 +753,22 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     host.harness.send(b"\x1b[200~one\r\ntwo\x1b[201~")?;
     let selected = read_real_buffer(
         &mut host.harness,
-        &host.buffer_marker,
         "paste replaces selection",
+        "one\ntwo",
+        None,
     )?;
     ensure!(
         selected["line"] == "one\ntwo",
         "selection paste did not normalize and replace: {selected}"
     );
     host.harness.send(b"\x1a")?;
-    let undone = read_real_buffer(&mut host.harness, &host.buffer_marker, "paste undo")?;
+    wait_until(
+        &mut host.harness,
+        "paste undo repaint",
+        PTY_TIMEOUT,
+        |screen| screen.contains("old selection"),
+    )?;
+    let undone = request_buffer(&mut host.harness, "old selection")?;
     ensure!(
         undone["line"] == "old selection",
         "paste undo changed earlier text: {undone}"
@@ -827,8 +778,9 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         .send(b"\x1b[200~first \x1b[201~\x1b[200~second\x1b[201~")?;
     let queued = read_real_buffer(
         &mut host.harness,
-        &host.buffer_marker,
         "consecutive paste order",
+        "first second",
+        None,
     )?;
     ensure!(
         queued["line"] == "first second",
