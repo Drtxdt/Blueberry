@@ -1577,7 +1577,24 @@ function Invoke-BlueberryApplyEdit {
             $replaceError = $_
         }
         Send-BlueberryEditResult -RequestId $editRequestId -Applied $replaceApplied
-        Send-BlueberryBuffer
+        if ($replaceApplied) {
+            # Replace deterministically leaves the cursor after the inserted
+            # UTF-16 text. Report that known state without calling
+            # GetBufferState again from inside PSReadLine's key handler; that
+            # nested query can stall on Windows PowerShell runners.
+            $appliedLine = ([string]$line).Substring(0, [int]$edit.start) + `
+                [string]$edit.text + `
+                ([string]$line).Substring([int]$edit.start + [int]$edit.length)
+            Send-BlueberryEvent -Event 'buffer' -Data ([ordered]@{
+                line   = $appliedLine
+                cursor = [int]$edit.start + ([string]$edit.text).Length
+            })
+        } else {
+            Send-BlueberryEvent -Event 'buffer' -Data ([ordered]@{
+                line   = [string]$line
+                cursor = [int]$cursor
+            })
+        }
         if ($null -ne $replaceError) {
             Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
                 code        = 'edit_failed'
