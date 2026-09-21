@@ -796,7 +796,13 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         &mut host.harness,
         &host.buffer_marker,
         "unmarked Windows Terminal multiline paste",
-    )?;
+    )
+    .with_context(|| {
+        format!(
+            "input metadata: {}",
+            fs::read_to_string(host._cwd.path().join("input-trace.txt")).unwrap_or_default()
+        )
+    })?;
     ensure!(
         actual["line"]
             == "Get-PnpDevice -PresentOnly |\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\nFormat-List *",
