@@ -432,6 +432,11 @@ fn accept_selected(harness: &mut Harness) -> Result<()> {
         result["applied"] == true,
         "selected edit was rejected: {result}"
     );
+    // The adapter publishes the confirmed PSReadLine buffer immediately after
+    // edit_result. Waiting for it serializes the next key chord with the
+    // applied edit and prevents a fast completion refresh from racing the
+    // probe on slower Windows PowerShell 5.1 runners.
+    let _ = harness.event("buffer", PTY_TIMEOUT)?;
     Ok(())
 }
 
