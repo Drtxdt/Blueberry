@@ -394,7 +394,10 @@ fn accept_selected(harness: &mut Harness) -> Result<Value> {
         result["applied"] == true,
         "selected edit was rejected: {result}"
     );
-    Ok(result)
+    // edit_result is deliberately emitted before the adapter queries
+    // PSReadLine again. The next buffer event therefore acknowledges the
+    // applied edit without blocking the key handler before its confirmation.
+    harness.event("buffer", PTY_TIMEOUT)
 }
 
 fn native_probe_command(path: &Path) -> String {
