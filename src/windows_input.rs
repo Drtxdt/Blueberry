@@ -252,6 +252,7 @@ pub struct Reader {
 
 struct PendingUnmarkedPaste {
     target: String,
+    matched: String,
     events: Vec<Event>,
 }
 
@@ -344,22 +345,29 @@ impl Reader {
             self.unmarked_paste.is_some()
         ));
         if let Some(mut pending) = self.unmarked_paste.take() {
-            pending.events.extend(events);
-            let (end, text) = text_event_run_against(&pending.events, 0, &pending.target);
+            let remaining = &pending.target[pending.matched.len()..];
+            let (start, end, text) = best_target_prefix(&events, remaining);
             input_probe_trace(format_args!(
-                "pending text={} target={} prefix={} end={} total={}",
+                "pending matched={} text={} target={} prefix={} start={} end={} total={}",
+                pending.matched.len(),
                 text.len(),
                 pending.target.len(),
-                pending.target.starts_with(&text),
+                remaining.starts_with(&text),
+                start,
                 end,
-                pending.events.len()
+                events.len()
             ));
-            if text == pending.target {
-                let mut output = vec![Event::Paste(text)];
-                output.extend(pending.events.drain(end..));
+            pending.events.extend(events.iter().cloned());
+            pending.matched.push_str(&text);
+            if pending.matched == pending.target {
+                let mut output = vec![Event::Paste(pending.target)];
+                output.extend(events[end..].iter().cloned());
                 return output;
             }
-            if pending.target.starts_with(&text) && text.len() < pending.target.len() {
+            if !text.is_empty()
+                && pending.target.starts_with(&pending.matched)
+                && pending.matched.len() < pending.target.len()
+            {
                 self.unmarked_paste = Some(pending);
                 return Vec::new();
             }
@@ -388,7 +396,7 @@ impl Reader {
             input_probe_trace(format_args!("candidate target=missing"));
             return events;
         };
-        let (start, text) = best_target_prefix(&events, &target);
+        let (start, _, text) = best_target_prefix(&events, &target);
         input_probe_trace(format_args!(
             "candidate text={} target={} prefix={}",
             text.len(),
@@ -399,6 +407,7 @@ impl Reader {
             let mut prefix = events[..start].to_vec();
             self.unmarked_paste = Some(PendingUnmarkedPaste {
                 target,
+                matched: text,
                 events: events[start..].to_vec(),
             });
             prefix.shrink_to_fit();
@@ -1242,15 +1251,15 @@ fn coalesce_unmarked_multiline_events(events: Vec<Event>) -> Vec<Event> {
     output
 }
 
-fn best_target_prefix(events: &[Event], target: &str) -> (usize, String) {
-    let mut best = (events.len(), String::new());
+fn best_target_prefix(events: &[Event], target: &str) -> (usize, usize, String) {
+    let mut best = (events.len(), events.len(), String::new());
     for start in 0..events.len() {
         if !matches!(&events[start], Event::Key(key) if key.kind != KeyEventKind::Release) {
             continue;
         }
-        let (_, text) = text_event_run_against(events, start, target);
-        if text.len() > best.1.len() {
-            best = (start, text);
+        let (end, text) = text_event_run_against(events, start, target);
+        if text.len() > best.2.len() {
+            best = (start, end, text);
         }
     }
     best
@@ -1781,6 +1790,7 @@ mod tests {
         let mut reader = test_reader();
         reader.unmarked_paste = Some(PendingUnmarkedPaste {
             target: "one\ntwo".into(),
+            matched: "one\n".into(),
             events: vec![
                 Event::Key(KeyCode::Char('o').into()),
                 Event::Key(KeyCode::Char('n').into()),
@@ -1795,6 +1805,36 @@ mod tests {
         ]);
         assert_eq!(ready, vec![Event::Paste("one\ntwo".into())]);
         assert!(reader.unmarked_paste.is_none());
+
+        reader.unmarked_paste = Some(PendingUnmarkedPaste {
+            target: "one\ntwo\nthree".into(),
+            matched: "one\n".into(),
+            events: vec![Event::Key(KeyCode::Char('o').into())],
+        });
+        let ready = reader.finish_unmarked_paste(vec![
+            Event::Key(KeyEvent::new_with_kind(
+                KeyCode::Enter,
+                KeyModifiers::empty(),
+                KeyEventKind::Release,
+            )),
+            Event::Key(KeyCode::Char('t').into()),
+            Event::Key(KeyCode::Char('w').into()),
+            Event::Key(KeyCode::Char('o').into()),
+            Event::Key(KeyCode::Enter.into()),
+        ]);
+        assert!(ready.is_empty());
+        assert_eq!(
+            reader.unmarked_paste.as_ref().unwrap().matched,
+            "one\ntwo\n"
+        );
+        let ready = reader.finish_unmarked_paste(vec![
+            Event::Key(KeyCode::Char('t').into()),
+            Event::Key(KeyCode::Char('h').into()),
+            Event::Key(KeyCode::Char('r').into()),
+            Event::Key(KeyCode::Char('e').into()),
+            Event::Key(KeyCode::Char('e').into()),
+        ]);
+        assert_eq!(ready, vec![Event::Paste("one\ntwo\nthree".into())]);
 
         let shifted = vec![
             Event::Key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::SHIFT)),
