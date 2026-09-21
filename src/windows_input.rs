@@ -19,10 +19,15 @@ use std::{
 };
 use windows_sys::Win32::{
     Foundation::{HANDLE, INVALID_HANDLE_VALUE},
-    System::Console::{
-        CONSOLE_SCREEN_BUFFER_INFO, FOCUS_EVENT, GetConsoleScreenBufferInfo,
-        GetNumberOfConsoleInputEvents, INPUT_RECORD, KEY_EVENT, KEY_EVENT_RECORD, MOUSE_EVENT,
-        MOUSE_EVENT_RECORD, ReadConsoleInputW, WINDOW_BUFFER_SIZE_EVENT,
+    System::{
+        Console::{
+            CONSOLE_SCREEN_BUFFER_INFO, FOCUS_EVENT, GetConsoleScreenBufferInfo,
+            GetNumberOfConsoleInputEvents, INPUT_RECORD, KEY_EVENT, KEY_EVENT_RECORD, MOUSE_EVENT,
+            MOUSE_EVENT_RECORD, ReadConsoleInputW, WINDOW_BUFFER_SIZE_EVENT,
+        },
+        DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard},
+        Memory::{GlobalLock, GlobalUnlock},
+        Ole::CF_UNICODETEXT,
     },
 };
 
@@ -242,6 +247,12 @@ pub struct Reader {
     native_text_surrogate: Option<u16>,
     mouse_buttons: MouseButtons,
     paste_rejection: Option<PasteRejection>,
+    unmarked_paste: Option<PendingUnmarkedPaste>,
+}
+
+struct PendingUnmarkedPaste {
+    target: String,
+    events: Vec<Event>,
 }
 
 impl Reader {
@@ -266,6 +277,7 @@ impl Reader {
             native_text_surrogate: None,
             mouse_buttons: MouseButtons::default(),
             paste_rejection: None,
+            unmarked_paste: None,
         })
     }
 
@@ -290,7 +302,7 @@ impl Reader {
                     continue;
                 }
                 if self.paste_rejection.is_some() {
-                    return Ok(coalesce_unmarked_multiline_events(events));
+                    return Ok(self.finish_unmarked_paste(std::mem::take(&mut events)));
                 }
                 if let Some(record) = self.records.pop_front() {
                     self.consume_record(record)?;
@@ -300,14 +312,22 @@ impl Reader {
             }
 
             if events.len() == max_events || self.paste_rejection.is_some() {
-                return Ok(coalesce_unmarked_multiline_events(events));
+                let ready = self.finish_unmarked_paste(std::mem::take(&mut events));
+                if ready.is_empty() {
+                    continue;
+                }
+                return Ok(ready);
             }
             if self.available_records()? != 0 {
                 self.read_records_blocking()?;
                 continue;
             }
             if !events.is_empty() {
-                return Ok(coalesce_unmarked_multiline_events(events));
+                let ready = self.finish_unmarked_paste(std::mem::take(&mut events));
+                if ready.is_empty() {
+                    continue;
+                }
+                return Ok(ready);
             }
             // There is no safe timeout for an ESC prefix: it may be the
             // beginning of the paste marker or a split CSI/SS3 sequence.
@@ -315,6 +335,50 @@ impl Reader {
             // from a temporarily empty queue and replaying an executable key.
             self.read_records_blocking()?;
         }
+    }
+
+    fn finish_unmarked_paste(&mut self, events: Vec<Event>) -> Vec<Event> {
+        if let Some(mut pending) = self.unmarked_paste.take() {
+            pending.events.extend(events);
+            let (end, text) = text_event_run(&pending.events, 0);
+            if text == pending.target {
+                let mut output = vec![Event::Paste(text)];
+                output.extend(pending.events.drain(end..));
+                return output;
+            }
+            if pending.target.starts_with(&text) && text.len() < pending.target.len() {
+                self.unmarked_paste = Some(pending);
+                return Vec::new();
+            }
+            return coalesce_unmarked_multiline_events(pending.events);
+        }
+
+        let events = coalesce_unmarked_multiline_events(events);
+        let start = trailing_text_run_start(&events);
+        let (_, text) = text_event_run(&events, start);
+        let injected_records = !events[start..]
+            .iter()
+            .any(|event| matches!(event, Event::Key(key) if key.kind == KeyEventKind::Release));
+        #[cfg(debug_assertions)]
+        let deterministic_probe = std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_TEXT").is_some();
+        #[cfg(not(debug_assertions))]
+        let deterministic_probe = false;
+        if text.is_empty() || !(text.contains('\n') || injected_records || deterministic_probe) {
+            return events;
+        }
+        let Some(target) = clipboard_multiline_text() else {
+            return events;
+        };
+        if text.len() < target.len() && target.starts_with(&text) {
+            let mut prefix = events[..start].to_vec();
+            self.unmarked_paste = Some(PendingUnmarkedPaste {
+                target,
+                events: events[start..].to_vec(),
+            });
+            prefix.shrink_to_fit();
+            return prefix;
+        }
+        events
     }
 
     fn read_records_blocking(&mut self) -> io::Result<()> {
@@ -1131,6 +1195,109 @@ fn coalesce_unmarked_multiline_events(events: Vec<Event>) -> Vec<Event> {
     output
 }
 
+fn trailing_text_run_start(events: &[Event]) -> usize {
+    let mut start = 0;
+    for (index, event) in events.iter().enumerate() {
+        let Event::Key(key) = event else {
+            start = index + 1;
+            continue;
+        };
+        if key.kind != KeyEventKind::Release && !is_unmarked_text_key(key) {
+            start = index + 1;
+        }
+    }
+    start
+}
+
+fn text_event_run(events: &[Event], start: usize) -> (usize, String) {
+    let mut index = start;
+    let mut text = String::new();
+    let mut last_was_newline = false;
+    while index < events.len() {
+        let Event::Key(key) = &events[index] else {
+            break;
+        };
+        if key.kind == KeyEventKind::Release {
+            index += 1;
+            continue;
+        }
+        match key.code {
+            KeyCode::Char(character)
+                if !character.is_control()
+                    && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT) =>
+            {
+                text.push(character);
+                last_was_newline = false;
+            }
+            KeyCode::Tab if key.modifiers.is_empty() => {
+                text.push('\t');
+                last_was_newline = false;
+            }
+            KeyCode::Enter if key.modifiers.is_empty() => {
+                if !last_was_newline {
+                    text.push('\n');
+                }
+                last_was_newline = true;
+            }
+            KeyCode::Enter if key.modifiers == KeyModifiers::CONTROL && last_was_newline => {}
+            _ => break,
+        }
+        index += 1;
+    }
+    (index, text)
+}
+
+fn is_unmarked_text_key(key: &KeyEvent) -> bool {
+    matches!(
+        key.code,
+        KeyCode::Char(character)
+            if !character.is_control()
+                && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT)
+    ) || matches!(key.code, KeyCode::Tab if key.modifiers.is_empty())
+        || matches!(key.code, KeyCode::Enter if key.modifiers.is_empty() || key.modifiers == KeyModifiers::CONTROL)
+}
+
+fn clipboard_multiline_text() -> Option<String> {
+    #[cfg(debug_assertions)]
+    if let Ok(value) = std::env::var("BLUEBERRY_TEST_CLIPBOARD_TEXT") {
+        let value = normalize_clipboard_newlines(value);
+        return value.contains('\n').then_some(value);
+    }
+
+    // Clipboard access is deliberately best-effort. A busy clipboard keeps
+    // the ordinary key path unchanged; its contents are never logged.
+    unsafe {
+        if OpenClipboard(null_mut()) == 0 {
+            return None;
+        }
+        let handle = GetClipboardData(u32::from(CF_UNICODETEXT));
+        if handle.is_null() {
+            CloseClipboard();
+            return None;
+        }
+        let pointer = GlobalLock(handle) as *const u16;
+        if pointer.is_null() {
+            CloseClipboard();
+            return None;
+        }
+        let max_units = MAX_PASTE_BYTES / 2;
+        let mut length = 0;
+        while length < max_units && *pointer.add(length) != 0 {
+            length += 1;
+        }
+        let value = (length < max_units)
+            .then(|| String::from_utf16_lossy(std::slice::from_raw_parts(pointer, length)));
+        GlobalUnlock(handle);
+        CloseClipboard();
+        let value = normalize_clipboard_newlines(value?);
+        value.contains('\n').then_some(value)
+    }
+}
+
+fn normalize_clipboard_newlines(value: String) -> String {
+    value.replace("\r\n", "\n").replace('\r', "\n")
+}
+
 fn is_vt_character(key: &KeyRecord) -> bool {
     key.virtual_key == 0 && key.scan == 0
 }
@@ -1259,6 +1426,7 @@ mod tests {
             native_text_surrogate: None,
             mouse_buttons: MouseButtons::default(),
             paste_rejection: None,
+            unmarked_paste: None,
         }
     }
 
@@ -1506,6 +1674,27 @@ mod tests {
         }
         let result = coalesce_unmarked_multiline_events(command);
         assert!(!result.iter().any(|event| matches!(event, Event::Paste(_))));
+    }
+
+    #[test]
+    fn unmarked_clipboard_transaction_survives_reader_batches() {
+        let mut reader = test_reader();
+        reader.unmarked_paste = Some(PendingUnmarkedPaste {
+            target: "one\ntwo".into(),
+            events: vec![
+                Event::Key(KeyCode::Char('o').into()),
+                Event::Key(KeyCode::Char('n').into()),
+                Event::Key(KeyCode::Char('e').into()),
+                Event::Key(KeyCode::Enter.into()),
+            ],
+        });
+        let ready = reader.finish_unmarked_paste(vec![
+            Event::Key(KeyCode::Char('t').into()),
+            Event::Key(KeyCode::Char('w').into()),
+            Event::Key(KeyCode::Char('o').into()),
+        ]);
+        assert_eq!(ready, vec![Event::Paste("one\ntwo".into())]);
+        assert!(reader.unmarked_paste.is_none());
     }
 
     #[test]

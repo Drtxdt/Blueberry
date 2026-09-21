@@ -188,6 +188,10 @@ fn start_host() -> Result<RunningHost> {
             "BLUEBERRY_NATIVE_MARKER".to_owned(),
             native_marker.to_string_lossy().into_owned(),
         ),
+        (
+            "BLUEBERRY_TEST_CLIPBOARD_TEXT".to_owned(),
+            "Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *".to_owned(),
+        ),
     ]);
     let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
     let args = vec![
