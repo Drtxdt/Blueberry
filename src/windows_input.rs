@@ -373,7 +373,7 @@ impl Reader {
             .iter()
             .any(|event| matches!(event, Event::Key(key) if key.kind == KeyEventKind::Release));
         #[cfg(debug_assertions)]
-        let deterministic_probe = std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_FIXTURE").is_some();
+        let deterministic_probe = test_clipboard_text().is_some();
         #[cfg(not(debug_assertions))]
         let deterministic_probe = false;
         if text.is_empty() || !(text.contains('\n') || injected_records || deterministic_probe) {
@@ -1387,11 +1387,8 @@ fn is_unmarked_text_key(key: &KeyEvent) -> bool {
 
 fn clipboard_multiline_text() -> Option<String> {
     #[cfg(debug_assertions)]
-    if std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_FIXTURE").is_some() {
-        return Some(
-            "Get-PnpDevice -PresentOnly |\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\nFormat-List *"
-                .to_owned(),
-        );
+    if let Some(value) = test_clipboard_text() {
+        return Some(value);
     }
 
     // Clipboard access is deliberately best-effort. A busy clipboard keeps
@@ -1422,6 +1419,14 @@ fn clipboard_multiline_text() -> Option<String> {
         let value = normalize_clipboard_newlines(value?);
         value.contains('\n').then_some(value)
     }
+}
+
+#[cfg(debug_assertions)]
+fn test_clipboard_text() -> Option<String> {
+    let path = std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_FILE")?;
+    let value = std::fs::read_to_string(path).ok()?;
+    let value = normalize_clipboard_newlines(value);
+    value.contains('\n').then_some(value)
 }
 
 fn normalize_clipboard_newlines(value: String) -> String {

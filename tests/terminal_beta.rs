@@ -172,6 +172,7 @@ fn start_host() -> Result<RunningHost> {
     let buffer_marker = cwd.path().join("buffer-state.json");
     let native_marker = cwd.path().join("native-called.txt");
     let input_trace = cwd.path().join("input-trace.txt");
+    let clipboard_fixture = cwd.path().join("clipboard-fixture.txt");
     let env = BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
@@ -190,8 +191,8 @@ fn start_host() -> Result<RunningHost> {
             native_marker.to_string_lossy().into_owned(),
         ),
         (
-            "BLUEBERRY_TEST_CLIPBOARD_FIXTURE".to_owned(),
-            "1".to_owned(),
+            "BLUEBERRY_TEST_CLIPBOARD_FILE".to_owned(),
+            clipboard_fixture.to_string_lossy().into_owned(),
         ),
         (
             "BLUEBERRY_TEST_INPUT_TRACE".to_owned(),
@@ -778,6 +779,11 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     host.harness.wait_line("第一行😀", PTY_TIMEOUT)?;
     host.harness.wait_line("第二行😀", PTY_TIMEOUT)?;
     clear_line(&mut host.harness)?;
+    let clipboard_fixture = host._cwd.path().join("clipboard-fixture.txt");
+    fs::write(
+        &clipboard_fixture,
+        "Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *",
+    )?;
     for chunk in [
         "Get-PnpDevice -PresentOnly |\r\n",
         "Where-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\n",
@@ -797,6 +803,7 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         "unmarked multiline paste lost or executed its first line: {actual}; input metadata: {}",
         fs::read_to_string(host._cwd.path().join("input-trace.txt")).unwrap_or_default()
     );
+    fs::remove_file(clipboard_fixture)?;
     clear_line(&mut host.harness)?;
     host.harness.send(b"old selection")?;
     host.harness.send(b"\x01")?;
