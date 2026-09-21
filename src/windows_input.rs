@@ -338,9 +338,22 @@ impl Reader {
     }
 
     fn finish_unmarked_paste(&mut self, events: Vec<Event>) -> Vec<Event> {
+        input_probe_trace(format_args!(
+            "batch events={} pending={}",
+            events.len(),
+            self.unmarked_paste.is_some()
+        ));
         if let Some(mut pending) = self.unmarked_paste.take() {
             pending.events.extend(events);
             let (end, text) = text_event_run(&pending.events, 0);
+            input_probe_trace(format_args!(
+                "pending text={} target={} prefix={} end={} total={}",
+                text.len(),
+                pending.target.len(),
+                pending.target.starts_with(&text),
+                end,
+                pending.events.len()
+            ));
             if text == pending.target {
                 let mut output = vec![Event::Paste(text)];
                 output.extend(pending.events.drain(end..));
@@ -364,11 +377,25 @@ impl Reader {
         #[cfg(not(debug_assertions))]
         let deterministic_probe = false;
         if text.is_empty() || !(text.contains('\n') || injected_records || deterministic_probe) {
+            input_probe_trace(format_args!(
+                "candidate text={} newline={} injected={} probe={}",
+                text.len(),
+                text.contains('\n'),
+                injected_records,
+                deterministic_probe
+            ));
             return events;
         }
         let Some(target) = clipboard_multiline_text() else {
+            input_probe_trace(format_args!("candidate text={} target=missing", text.len()));
             return events;
         };
+        input_probe_trace(format_args!(
+            "candidate text={} target={} prefix={}",
+            text.len(),
+            target.len(),
+            target.starts_with(&text)
+        ));
         if text.len() < target.len() && target.starts_with(&text) {
             let mut prefix = events[..start].to_vec();
             self.unmarked_paste = Some(PendingUnmarkedPaste {
@@ -1005,6 +1032,24 @@ impl Reader {
         row.saturating_sub(info.srWindow.Top).max(0) as u16
     }
 }
+
+#[cfg(debug_assertions)]
+fn input_probe_trace(arguments: std::fmt::Arguments<'_>) {
+    use std::io::Write as _;
+    let Some(path) = std::env::var_os("BLUEBERRY_TEST_INPUT_TRACE") else {
+        return;
+    };
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = writeln!(file, "{arguments}");
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn input_probe_trace(_: std::fmt::Arguments<'_>) {}
 
 impl Drop for Reader {
     fn drop(&mut self) {

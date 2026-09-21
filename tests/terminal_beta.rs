@@ -171,6 +171,7 @@ fn start_host() -> Result<RunningHost> {
     let token = format!("terminal-beta-{}", uuid::Uuid::new_v4());
     let buffer_marker = cwd.path().join("buffer-state.json");
     let native_marker = cwd.path().join("native-called.txt");
+    let input_trace = cwd.path().join("input-trace.txt");
     let env = BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
@@ -192,6 +193,10 @@ fn start_host() -> Result<RunningHost> {
             "BLUEBERRY_TEST_CLIPBOARD_JSON".to_owned(),
             serde_json::to_string("Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *")
                 .expect("serialize clipboard fixture"),
+        ),
+        (
+            "BLUEBERRY_TEST_INPUT_TRACE".to_owned(),
+            input_trace.to_string_lossy().into_owned(),
         ),
     ]);
     let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
@@ -774,8 +779,14 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     host.harness.wait_line("第一行😀", PTY_TIMEOUT)?;
     host.harness.wait_line("第二行😀", PTY_TIMEOUT)?;
     clear_line(&mut host.harness)?;
-    let pipeline = "Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *";
-    host.harness.send(pipeline.as_bytes())?;
+    for chunk in [
+        "Get-PnpDevice -PresentOnly |\r\n",
+        "Where-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\n",
+        "Format-List *",
+    ] {
+        host.harness.send(chunk.as_bytes())?;
+        std::thread::sleep(Duration::from_millis(50));
+    }
     let actual = read_real_buffer(
         &mut host.harness,
         &host.buffer_marker,
@@ -784,7 +795,8 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     ensure!(
         actual["line"]
             == "Get-PnpDevice -PresentOnly |\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\nFormat-List *",
-        "unmarked multiline paste lost or executed its first line: {actual}"
+        "unmarked multiline paste lost or executed its first line: {actual}; input metadata: {}",
+        fs::read_to_string(host._cwd.path().join("input-trace.txt")).unwrap_or_default()
     );
     clear_line(&mut host.harness)?;
     host.harness.send(b"old selection")?;
