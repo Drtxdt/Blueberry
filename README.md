@@ -140,7 +140,7 @@ blueberry hub --remove "启动开发服务"
 
 设置页保留 TOML 注释和高级配置。需要编辑自定义颜色、规格目录或命令说明时，选择“打开 TOML”。独立配置使用 `blueberry --config .\my-config.toml config edit`。Nerd Font 图标需要终端已配置相应字体。
 
-普通命令行编辑期间，右键粘贴和文字选择沿用 Windows Terminal 的设置；外部程序请求鼠标输入时，Blueberry 将鼠标操作转交给该程序。
+普通命令行编辑期间，右键粘贴和文字选择沿用 Windows Terminal 的设置。多行右键粘贴会作为一次 PSReadLine 编辑插入，管道首行、空行、中文和光标右侧内容都会保留；外部程序请求鼠标输入时，Blueberry 将鼠标操作转交给该程序。
 
 安装时使用兼容性较好的 Unicode 图标。终端已配置 Nerd Font 时，可修改：
 

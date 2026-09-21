@@ -12,7 +12,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc, Condvar, Mutex,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering},
     },
     thread,
 };
@@ -42,6 +42,7 @@ pub struct SourceUpdate {
     pub kind: SourceKind,
     pub candidates: Vec<Candidate>,
     pub incomplete: bool,
+    pub scan_pending: bool,
     pub diagnostics: Vec<String>,
     pub project_root: Option<PathBuf>,
     pub elapsed: std::time::Duration,
@@ -56,6 +57,7 @@ impl SourceUpdate {
             kind,
             candidates: Vec::new(),
             incomplete: false,
+            scan_pending: false,
             diagnostics: Vec::new(),
             project_root: None,
             elapsed: std::time::Duration::ZERO,
@@ -75,7 +77,8 @@ type Mailbox = Arc<(Mutex<Queue>, Condvar)>;
 type Callback = Arc<dyn Fn(SourceUpdate) + Send + Sync>;
 pub struct Sources {
     lanes: [Mailbox; 2],
-    epoch: Arc<AtomicU64>,
+    epochs: [Arc<AtomicU64>; 2],
+    invalidated_domains: Arc<AtomicU8>,
     last: Option<SourceRequest>,
     _watcher: Option<RecommendedWatcher>,
     watched_cwd: Option<PathBuf>,
@@ -84,24 +87,29 @@ pub struct Sources {
     /// non-recursive watch (for example the request cwd) without being
     /// incorrectly skipped as an already-watched path.
     watch_modes: HashMap<PathBuf, bool>,
+    watch_domains: Arc<Mutex<HashMap<PathBuf, u8>>>,
     generation: u64,
 }
 
 impl Sources {
     pub fn new(callback: impl Fn(SourceUpdate) + Send + Sync + 'static) -> Self {
         let callback: Callback = Arc::new(callback);
-        let epoch = Arc::new(AtomicU64::new(0));
+        let epochs: [Arc<AtomicU64>; 2] = std::array::from_fn(|_| Arc::new(AtomicU64::new(0)));
         let lanes =
             std::array::from_fn(|_| Arc::new((Mutex::new(Queue::default()), Condvar::new())));
         for (index, lane) in lanes.iter().enumerate() {
             let lane = lane.clone();
             let callback = callback.clone();
-            let epoch = epoch.clone();
+            let epoch = epochs[index].clone();
             thread::spawn(move || run_lane(index, lane, epoch, callback));
         }
-        let invalidated = epoch.clone();
+        let invalidated_domains = Arc::new(AtomicU8::new(0));
+        let invalidated = invalidated_domains.clone();
+        let watch_domains = Arc::new(Mutex::new(HashMap::<PathBuf, u8>::new()));
+        let watched = watch_domains.clone();
         let notify = callback.clone();
         let watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
+            let mut domain_mask = 0u8;
             if let Ok(event) = result {
                 if event.kind.is_access() {
                     return;
@@ -118,18 +126,34 @@ impl Sources {
                 {
                     return;
                 }
+                if let Ok(domains) = watched.lock() {
+                    for changed in &event.paths {
+                        for (root, domain) in domains.iter() {
+                            if changed.starts_with(root) || root.starts_with(changed) {
+                                domain_mask |= *domain;
+                            }
+                        }
+                    }
+                }
             }
-            invalidated.fetch_add(1, Ordering::Relaxed);
+            // Unknown watcher errors and events outside the current map must
+            // conservatively invalidate both lanes.
+            invalidated.fetch_or(
+                if domain_mask == 0 { 0b11 } else { domain_mask },
+                Ordering::Relaxed,
+            );
             notify(SourceUpdate::empty(0, SourceKind::Invalidated));
         })
         .ok();
         Self {
             lanes,
-            epoch,
+            epochs,
+            invalidated_domains,
             last: None,
             _watcher: watcher,
             watched_cwd: None,
             watch_modes: HashMap::new(),
+            watch_domains,
             generation: 0,
         }
     }
@@ -142,7 +166,12 @@ impl Sources {
         }
         self.generation = self.generation.wrapping_add(1);
         if force {
-            self.epoch.fetch_add(1, Ordering::Relaxed);
+            let domains = self.invalidated_domains.swap(0, Ordering::Relaxed);
+            for (index, epoch) in self.epochs.iter().enumerate() {
+                if domains == 0 || domains & (1 << index) != 0 {
+                    epoch.fetch_add(1, Ordering::Relaxed);
+                }
+            }
         }
         if self.watched_cwd.as_ref() != Some(&request.cwd) {
             self.clear_watches();
@@ -150,13 +179,11 @@ impl Sources {
             // Git directories are added when a provider identifies them.
             if self.watch_path(&request.cwd, false) {
                 self.watched_cwd = Some(request.cwd.clone());
+                self.watch_domains
+                    .lock()
+                    .unwrap()
+                    .insert(request.cwd.clone(), 0b11);
             }
-        } else if force || self.last.as_ref() != Some(&request) {
-            // A changed query can stop producing a project snapshot (or move
-            // to a different provider root). Drop the previous provider
-            // registrations before the new result arrives so they cannot
-            // accumulate during that gap.
-            self.clear_provider_watches();
         }
         for lane in &self.lanes {
             let (lock, wake) = &**lane;
@@ -176,41 +203,70 @@ impl Sources {
         }
         self.last = Some(request);
     }
-    pub fn watch_project(&mut self, root: &std::path::Path) {
-        // Replace the registrations for every new project snapshot.  This
-        // also removes a recursive status watch when the next query only
-        // needs refs, while still retaining the request cwd below.
-        self.clear_provider_watches();
+    pub fn set_provider_watches(
+        &mut self,
+        root: Option<&std::path::Path>,
+        paths: &[PathBuf],
+        recursive_paths: &[PathBuf],
+    ) {
+        let mut desired = HashMap::<PathBuf, bool>::new();
+        let mut domains = HashMap::<PathBuf, u8>::new();
+        if let Some(cwd) = self.watched_cwd.as_ref() {
+            desired.insert(cwd.clone(), false);
+            domains.insert(cwd.clone(), 0b11);
+        }
         // Manifests are in the root; Git metadata is watched separately.
         // Do not recursively subscribe to build outputs or dependencies.
-        self.watch_path(root, false);
-        let git = root.join(".git");
-        let git = if git.is_file() {
-            std::fs::read_to_string(&git).ok().and_then(|s| {
-                s.trim()
-                    .strip_prefix("gitdir:")
-                    .map(|p| root.join(p.trim()))
-            })
-        } else {
-            Some(git)
-        };
-        if let Some(git) = git.filter(|p| p.is_dir()) {
-            self.watch_path(&git, true);
-            if let Ok(common) = std::fs::read_to_string(git.join("commondir")) {
-                let common = git.join(common.trim());
-                self.watch_path(&common, true);
+        if let Some(root) = root {
+            desired.entry(root.to_path_buf()).or_insert(false);
+            domains.entry(root.to_path_buf()).or_insert(0b01);
+            let git = root.join(".git");
+            let git = if git.is_file() {
+                std::fs::read_to_string(&git).ok().and_then(|s| {
+                    s.trim()
+                        .strip_prefix("gitdir:")
+                        .map(|p| root.join(p.trim()))
+                })
+            } else {
+                Some(git)
+            };
+            if let Some(git) = git.filter(|p| p.is_dir()) {
+                desired.insert(git.clone(), true);
+                domains.insert(git.clone(), 0b01);
+                if let Ok(common) = std::fs::read_to_string(git.join("commondir")) {
+                    let common = git.join(common.trim());
+                    desired.insert(common.clone(), true);
+                    domains.insert(common, 0b01);
+                }
             }
         }
-    }
-    pub fn watch_paths(&mut self, paths: &[PathBuf]) {
         for path in paths {
-            self.watch_path(path, false);
+            desired.entry(path.clone()).or_insert(false);
+            domains.entry(path.clone()).or_insert(0b01);
         }
-    }
-    pub fn watch_recursive_paths(&mut self, paths: &[PathBuf]) {
-        for path in paths {
-            self.watch_path(path, true);
+        for path in recursive_paths {
+            desired.insert(path.clone(), true);
+            domains.insert(path.clone(), 0b01);
         }
+
+        let stale = self
+            .watch_modes
+            .iter()
+            .filter(|(path, recursive)| desired.get(*path) != Some(*recursive))
+            .map(|(path, _)| path.clone())
+            .collect::<Vec<_>>();
+        if let Some(watcher) = self._watcher.as_mut() {
+            for path in &stale {
+                let _ = watcher.unwatch(path);
+            }
+        }
+        for path in stale {
+            self.watch_modes.remove(&path);
+        }
+        for (path, recursive) in desired {
+            self.watch_path(&path, recursive);
+        }
+        *self.watch_domains.lock().unwrap() = domains;
     }
 
     fn watch_path(&mut self, path: &std::path::Path, recursive: bool) -> bool {
@@ -251,39 +307,8 @@ impl Sources {
             }
         }
         self.watch_modes.clear();
+        self.watch_domains.lock().unwrap().clear();
         self.watched_cwd = None;
-    }
-
-    fn clear_provider_watches(&mut self) {
-        let cwd = self.watched_cwd.clone();
-        let provider_paths = self
-            .watch_modes
-            .keys()
-            .filter(|path| cwd.as_ref() != Some(*path))
-            .cloned()
-            .collect::<Vec<_>>();
-        if let Some(watcher) = self._watcher.as_mut() {
-            for path in &provider_paths {
-                let _ = watcher.unwatch(path);
-            }
-        }
-        for path in provider_paths {
-            self.watch_modes.remove(&path);
-        }
-        // A status query can upgrade the cwd itself when it is also the
-        // project root. Keep the cwd registration, but restore its precise
-        // non-recursive mode before the next provider snapshot is attached.
-        if let Some(cwd) = cwd
-            && self.watch_modes.get(&cwd) == Some(&true)
-        {
-            if let Some(watcher) = self._watcher.as_mut() {
-                let _ = watcher.unwatch(&cwd);
-            }
-            self.watch_modes.remove(&cwd);
-            if !self.watch_path(&cwd, false) {
-                self.watched_cwd = None;
-            }
-        }
     }
 
     pub fn cancel(&mut self) {
@@ -327,16 +352,23 @@ fn run_lane(index: usize, lane: Mailbox, epoch: Arc<AtomicU64>, callback: Callba
             queue.running = Some(pair.1.clone());
             pair
         };
-        let current_epoch = epoch.load(Ordering::Relaxed);
-        if observed_epoch != current_epoch {
-            paths.invalidate();
-            projects.clear();
-            observed_epoch = current_epoch;
-        }
-        let mut update = collect_lane(index, &request, &cancel, &mut paths, &mut projects);
-        update.generation = generation;
-        if !cancel.load(Ordering::Relaxed) {
-            callback(update);
+        loop {
+            let current_epoch = epoch.load(Ordering::Relaxed);
+            if observed_epoch != current_epoch {
+                paths.invalidate();
+                projects.clear();
+                observed_epoch = current_epoch;
+            }
+            let mut update = collect_lane(index, &request, &cancel, &mut paths, &mut projects);
+            let continue_scan = update.scan_pending;
+            update.generation = generation;
+            if !cancel.load(Ordering::Relaxed) {
+                callback(update);
+            }
+            if index != 1 || !continue_scan || cancel.load(Ordering::Relaxed) {
+                break;
+            }
+            thread::yield_now();
         }
     }
 }
@@ -346,7 +378,14 @@ pub fn collect_once(request: &SourceRequest) -> [SourceUpdate; 2] {
     let cancel = AtomicBool::new(false);
     let mut paths = PathCache::default();
     let mut projects = ProviderCache::new();
-    std::array::from_fn(|index| collect_lane(index, request, &cancel, &mut paths, &mut projects))
+    let project = collect_lane(0, request, &cancel, &mut paths, &mut projects);
+    let path = loop {
+        let update = collect_lane(1, request, &cancel, &mut paths, &mut projects);
+        if !update.scan_pending {
+            break update;
+        }
+    };
+    [project, path]
 }
 
 fn collect_lane(
@@ -438,6 +477,7 @@ fn collect_lane(
         );
         update.candidates = result.candidates;
         update.incomplete = result.incomplete;
+        update.scan_pending = result.scan_pending;
         update.diagnostics.extend(result.diagnostic);
     }
     update.elapsed = started.elapsed();
@@ -479,7 +519,7 @@ mod tests {
     #[test]
     fn latest_request_gets_complete_directory_snapshot_and_cancel_stops_followups() {
         let root = tempfile::tempdir().unwrap();
-        for index in 0..300 {
+        for index in 0..1_200 {
             std::fs::write(root.path().join(format!("file{index:04}")), "").unwrap();
         }
         let (send, recv) = std::sync::mpsc::channel();
@@ -505,16 +545,25 @@ mod tests {
         }
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
         let mut complete = false;
+        let mut partial = false;
         while let Ok(update) =
             recv.recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
         {
             if update.revision == 50 && update.kind == SourceKind::Paths {
-                assert_eq!(update.candidates.len(), 300);
-                assert!(!update.incomplete);
-                complete = true;
-                break;
+                if update.scan_pending {
+                    partial |= !update.candidates.is_empty() && update.candidates.len() < 1_200;
+                } else {
+                    assert_eq!(update.candidates.len(), 1_200);
+                    assert!(!update.incomplete);
+                    complete = true;
+                    break;
+                }
             }
         }
+        assert!(
+            partial,
+            "large directory did not publish a partial snapshot"
+        );
         assert!(complete);
         sources.cancel();
         std::fs::write(root.path().join("file9999"), "").unwrap();
@@ -525,7 +574,10 @@ mod tests {
                 .recv_timeout(std::time::Duration::from_secs(5))
                 .unwrap();
             if update.revision == 51 && update.kind == SourceKind::Paths {
-                assert_eq!(update.candidates.len(), 301);
+                if update.scan_pending {
+                    continue;
+                }
+                assert_eq!(update.candidates.len(), 1_201);
                 break;
             }
         }
@@ -559,17 +611,17 @@ mod tests {
             fuzzy: false,
         };
         sources.submit(request, false);
-        sources.watch_project(&first);
+        sources.set_provider_watches(Some(&first), &[], &[]);
         // watch_project starts with a precise root watch. The recursive
         // provider request must upgrade that registration for nested status
         // paths rather than being skipped as a duplicate.
-        sources.watch_recursive_paths(std::slice::from_ref(&first));
+        sources.set_provider_watches(Some(&first), &[], std::slice::from_ref(&first));
 
         fs::write(first_nested.join("changed.txt"), "changed").unwrap();
         wait_for_invalidated(&receiver);
         drain_invalidations(&receiver);
 
-        sources.watch_project(&second);
+        sources.set_provider_watches(Some(&second), &[], &[]);
         fs::write(first_nested.join("after-prune.txt"), "stale").unwrap();
         assert!(
             receiver.recv_timeout(Duration::from_millis(400)).is_err(),
@@ -578,5 +630,34 @@ mod tests {
 
         fs::write(second.join("manifest.toml"), "new").unwrap();
         wait_for_invalidated(&receiver);
+    }
+
+    #[test]
+    fn edit_revisions_keep_the_same_watch_registrations() {
+        let base = tempfile::tempdir().unwrap();
+        let project = base.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        let mut sources = Sources::new(|_| {});
+        let mut request = SourceRequest {
+            revision: 1,
+            line: "git".into(),
+            cursor: 3,
+            context: InputContext::default(),
+            cwd: project.clone(),
+            environment: Arc::new(BTreeMap::new()),
+            paths: false,
+            directories_only: false,
+            project: false,
+            provider: None,
+            fuzzy: false,
+        };
+        sources.submit(request.clone(), false);
+        sources.set_provider_watches(Some(&project), std::slice::from_ref(&project), &[]);
+        let before = sources.watch_modes.clone();
+        request.revision = 2;
+        request.line = "git s".into();
+        request.cursor = request.line.len();
+        sources.submit(request, false);
+        assert_eq!(sources.watch_modes, before);
     }
 }

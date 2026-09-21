@@ -47,12 +47,12 @@ pub enum Transport {
 }
 
 enum HostEvent {
-    Output(Vec<u8>),
-    Input(Vec<Event>),
+    Output(Vec<u8>, Instant),
+    Input(Vec<Event>, Instant),
     Eof,
     Exit(u32),
     Error(String),
-    Completion(u64, Completion),
+    Completion(u64, Completion, Instant),
     Diagnostic(String),
     Reload,
 }
@@ -72,6 +72,7 @@ struct Query {
     dynamic: bool,
     searching: bool,
     help_enabled: bool,
+    queued_at: Instant,
 }
 
 #[derive(Default)]
@@ -189,6 +190,14 @@ impl Worker {
                 let commands_changed = commands.is_some();
                 let query = work.query.take();
                 let query_changed = query.is_some();
+                if let Some(query) = query.as_ref() {
+                    trace.event(
+                        "worker_queue",
+                        Some(query.revision),
+                        Some(query.queued_at.elapsed()),
+                        None,
+                    );
+                }
                 if let Some(env) = work.environment.take() {
                     environment = Some(env);
                 }
@@ -408,7 +417,8 @@ impl Worker {
                                 });
                             }
                         }
-                        let _ = output.send(HostEvent::Completion(q.revision, result));
+                        let _ =
+                            output.send(HostEvent::Completion(q.revision, result, Instant::now()));
                         continue;
                     }
                     let started = Instant::now();
@@ -443,17 +453,13 @@ impl Worker {
                         sources.submit(next.clone(), force);
                         request = Some(next);
                     }
+                    let received_source_update = !updates.is_empty();
                     for update in updates {
                         if update.revision != q.revision
                             || update.generation != sources.generation()
                         {
                             continue;
                         }
-                        if let Some(root) = update.project_root.as_ref() {
-                            sources.watch_project(root);
-                        }
-                        sources.watch_paths(&update.watch_paths);
-                        sources.watch_recursive_paths(&update.recursive_watch_paths);
                         let slot = usize::from(update.kind == crate::sources::SourceKind::Paths);
                         trace.event(
                             "dynamic_ready",
@@ -462,6 +468,23 @@ impl Worker {
                             Some(update.candidates.len()),
                         );
                         parts[slot] = Some(update);
+                    }
+                    if received_source_update && parts.iter().all(Option::is_some) {
+                        let root = parts
+                            .iter()
+                            .filter_map(|part| part.as_ref()?.project_root.as_deref())
+                            .next();
+                        let watch_paths = parts
+                            .iter()
+                            .filter_map(Option::as_ref)
+                            .flat_map(|part| part.watch_paths.iter().cloned())
+                            .collect::<Vec<_>>();
+                        let recursive_watch_paths = parts
+                            .iter()
+                            .filter_map(Option::as_ref)
+                            .flat_map(|part| part.recursive_watch_paths.iter().cloned())
+                            .collect::<Vec<_>>();
+                        sources.set_provider_watches(root, &watch_paths, &recursive_watch_paths);
                     }
                     // Report the most recently returned provider snapshots.
                     // Unchanged hot queries do not cause another disk write.
@@ -495,7 +518,7 @@ impl Worker {
                         Some(result.candidates.len()),
                     );
                     if output
-                        .send(HostEvent::Completion(q.revision, result))
+                        .send(HostEvent::Completion(q.revision, result, Instant::now()))
                         .is_err()
                     {
                         break;
@@ -1102,6 +1125,7 @@ impl State {
                         dynamic: self.config.dynamic_for(tool_name),
                         searching: self.searching,
                         help_enabled: self.config.help_for(tool_name),
+                        queued_at: Instant::now(),
                     };
                     Arc::make_mut(&mut self.shell_environment).remove("BLUEBERRY_REMOTE_REQUESTED");
                     self.schedule_metadata();
@@ -1736,6 +1760,12 @@ impl State {
         if let Event::Paste(text) = &event
             && self.prompt
         {
+            self.trace.event(
+                "paste_received",
+                Some(self.revision),
+                None,
+                Some(text.len()),
+            );
             if !self.ready || !self.paste_ready {
                 self.diagnostic = Some("安全粘贴不可用：PSReadLine 或内部粘贴快捷键存在冲突，请检查 doctor 并更换内部快捷键前缀".into());
                 return Ok(());
@@ -2195,6 +2225,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let _child_guard = ChildGuard(child.clone_killer());
     let (tx, rx) = mpsc::sync_channel(256);
     let read_tx = tx.clone();
+    let output_trace = trace.clone();
     thread::spawn(move || {
         let mut buffer = [0u8; 16_384];
         loop {
@@ -2204,8 +2235,9 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     break;
                 }
                 Ok(n) => {
+                    output_trace.event("child_output_received", None, None, Some(n));
                     if read_tx
-                        .send(HostEvent::Output(buffer[..n].to_vec()))
+                        .send(HostEvent::Output(buffer[..n].to_vec(), Instant::now()))
                         .is_err()
                     {
                         break;
@@ -2219,6 +2251,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
     });
     let input_tx = tx.clone();
+    let input_trace = trace.clone();
     thread::spawn(move || {
         #[cfg(windows)]
         let mut input_reader = match crate::windows_input::Reader::new() {
@@ -2250,7 +2283,11 @@ pub fn run(options: RunOptions) -> Result<u32> {
             });
             match result {
                 Ok(events) => {
-                    if input_tx.send(HostEvent::Input(events)).is_err() {
+                    input_trace.event("input_received", None, None, Some(events.len()));
+                    if input_tx
+                        .send(HostEvent::Input(events, Instant::now()))
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -2370,7 +2407,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
         batch.extend(rx.try_iter().take(63));
         for event in batch {
             match event {
-                HostEvent::Output(bytes) => {
+                HostEvent::Output(bytes, queued_at) => {
+                    trace.event(
+                        "child_output_queue",
+                        Some(state.revision),
+                        Some(queued_at.elapsed()),
+                        Some(bytes.len()),
+                    );
                     for part in state.decoder.feed(&bytes) {
                         match part {
                             Part::Data(data) => {
@@ -2430,7 +2473,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         }
                     }
                 }
-                HostEvent::Input(inputs) => {
+                HostEvent::Input(inputs, queued_at) => {
+                    trace.event(
+                        "input_queue",
+                        Some(state.revision),
+                        Some(queued_at.elapsed()),
+                        Some(inputs.len()),
+                    );
                     // One native read can contain an entire paste marker or
                     // several key records. Preserve their order in one write
                     // to the child instead of flushing after every key. Query
@@ -2447,17 +2496,30 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         state.input(input, &mut input_frame, master.as_ref(), &worker)?;
                     }
                     if !input_frame.is_empty() {
+                        let write_started = Instant::now();
                         writer.write_all(&input_frame)?;
                         writer.flush()?;
+                        trace.event(
+                            "child_input_write",
+                            Some(state.revision),
+                            Some(write_started.elapsed()),
+                            Some(input_frame.len()),
+                        );
                     }
                 }
-                HostEvent::Completion(revision, mut completion)
+                HostEvent::Completion(revision, mut completion, queued_at)
                     if revision == state.revision
                         && state.prompt
                         && !state.dismissed
                         && state.interaction_mode == InteractionMode::Completion
                         && !state.native_menu =>
                 {
+                    trace.event(
+                        "completion_queue",
+                        Some(revision),
+                        Some(queued_at.elapsed()),
+                        Some(completion.candidates.len()),
+                    );
                     if state.hub_query.is_none()
                         && state.cursor == state.line.len()
                         && !state.line.contains(['\n', '\r'])
@@ -2491,7 +2553,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         .unwrap_or(0);
                     state.completion = completion;
                 }
-                HostEvent::Completion(revision, _) => {
+                HostEvent::Completion(revision, _, queued_at) => {
+                    trace.event(
+                        "completion_queue",
+                        Some(revision),
+                        Some(queued_at.elapsed()),
+                        None,
+                    );
                     trace.event("completion_discarded", Some(revision), None, None)
                 }
                 HostEvent::Exit(code) => exit_code = Some(code),

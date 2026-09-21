@@ -2,11 +2,14 @@
 use crate::model::{Candidate, CandidateKind, InputContext};
 use std::{
     collections::{BTreeMap, HashMap},
-    fs,
+    fs::{self, ReadDir},
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
-    time::SystemTime,
+    time::{Duration, Instant, SystemTime},
 };
+
+const SCAN_ENTRY_BUDGET: usize = 512;
+const SCAN_TIME_BUDGET: Duration = Duration::from_millis(4);
 
 #[derive(Default)]
 pub struct PathCache {
@@ -17,12 +20,15 @@ struct Directory {
     modified: Option<SystemTime>,
     entries: Vec<(String, bool)>,
     used: u64,
+    reader: Option<ReadDir>,
+    had_error: bool,
 }
 #[derive(Default)]
 pub struct PathResult {
     pub candidates: Vec<Candidate>,
     pub incomplete: bool,
     pub diagnostic: Option<String>,
+    pub scan_pending: bool,
 }
 
 impl PathCache {
@@ -139,9 +145,7 @@ impl PathCache {
             .directories
             .get(&directory)
             .is_none_or(|cached| cached.modified != stamp);
-        let mut partial = None;
         if needs_scan {
-            let mut entries = Vec::new();
             let read = match fs::read_dir(&directory) {
                 Ok(read) => read,
                 Err(error) => {
@@ -149,28 +153,62 @@ impl PathCache {
                     return result;
                 }
             };
-            for (index, entry) in read.enumerate() {
+            if self.directories.len() >= 64
+                && !self.directories.contains_key(&directory)
+                && let Some(old) = self
+                    .directories
+                    .iter()
+                    .min_by_key(|(_, value)| value.used)
+                    .map(|(path, _)| path.clone())
+            {
+                self.directories.remove(&old);
+            }
+            self.directories.insert(
+                directory.clone(),
+                Directory {
+                    modified: stamp,
+                    entries: Vec::new(),
+                    used: self.clock,
+                    reader: Some(read),
+                    had_error: false,
+                },
+            );
+        }
+        let Some(snapshot) = self.directories.get_mut(&directory) else {
+            return result;
+        };
+        snapshot.used = self.clock;
+        if snapshot.reader.is_some() {
+            let started = Instant::now();
+            let mut finished = false;
+            for _ in 0..SCAN_ENTRY_BUDGET {
                 if cancel.load(Ordering::Relaxed) {
-                    result.incomplete = true;
-                    return result;
+                    break;
                 }
-                if index % 256 == 0 {
-                    std::thread::yield_now();
+                if started.elapsed() >= SCAN_TIME_BUDGET {
+                    break;
                 }
-                let Ok(entry) = entry else {
-                    result.incomplete = true;
-                    continue;
+                let entry = match snapshot.reader.as_mut().and_then(Iterator::next) {
+                    Some(Ok(entry)) => entry,
+                    Some(Err(_)) => {
+                        snapshot.had_error = true;
+                        continue;
+                    }
+                    None => {
+                        finished = true;
+                        break;
+                    }
                 };
                 let Ok(kind) = entry.file_type() else {
-                    result.incomplete = true;
+                    snapshot.had_error = true;
                     continue;
                 };
                 let is_dir = if kind.is_symlink() {
-                    // Resolve before following, so an explicit remote link is not opened.
                     if !crate::engine::local_link(&entry.path()) {
                         continue;
                     }
                     let Ok(metadata) = fs::metadata(entry.path()) else {
+                        snapshot.had_error = true;
                         continue;
                     };
                     if !metadata.is_file() && !metadata.is_dir() {
@@ -182,41 +220,20 @@ impl PathCache {
                 } else {
                     continue;
                 };
-                entries.push((entry.file_name().to_string_lossy().into_owned(), is_dir));
+                snapshot
+                    .entries
+                    .push((entry.file_name().to_string_lossy().into_owned(), is_dir));
             }
-            entries.sort_by_cached_key(|(name, is_dir)| (!*is_dir, name.to_lowercase()));
-            if !result.incomplete {
-                if self.directories.len() >= 64
-                    && !self.directories.contains_key(&directory)
-                    && let Some(old) = self
-                        .directories
-                        .iter()
-                        .min_by_key(|(_, v)| v.used)
-                        .map(|(k, _)| k.clone())
-                {
-                    self.directories.remove(&old);
-                }
-                self.directories.insert(
-                    directory.clone(),
-                    Directory {
-                        modified: stamp,
-                        entries,
-                        used: self.clock,
-                    },
-                );
-            } else {
-                partial = Some(entries);
+            if finished {
+                snapshot.reader = None;
+                snapshot
+                    .entries
+                    .sort_by_cached_key(|(name, is_dir)| (!*is_dir, name.to_lowercase()));
             }
         }
-        let entries = if let Some(entries) = partial.as_ref() {
-            entries
-        } else {
-            let Some(snapshot) = self.directories.get_mut(&directory) else {
-                return result;
-            };
-            snapshot.used = self.clock;
-            &snapshot.entries
-        };
+        result.scan_pending = snapshot.reader.is_some();
+        result.incomplete = result.scan_pending || snapshot.had_error;
+        let entries = &snapshot.entries;
         let needle = scan_needle.to_lowercase();
         let separator = if display_value.contains('/') && !display_value.contains('\\') {
             '/'

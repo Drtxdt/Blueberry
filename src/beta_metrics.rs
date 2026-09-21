@@ -402,6 +402,7 @@ pub fn run(
         "build": if cfg!(debug_assertions) { "debug" } else { "release" },
         "platform": env::consts::OS,
         "arch": env::consts::ARCH,
+        "power": power_status(),
         "executable": executable,
         "shell": shell,
         "samples_per_cache_mode": sample_count,
@@ -461,6 +462,27 @@ pub fn run(
             "throughput_bytes": OUTPUT_BYTES,
         },
     }))
+}
+
+#[cfg(windows)]
+fn power_status() -> Value {
+    use windows_sys::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
+    let mut status = SYSTEM_POWER_STATUS::default();
+    if unsafe { GetSystemPowerStatus(&mut status) } == 0 {
+        return json!({"available": false});
+    }
+    json!({
+        "available": true,
+        "ac_line_status": status.ACLineStatus,
+        "battery_flag": status.BatteryFlag,
+        "battery_percent": if status.BatteryLifePercent == u8::MAX { Value::Null } else { json!(status.BatteryLifePercent) },
+        "battery_saver": status.SystemStatusFlag != 0,
+    })
+}
+
+#[cfg(not(windows))]
+fn power_status() -> Value {
+    json!({"available": false})
 }
 
 struct CacheMeasurements {

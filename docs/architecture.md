@@ -67,7 +67,7 @@ Private OSC frames are stripped from output before display; unrelated OSC is pre
 
 One thread owns terminal output to prevent interleaving. Each event batch assembles bytes into a buffer and writes them together. Protocol-only events do not erase an overlay; unchanged content, selection, coordinates and viewport reuse the existing frame. Already queued input events are drained without an extra delay. The host suspends menus in the alternate screen and while a command runs. Terminal resize updates the ConPTY and parser dimensions. Tests compare the restored screen's contents, cursor and attributes.
 
-`run --trace <new-file>` optionally records JSONL timing events. It is off by default. Records contain a fixed stage name, request revision, relative elapsed time, duration and counts as applicable; input text and candidate descriptions are excluded. Formal benchmarks run with tracing disabled.
+`run --trace <new-file>` optionally records JSONL timing events. It is off by default. Records contain a fixed stage name, request revision, relative elapsed time, duration and counts as applicable; input text, paste text and candidate descriptions are excluded. The timeline includes terminal input/output queue waits, child input writes, PSReadLine query responses, worker queue waits, static/dynamic completion, redraw and terminal output. Formal benchmarks run with tracing disabled.
 
 Windows console resize events are explicitly enabled, and the original console input mode is restored on exit. After resize, the shell screen is repainted to remove overlay cells reflowed by the outer terminal. Cursor-position requests from nested ConPTY are answered by the owning screen model in a single write.
 
