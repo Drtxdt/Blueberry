@@ -360,7 +360,7 @@ impl Reader {
             .iter()
             .any(|event| matches!(event, Event::Key(key) if key.kind == KeyEventKind::Release));
         #[cfg(debug_assertions)]
-        let deterministic_probe = std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_TEXT").is_some();
+        let deterministic_probe = std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_JSON").is_some();
         #[cfg(not(debug_assertions))]
         let deterministic_probe = false;
         if text.is_empty() || !(text.contains('\n') || injected_records || deterministic_probe) {
@@ -1259,7 +1259,9 @@ fn is_unmarked_text_key(key: &KeyEvent) -> bool {
 
 fn clipboard_multiline_text() -> Option<String> {
     #[cfg(debug_assertions)]
-    if let Ok(value) = std::env::var("BLUEBERRY_TEST_CLIPBOARD_TEXT") {
+    if let Ok(value) = std::env::var("BLUEBERRY_TEST_CLIPBOARD_JSON")
+        && let Ok(value) = serde_json::from_str::<String>(&value)
+    {
         let value = normalize_clipboard_newlines(value);
         return value.contains('\n').then_some(value);
     }

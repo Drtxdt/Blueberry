@@ -189,8 +189,9 @@ fn start_host() -> Result<RunningHost> {
             native_marker.to_string_lossy().into_owned(),
         ),
         (
-            "BLUEBERRY_TEST_CLIPBOARD_TEXT".to_owned(),
-            "Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *".to_owned(),
+            "BLUEBERRY_TEST_CLIPBOARD_JSON".to_owned(),
+            serde_json::to_string("Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *")
+                .expect("serialize clipboard fixture"),
         ),
     ]);
     let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
