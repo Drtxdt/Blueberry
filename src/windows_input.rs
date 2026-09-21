@@ -1387,7 +1387,7 @@ fn is_unmarked_text_key(key: &KeyEvent) -> bool {
 
 fn clipboard_multiline_text() -> Option<String> {
     #[cfg(debug_assertions)]
-    if std::env::var("BLUEBERRY_TEST_CLIPBOARD_FIXTURE").as_deref() == Ok("1") {
+    if std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_FIXTURE").is_some() {
         return Some(
             "Get-PnpDevice -PresentOnly |\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\nFormat-List *"
                 .to_owned(),
