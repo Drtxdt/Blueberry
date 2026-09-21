@@ -362,24 +362,18 @@ fn wait_absent(harness: &mut Harness, path: &Path, description: &str) -> Result<
 fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
     wait_until(
         harness,
-        &format!("candidate {label}"),
+        &format!("real candidate before {label}"),
         PTY_TIMEOUT,
-        |screen| screen.lines().any(|line| line.contains("› ")),
+        |screen| selected_candidate_line(screen).is_some(),
     )?;
     let deadline = Instant::now() + PTY_TIMEOUT;
     for _ in 0..128 {
-        if harness
-            .viewport_contents()
-            .lines()
-            .any(|line| line.contains("› ") && line.contains(&format!(" {label} ")))
-        {
+        let contents = harness.viewport_contents();
+        if selected_candidate_line(&contents).is_some_and(|line| candidate_line_has(line, label)) {
             return Ok(());
         }
-        let before = harness
-            .viewport_contents()
-            .lines()
-            .find(|line| line.contains("› "))
-            .unwrap_or("")
+        let before = selected_candidate_line(&contents)
+            .context("completion menu lost its selectable row")?
             .to_owned();
         harness.send(b"\x1b[B")?;
         let remaining = deadline.saturating_duration_since(Instant::now());
@@ -387,16 +381,38 @@ fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
             break;
         }
         wait_until(harness, "menu navigation repaint", remaining, |screen| {
-            screen
-                .lines()
-                .find(|line| line.contains("› "))
-                .is_some_and(|line| line != before)
+            selected_candidate_line(screen).is_some_and(|line| line != before)
         })?;
     }
     bail!(
-        "candidate {label} was never selected; screen:\n{}",
-        harness.viewport_contents()
+        "candidate {label} was never selected (transport={}, selected={:?}); screen:\n{}",
+        std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into()),
+        selected_candidate_line(&harness.viewport_contents()),
+        harness.viewport_contents(),
     )
+}
+
+fn selected_candidate_line(contents: &str) -> Option<&str> {
+    contents.lines().find(|line| {
+        line.contains("› ")
+            && !line.contains("正在加载候选")
+            && !line.contains("提示 · 请继续输入")
+            && !line.contains("Blueberry ")
+            && !line.contains("请输入参数值")
+    })
+}
+
+fn candidate_line_has(line: &str, label: &str) -> bool {
+    line.contains(&format!(" {label} ")) || line.trim_end().ends_with(&format!(" {label}"))
+}
+
+#[test]
+fn loading_notice_is_not_a_selectable_candidate() {
+    assert!(selected_candidate_line("│ › 正在加载候选… │\n│ 提示 · 请继续输入 │").is_none());
+    assert_eq!(
+        selected_candidate_line("│ › 中文😀 文件.txt  文件 │"),
+        Some("│ › 中文😀 文件.txt  文件 │")
+    );
 }
 
 fn accept_selected(harness: &mut Harness) -> Result<()> {

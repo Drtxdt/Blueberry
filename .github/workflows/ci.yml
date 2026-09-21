@@ -58,9 +58,30 @@ jobs:
           "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
           & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -Command "Import-Module '$manifest' -Force; if ((Get-Module PSReadLine).Version.ToString() -ne '${{ matrix.psreadline }}') { exit 1 }; Get-Module PSReadLine | Select Name,Version,Path"
           if ($LASTEXITCODE -ne 0) { throw 'PSReadLine version mismatch' }
-      - name: Adapter, startup and ConPTY regressions
+      - name: Adapter regressions
         shell: pwsh
-        run: ./scripts/verify-local.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -SkipCore
+        run: |
+          & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/adapter.tests.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'adapter regressions failed' }
+      - name: Startup regressions
+        shell: pwsh
+        run: |
+          & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/startup.tests.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'startup regressions failed' }
+      - name: OSC ConPTY regressions
+        shell: pwsh
+        env:
+          BLUEBERRY_TEST_TRANSPORT: osc
+        run: |
+          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'OSC terminal regressions failed' }
+      - name: Pipe ConPTY regressions
+        shell: pwsh
+        env:
+          BLUEBERRY_TEST_TRANSPORT: pipe
+        run: |
+          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'pipe terminal regressions failed' }
   native-mouse:
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
