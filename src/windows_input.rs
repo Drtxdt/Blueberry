@@ -373,7 +373,7 @@ impl Reader {
             .iter()
             .any(|event| matches!(event, Event::Key(key) if key.kind == KeyEventKind::Release));
         #[cfg(debug_assertions)]
-        let deterministic_probe = std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_JSON").is_some();
+        let deterministic_probe = std::env::var_os("BLUEBERRY_TEST_CLIPBOARD_HEX").is_some();
         #[cfg(not(debug_assertions))]
         let deterministic_probe = false;
         if text.is_empty() || !(text.contains('\n') || injected_records || deterministic_probe) {
@@ -1387,8 +1387,8 @@ fn is_unmarked_text_key(key: &KeyEvent) -> bool {
 
 fn clipboard_multiline_text() -> Option<String> {
     #[cfg(debug_assertions)]
-    if let Ok(value) = std::env::var("BLUEBERRY_TEST_CLIPBOARD_JSON")
-        && let Ok(value) = serde_json::from_str::<String>(&value)
+    if let Ok(value) = std::env::var("BLUEBERRY_TEST_CLIPBOARD_HEX")
+        && let Some(value) = decode_hex_utf8(&value)
     {
         let value = normalize_clipboard_newlines(value);
         return value.contains('\n').then_some(value);
@@ -1422,6 +1422,22 @@ fn clipboard_multiline_text() -> Option<String> {
         let value = normalize_clipboard_newlines(value?);
         value.contains('\n').then_some(value)
     }
+}
+
+#[cfg(debug_assertions)]
+fn decode_hex_utf8(value: &str) -> Option<String> {
+    if !value.len().is_multiple_of(2) {
+        return None;
+    }
+    let bytes = value
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let pair = std::str::from_utf8(pair).ok()?;
+            u8::from_str_radix(pair, 16).ok()
+        })
+        .collect::<Option<Vec<_>>>()?;
+    String::from_utf8(bytes).ok()
 }
 
 fn normalize_clipboard_newlines(value: String) -> String {
