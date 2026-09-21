@@ -769,6 +769,19 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     host.harness.wait_line("第一行😀", PTY_TIMEOUT)?;
     host.harness.wait_line("第二行😀", PTY_TIMEOUT)?;
     clear_line(&mut host.harness)?;
+    let pipeline = "Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *";
+    host.harness.send(pipeline.as_bytes())?;
+    let actual = read_real_buffer(
+        &mut host.harness,
+        &host.buffer_marker,
+        "unmarked Windows Terminal multiline paste",
+    )?;
+    ensure!(
+        actual["line"]
+            == "Get-PnpDevice -PresentOnly |\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\nFormat-List *",
+        "unmarked multiline paste lost or executed its first line: {actual}"
+    );
+    clear_line(&mut host.harness)?;
     host.harness.send(b"old selection")?;
     host.harness.send(b"\x01")?;
     host.harness.send(b"\x1b[200~one\r\ntwo\x1b[201~")?;

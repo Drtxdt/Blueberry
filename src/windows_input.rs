@@ -36,6 +36,7 @@ const PASTE_START: &[u8] = b"\x1b[200~";
 const PASTE_END: &[u8] = b"\x1b[201~";
 const MAX_PASTE_BYTES: usize = 1024 * 1024;
 const MAX_VT_BUFFER_BYTES: usize = 4096;
+const MAX_NATIVE_BATCH_RECORDS: usize = 65_536;
 
 const VK_BACK: u16 = 0x08;
 const VK_TAB: u16 = 0x09;
@@ -289,7 +290,7 @@ impl Reader {
                     continue;
                 }
                 if self.paste_rejection.is_some() {
-                    return Ok(events);
+                    return Ok(coalesce_unmarked_multiline_events(events));
                 }
                 if let Some(record) = self.records.pop_front() {
                     self.consume_record(record)?;
@@ -299,14 +300,14 @@ impl Reader {
             }
 
             if events.len() == max_events || self.paste_rejection.is_some() {
-                return Ok(events);
+                return Ok(coalesce_unmarked_multiline_events(events));
             }
             if self.available_records()? != 0 {
                 self.read_records_blocking()?;
                 continue;
             }
             if !events.is_empty() {
-                return Ok(events);
+                return Ok(coalesce_unmarked_multiline_events(events));
             }
             // There is no safe timeout for an ESC prefix: it may be the
             // beginning of the paste marker or a split CSI/SS3 sequence.
@@ -317,21 +318,46 @@ impl Reader {
     }
 
     fn read_records_blocking(&mut self) -> io::Result<()> {
-        let mut records = vec![INPUT_RECORD::default(); 64];
-        let mut count = 0u32;
-        if unsafe {
-            ReadConsoleInputW(
-                self.input,
-                records.as_mut_ptr(),
-                records.len() as u32,
-                &mut count,
-            )
-        } == 0
-        {
-            return Err(io::Error::last_os_error());
+        let mut drained = Vec::new();
+        let mut complete_batch = true;
+        loop {
+            let remaining = MAX_NATIVE_BATCH_RECORDS.saturating_sub(drained.len());
+            if remaining == 0 {
+                complete_batch = false;
+                break;
+            }
+            let mut records = vec![INPUT_RECORD::default(); remaining.min(256)];
+            let mut count = 0u32;
+            if unsafe {
+                ReadConsoleInputW(
+                    self.input,
+                    records.as_mut_ptr(),
+                    records.len() as u32,
+                    &mut count,
+                )
+            } == 0
+            {
+                return Err(io::Error::last_os_error());
+            }
+            drained.extend(records.into_iter().take(count as usize));
+            if self.available_records()? == 0 {
+                break;
+            }
         }
-        self.records
-            .extend(records.into_iter().take(count as usize));
+        // Windows Terminal normally brackets a right-click paste. Some
+        // console paths instead enqueue the clipboard as one key-down-only
+        // text burst. A multiline burst must remain one PSReadLine edit: if
+        // its CR/LF records are exposed as Enter keys, the host can submit the
+        // first physical line before the remainder reaches the child.
+        //
+        // This fallback is structural rather than time based. Physical input
+        // contains virtual-key press/release pairs and therefore remains in
+        // the ordinary key path.
+        if complete_batch && let Some(text) = unmarked_paste_from_input_records(&drained) {
+            self.events.push_back(Event::Paste(text));
+            return Ok(());
+        }
+        self.records.extend(drained);
         Ok(())
     }
 
@@ -932,6 +958,179 @@ impl Drop for Reader {
     }
 }
 
+fn unmarked_paste_from_input_records(records: &[INPUT_RECORD]) -> Option<String> {
+    if records.len() < 2 {
+        return None;
+    }
+    let mut keys = Vec::with_capacity(records.len());
+    for record in records {
+        if u32::from(record.EventType) != KEY_EVENT {
+            return None;
+        }
+        keys.push(KeyRecord::from(unsafe { record.Event.KeyEvent }));
+    }
+    if let Some(decoded) = decode_win32_envelope_stream(&keys) {
+        unmarked_paste_text(&decoded)
+    } else {
+        unmarked_paste_text(&keys)
+    }
+}
+
+/// Decode a complete run of Win32 CSI_ key envelopes without changing the
+/// live incremental parser. This is used only to identify an unbracketed text
+/// injection batch; bracketed paste contains `CSI 200~` and deliberately
+/// fails this decoder so the normal paste transaction consumes it.
+fn decode_win32_envelope_stream(wire: &[KeyRecord]) -> Option<Vec<KeyRecord>> {
+    let mut bytes = Vec::with_capacity(wire.len());
+    for key in wire {
+        if !key.down || !is_vt_character(key) || key.unicode > 0x7f {
+            return None;
+        }
+        for _ in 0..key_repeat_count(*key) {
+            bytes.push(key.unicode as u8);
+        }
+    }
+    if !bytes.starts_with(b"\x1b[") {
+        return None;
+    }
+    let mut decoded = Vec::new();
+    let mut start = 0usize;
+    while start < bytes.len() {
+        if !bytes[start..].starts_with(b"\x1b[") {
+            return None;
+        }
+        let relative_end = bytes[start + 2..].iter().position(|byte| *byte == b'_')?;
+        let end = start + 2 + relative_end;
+        let parsed = crate::vt_input::parse_event(&bytes[start..=end], false).ok()??;
+        let crate::vt_input::Parsed::WindowsKey {
+            virtual_key,
+            scan,
+            unicode,
+            down,
+            control,
+            repeat,
+        } = parsed
+        else {
+            return None;
+        };
+        decoded.push(KeyRecord {
+            down,
+            repeat,
+            virtual_key,
+            scan,
+            unicode,
+            control_state: control,
+        });
+        start = end + 1;
+    }
+    Some(decoded)
+}
+
+fn unmarked_paste_text(keys: &[KeyRecord]) -> Option<String> {
+    let modifier_mask = SHIFT_PRESSED
+        | LEFT_ALT_PRESSED
+        | RIGHT_ALT_PRESSED
+        | LEFT_CTRL_PRESSED
+        | RIGHT_CTRL_PRESSED;
+    let mut units = Vec::with_capacity(keys.len());
+    let mut newline = false;
+    let mut printable = false;
+    for key in keys.iter().copied() {
+        if is_paste_modifier_noise(key) {
+            continue;
+        }
+        if !key.down && !is_paste_alt_code_unit(key) {
+            return None;
+        }
+        if key.control_state & modifier_mask != 0 || key.unicode == 0 {
+            return None;
+        }
+        let accepted = matches!(key.unicode, 9 | 10 | 13)
+            || is_utf16_surrogate(key.unicode)
+            || char::from_u32(u32::from(key.unicode)).is_some_and(|ch| !ch.is_control());
+        if !accepted {
+            return None;
+        }
+        newline |= matches!(key.unicode, 10 | 13);
+        printable |= !matches!(key.unicode, 9 | 10 | 13) && !is_utf16_surrogate(key.unicode);
+        for _ in 0..key_repeat_count(key) {
+            units.push(key.unicode);
+            if units.len() > MAX_PASTE_BYTES {
+                return None;
+            }
+        }
+    }
+    if !newline || !printable {
+        return None;
+    }
+    String::from_utf16(&units).ok()
+}
+
+/// A terminal which ignores bracketed-paste mode can still enqueue a whole
+/// clipboard operation as one console batch. At the event layer physical
+/// presses and releases are already decoded. Coalesce only a contiguous text
+/// run which has printable input on both sides of a newline; an ordinary
+/// command followed by Enter therefore keeps its execution semantics.
+fn coalesce_unmarked_multiline_events(events: Vec<Event>) -> Vec<Event> {
+    let mut output = Vec::with_capacity(events.len());
+    let mut index = 0usize;
+    while index < events.len() {
+        let start = index;
+        let mut text = String::new();
+        let mut first_newline = None;
+        let mut text_units = 0usize;
+        let mut last_was_newline = false;
+        while index < events.len() {
+            let Event::Key(key) = &events[index] else {
+                break;
+            };
+            if key.kind == KeyEventKind::Release {
+                index += 1;
+                continue;
+            }
+            match key.code {
+                KeyCode::Char(character)
+                    if !character.is_control()
+                        && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT) =>
+                {
+                    text.push(character);
+                    text_units += 1;
+                    last_was_newline = false;
+                }
+                KeyCode::Tab if key.modifiers.is_empty() => {
+                    text.push('\t');
+                    text_units += 1;
+                    last_was_newline = false;
+                }
+                KeyCode::Enter if key.modifiers.is_empty() => {
+                    if !last_was_newline {
+                        first_newline.get_or_insert(text_units);
+                        text.push('\n');
+                    }
+                    last_was_newline = true;
+                }
+                // ConPTY represents the LF half of a pasted CRLF pair as a
+                // Ctrl+Enter record. It immediately follows the ordinary
+                // Enter generated for CR and carries no additional newline.
+                KeyCode::Enter if key.modifiers == KeyModifiers::CONTROL && last_was_newline => {}
+                _ => break,
+            }
+            index += 1;
+        }
+        let qualifies = first_newline.is_some_and(|before| before > 0 && text_units > before)
+            && text.len() <= MAX_PASTE_BYTES;
+        if qualifies {
+            output.push(Event::Paste(text));
+        } else if index > start {
+            output.extend(events[start..index].iter().cloned());
+        } else {
+            output.push(events[index].clone());
+            index += 1;
+        }
+    }
+    output
+}
+
 fn is_vt_character(key: &KeyRecord) -> bool {
     key.virtual_key == 0 && key.scan == 0
 }
@@ -1224,6 +1423,89 @@ mod tests {
             feed_envelope(&mut reader, native_key(true, 0, 0, u16::from(byte), 0));
         }
         assert_eq!(drain(&mut reader), vec![Event::Paste("你😀好\r\n".into())]);
+    }
+
+    #[test]
+    fn unmarked_multiline_injection_is_coalesced_without_timing() {
+        let text = "Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *";
+        let keys = text
+            .encode_utf16()
+            .map(|unit| native_key(true, 0, 0, unit, 0))
+            .collect::<Vec<_>>();
+        assert_eq!(unmarked_paste_text(&keys).as_deref(), Some(text));
+
+        let mut physical = Vec::new();
+        for unit in "one\r\ntwo".encode_utf16() {
+            physical.push(native_key(true, unit, 1, unit, 0));
+            physical.push(native_key(false, unit, 1, unit, 0));
+        }
+        assert!(unmarked_paste_text(&physical).is_none());
+    }
+
+    #[test]
+    fn unmarked_win32_envelope_batch_decodes_before_coalescing() {
+        let text = "第一行\r\n第二行😀";
+        let logical = text
+            .encode_utf16()
+            .map(|unit| native_key(true, 0, 0, unit, 0))
+            .collect::<Vec<_>>();
+        let mut wire = Vec::new();
+        for key in logical {
+            let envelope = format!(
+                "\x1b[{};{};{};{};{};{}_",
+                key.virtual_key,
+                key.scan,
+                key.unicode,
+                u8::from(key.down),
+                key.control_state,
+                key.repeat,
+            );
+            wire.extend(
+                envelope
+                    .bytes()
+                    .map(|byte| native_key(true, 0, 0, u16::from(byte), 0)),
+            );
+        }
+        let decoded = decode_win32_envelope_stream(&wire).unwrap();
+        assert_eq!(unmarked_paste_text(&decoded).as_deref(), Some(text));
+    }
+
+    #[test]
+    fn decoded_multiline_batch_coalesces_but_trailing_enter_executes() {
+        fn pair(code: KeyCode) -> [Event; 2] {
+            [
+                Event::Key(KeyEvent::new_with_kind(
+                    code,
+                    KeyModifiers::empty(),
+                    KeyEventKind::Press,
+                )),
+                Event::Key(KeyEvent::new_with_kind(
+                    code,
+                    KeyModifiers::empty(),
+                    KeyEventKind::Release,
+                )),
+            ]
+        }
+        let mut multiline = Vec::new();
+        for code in [
+            KeyCode::Char('一'),
+            KeyCode::Enter,
+            KeyCode::Enter,
+            KeyCode::Char('二'),
+        ] {
+            multiline.extend(pair(code));
+        }
+        assert_eq!(
+            coalesce_unmarked_multiline_events(multiline),
+            vec![Event::Paste("一\n二".into())]
+        );
+
+        let mut command = Vec::new();
+        for code in [KeyCode::Char('g'), KeyCode::Char('i'), KeyCode::Enter] {
+            command.extend(pair(code));
+        }
+        let result = coalesce_unmarked_multiline_events(command);
+        assert!(!result.iter().any(|event| matches!(event, Event::Paste(_))));
     }
 
     #[test]

@@ -2230,7 +2230,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         };
         loop {
             #[cfg(windows)]
-            let result = input_reader.read_batch(64);
+            let result = input_reader.read_batch(65_536);
             #[cfg(windows)]
             if input_reader.take_paste_rejection().is_some() {
                 let _ = input_tx.send(HostEvent::Diagnostic(
