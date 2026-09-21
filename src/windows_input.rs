@@ -345,7 +345,7 @@ impl Reader {
         ));
         if let Some(mut pending) = self.unmarked_paste.take() {
             pending.events.extend(events);
-            let (end, text) = text_event_run(&pending.events, 0);
+            let (end, text) = text_event_run_against(&pending.events, 0, &pending.target);
             input_probe_trace(format_args!(
                 "pending text={} target={} prefix={} end={} total={}",
                 text.len(),
@@ -390,13 +390,14 @@ impl Reader {
             input_probe_trace(format_args!("candidate text={} target=missing", text.len()));
             return events;
         };
+        let (_, text) = text_event_run_against(&events, start, &target);
         input_probe_trace(format_args!(
             "candidate text={} target={} prefix={}",
             text.len(),
             target.len(),
             target.starts_with(&text)
         ));
-        if text.len() < target.len() && target.starts_with(&text) {
+        if !text.is_empty() && text.len() < target.len() && target.starts_with(&text) {
             let mut prefix = events[..start].to_vec();
             self.unmarked_paste = Some(PendingUnmarkedPaste {
                 target,
@@ -1292,6 +1293,88 @@ fn text_event_run(events: &[Event], start: usize) -> (usize, String) {
     (index, text)
 }
 
+fn text_event_run_against(events: &[Event], start: usize, target: &str) -> (usize, String) {
+    let mut index = start;
+    let mut text = String::new();
+    let mut expected = target.chars();
+    let mut last_was_newline = false;
+    while index < events.len() {
+        let Event::Key(key) = &events[index] else {
+            break;
+        };
+        if key.kind == KeyEventKind::Release {
+            index += 1;
+            continue;
+        }
+        let next = match key.code {
+            KeyCode::Char(character) if !character.is_control() => {
+                let Some(wanted) = expected.next() else { break };
+                if character == wanted
+                    || (key.modifiers == KeyModifiers::SHIFT
+                        && shifted_ascii(character) == Some(wanted))
+                {
+                    wanted
+                } else {
+                    break;
+                }
+            }
+            KeyCode::Tab if key.modifiers.is_empty() => {
+                if expected.next() != Some('\t') {
+                    break;
+                }
+                '\t'
+            }
+            KeyCode::Enter if key.modifiers.is_empty() => {
+                if last_was_newline {
+                    index += 1;
+                    continue;
+                }
+                if expected.next() != Some('\n') {
+                    break;
+                }
+                '\n'
+            }
+            KeyCode::Enter if key.modifiers == KeyModifiers::CONTROL && last_was_newline => {
+                index += 1;
+                continue;
+            }
+            _ => break,
+        };
+        text.push(next);
+        last_was_newline = next == '\n';
+        index += 1;
+    }
+    (index, text)
+}
+
+fn shifted_ascii(character: char) -> Option<char> {
+    Some(match character {
+        'a'..='z' => character.to_ascii_uppercase(),
+        '`' => '~',
+        '1' => '!',
+        '2' => '@',
+        '3' => '#',
+        '4' => '$',
+        '5' => '%',
+        '6' => '^',
+        '7' => '&',
+        '8' => '*',
+        '9' => '(',
+        '0' => ')',
+        '-' => '_',
+        '=' => '+',
+        '[' => '{',
+        ']' => '}',
+        '\\' => '|',
+        ';' => ':',
+        '\'' => '"',
+        ',' => '<',
+        '.' => '>',
+        '/' => '?',
+        _ => return None,
+    })
+}
+
 fn is_unmarked_text_key(key: &KeyEvent) -> bool {
     matches!(
         key.code,
@@ -1742,6 +1825,12 @@ mod tests {
         ]);
         assert_eq!(ready, vec![Event::Paste("one\ntwo".into())]);
         assert!(reader.unmarked_paste.is_none());
+
+        let shifted = vec![
+            Event::Key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::SHIFT)),
+            Event::Key(KeyEvent::new(KeyCode::Char('\\'), KeyModifiers::SHIFT)),
+        ];
+        assert_eq!(text_event_run_against(&shifted, 0, "G|"), (2, "G|".into()));
     }
 
     #[test]
