@@ -33,21 +33,6 @@ fn protocol_chord(suffix: char) -> Vec<u8> {
     format!("\x1b[24~{suffix}").into_bytes()
 }
 
-fn psreadline_chord(function_key: u8, suffix: char) -> Vec<u8> {
-    let number = match function_key {
-        5 => 15,
-        6 => 17,
-        7 => 18,
-        8 => 19,
-        9 => 20,
-        10 => 21,
-        11 => 23,
-        12 => 24,
-        _ => panic!("unsupported function key"),
-    };
-    format!("\x1b[{number}~{suffix}").into_bytes()
-}
-
 fn ctrl_alt_space_records() -> &'static [u8] {
     // CSI-u retains both modifiers through Windows Server 2022 ConPTY.
     b"\x1b[32;7u"
@@ -348,7 +333,10 @@ fn read_marker(harness: &mut Harness, path: &Path, description: &str) -> Result<
 
 fn read_real_buffer(harness: &mut Harness, path: &Path, description: &str) -> Result<Value> {
     let _ = fs::remove_file(path);
-    harness.send(&psreadline_chord(10, 'b'))?;
+    // Keep the probe on one physical key. A multi-key PSReadLine chord can be
+    // split when Blueberry opens a refreshed completion menu between the
+    // prefix and suffix on slower Windows PowerShell 5.1 runners.
+    harness.send(b"\x1b[21~")?;
     read_marker(harness, path, description)
 }
 
@@ -442,7 +430,7 @@ fn accept_selected(harness: &mut Harness) -> Result<()> {
 
 fn buffer_probe_command(path: &Path) -> String {
     format!(
-        "Set-PSReadLineKeyHandler -Chord 'F10,b' -ScriptBlock {{ $line=$null; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); $state=[object][ordered]@{{line=$line;cursor=$cursor}}; $json=($state | ConvertTo-Json -Compress -Depth 8); [IO.File]::WriteAllText({}, $json, [Text.UTF8Encoding]::new($false)) }}; Write-Output SS_BUFFER_READY",
+        "Set-PSReadLineKeyHandler -Chord 'F10' -ScriptBlock {{ $line=$null; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); $state=[object][ordered]@{{line=$line;cursor=$cursor}}; $json=($state | ConvertTo-Json -Compress -Depth 8); [IO.File]::WriteAllText({}, $json, [Text.UTF8Encoding]::new($false)) }}; Write-Output SS_BUFFER_READY",
         ps_quote(path)
     )
 }
