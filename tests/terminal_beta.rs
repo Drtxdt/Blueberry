@@ -190,12 +190,8 @@ fn start_host() -> Result<RunningHost> {
             native_marker.to_string_lossy().into_owned(),
         ),
         (
-            "BLUEBERRY_TEST_CLIPBOARD_HEX".to_owned(),
-            "Get-PnpDevice -PresentOnly |\r\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\r\nFormat-List *"
-                .as_bytes()
-                .iter()
-                .map(|byte| format!("{byte:02X}"))
-                .collect(),
+            "BLUEBERRY_TEST_CLIPBOARD_FIXTURE".to_owned(),
+            "1".to_owned(),
         ),
         (
             "BLUEBERRY_TEST_INPUT_TRACE".to_owned(),
