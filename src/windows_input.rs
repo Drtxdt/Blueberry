@@ -367,30 +367,28 @@ impl Reader {
         }
 
         let events = coalesce_unmarked_multiline_events(events);
-        let start = trailing_text_run_start(&events);
-        let (_, text) = text_event_run(&events, start);
-        let injected_records = !events[start..]
+        let injected_records = !events
             .iter()
             .any(|event| matches!(event, Event::Key(key) if key.kind == KeyEventKind::Release));
+        let has_enter = events.iter().any(
+            |event| matches!(event, Event::Key(key) if key.kind != KeyEventKind::Release && key.code == KeyCode::Enter),
+        );
         #[cfg(debug_assertions)]
         let deterministic_probe = test_clipboard_text().is_some();
         #[cfg(not(debug_assertions))]
         let deterministic_probe = false;
-        if text.is_empty() || !(text.contains('\n') || injected_records || deterministic_probe) {
+        if !(has_enter || injected_records || deterministic_probe) {
             input_probe_trace(format_args!(
-                "candidate text={} newline={} injected={} probe={}",
-                text.len(),
-                text.contains('\n'),
-                injected_records,
-                deterministic_probe
+                "candidate enter={} injected={} probe={}",
+                has_enter, injected_records, deterministic_probe
             ));
             return events;
         }
         let Some(target) = clipboard_multiline_text() else {
-            input_probe_trace(format_args!("candidate text={} target=missing", text.len()));
+            input_probe_trace(format_args!("candidate target=missing"));
             return events;
         };
-        let (_, text) = text_event_run_against(&events, start, &target);
+        let (start, text) = best_target_prefix(&events, &target);
         input_probe_trace(format_args!(
             "candidate text={} target={} prefix={}",
             text.len(),
@@ -1237,55 +1235,18 @@ fn coalesce_unmarked_multiline_events(events: Vec<Event>) -> Vec<Event> {
     output
 }
 
-fn trailing_text_run_start(events: &[Event]) -> usize {
-    let mut start = 0;
-    for (index, event) in events.iter().enumerate() {
-        let Event::Key(key) = event else {
-            start = index + 1;
-            continue;
-        };
-        if key.kind != KeyEventKind::Release && !is_unmarked_text_key(key) {
-            start = index + 1;
-        }
-    }
-    start
-}
-
-fn text_event_run(events: &[Event], start: usize) -> (usize, String) {
-    let mut index = start;
-    let mut text = String::new();
-    let mut last_was_newline = false;
-    while index < events.len() {
-        let Event::Key(key) = &events[index] else {
-            break;
-        };
-        if key.kind == KeyEventKind::Release {
-            index += 1;
+fn best_target_prefix(events: &[Event], target: &str) -> (usize, String) {
+    let mut best = (events.len(), String::new());
+    for start in 0..events.len() {
+        if !matches!(&events[start], Event::Key(key) if key.kind != KeyEventKind::Release) {
             continue;
         }
-        match key.code {
-            KeyCode::Char(character)
-                if !character.is_control()
-                    && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT) =>
-            {
-                text.push(character);
-                last_was_newline = false;
-            }
-            KeyCode::Tab if key.modifiers.is_empty() => {
-                text.push('\t');
-                last_was_newline = false;
-            }
-            KeyCode::Enter if paste_enter_modifiers(key.modifiers) => {
-                if !last_was_newline {
-                    text.push('\n');
-                }
-                last_was_newline = true;
-            }
-            _ => break,
+        let (_, text) = text_event_run_against(events, start, target);
+        if text.len() > best.1.len() {
+            best = (start, text);
         }
-        index += 1;
     }
-    (index, text)
+    best
 }
 
 fn text_event_run_against(events: &[Event], start: usize, target: &str) -> (usize, String) {
@@ -1319,7 +1280,7 @@ fn text_event_run_against(events: &[Event], start: usize, target: &str) -> (usiz
                 }
                 '\t'
             }
-            KeyCode::Enter if paste_enter_modifiers(key.modifiers) => {
+            KeyCode::Enter => {
                 if last_was_newline {
                     index += 1;
                     continue;
@@ -1364,16 +1325,6 @@ fn shifted_ascii(character: char) -> Option<char> {
         '/' => '?',
         _ => return None,
     })
-}
-
-fn is_unmarked_text_key(key: &KeyEvent) -> bool {
-    matches!(
-        key.code,
-        KeyCode::Char(character)
-            if !character.is_control()
-                && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT)
-    ) || matches!(key.code, KeyCode::Tab if key.modifiers.is_empty())
-        || matches!(key.code, KeyCode::Enter if paste_enter_modifiers(key.modifiers))
 }
 
 fn paste_enter_modifiers(modifiers: KeyModifiers) -> bool {
