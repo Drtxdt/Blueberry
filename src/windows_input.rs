@@ -1310,8 +1310,8 @@ fn text_event_run_against(events: &[Event], start: usize, target: &str) -> (usiz
             KeyCode::Char(character) if !character.is_control() => {
                 let Some(wanted) = expected.next() else { break };
                 if character == wanted
-                    || (key.modifiers == KeyModifiers::SHIFT
-                        && shifted_ascii(character) == Some(wanted))
+                    || character.eq_ignore_ascii_case(&wanted)
+                    || shifted_ascii(character) == Some(wanted)
                 {
                     wanted
                 } else {
@@ -1831,6 +1831,14 @@ mod tests {
             Event::Key(KeyEvent::new(KeyCode::Char('\\'), KeyModifiers::SHIFT)),
         ];
         assert_eq!(text_event_run_against(&shifted, 0, "G|"), (2, "G|".into()));
+        let missing_shift = vec![
+            Event::Key(KeyCode::Char('g').into()),
+            Event::Key(KeyCode::Char('\\').into()),
+        ];
+        assert_eq!(
+            text_event_run_against(&missing_shift, 0, "G|"),
+            (2, "G|".into())
+        );
     }
 
     #[test]
