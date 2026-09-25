@@ -5,6 +5,8 @@ use std::{
     fmt::Write as _,
     fs,
     path::PathBuf,
+    process::Command,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 const SCHEMA_VERSION: u32 = 1;
@@ -617,6 +619,32 @@ fn generate_registry(registry: &RegistryFile) -> String {
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=.git/HEAD");
+    println!("cargo:rerun-if-env-changed=GITHUB_SHA");
+    println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
+    let commit = env::var("GITHUB_SHA")
+        .ok()
+        .or_else(|| {
+            Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .ok()
+                .filter(|output| output.status.success())
+                .and_then(|output| String::from_utf8(output.stdout).ok())
+                .map(|value| value.trim().to_owned())
+        })
+        .unwrap_or_else(|| "unknown".into());
+    let build_time = env::var("SOURCE_DATE_EPOCH")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or_else(|| {
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        });
+    println!("cargo:rustc-env=BLUEBERRY_BUILD_COMMIT={commit}");
+    println!("cargo:rustc-env=BLUEBERRY_BUILD_TIME_UNIX={build_time}");
     println!("cargo:rerun-if-changed=specs/builtin");
     println!("cargo:rerun-if-changed=specs/tools.toml");
     let catalog_dir = PathBuf::from("specs/builtin");

@@ -5,7 +5,6 @@ use crossterm::{
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self, Write};
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 pub struct ScreenGuard {
     mouse: bool,
@@ -38,25 +37,5 @@ impl Drop for ScreenGuard {
     }
 }
 pub fn fit(text: &str, width: usize) -> String {
-    if width == 0 {
-        return String::new();
-    }
-    if UnicodeWidthStr::width(text) <= width {
-        return text.into();
-    }
-    if width == 1 {
-        return "…".into();
-    }
-    let mut out = String::new();
-    let mut used = 0;
-    for ch in text.chars() {
-        let w = UnicodeWidthChar::width(ch).unwrap_or(0);
-        if used + w > width - 1 {
-            break;
-        }
-        out.push(ch);
-        used += w
-    }
-    out.push('…');
-    out
+    crate::menu::truncate_to_width(&crate::menu::sanitize_text(text), width)
 }

@@ -44,6 +44,7 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         ("BLUEBERRY_ACTIVE".into(), "0".into()),
         ("LOCALAPPDATA".into(), local.to_string_lossy().into_owned()),
         ("APPDATA".into(), roaming.to_string_lossy().into_owned()),
+        ("BLUEBERRY_PROBE_TOKEN".into(), "startup-test".into()),
     ]);
     let args = [
         "-NoLogo",
@@ -63,7 +64,11 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         &environment,
         "startup-test".into(),
     )?;
-    terminal.send(b"Write-Output ('BB_ACTIVE_' + $env:BLUEBERRY_ACTIVE); Write-Output ('BB_EDITION_' + $PSVersionTable.PSEdition)\r")?;
+    terminal.event("prompt_end", Duration::from_secs(30))?;
+    send_editor_command(
+        &mut terminal,
+        "Write-Output ('BB_ACTIVE_' + $env:BLUEBERRY_ACTIVE); Write-Output ('BB_EDITION_' + $PSVersionTable.PSEdition)",
+    )?;
     wait_line(&mut terminal, "BB_ACTIVE_1")?;
     let edition = if shell
         .file_name()
@@ -76,13 +81,20 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         "Core"
     };
     wait_line(&mut terminal, &format!("BB_EDITION_{edition}"))?;
-    terminal.send(format!(". '{quoted}'; Write-Output BB_NESTED_SKIPPED\r").as_bytes())?;
+    terminal.event("prompt_end", Duration::from_secs(30))?;
+    send_editor_command(
+        &mut terminal,
+        &format!(". '{quoted}'; Write-Output BB_NESTED_SKIPPED"),
+    )?;
     wait_line(&mut terminal, "BB_NESTED_SKIPPED")?;
+    terminal.event("prompt_end", Duration::from_secs(30))?;
     terminal.send(b"exit\r")?;
     wait_line(&mut terminal, "BB_PARENT_RESUMED_0")?;
     terminal.send(b"Write-Output ('BB_OUTER_' + $env:BLUEBERRY_ACTIVE)\r")?;
     wait_line(&mut terminal, "BB_OUTER_0")?;
-    terminal.finish(Duration::from_secs(10))?;
+    // The parent is now plain PowerShell: the nested Blueberry protocol has
+    // exited, so the probe's host-aware finish chord is no longer applicable.
+    terminal.stop()?;
     Ok(())
 }
 
@@ -102,6 +114,7 @@ fn no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path() -> Result<()> {
             "APPDATA".into(),
             root.path().join("roaming").to_string_lossy().into_owned(),
         ),
+        ("BLUEBERRY_PROBE_TOKEN".into(), "fallback-test".into()),
     ]);
     let mut terminal = Harness::start(
         &PathBuf::from(env!("CARGO_BIN_EXE_blueberry")),
@@ -110,9 +123,28 @@ fn no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path() -> Result<()> {
         &environment,
         "fallback-test".into(),
     )?;
-    terminal.send(b"Write-Output ('BB_FALLBACK_' + $PSVersionTable.PSEdition + '_' + $env:BLUEBERRY_ACTIVE)\r")?;
+    terminal.event("prompt_end", Duration::from_secs(30))?;
+    send_editor_command(
+        &mut terminal,
+        "Write-Output ('BB_FALLBACK_' + $PSVersionTable.PSEdition + '_' + $env:BLUEBERRY_ACTIVE)",
+    )?;
     wait_line(&mut terminal, "BB_FALLBACK_Desktop_1")?;
     terminal.finish(Duration::from_secs(10))?;
+    Ok(())
+}
+
+fn send_editor_command(terminal: &mut Harness, command: &str) -> Result<()> {
+    terminal.send(command.as_bytes())?;
+    terminal.send(b"\x1b[32;5u")?;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        let buffer =
+            terminal.event("buffer", deadline.saturating_duration_since(Instant::now()))?;
+        if buffer["line"].as_str() == Some(command) {
+            break;
+        }
+    }
+    terminal.send(b"\r")?;
     Ok(())
 }
 

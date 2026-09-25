@@ -10,6 +10,7 @@ pub mod menu;
 pub mod metrics;
 pub mod model;
 pub mod overlay;
+pub mod packs;
 pub mod paths;
 pub mod pipe;
 pub mod probe;
@@ -36,5 +37,8 @@ pub(crate) mod vt_input;
 pub(crate) mod windows_input;
 
 pub mod knowledge;
+
+#[cfg(windows)]
+pub mod latency_layers;
 
 pub mod startup;

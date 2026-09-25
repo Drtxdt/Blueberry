@@ -412,13 +412,22 @@ fn stamp(path: &Path) -> Option<String> {
     ))
 }
 pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
+    let environment = std::env::vars().collect::<std::collections::BTreeMap<_, _>>();
+    entry_with_environment(command, path, cwd, &environment)
+}
+pub fn entry_with_environment(
+    command: &str,
+    path: &Path,
+    cwd: &Path,
+    environment: &std::collections::BTreeMap<String, String>,
+) -> Option<Entry> {
     // Preserve argv[0] for multicall launchers such as rustup symlinks.
     let launch_path = if path.is_absolute() {
         path.to_owned()
     } else {
-        std::env::current_dir().ok()?.join(path)
+        cwd.join(path)
     };
-    let path = fs::canonicalize(path).ok()?;
+    let path = fs::canonicalize(&launch_path).ok()?;
     if !path.is_file() {
         return None;
     }
@@ -497,20 +506,23 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
             script = Some(resolved_script);
             target = path.parent()?.join("node.exe");
             if !target.is_file() {
-                target = std::env::split_paths(&std::env::var_os("PATH")?)
+                target = std::env::split_paths(std::ffi::OsStr::new(environment.get("PATH")?))
                     .map(|p| p.join("node.exe"))
                     .find(|p| p.is_file())?;
             }
             packaged = true;
         }
     }
-    let home = std::env::var_os("USERPROFILE")
+    let home = environment
+        .get("USERPROFILE")
         .map(PathBuf::from)
         .unwrap_or_default();
-    let local = std::env::var_os("LOCALAPPDATA")
+    let local = environment
+        .get("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_default();
-    let programs = std::env::var_os("ProgramFiles")
+    let programs = environment
+        .get("ProgramFiles")
         .map(PathBuf::from)
         .unwrap_or_default();
     let roots: Vec<PathBuf> = match root.as_str() {
@@ -538,24 +550,10 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
         .is_some_and(|p| path.starts_with(p));
     let npm_install = path.parent().is_some_and(|parent| {
         parent.join("node.exe").is_file()
-            || std::env::var_os("APPDATA")
+            || environment
+                .get("APPDATA")
                 .and_then(|p| fs::canonicalize(PathBuf::from(p).join("npm")).ok())
                 .is_some_and(|p| parent == p)
-    });
-    let path_entry = std::env::var_os("PATH").is_some_and(|value| {
-        std::env::split_paths(&value).any(|directory| {
-            let names = [
-                invoked_root.clone(),
-                format!("{invoked_root}.exe"),
-                format!("{invoked_root}.cmd"),
-                format!("{invoked_root}.bat"),
-            ];
-            names.into_iter().any(|name| {
-                fs::canonicalize(directory.join(name))
-                    .ok()
-                    .is_some_and(|candidate| candidate == path)
-            })
-        })
     });
     let fingerprint = hash(
         format!(
@@ -566,8 +564,9 @@ pub fn entry(command: &str, path: &Path, cwd: &Path) -> Option<Entry> {
         )
         .as_bytes(),
     );
-    let trusted =
-        known && !in_project && ((packaged && npm_install) || known_install || path_entry);
+    // PATH only chooses which executable runs; it does not make that location
+    // safe to execute automatically for help learning.
+    let trusted = known && !in_project && ((packaged && npm_install) || known_install);
     Some(Entry {
         command: root,
         path,

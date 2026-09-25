@@ -427,7 +427,13 @@ fn run_and_wait_for_marker(
     marker: &str,
     description: &str,
 ) -> Result<()> {
-    clear_line_and_send(harness, format!("{command}\r").as_bytes(), description)?;
+    clear_line_and_send(harness, command.as_bytes(), description)?;
+    let buffer = request_real_buffer(harness, command)?;
+    ensure!(
+        buffer["line"].as_str() == Some(command),
+        "incomplete command: {buffer}"
+    );
+    harness.send(b"\r")?;
     harness.event("execute", PTY_TIMEOUT)?;
     harness
         .wait_text(marker, PTY_TIMEOUT)
@@ -561,9 +567,11 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
     );
     clear_line_and_send(
         &mut host.harness,
-        format!("{command}\r").as_bytes(),
+        command.as_bytes(),
         "external alternate-screen PowerShell",
     )?;
+    request_real_buffer(&mut host.harness, &command)?;
+    host.harness.send(b"\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness
         .wait_text("SS_ALT_READY", PTY_TIMEOUT)
@@ -739,9 +747,11 @@ fn mouse_passthrough(native: bool) -> Result<()> {
 
     clear_line_and_send(
         &mut host.harness,
-        format!("{command}\r").as_bytes(),
+        command.as_bytes(),
         "external mouse helper",
     )?;
+    request_real_buffer(&mut host.harness, &command)?;
+    host.harness.send(b"\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness
         .wait_text("SS_MOUSE_READY", PTY_TIMEOUT)

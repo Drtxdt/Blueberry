@@ -1,0 +1,180 @@
+{
+  "blueberry": {
+    "median": 31.369300000000003,
+    "p95": 62.3143,
+    "samples": [
+      62.3143,
+      31.902399999999997,
+      30.5368,
+      31.0112,
+      31.0232,
+      31.576800000000002,
+      31.1618,
+      31.9431,
+      31.109,
+      32.0318
+    ],
+    "unit": "ms"
+  },
+  "diagnostic_only": true,
+  "direct_adapter": {
+    "median": 15.762900000000002,
+    "p95": 16.3336,
+    "samples": [
+      16.0418,
+      15.741600000000002,
+      15.465,
+      16.0184,
+      15.6056,
+      15.503,
+      15.3392,
+      16.3336,
+      16.013199999999998,
+      15.784200000000002
+    ],
+    "unit": "ms"
+  },
+  "executable_sha256": "01186A86FC7A36B28479E45C5CC0DD5A266CD34F9CC8EC939718A5AEA9541732",
+  "first_query": {
+    "blueberry": {
+      "median": 62.3143,
+      "p95": 62.3143,
+      "samples": [
+        62.3143
+      ],
+      "unit": "ms"
+    },
+    "direct_adapter": {
+      "median": 16.0418,
+      "p95": 16.0418,
+      "samples": [
+        16.0418
+      ],
+      "unit": "ms"
+    },
+    "nested_passthrough": {
+      "median": 45.286,
+      "p95": 45.286,
+      "samples": [
+        45.286
+      ],
+      "unit": "ms"
+    },
+    "plain": {
+      "median": 51.6649,
+      "p95": 51.6649,
+      "samples": [
+        51.6649
+      ],
+      "unit": "ms"
+    }
+  },
+  "method": "Alternating fresh sessions: plain PowerShell, direct PowerShell with Blueberry adapter but no Rust host, minimal Rust forwarder with inner ConPTY, and full Blueberry host. The same outer Harness sends a unique ASCII marker and records when it first appears in viewport rows. First query of each session is reported separately from warm queries. No candidate is required; this is not release acceptance. OS file caches are retained.",
+  "nested_passthrough": {
+    "median": 31.1024,
+    "p95": 45.286,
+    "samples": [
+      45.286,
+      30.2088,
+      30.787200000000002,
+      32.0644,
+      31.0623,
+      31.433000000000003,
+      31.1425,
+      15.5885,
+      15.1637,
+      31.5215
+    ],
+    "unit": "ms"
+  },
+  "plain": {
+    "median": 15.881849999999998,
+    "p95": 51.6649,
+    "samples": [
+      51.6649,
+      15.5321,
+      16.3757,
+      15.262599999999999,
+      15.0846,
+      16.4639,
+      15.4992,
+      16.014799999999997,
+      15.748899999999999,
+      16.072300000000002
+    ],
+    "unit": "ms"
+  },
+  "platform": "windows",
+  "profile_mode": "no_profile",
+  "samples_per_mode": 10,
+  "schema": 2,
+  "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "terminal_columns": 120,
+  "terminal_rows": 30,
+  "warm_query": {
+    "blueberry": {
+      "median": 31.1618,
+      "p95": 32.0318,
+      "samples": [
+        31.902399999999997,
+        30.5368,
+        31.0112,
+        31.0232,
+        31.576800000000002,
+        31.1618,
+        31.9431,
+        31.109,
+        32.0318
+      ],
+      "unit": "ms"
+    },
+    "direct_adapter": {
+      "median": 15.741600000000002,
+      "p95": 16.3336,
+      "samples": [
+        15.741600000000002,
+        15.465,
+        16.0184,
+        15.6056,
+        15.503,
+        15.3392,
+        16.3336,
+        16.013199999999998,
+        15.784200000000002
+      ],
+      "unit": "ms"
+    },
+    "nested_passthrough": {
+      "median": 31.0623,
+      "p95": 32.0644,
+      "samples": [
+        30.2088,
+        30.787200000000002,
+        32.0644,
+        31.0623,
+        31.433000000000003,
+        31.1425,
+        15.5885,
+        15.1637,
+        31.5215
+      ],
+      "unit": "ms"
+    },
+    "plain": {
+      "median": 15.748899999999999,
+      "p95": 16.4639,
+      "samples": [
+        15.5321,
+        16.3757,
+        15.262599999999999,
+        15.0846,
+        16.4639,
+        15.4992,
+        16.014799999999997,
+        15.748899999999999,
+        16.072300000000002
+      ],
+      "unit": "ms"
+    }
+  }
+}

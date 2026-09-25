@@ -130,8 +130,11 @@ blueberry hub
 `blueberry config edit` 打开中文设置页，可调整外观、补全、快捷键、资源和学习开关。方向键或 Tab 选择，Enter 修改，`/` 搜索，Ctrl+M 只看修改项，Ctrl+1／2／3 应用默认、精简或手动触发预设，Ctrl+D 查看差异，Ctrl+S 保存。修改外观时可以预览效果。
 
 `blueberry tools` 打开可搜索的工具管理页，可查看入口、规则、动态能力和帮助学习状态，并按工具调整帮助及动态候选。`blueberry setup` 使用分步页面选择图标、补全方式和自动启动。
+引导第一页可实际按下补全、用途搜索和工作台快捷键；页面只标记终端送达的组合键，未点亮时可在设置中改键。
 
 `blueberry hub` 汇总收藏、模板、当前 PowerShell 会话历史、准确的 PSReadLine 历史文件和项目操作。会话中按 Ctrl+Alt+P 后直接输入关键词，Enter 将命令填回但不会执行，Tab 或 F1 查看预览，Esc 保留原编辑行。独立运行时，确认后的命令复制到剪贴板。详细格式见 [命令工作台](docs/workbench.md)。
+
+工作台可从已输入的 `git switch -c`、`cargo test -p/--features/--test` 和 `docker compose up/logs` 打开参数表单。选择“继续填写”后输入或选择参数，确认只填回当前行。仓库根目录的 `.blueberry/commands.toml` 可声明项目命令包；先用 `blueberry packs review` 查看来源和变化，再用 `blueberry packs approve <SHA-256>` 批准。文件变化会立即停用包；`blueberry packs list/revoke` 可查看或撤销。格式见 [命令工作台](docs/workbench.md)。
 
 ```powershell
 blueberry hub --add "启动开发服务" --command "npm run dev"
@@ -183,7 +186,7 @@ cargo build --release --locked
 .\scripts\verify-local.ps1 -Shell pwsh.exe
 ```
 
-GitHub Actions 检查 Windows、Linux、macOS 的构建和核心测试，并在 Windows PowerShell 5.1 上运行适配器、安装和 ConPTY 回归。Windows Terminal 的中文输入、字体、缩放和视觉体验按 [本机检查表](docs/installation.md#本机验收) 验收。
+GitHub Actions 检查 Windows、Linux、macOS 的构建和核心测试，并在 Windows PowerShell 5.1 与 PowerShell 7 上运行适配器和 ConPTY 回归。Windows Terminal 的中文输入、字体、缩放和视觉体验按 [本机检查表](docs/installation.md#本机验收) 验收。
 
 发布者从 [发版指南](docs/releasing.md) 开始：推送版本标签后，Actions 生成带附件的 Release 草稿，再由发布者检查并公开。
 

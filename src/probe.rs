@@ -24,6 +24,7 @@ pub struct Harness {
     trace: Vec<u8>,
     protocol_seen: bool,
     known_empty_buffer: bool,
+    last_capabilities: Option<Value>,
 }
 
 impl Harness {
@@ -54,6 +55,7 @@ impl Harness {
             trace: Vec::new(),
             protocol_seen: false,
             known_empty_buffer: false,
+            last_capabilities: None,
         })
     }
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {
@@ -81,6 +83,9 @@ impl Harness {
                 }
                 Part::Message(value) => {
                     self.protocol_seen = true;
+                    if value["event"] == "capabilities" {
+                        self.last_capabilities = Some(value.clone());
+                    }
                     match value["event"].as_str() {
                         Some("prompt_end") => self.known_empty_buffer = true,
                         Some("buffer") => self.known_empty_buffer = value["line"] == "",
@@ -142,6 +147,9 @@ impl Harness {
     }
     pub fn process_id(&self) -> Option<u32> {
         self.session.child.process_id()
+    }
+    pub fn capabilities(&self) -> Option<&Value> {
+        self.last_capabilities.as_ref()
     }
     pub fn resize(&mut self, rows: u16, cols: u16) -> Result<()> {
         self.session.master.resize(portable_pty::PtySize {
@@ -285,6 +293,18 @@ pub fn run_with_adapter(
     let mut queries = Vec::new();
     let mut baseline_input = Vec::new();
     let mut integrated_input = Vec::new();
+    let mut psreadline_versions = Vec::new();
+    let mut shell_versions = Vec::new();
+    let baseline_module_import = std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE")
+        .ok()
+        .filter(|path| !path.is_empty())
+        .map(|path| {
+            let quoted = path.replace('\'', "''");
+            format!(
+                "Import-Module '{quoted}' -Force -ErrorAction Stop; if ((Get-Module PSReadLine).ModuleBase -ine (Split-Path -LiteralPath '{quoted}')) {{ throw 'Unexpected baseline PSReadLine version' }}; "
+            )
+        })
+        .unwrap_or_default();
     let timeout = Duration::from_secs(20);
     for iteration in 0..iterations {
         // Alternate order to reduce systematic warm-cache ordering bias.
@@ -304,7 +324,7 @@ pub fn run_with_adapter(
                 args.extend([
                     "-Command".into(),
                     format!(
-                        "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; $global:__blueberry_original_prompt = $ExecutionContext.InvokeCommand.GetCommand('Prompt', [System.Management.Automation.CommandTypes]::Function); $global:__blueberry_original_prompt = if ($null -eq $global:__blueberry_original_prompt) {{ {{ 'PS> ' }} }} else {{ $global:__blueberry_original_prompt.ScriptBlock }}; function global:prompt {{ $promptState = & {{ param($savedLastExitCode) try {{ $originalOutput = @(& $global:__blueberry_original_prompt); [pscustomobject]@{{ output = $originalOutput; error = $null; lastExitCode = $savedLastExitCode }} }} catch {{ [pscustomobject]@{{ output = @(); error = $_; lastExitCode = $savedLastExitCode }} }} }} ($ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')); [Console]::Write('{}'); $global:LASTEXITCODE = $promptState.lastExitCode; if ($null -ne $promptState.error) {{ throw $promptState.error }}; return $promptState.output }}",
+                        "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); {baseline_module_import}Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; $global:__blueberry_original_prompt = $ExecutionContext.InvokeCommand.GetCommand('Prompt', [System.Management.Automation.CommandTypes]::Function); $global:__blueberry_original_prompt = if ($null -eq $global:__blueberry_original_prompt) {{ {{ 'PS> ' }} }} else {{ $global:__blueberry_original_prompt.ScriptBlock }}; function global:prompt {{ $promptState = & {{ param($savedLastExitCode) try {{ $originalOutput = @(& $global:__blueberry_original_prompt); [pscustomobject]@{{ output = $originalOutput; error = $null; lastExitCode = $savedLastExitCode }} }} catch {{ [pscustomobject]@{{ output = @(); error = $_; lastExitCode = $savedLastExitCode }} }} }} ($ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')); [Console]::Write('{}'); $global:LASTEXITCODE = $promptState.lastExitCode; if ($null -ne $promptState.error) {{ throw $promptState.error }}; return $promptState.output }}",
                         frame.replace('\'', "''")
                     ),
                 ]);
@@ -325,6 +345,21 @@ pub fn run_with_adapter(
             }
             integrated.push(elapsed);
             integrated_input.push(input_elapsed);
+            let capabilities = harness
+                .capabilities()
+                .context("missing adapter capabilities")?;
+            psreadline_versions.push(
+                capabilities["psreadline_version"]
+                    .as_str()
+                    .context("missing PSReadLine version")?
+                    .to_owned(),
+            );
+            shell_versions.push(
+                capabilities["shell_version"]
+                    .as_str()
+                    .context("missing PowerShell version")?
+                    .to_owned(),
+            );
             harness.send(b"\x1b[24~s")?;
             let initial = harness.event("buffer", timeout)?;
             let initial_line = initial["line"].as_str().context("missing initial line")?;
@@ -404,10 +439,13 @@ pub fn run_with_adapter(
         .zip(&baseline_input)
         .map(|(a, b)| a - b)
         .collect();
+    let executable_sha256 = crate::metrics::executable_sha256(&std::env::current_exe()?)?;
     Ok(json!({
         "schema":2,"build":if cfg!(debug_assertions) {"debug"} else {"release"},
+        "executable_sha256":executable_sha256,
         "platform":std::env::consts::OS,"arch":std::env::consts::ARCH,
         "shell":shell,"adapter_source":adapter_source,"profile_mode":profile_mode,
+        "shell_versions":shell_versions,"psreadline_versions":psreadline_versions,
         "no_profile":no_profile,"iterations":iterations,
         "public_keys": "default keys, identical JSON and startup environment as the host",
         "method":"Alternating fresh ConPTY pwsh processes; UTF-8 console and history saving disabled in both cases. The baseline wraps the profile's existing prompt and emits a controlled marker after its output; the adapter source is reported above. Prompt marker timestamp, not first visible frame. OS caches are not cleared. Query timings include PSReadLine + OSC + ConPTY roundtrip. This does not measure outer-host rendering or RSS.",

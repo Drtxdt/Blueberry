@@ -162,7 +162,12 @@ function Send-BlueberryTrace {
     }
     if ($Stage -notin @(
             'adapter_bootstrap',
+            'script_source',
             'readline_init',
+            'readline_host',
+            'readline_module',
+            'readline_resolve',
+            'readline_history',
             'key_snapshot',
             'key_register',
             'public_keys',
@@ -2850,7 +2855,13 @@ function Update-BlueberryPublicKeyCapabilities {
         $psReadLineChord = ConvertTo-BlueberryPublicKeyChord -Chord $configuredChord
         $bindings = @()
         if (-not [string]::IsNullOrEmpty([string]$psReadLineChord)) {
-            $bindings = @(Get-BlueberryKeyBinding -Chord $psReadLineChord -Snapshot $KeySnapshot)
+            if ([bool]$KeySnapshot.available) {
+                if ($KeySnapshot.by_chord.ContainsKey($psReadLineChord)) {
+                    $bindings = [object[]]@($KeySnapshot.by_chord[$psReadLineChord])
+                }
+            } else {
+                $bindings = @(Get-BlueberryKeyBinding -Chord $psReadLineChord -Snapshot $KeySnapshot)
+            }
         }
 
         $safe = $false
@@ -3007,6 +3018,8 @@ function Send-BlueberryCapabilities {
         # named-pipe connection is reflected as OSC here, so host A/B probes
         # cannot mistake a silent fallback for a pipe run.
         transport    = if ($script:BLUEBERRY_PIPE_ENABLED) { 'pipe' } else { 'osc' }
+        shell_version = [string]$PSVersionTable.PSVersion
+        psreadline_version = if ($null -ne (Get-Module PSReadLine)) { [string](Get-Module PSReadLine).Version } else { $null }
         capabilities = $capabilityMap
     })
 }
@@ -3033,7 +3046,15 @@ function Initialize-BlueberryReadLine {
             shift_enter = $false
         }
 
+    $phaseTimer = $null
+    if ($script:BLUEBERRY_TRACE_ENABLED) {
+        $phaseTimer = [Diagnostics.Stopwatch]::StartNew()
+    }
     $interactive = Test-BlueberryInteractiveHost
+    if ($null -ne $phaseTimer) {
+        Send-BlueberryTrace -Stage 'readline_host' -DurationMs $phaseTimer.Elapsed.TotalMilliseconds
+        $phaseTimer.Restart()
+    }
     $readLineModule = Get-Module -Name PSReadLine -ErrorAction SilentlyContinue
     # Looking up a PSReadLine command can trigger module auto-loading. Avoid
     # that lookup entirely for a noninteractive process unless a caller has
@@ -3047,12 +3068,20 @@ function Initialize-BlueberryReadLine {
         } catch {
         }
     }
+    if ($null -ne $phaseTimer) {
+        Send-BlueberryTrace -Stage 'readline_module' -DurationMs $phaseTimer.Elapsed.TotalMilliseconds
+        $phaseTimer.Restart()
+    }
 
     # InvokeCommand.GetCommand consults the current session without invoking
     # the Get-Command cmdlet and its startup dispatch work.
     $readLineCommand = $ExecutionContext.InvokeCommand.GetCommand(
         'PSConsoleHostReadLine',
         [System.Management.Automation.CommandTypes]::Function)
+    if ($null -ne $phaseTimer) {
+        Send-BlueberryTrace -Stage 'readline_resolve' -DurationMs $phaseTimer.Elapsed.TotalMilliseconds
+        $phaseTimer.Restart()
+    }
     if ($null -eq $readLineCommand) {
         return
     }
@@ -3067,6 +3096,9 @@ function Initialize-BlueberryReadLine {
             Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction Stop | Out-Null
         } catch {
         }
+    }
+    if ($null -ne $phaseTimer) {
+        Send-BlueberryTrace -Stage 'readline_history' -DurationMs $phaseTimer.Elapsed.TotalMilliseconds
     }
 
     $readLineWrapTimer = $null

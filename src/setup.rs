@@ -1,5 +1,6 @@
 use crate::{
     config,
+    input::{self, Input},
     terminal_ui::{ScreenGuard, fit},
 };
 use anyhow::{Context, Result};
@@ -7,6 +8,7 @@ use crossterm::{
     cursor::MoveTo,
     event::{self, Event, KeyCode, KeyEventKind, MouseEventKind},
     execute,
+    terminal::{Clear, ClearType},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -64,36 +66,49 @@ pub fn run(config_path: Option<&Path>) -> Result<u32> {
         return Ok(0);
     }
     let mut choice = Choices::default();
+    let keys = config::load(Some(&path))
+        .map(|value| value.keys)
+        .unwrap_or_default();
     let screen = ScreenGuard::enter(false)?;
     let mut step = 0usize;
     loop {
-        draw(step, &choice, &path)?;
+        draw(step, &choice, &path, &keys)?;
         match event::read()? {
-            Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
-                KeyCode::Esc => return Ok(0),
-                KeyCode::Up | KeyCode::Left => match step {
-                    1 => choice.nerd = false,
-                    2 => choice.auto = true,
-                    3 => choice.startup = false,
+            Event::Key(key) if key.kind != KeyEventKind::Release => {
+                if step == 0 {
+                    match input::configured(&Event::Key(key), &keys) {
+                        Some(Input::Trigger) => choice.shortcut_seen[0] = true,
+                        Some(Input::Search) => choice.shortcut_seen[1] = true,
+                        Some(Input::Hub) => choice.shortcut_seen[2] = true,
+                        _ => {}
+                    }
+                }
+                match key.code {
+                    KeyCode::Esc => return Ok(0),
+                    KeyCode::Up | KeyCode::Left => match step {
+                        1 => choice.nerd = false,
+                        2 => choice.auto = true,
+                        3 => choice.startup = false,
+                        _ => {}
+                    },
+                    KeyCode::Down | KeyCode::Right => match step {
+                        1 => choice.nerd = true,
+                        2 => choice.auto = false,
+                        3 => choice.startup = true,
+                        _ => {}
+                    },
+                    KeyCode::Char(' ') => match step {
+                        1 => choice.nerd = !choice.nerd,
+                        2 => choice.auto = !choice.auto,
+                        3 => choice.startup = !choice.startup,
+                        _ => {}
+                    },
+                    KeyCode::Backspace if step > 0 => step -= 1,
+                    KeyCode::Enter if step < 4 => step += 1,
+                    KeyCode::Enter => break,
                     _ => {}
-                },
-                KeyCode::Down | KeyCode::Right => match step {
-                    1 => choice.nerd = true,
-                    2 => choice.auto = false,
-                    3 => choice.startup = true,
-                    _ => {}
-                },
-                KeyCode::Char(' ') => match step {
-                    1 => choice.nerd = !choice.nerd,
-                    2 => choice.auto = !choice.auto,
-                    3 => choice.startup = !choice.startup,
-                    _ => {}
-                },
-                KeyCode::Backspace if step > 0 => step -= 1,
-                KeyCode::Enter if step < 4 => step += 1,
-                KeyCode::Enter => break,
-                _ => {}
-            },
+                }
+            }
             Event::Mouse(mouse) => match mouse.kind {
                 MouseEventKind::ScrollUp => step = step.saturating_sub(1),
                 MouseEventKind::ScrollDown => step = (step + 1).min(4),
@@ -121,6 +136,7 @@ struct Choices {
     nerd: bool,
     auto: bool,
     startup: bool,
+    shortcut_seen: [bool; 3],
 }
 impl Choices {
     fn default() -> Self {
@@ -128,23 +144,52 @@ impl Choices {
             nerd: false,
             auto: true,
             startup: false,
+            shortcut_seen: [false; 3],
         }
     }
 }
-fn draw(step: usize, choice: &Choices, path: &Path) -> Result<()> {
+fn draw(step: usize, choice: &Choices, path: &Path, keys: &config::KeyBindings) -> Result<()> {
     let (cols, rows) = crossterm::terminal::size().unwrap_or((100, 30));
     let mut out = io::stdout();
     write!(out, "\x1b[?2026h")?;
-    execute!(out, MoveTo(0, 0))?;
+    execute!(out, MoveTo(0, 0), Clear(ClearType::All))?;
     writeln!(out, "Blueberry 设置向导  {}/5", step + 1)?;
     writeln!(out, "{}", "─".repeat(cols as usize))?;
     match step {
         0 => {
             writeln!(out, "欢迎使用 Blueberry")?;
-            writeln!(out, "\nCtrl+Space  打开补全")?;
-            writeln!(out, "Ctrl+Alt+F 按用途搜索")?;
-            writeln!(out, "Ctrl+Alt+P 打开命令工作台")?;
-            writeln!(out, "F1          查看完整说明")?
+            writeln!(out, "\n请在此页实际按下以下快捷键：")?;
+            writeln!(
+                out,
+                "{}  {}  打开补全",
+                if choice.shortcut_seen[0] {
+                    "✓"
+                } else {
+                    "○"
+                },
+                keys.trigger
+            )?;
+            writeln!(
+                out,
+                "{}  {}  按用途搜索",
+                if choice.shortcut_seen[1] {
+                    "✓"
+                } else {
+                    "○"
+                },
+                keys.search
+            )?;
+            writeln!(
+                out,
+                "{}  {}  打开命令工作台",
+                if choice.shortcut_seen[2] {
+                    "✓"
+                } else {
+                    "○"
+                },
+                keys.hub
+            )?;
+            writeln!(out, "未点亮的组合键可能被终端占用；可在设置中改键。")?
         }
         1 => {
             writeln!(out, "图标风格")?;
@@ -210,6 +255,11 @@ fn draw(step: usize, choice: &Choices, path: &Path) -> Result<()> {
                     &path.display().to_string(),
                     (cols as usize).saturating_sub(6)
                 )
+            )?;
+            writeln!(
+                out,
+                "快捷键实按：{}/3",
+                choice.shortcut_seen.iter().filter(|seen| **seen).count()
             )?
         }
     }
@@ -228,7 +278,11 @@ fn draw(step: usize, choice: &Choices, path: &Path) -> Result<()> {
     Ok(())
 }
 fn write_config(path: &Path, choice: &Choices) -> Result<()> {
-    let text = fs::read_to_string(path).unwrap_or_else(|_| config::example().to_owned());
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => config::example().to_owned(),
+        Err(error) => return Err(error).with_context(|| format!("无法读取 {}", path.display())),
+    };
     let mut doc = text
         .parse::<DocumentMut>()
         .context("配置 TOML 无法解析；请先运行 blueberry config check")?;

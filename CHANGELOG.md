@@ -1,5 +1,13 @@
 # Blueberry 更新日志
 
+## 0.5.0-beta.7
+
+- 收藏和模板改为跨进程锁保护的原子写入；损坏文件、未知 schema 与外部修改会报错，后台重载保留上一份有效快照。
+- 会话工作台和独立工作台共用参数校验与 PowerShell 引用；支持从 `git switch -c`、`cargo test`、`docker compose up/logs` 的当前输入继续填写。
+- 增加经 SHA-256 审批的仓库命令包及 `blueberry packs list/review/approve/revoke`；文件变化会立即停用批准。
+- 帮助入口识别和历史加载移到后台，历史读取有预算；`doctor --json` 报告构建、Shell、PSReadLine、传输方式和命令库状态。
+- 性能与兼容性验收以同一发布包的原始证据为准；证据包随 Release 提供。
+
 ## 0.5.0-beta.6
 
 - 修复本机帮助知识合并：残缺或无法确认完整性的帮助输出只补充内置规则，不再删除 Cargo、pnpm 等工具的可靠命令。

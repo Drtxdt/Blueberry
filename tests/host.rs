@@ -112,19 +112,21 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
     let mut paths = vec![cwd.to_owned()];
     paths.extend(std::env::split_paths(&inherited_path));
     let path = std::env::join_paths(paths).context("construct test PATH")?;
+    let token = format!("host-test-{}", uuid::Uuid::new_v4());
     let env = BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
         ("NO_COLOR".to_owned(), "1".to_owned()),
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
+        ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
     ]);
-    let token = format!("host-test-{}", uuid::Uuid::new_v4());
     let mut harness = Harness::start(&program, &args, cwd, &env, token)
         .with_context(|| format!("start {}", program.display()))?;
     harness
         .wait_text("PS ", PTY_TIMEOUT)
         .context("wait for the initial PowerShell prompt")?;
+    harness.event("prompt_end", PTY_TIMEOUT)?;
     Ok(RunningHost {
         harness,
         _data_dir: data_dir,
@@ -175,7 +177,9 @@ fn wait_for_next_prompt(
             && contents.lines().last().is_some_and(|line| {
                 line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
             })
-    })
+    })?;
+    harness.event("prompt_end", PTY_TIMEOUT)?;
+    Ok(())
 }
 
 fn line_is_present(contents: &str, expected: &str) -> bool {
@@ -208,13 +212,34 @@ fn run_and_wait_for_output(
     description: &str,
 ) -> Result<()> {
     let previous_prompt_count = prompt_count(&harness.contents());
-    clear_line_and_send(harness, command, description)?;
+    let body = command
+        .strip_suffix(b"\r")
+        .context("test command must end in Enter")?;
+    clear_line_and_send(harness, body, description)?;
+    let typed = String::from_utf8_lossy(body);
+    wait_for_editor_line(harness, typed.as_ref())?;
+    harness.send(b"\r")?;
     wait_for_line(harness, marker, &format!("{description} output"))?;
     wait_for_next_prompt(
         harness,
         previous_prompt_count,
         "PowerShell prompt after command",
     )
+}
+
+fn wait_for_editor_line(harness: &mut Harness, expected: &str) -> Result<()> {
+    harness.send(b"\x1b[32;5u")?;
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            bail!("timed out reading editor line {expected}");
+        }
+        let buffer = harness.event("buffer", remaining)?;
+        if buffer["line"].as_str() == Some(expected) {
+            return Ok(());
+        }
+    }
 }
 
 #[test]
@@ -419,9 +444,11 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     let previous_prompt_count = prompt_count(&host.harness.contents());
     clear_line_and_send(
         &mut host.harness,
-        b"cmd.exe /d /c blueberry-readline.cmd\r",
+        b"cmd.exe /d /c blueberry-readline.cmd",
         "interactive external command",
     )?;
+    wait_for_editor_line(&mut host.harness, "cmd.exe /d /c blueberry-readline.cmd")?;
+    host.harness.send(b"\r")?;
     wait_for_line(
         &mut host.harness,
         "READ_READY",

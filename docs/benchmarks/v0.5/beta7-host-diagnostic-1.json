@@ -1,0 +1,127 @@
+{
+  "arch": "x86_64",
+  "build": "release",
+  "cache_hit": {
+    "first_menu": {
+      "median": 78.5675,
+      "p95": 78.5675,
+      "samples": [
+        78.5675
+      ],
+      "unit": "ms"
+    },
+    "first_prompt": {
+      "median": 747.188,
+      "p95": 747.188,
+      "samples": [
+        747.188
+      ],
+      "unit": "ms"
+    },
+    "host_working_set_at_menu": {
+      "available": true,
+      "median": 18665472.0,
+      "p95": 18665472,
+      "samples": [
+        18665472
+      ],
+      "unit": "bytes"
+    },
+    "host_working_set_at_prompt": {
+      "available": true,
+      "median": 16273408.0,
+      "p95": 16273408,
+      "samples": [
+        16273408
+      ],
+      "unit": "bytes"
+    },
+    "warm_menu": {
+      "median": 31.22075,
+      "p95": 64.05890000000001,
+      "samples": [
+        64.05890000000001,
+        31.243,
+        31.5895,
+        30.5039,
+        31.1985,
+        31.5516,
+        30.7093,
+        30.8604,
+        31.928900000000002,
+        30.7013
+      ],
+      "unit": "ms"
+    }
+  },
+  "cache_miss": {
+    "first_menu": {
+      "median": 78.05199999999999,
+      "p95": 78.05199999999999,
+      "samples": [
+        78.05199999999999
+      ],
+      "unit": "ms"
+    },
+    "first_prompt": {
+      "median": 762.8454999999999,
+      "p95": 762.8454999999999,
+      "samples": [
+        762.8454999999999
+      ],
+      "unit": "ms"
+    },
+    "host_working_set_at_menu": {
+      "available": true,
+      "median": 18927616.0,
+      "p95": 18927616,
+      "samples": [
+        18927616
+      ],
+      "unit": "bytes"
+    },
+    "host_working_set_at_prompt": {
+      "available": true,
+      "median": 17494016.0,
+      "p95": 17494016,
+      "samples": [
+        17494016
+      ],
+      "unit": "bytes"
+    },
+    "warm_menu": {
+      "median": 31.10915,
+      "p95": 48.1541,
+      "samples": [
+        48.1541,
+        30.6687,
+        31.325,
+        32.148,
+        32.5743,
+        30.5412,
+        31.165000000000003,
+        30.2167,
+        31.0533,
+        31.0338
+      ],
+      "unit": "ms"
+    }
+  },
+  "descriptions": true,
+  "executable": "E:\\OpenSource\\shellsense-rs\\target\\release\\blueberry.exe",
+  "iterations_per_cache_mode": 1,
+  "method": {
+    "cache": "new application data directory for miss; validated complete index and integration reused for hit; OS caches are not cleared",
+    "first_menu": "send ss-ben0 and wait for a matching editable line and distinct candidate",
+    "first_prompt": "from process start to visible PS prompt; not yet a ready-to-type measurement",
+    "host": "fresh native host via an outer ConPTY, pwsh --no-profile in its inner ConPTY",
+    "memory": "own-process WorkingSetSize, excluding pwsh/ConHost/Windows Terminal",
+    "statistics": "median averages the middle pair for even samples; p95 uses nearest-rank",
+    "trace": "enabled; diagnostic run, not an acceptance sample",
+    "warm_menu": "ten prefix edits per session; wait for matching editable line and distinct candidate"
+  },
+  "platform": "windows",
+  "schema": 2,
+  "shell": "D:\\pwsh\\7\\pwsh.exe",
+  "warm_queries_per_session": 10
+}

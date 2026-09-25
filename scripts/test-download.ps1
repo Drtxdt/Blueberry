@@ -25,9 +25,9 @@ function Invoke-WebRequest {
 }
 try {
     $cases = @(
-        @{ name='stable'; releases=@((New-TestRelease 'v0.4.0'), (New-TestRelease 'v0.5.0-beta.2' $true), (New-TestRelease 'v0.5.0' $false $true)); expected='v0.4.0' },
-        @{ name='beta'; releases=@((New-TestRelease 'v0.4.0-beta.1' $true), (New-TestRelease 'v0.5.0-beta.2' $true)); expected='v0.5.0-beta.2' },
-        @{ name='explicit'; releases=(New-TestRelease 'v0.5.0-beta.2' $true); expected='v0.5.0-beta.2'; version='0.5.0-beta.2' }
+        @{ name='stable'; releases=@((New-TestRelease 'v0.4.0'), (New-TestRelease 'v0.5.0-beta.7' $true), (New-TestRelease 'v0.5.0' $false $true)); expected='v0.4.0' },
+        @{ name='beta'; releases=@((New-TestRelease 'v0.4.0-beta.1' $true), (New-TestRelease 'v0.5.0-beta.7' $true)); expected='v0.5.0-beta.7' },
+        @{ name='explicit'; releases=(New-TestRelease 'v0.5.0-beta.7' $true); expected='v0.5.0-beta.7'; version='0.5.0-beta.7' }
     )
     foreach ($case in $cases) {
         $blueberryDownloadTestState.releases = $case.releases
@@ -45,7 +45,7 @@ try {
         $blueberryDownloadTestState.releases = switch ($failure) {
             'draft' { New-TestRelease 'v0.5.0' $false $true }
             'empty' { @() }
-            'interrupt' { New-TestRelease 'v0.5.0-beta.2' $true }
+            'interrupt' { New-TestRelease 'v0.5.0-beta.7' $true }
         }
         $blueberryDownloadTestState.interrupt = $failure -eq 'interrupt'
         $failed = $false

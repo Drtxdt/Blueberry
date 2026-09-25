@@ -16,6 +16,7 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
+      - run: python3 -m unittest discover -s tests -p test_release_evidence.py
   core:
     name: Core / ${{ matrix.os }}
     strategy:
@@ -32,7 +33,7 @@ jobs:
       - run: cargo build --locked
       - run: cargo clippy --all-targets --locked -- -D warnings
       - name: Core tests (no interactive shell)
-        run: cargo test --locked --lib --test cli --test engine --test providers --test specs --test knowledge -- --test-threads=1
+        run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge -- --test-threads=1
       - run: cargo run --locked -- --version
       - run: cargo run --locked -- specs check
   powershell-51:
@@ -73,15 +74,52 @@ jobs:
         env:
           BLUEBERRY_TEST_TRANSPORT: osc
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'OSC terminal regressions failed' }
       - name: Pipe ConPTY regressions
         shell: pwsh
         env:
           BLUEBERRY_TEST_TRANSPORT: pipe
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'pipe terminal regressions failed' }
+  powershell-7:
+    name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        transport: [osc, pipe]
+    env:
+      BLUEBERRY_NO_HISTORY: '1'
+      BLUEBERRY_TEST_SHELL: pwsh.exe
+      BLUEBERRY_TEST_TRANSPORT: ${{ matrix.transport }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Select exact PSReadLine version
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
+          Save-Module PSReadLine -RequiredVersion '2.4.5' -Path $root -Repository PSGallery -Force
+          $manifest = Join-Path $root 'PSReadLine/2.4.5/PSReadLine.psd1'
+          "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
+          Import-Module $manifest -Force
+          if ((Get-Module PSReadLine).Version.ToString() -ne '2.4.5') { throw 'PSReadLine version mismatch' }
+          $PSVersionTable.PSVersion.ToString()
+      - name: Adapter and startup regressions
+        shell: pwsh
+        run: |
+          ./tests/adapter.tests.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'adapter regressions failed' }
+          ./tests/startup.tests.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'startup regressions failed' }
+      - name: Real ConPTY interaction
+        shell: pwsh
+        run: |
+          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'PowerShell 7 ConPTY regressions failed' }
   native-mouse:
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
@@ -101,7 +139,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "$transport native mouse regression failed" }
           }
   package:
-    needs: [format, core, powershell-51, native-mouse]
+    needs: [format, core, powershell-51, powershell-7, native-mouse]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4

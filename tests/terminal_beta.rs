@@ -43,6 +43,78 @@ fn ctrl_space_records() -> &'static [u8] {
 }
 
 #[test]
+fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_line() -> Result<()> {
+    let mut host = start_host()?;
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"cargo test -p --release")?;
+    host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
+    read_real_buffer(
+        &mut host.harness,
+        "guided form original cursor",
+        "cargo test -p --release",
+        Some("cargo test -p".len() as u64),
+    )?;
+    host.harness.send(b"\x1b[112;7u")?;
+    select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    host.harness.send(b"\r")?;
+    wait_until(
+        &mut host.harness,
+        "package parameter form",
+        PTY_TIMEOUT,
+        |screen| screen.contains("工作区包"),
+    )?;
+    host.harness.send(b"blue berry")?;
+    wait_until(
+        &mut host.harness,
+        "typed package value",
+        PTY_TIMEOUT,
+        |screen| screen.contains("当前值：blue berry"),
+    )?;
+    host.harness.send(b"\r")?;
+    let result = host.harness.event("edit_result", PTY_TIMEOUT)?;
+    ensure!(result["applied"] == true, "guided edit rejected: {result}");
+    read_real_buffer(
+        &mut host.harness,
+        "guided package",
+        "cargo test -p 'blue berry' --release",
+        None,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
+    let mut host = start_host()?;
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"cargo test -p --release")?;
+    host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
+    read_real_buffer(
+        &mut host.harness,
+        "cancelable form original cursor",
+        "cargo test -p --release",
+        Some("cargo test -p".len() as u64),
+    )?;
+    host.harness.send(b"\x1b[112;7u")?;
+    select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    host.harness.send(b"\r")?;
+    wait_until(
+        &mut host.harness,
+        "cancelable package form",
+        PTY_TIMEOUT,
+        |screen| screen.contains("工作区包"),
+    )?;
+    host.harness.send(b"\x1b")?;
+    read_real_buffer(
+        &mut host.harness,
+        "canceled package",
+        "cargo test -p --release",
+        Some("cargo test -p".len() as u64),
+    )?;
+    Ok(())
+}
+
+#[test]
 fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion() -> Result<()> {
     let mut host = start_host()?;
     let config_path = host.data_dir.path().join("config.toml");
@@ -143,6 +215,10 @@ fn start_host() -> Result<RunningHost> {
     let input_trace = cwd.path().join("input-trace.txt");
     let clipboard_fixture = cwd.path().join("clipboard-fixture.txt");
     let env = BTreeMap::from([
+        (
+            "APPDATA".to_owned(),
+            data_dir.path().to_string_lossy().into_owned(),
+        ),
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
@@ -218,6 +294,62 @@ fn start_host() -> Result<RunningHost> {
     })
 }
 
+#[test]
+fn terminal_workbench_reloads_external_store_and_keeps_last_good_snapshot() -> Result<()> {
+    let mut host = start_host()?;
+    let path = host.data_dir.path().join("Blueberry/commands.toml");
+    fs::create_dir_all(path.parent().context("commands directory")?)?;
+    fs::write(
+        &path,
+        "schema_version = 2\n[[favorites]]\nname = 'Reload Before'\ncommand = 'git status'\n",
+    )?;
+    host.harness.send(b"\x1b[112;7u")?;
+    wait_for_live_store(&mut host.harness, "first live favorite", |screen| {
+        screen.contains("Reload Before")
+    })?;
+    fs::write(
+        &path,
+        "schema_version = 2\n[[favorites]]\nname = 'Reload After'\ncommand = 'cargo test'\n",
+    )?;
+    wait_for_live_store(&mut host.harness, "external favorite update", |screen| {
+        screen.contains("Reload After") && !screen.contains("Reload Before")
+    })?;
+    fs::write(&path, "schema_version = 2\n[[favorites]]\nname = '")?;
+    wait_for_live_store(&mut host.harness, "store error", |screen| {
+        screen.contains("收藏文件读取失败") && screen.contains("Reload After")
+    })?;
+    fs::write(
+        &path,
+        "schema_version = 2\n[[favorites]]\nname = 'Reload Fixed'\ncommand = 'git log'\n",
+    )?;
+    wait_for_live_store(&mut host.harness, "recovered favorite", |screen| {
+        screen.contains("Reload Fixed") && !screen.contains("Reload After")
+    })?;
+    host.harness.send(b"\x1b")?;
+    read_real_buffer(&mut host.harness, "closed workbench", "", Some(0))?;
+    Ok(())
+}
+
+fn wait_for_live_store(
+    harness: &mut Harness,
+    description: &str,
+    predicate: impl Fn(&str) -> bool,
+) -> Result<()> {
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let screen = harness.viewport_contents();
+        if predicate(&screen) {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            bail!("timed out waiting for {description}; screen:\n{screen}");
+        }
+        // The cache monitor polls at 750 ms. An empty receive window is
+        // normal while waiting for its background notification.
+        let _ = harness.pump(Duration::from_millis(100));
+    }
+}
+
 fn wait_until(
     harness: &mut Harness,
     description: &str,
@@ -257,6 +389,11 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
 fn send_command(harness: &mut Harness, command: &str, marker: &str) -> Result<()> {
     clear_line(harness)?;
     harness.send(command.as_bytes())?;
+    let buffer = request_buffer(harness, command)?;
+    ensure!(
+        buffer["line"].as_str() == Some(command),
+        "incomplete editor command: {buffer}"
+    );
     harness.send(b"\r")?;
     harness.event("execute", PTY_TIMEOUT)?;
     harness.wait_text(marker, PTY_TIMEOUT)?;
@@ -369,6 +506,8 @@ fn selected_candidate_line(contents: &str) -> Option<&str> {
     contents.lines().find(|line| {
         line.contains("› ")
             && !line.contains("正在加载候选")
+            && !line.contains("环境刷新中")
+            && !line.contains("无匹配命令")
             && !line.contains("提示 · 请继续输入")
             && !line.contains("Blueberry ")
             && !line.contains("请输入参数值")

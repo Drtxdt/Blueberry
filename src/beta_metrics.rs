@@ -145,6 +145,8 @@ struct Measurements {
     first_query: Vec<f64>,
     first_dynamic_query: Vec<f64>,
     actual_transport: Vec<String>,
+    shell_versions: Vec<String>,
+    psreadline_versions: Vec<String>,
     input_echo: Vec<f64>,
     first_menu: Vec<f64>,
     first_candidate_menu: Vec<f64>,
@@ -198,6 +200,8 @@ impl Measurements {
             "first_dynamic_query": f64_stats(&self.first_dynamic_query, "ms"),
             "first_query": f64_stats(&self.first_query, "ms"),
             "actual_transport": &self.actual_transport,
+            "shell_versions": &self.shell_versions,
+            "psreadline_versions": &self.psreadline_versions,
             "transport_ineligible_hot_queries": self.transport_ineligible_hot_queries,
             "input_echo": f64_stats(&self.input_echo, "ms"),
             "first_menu": f64_stats(&self.first_menu, "ms"),
@@ -397,8 +401,10 @@ pub fn run(
     }
     let passed = reasons.is_empty();
 
+    let executable_sha256 = crate::metrics::executable_sha256(executable)?;
     Ok(json!({
         "schema": METRICS_SCHEMA,
+        "executable_sha256": executable_sha256,
         "build": if cfg!(debug_assertions) { "debug" } else { "release" },
         "platform": env::consts::OS,
         "arch": env::consts::ARCH,
@@ -613,6 +619,10 @@ fn append_measurements(target: &mut Measurements, mut source: Measurements) {
         .first_dynamic_query
         .append(&mut source.first_dynamic_query);
     target.actual_transport.append(&mut source.actual_transport);
+    target.shell_versions.append(&mut source.shell_versions);
+    target
+        .psreadline_versions
+        .append(&mut source.psreadline_versions);
     target.input_echo.append(&mut source.input_echo);
     target.first_menu.append(&mut source.first_menu);
     target
@@ -667,10 +677,13 @@ fn measure_session(
     // StatusWriter publishes the transport selected by the adapter in a
     // session-specific adapter.json.  Observe it before recording any query
     // so a pipe fallback can never be included in the requested-pipe sample.
-    let actual_transport = wait_for_transport(data_dir, transport, &previous_adapters)?;
+    let (actual_transport, shell_version, psreadline_version) =
+        wait_for_transport(data_dir, transport, &previous_adapters)?;
     let transport_valid = actual_transport == transport;
     let mut measurements = Measurements::default();
     measurements.actual_transport.push(actual_transport);
+    measurements.shell_versions.push(shell_version);
+    measurements.psreadline_versions.push(psreadline_version);
     sample_memory(&mut measurements.memory_prompt, &harness);
 
     // The first query is intentionally kept out of the hot arrays.  It
@@ -1242,7 +1255,7 @@ fn wait_for_transport(
     data_dir: &Path,
     requested: &str,
     previous_adapters: &BTreeSet<PathBuf>,
-) -> Result<String> {
+) -> Result<(String, String, String)> {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
         if let Ok(entries) = fs::read_dir(data_dir) {
@@ -1262,7 +1275,17 @@ fn wait_for_transport(
                         matches!(actual, "osc" | "pipe"),
                         "适配器报告未知 transport={actual}（请求 {requested}）"
                     );
-                    return Ok(actual.to_owned());
+                    let Some(shell_version) = value["shell_version"].as_str() else {
+                        continue;
+                    };
+                    let Some(psreadline_version) = value["psreadline_version"].as_str() else {
+                        continue;
+                    };
+                    return Ok((
+                        actual.to_owned(),
+                        shell_version.to_owned(),
+                        psreadline_version.to_owned(),
+                    ));
                 }
             }
         }

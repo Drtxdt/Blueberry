@@ -1,0 +1,183 @@
+{
+  "arch": "x86_64",
+  "build": "release",
+  "cache_hit": {
+    "first_menu": {
+      "median": 58.2212,
+      "p95": 62.4161,
+      "samples": [
+        58.2212,
+        56.4967,
+        62.4161
+      ],
+      "unit": "ms"
+    },
+    "first_prompt": {
+      "median": 601.2346,
+      "p95": 620.5384,
+      "samples": [
+        592.5113,
+        601.2346,
+        620.5384
+      ],
+      "unit": "ms"
+    },
+    "host_working_set_at_menu": {
+      "available": true,
+      "median": 18722816.0,
+      "p95": 18919424,
+      "samples": [
+        18722816,
+        18669568,
+        18919424
+      ],
+      "unit": "bytes"
+    },
+    "host_working_set_at_prompt": {
+      "available": true,
+      "median": 16297984.0,
+      "p95": 16510976,
+      "samples": [
+        16510976,
+        16297984,
+        16187392
+      ],
+      "unit": "bytes"
+    },
+    "warm_menu": {
+      "median": 24.39215,
+      "p95": 41.941199999999995,
+      "samples": [
+        24.7392,
+        44.4788,
+        23.502200000000002,
+        20.785899999999998,
+        20.7712,
+        24.8924,
+        29.1305,
+        24.2718,
+        33.420199999999994,
+        21.156299999999998,
+        20.4176,
+        24.3383,
+        30.529600000000002,
+        16.8721,
+        20.6235,
+        17.3497,
+        28.3855,
+        24.3495,
+        16.9054,
+        12.6142,
+        41.941199999999995,
+        31.1236,
+        27.613599999999998,
+        29.1327,
+        34.1836,
+        27.7784,
+        27.8949,
+        22.2607,
+        20.6598,
+        24.4348
+      ],
+      "unit": "ms"
+    }
+  },
+  "cache_miss": {
+    "first_menu": {
+      "median": 70.6656,
+      "p95": 73.7009,
+      "samples": [
+        70.6656,
+        73.7009,
+        66.0444
+      ],
+      "unit": "ms"
+    },
+    "first_prompt": {
+      "median": 658.0804999999999,
+      "p95": 658.9935999999999,
+      "samples": [
+        658.9935999999999,
+        622.5357,
+        658.0804999999999
+      ],
+      "unit": "ms"
+    },
+    "host_working_set_at_menu": {
+      "available": true,
+      "median": 18927616.0,
+      "p95": 19165184,
+      "samples": [
+        18927616,
+        19165184,
+        18714624
+      ],
+      "unit": "bytes"
+    },
+    "host_working_set_at_prompt": {
+      "available": true,
+      "median": 16166912.0,
+      "p95": 16732160,
+      "samples": [
+        16166912,
+        15376384,
+        16732160
+      ],
+      "unit": "bytes"
+    },
+    "warm_menu": {
+      "median": 24.211750000000002,
+      "p95": 33.601600000000005,
+      "samples": [
+        33.819500000000005,
+        20.721300000000003,
+        16.8784,
+        20.5308,
+        17.5877,
+        24.0264,
+        26.122200000000003,
+        24.8852,
+        19.734,
+        25.1428,
+        26.7666,
+        24.5134,
+        25.4742,
+        16.9467,
+        16.613699999999998,
+        24.4545,
+        21.509400000000003,
+        21.7896,
+        10.7145,
+        28.460099999999997,
+        33.601600000000005,
+        8.3477,
+        19.3435,
+        30.737000000000002,
+        24.397100000000002,
+        29.2005,
+        21.3277,
+        33.4447,
+        27.8645,
+        17.3755
+      ],
+      "unit": "ms"
+    }
+  },
+  "descriptions": true,
+  "executable": "E:\\OpenSource\\shellsense-rs\\target\\release\\blueberry.exe",
+  "iterations_per_cache_mode": 3,
+  "method": {
+    "cache": "new application data directory for miss; validated complete index and integration reused for hit; OS caches are not cleared",
+    "first_menu": "send ss-ben0 and wait for a matching editable line and distinct candidate",
+    "first_prompt": "from process start to visible PS prompt; not yet a ready-to-type measurement",
+    "host": "fresh native host via an outer ConPTY, pwsh --no-profile in its inner ConPTY",
+    "memory": "own-process WorkingSetSize, excluding pwsh/ConHost/Windows Terminal",
+    "statistics": "median averages the middle pair for even samples; p95 uses nearest-rank",
+    "trace": "disabled",
+    "warm_menu": "ten prefix edits per session; wait for matching editable line and distinct candidate"
+  },
+  "platform": "windows",
+  "schema": 2,
+  "shell": "D:\\pwsh\\7\\pwsh.exe",
+  "warm_queries_per_session": 10
+}

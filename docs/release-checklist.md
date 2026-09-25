@@ -1,4 +1,4 @@
-> 历史记录：本文保留 0.5.0-beta.1 阶段的安装与验收资料。当前版本请使用 [安装指南](installation.md)、[发版指南](releasing.md) 和 [发布验证记录](release-validation.md)。
+> 历史记录：本文保留 0.5.0-beta.1 阶段的安装与验收资料，不表示 beta.7 的状态。当前工作区已经位于 `E:\OpenSource\shellsense-rs`；下文有关 E 盘离线、迁移待办及 C 盘唯一副本的叙述仅为当时记录。当前版本请使用 [安装指南](installation.md)、[发版指南](releasing.md) 和 [beta.7 验收记录](beta-7-validation.md)。
 
 # ShellSense Beta 发布准备与验收
 
@@ -53,7 +53,7 @@ pwsh -NoProfile -File .\scripts\release.ps1 `
 
 - [ ] 两项正式性能门槛。
 - [ ] 真实 Windows Terminal 中文输入法、颜色、视觉布局，以及用户终端环境下的完整交互验收。
-- [ ] 远程 Windows CI：工作流已配置 PowerShell 7.4/7.5/7.6 和 PSReadLine 2.3.6/2.4.5，尚未运行。
+- [ ] 远程 Windows CI：历史 beta.1 检查表曾写“已配置 PowerShell 7.4/7.5/7.6”，当时与工作流不符。当前工作流配置 PowerShell 5.1 与运行器提供的 PowerShell 7、固定 PSReadLine 版本及 OSC／pipe；远程运行结果仍需确认。
 - [ ] 公开发布前的许可证与分发审核；本轮不执行公开发布，不能把未签名包描述为已签名。
 - [ ] E 盘恢复后迁移至独立的 `E:\OpenSource\shellsense-rs`。原 inshellisense 仓库保持不变。
 

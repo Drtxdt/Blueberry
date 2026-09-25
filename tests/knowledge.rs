@@ -206,6 +206,31 @@ fn entry_fingerprints_change_and_same_basename_is_not_trust() {
 }
 
 #[test]
+fn shell_path_location_does_not_authorize_automatic_help() {
+    let dir = tempfile::tempdir().unwrap();
+    let shell_cwd = tempfile::tempdir().unwrap();
+    let executable = dir.path().join("git.exe");
+    fs::write(&executable, b"local fixture").unwrap();
+    let mut environment = std::collections::BTreeMap::new();
+    environment.insert("PATH".into(), dir.path().to_string_lossy().into_owned());
+    let entry =
+        knowledge::entry_with_environment("git", &executable, shell_cwd.path(), &environment)
+            .expect("known executable on the shell PATH resolves");
+    assert!(!entry.trusted);
+    let relative = shell_cwd.path().join("cargo.exe");
+    fs::write(relative, b"fixture").unwrap();
+    assert!(
+        knowledge::entry_with_environment(
+            "cargo",
+            Path::new("cargo.exe"),
+            shell_cwd.path(),
+            &environment
+        )
+        .is_some()
+    );
+}
+
+#[test]
 fn tooltip_summary_retains_original_help_and_sources() {
     let mut candidate = Candidate {
         label: "--flag".into(),

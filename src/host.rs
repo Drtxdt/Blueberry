@@ -20,6 +20,7 @@ use std::time::Duration;
 use std::{
     collections::BTreeMap,
     ffi::OsStr,
+    hash::{Hash, Hasher},
     io::{Read, Write},
     path::PathBuf,
     sync::{
@@ -55,6 +56,9 @@ enum HostEvent {
     Completion(u64, Completion, Instant),
     Diagnostic(String),
     Reload,
+    CommandsChanged,
+    HistoryLoaded(u64, Vec<String>, bool, std::time::Duration),
+    FormValues(u64, String, Vec<String>, std::time::Duration),
 }
 
 #[derive(Clone)]
@@ -74,6 +78,7 @@ struct Query {
     help_enabled: bool,
     queued_at: Instant,
 }
+type EntryKey = (String, PathBuf, PathBuf, u64);
 
 #[derive(Default)]
 struct Work {
@@ -87,6 +92,12 @@ struct Work {
     cancel: bool,
     invalidate_sources: bool,
     help_updates: Vec<crate::knowledge::Record>,
+    entry_updates: Vec<(
+        u64,
+        EntryKey,
+        Option<crate::knowledge::Entry>,
+        std::time::Duration,
+    )>,
     catalog_path: Option<PathBuf>,
     catalog_snapshot: Option<Arc<crate::spec_catalog::Catalog>>,
 }
@@ -119,9 +130,11 @@ impl Worker {
             let mut learned = Vec::<crate::knowledge::Record>::new();
             let mut help_catalog: Option<(String, Arc<crate::spec_catalog::Catalog>)> = None;
             let mut entry_cache = std::collections::HashMap::<
-                (String, PathBuf),
+                EntryKey,
                 (Instant, Option<crate::knowledge::Entry>),
             >::new();
+            let mut entry_pending = std::collections::HashSet::<EntryKey>::new();
+            let mut entry_generation = 0u64;
             let mut catalog = Arc::new(crate::spec_catalog::Catalog::builtin().clone());
             match crate::spec_catalog::Catalog::load_user_dir(&catalog_path) {
                 Ok(loaded) if loaded.diagnostics().is_empty() => catalog = Arc::new(loaded),
@@ -168,6 +181,7 @@ impl Worker {
                             && work.query.is_none()
                             && work.source_updates.is_empty()
                             && work.help_updates.is_empty()
+                            && work.entry_updates.is_empty()
                             && !work.invalidate_sources
                             && !work.cancel
                             && work.catalog_path.is_none()
@@ -185,6 +199,8 @@ impl Worker {
                 let updates = std::mem::take(&mut work.source_updates);
                 let help_updates = std::mem::take(&mut work.help_updates);
                 let help_changed = !help_updates.is_empty();
+                let entry_updates = std::mem::take(&mut work.entry_updates);
+                let entry_changed = !entry_updates.is_empty();
                 let reload_catalog = work.catalog_path.take();
                 let commands = work.commands.take();
                 let commands_changed = commands.is_some();
@@ -231,6 +247,24 @@ impl Worker {
                 }
                 if refresh {
                     entry_cache.clear();
+                    entry_pending.clear();
+                    entry_generation = entry_generation.wrapping_add(1);
+                }
+                for (generation, key, entry, elapsed) in entry_updates {
+                    if generation != entry_generation {
+                        continue;
+                    }
+                    trace.event(
+                        "entry_resolve",
+                        None,
+                        Some(elapsed),
+                        Some(usize::from(entry.is_some())),
+                    );
+                    entry_pending.remove(&key);
+                    if entry_cache.len() >= 256 {
+                        entry_cache.clear();
+                    }
+                    entry_cache.insert(key, (Instant::now(), entry));
                 }
                 if let Some(path) = reload_catalog.as_ref() {
                     match crate::spec_catalog::Catalog::load_user_dir(path) {
@@ -313,6 +347,7 @@ impl Worker {
                 if let Some(q) = latest_query.as_ref().filter(|_| {
                     changed
                         || help_changed
+                        || entry_changed
                         || query_changed
                         || !updates.is_empty()
                         || invalidate_sources
@@ -326,20 +361,53 @@ impl Worker {
                     } else {
                         context.command.as_str()
                     };
-                    let entry_key = (command.to_owned(), q.cwd.clone());
-                    if entry_cache
-                        .get(&entry_key)
-                        .is_none_or(|(time, _)| time.elapsed() > std::time::Duration::from_secs(1))
+                    let mut env_hasher = std::collections::hash_map::DefaultHasher::new();
+                    q.environment.hash(&mut env_hasher);
+                    let resolved_path = index.executable(command);
+                    let entry_key = resolved_path.as_ref().map(|path| {
+                        (
+                            command.to_owned(),
+                            q.cwd.clone(),
+                            path.clone(),
+                            env_hasher.finish(),
+                        )
+                    });
+                    if q.help_enabled
+                        && let (Some(path), Some(entry_key)) = (resolved_path, entry_key.as_ref())
+                        && entry_cache.get(entry_key).is_none_or(|(time, _)| {
+                            time.elapsed() > std::time::Duration::from_secs(1)
+                        })
+                        && entry_pending.len() < 8
+                        && entry_pending.insert(entry_key.clone())
                     {
-                        let found = index
-                            .executable(command)
-                            .and_then(|path| crate::knowledge::entry(command, &path, &q.cwd));
-                        if entry_cache.len() >= 256 {
-                            entry_cache.clear();
-                        }
-                        entry_cache.insert(entry_key.clone(), (Instant::now(), found));
+                        let shared = thread_shared.clone();
+                        let entry_key = entry_key.clone();
+                        let command = command.to_owned();
+                        let cwd = q.cwd.clone();
+                        let environment = q.environment.clone();
+                        let generation = entry_generation;
+                        thread::spawn(move || {
+                            let started = Instant::now();
+                            let entry = crate::knowledge::entry_with_environment(
+                                &command,
+                                &path,
+                                &cwd,
+                                &environment,
+                            );
+                            let (lock, wake) = &*shared;
+                            lock.lock().unwrap().entry_updates.push((
+                                generation,
+                                entry_key,
+                                entry,
+                                started.elapsed(),
+                            ));
+                            wake.notify_one();
+                        });
                     }
-                    let executable = entry_cache.get(&entry_key).and_then(|(_, e)| e.clone());
+                    let executable = entry_key
+                        .as_ref()
+                        .and_then(|key| entry_cache.get(key))
+                        .and_then(|(_, entry)| entry.clone());
                     let key = executable
                         .as_ref()
                         .map(|e| e.fingerprint.clone())
@@ -717,13 +785,6 @@ impl CommandSnapshot {
     }
 }
 
-struct HubForm {
-    template: String,
-    fields: Vec<String>,
-    index: usize,
-    values: BTreeMap<String, String>,
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum InteractionMode {
     Completion,
@@ -771,6 +832,7 @@ struct State {
     shell_environment: Arc<BTreeMap<String, String>>,
     learning: Arc<Learning>,
     pending_accept: Option<(u64, String, PathBuf)>,
+    presented_identity: Option<String>,
     native_request: Option<u64>,
     native_ready: bool,
     metadata_ready: bool,
@@ -797,26 +859,114 @@ struct State {
     hub_history_path: Option<PathBuf>,
     history_ready: bool,
     history_pending: bool,
+    history_request: u64,
+    event_tx: SyncSender<HostEvent>,
+    form_values_request: u64,
     interaction_mode: InteractionMode,
-    hub_form: Option<HubForm>,
+    hub_form: Option<crate::hub::TemplateForm>,
+    hub_form_project: bool,
+    hub_templates: BTreeMap<String, crate::hub::CommandTemplate>,
 }
 
 impl State {
+    fn request_form_values(&mut self) {
+        self.form_values_request = self.form_values_request.wrapping_add(1);
+        let Some(field) = self.hub_form.as_ref().and_then(|form| form.current()) else {
+            return;
+        };
+        if !matches!(field.kind.as_str(), "file" | "directory")
+            && !matches!(
+                field.source.as_str(),
+                "cargo.packages" | "cargo.features" | "cargo.tests" | "docker.compose.service"
+            )
+        {
+            return;
+        }
+        let field = field.clone();
+        let line = self.line.clone();
+        let environment = self.shell_environment.clone();
+        let cwd = self.cwd.clone();
+        let request = self.form_values_request;
+        let name = field.name.clone();
+        let tx = self.event_tx.clone();
+        thread::spawn(move || {
+            let started = Instant::now();
+            let values = crate::hub::parameter_suggestions(&field, &line, &cwd, &environment);
+            let _ = tx.send(HostEvent::FormValues(
+                request,
+                name,
+                values,
+                started.elapsed(),
+            ));
+        });
+    }
+    fn cycle_form_value(&mut self, forward: bool) -> bool {
+        let Some(field) = self.hub_form.as_ref().and_then(|form| form.current()) else {
+            return false;
+        };
+        if field.values.is_empty() {
+            return false;
+        }
+        let current = self.hub_query.as_deref().unwrap_or("");
+        let index = field.values.iter().position(|value| value == current);
+        let next = match index {
+            Some(index) if forward => (index + 1) % field.values.len(),
+            Some(0) => field.values.len() - 1,
+            Some(index) => index - 1,
+            None => {
+                if forward {
+                    0
+                } else {
+                    field.values.len() - 1
+                }
+            }
+        };
+        *self.hub_query.as_mut().unwrap() = field.values[next].clone();
+        self.refresh_hub();
+        true
+    }
     fn refresh_hub(&mut self) {
         let Some(query) = self.hub_query.as_deref() else {
             return;
         };
         if let Some(form) = self.hub_form.as_ref() {
-            let name = form.fields.get(form.index).cloned().unwrap_or_default();
-            let preview = crate::hub::fill_placeholders(&form.template, &form.values);
+            let Some(field) = form.current() else {
+                return;
+            };
+            let name = if field.label.is_empty() {
+                &field.name
+            } else {
+                &field.label
+            };
+            let preview = form.preview();
+            let (position, count) = form.position();
             self.completion = Completion {
                 replace_start: 0,
                 replace_end: self.line.len(),
                 candidates: vec![Candidate {
                     label: format!("填写参数：{name}"),
                     insert_text: preview,
-                    description: if query.is_empty() {
-                        "输入参数值后按 Enter".into()
+                    description: if !field.values.is_empty() {
+                        format!(
+                            "↑↓ 选值：{}",
+                            field
+                                .values
+                                .iter()
+                                .take(5)
+                                .cloned()
+                                .collect::<Vec<_>>()
+                                .join("、")
+                        )
+                    } else if query.is_empty() {
+                        if field.default.is_empty() {
+                            if field.required {
+                                "输入参数值后按 Enter".into()
+                            } else {
+                                "可跳过；按 Enter 继续".into()
+                            }
+                        } else {
+                            format!("默认值：{} · Enter 使用默认值", field.default)
+                        }
                     } else {
                         format!("当前值：{query}")
                     },
@@ -827,7 +977,9 @@ impl State {
                     ..Default::default()
                 }],
                 incomplete: false,
-                argument_hint: format!("参数 {}/{} · {}", form.index + 1, form.fields.len(), name),
+                argument_hint: format!(
+                    "参数 {position}/{count} · {name} · Enter 下一项 · Esc 取消"
+                ),
             };
             self.selected = 0;
             self.dismissed = false;
@@ -839,8 +991,15 @@ impl State {
             .candidates
             .get(self.selected)
             .map(|c| c.identity().to_owned());
-        let candidates =
-            crate::hub::candidates_with_history(&self.config, query, &self.hub_history, None);
+        let guided = crate::hub::guided_template(&self.line, self.cursor);
+        let (candidates, templates) = crate::hub::search_with_history_guided(
+            &self.config,
+            query,
+            &self.hub_history,
+            None,
+            guided,
+        );
+        self.hub_templates = templates;
         self.selected = selected
             .and_then(|id| candidates.iter().position(|c| c.identity() == id))
             .unwrap_or(0);
@@ -1017,6 +1176,7 @@ impl State {
                 }
                 if let Some(cwd) = value["cwd"].as_str() {
                     self.cwd = cwd.into();
+                    crate::packs::set_cwd(self.cwd.clone());
                 }
                 let environment = value["path"]
                     .as_str()
@@ -1171,15 +1331,22 @@ impl State {
                     .as_str()
                     .filter(|p| !p.is_empty())
                     .map(PathBuf::from);
-                self.hub_history = crate::hub::merged_history(
-                    self.config.workbench.history_limit,
-                    &commands,
-                    self.hub_history_path.as_deref(),
-                );
-                self.history_pending = false;
-                if self.hub_query.is_some() {
-                    self.refresh_hub();
-                }
+                self.history_request = self.history_request.wrapping_add(1);
+                let request = self.history_request;
+                let tx = self.event_tx.clone();
+                let path = self.hub_history_path.clone();
+                let limit = self.config.workbench.history_limit;
+                thread::spawn(move || {
+                    let started = Instant::now();
+                    let (history, partial) =
+                        crate::hub::merged_history_with_status(limit, &commands, path.as_deref());
+                    let _ = tx.send(HostEvent::HistoryLoaded(
+                        request,
+                        history,
+                        partial,
+                        started.elapsed(),
+                    ));
+                });
             }
             "edit_result" => {
                 let id = request_number(&value["request_id"]);
@@ -1318,7 +1485,12 @@ impl State {
             "trace" => {
                 let stage = match value["stage"].as_str() {
                     Some("adapter_bootstrap") => "adapter_bootstrap",
+                    Some("script_source") => "script_source",
                     Some("readline_init") => "readline_init",
+                    Some("readline_host") => "readline_host",
+                    Some("readline_module") => "readline_module",
+                    Some("readline_resolve") => "readline_resolve",
+                    Some("readline_history") => "readline_history",
                     Some("command_snapshot") => "command_snapshot",
                     Some("serialize") => "serialize",
                     Some("key_snapshot") => "key_snapshot",
@@ -1447,6 +1619,9 @@ impl State {
         let Some(candidate) = self.completion.candidates.get(self.selected) else {
             return Ok(());
         };
+        if self.presented_identity.as_deref() != Some(candidate.identity()) {
+            return Ok(());
+        }
         self.searching = false;
         self.interaction_mode = InteractionMode::Completion;
         let replacement = candidate.replacement.unwrap_or(crate::model::Replacement {
@@ -1527,6 +1702,8 @@ impl State {
                     {
                         self.hub_query = None;
                         self.hub_form = None;
+                        self.hub_form_project = false;
+                        self.form_values_request = self.form_values_request.wrapping_add(1);
                         self.searching = false;
                         self.invalidate();
                         self.dismissed = true;
@@ -1548,6 +1725,9 @@ impl State {
                             return Ok(());
                         }
                         KeyCode::Up => {
+                            if self.cycle_form_value(false) {
+                                return Ok(());
+                            }
                             if !self.completion.candidates.is_empty() {
                                 self.selected = self
                                     .selected
@@ -1557,6 +1737,9 @@ impl State {
                             return Ok(());
                         }
                         KeyCode::Down => {
+                            if self.cycle_form_value(true) {
+                                return Ok(());
+                            }
                             if !self.completion.candidates.is_empty() {
                                 self.selected =
                                     (self.selected + 1) % self.completion.candidates.len();
@@ -1581,22 +1764,39 @@ impl State {
                         KeyCode::Enter => {
                             if self.hub_form.is_some() {
                                 let value = self.hub_query.as_ref().cloned().unwrap_or_default();
-                                if value.trim().is_empty() {
-                                    self.notification = Some("参数值不能为空".into());
-                                    return Ok(());
-                                }
                                 let form = self.hub_form.as_mut().unwrap();
-                                let name = form.fields[form.index].clone();
-                                form.values.insert(name, value);
-                                form.index += 1;
-                                if form.index < form.fields.len() {
+                                let finished = match form.submit(&value) {
+                                    Ok(finished) => finished,
+                                    Err(error) => {
+                                        self.notification = Some(format!("{error:#}"));
+                                        return Ok(());
+                                    }
+                                };
+                                if !finished {
                                     *self.hub_query.as_mut().unwrap() = String::new();
+                                    self.request_form_values();
                                     self.refresh_hub();
                                     return Ok(());
                                 }
-                                let form = self.hub_form.take().unwrap();
-                                let command =
-                                    crate::hub::fill_placeholders(&form.template, &form.values);
+                                if self.hub_form_project
+                                    && let Err(error) = crate::packs::verify_approval(&self.cwd)
+                                {
+                                    self.notification =
+                                        Some(format!("项目命令包已变更：{error:#}"));
+                                    self.hub_form = None;
+                                    self.hub_form_project = false;
+                                    self.refresh_hub();
+                                    return Ok(());
+                                }
+                                let command = match form.finish() {
+                                    Ok(command) => command,
+                                    Err(error) => {
+                                        self.notification = Some(format!("{error:#}"));
+                                        return Ok(());
+                                    }
+                                };
+                                self.hub_form = None;
+                                self.hub_form_project = false;
                                 self.hub_query = None;
                                 self.searching = false;
                                 self.completion = Completion {
@@ -1616,18 +1816,43 @@ impl State {
                                     argument_hint: String::new(),
                                 };
                                 self.selected = 0;
+                                self.presented_identity = Some("hub:resolved-template".into());
                                 return self.accept(writer);
                             }
                             if let Some(candidate) = self.completion.candidates.get(self.selected) {
-                                let fields = crate::hub::placeholder_names(&candidate.insert_text);
-                                if !fields.is_empty() {
-                                    self.hub_form = Some(HubForm {
-                                        template: candidate.insert_text.clone(),
-                                        fields,
-                                        index: 0,
-                                        values: BTreeMap::new(),
+                                if self.presented_identity.as_deref() != Some(candidate.identity())
+                                {
+                                    return Ok(());
+                                }
+                                let project = candidate.id.starts_with("hub:project:");
+                                if project
+                                    && let Err(error) = crate::packs::verify_approval(&self.cwd)
+                                {
+                                    self.notification =
+                                        Some(format!("项目命令包已变更：{error:#}"));
+                                    self.refresh_hub();
+                                    return Ok(());
+                                }
+                                let template = self
+                                    .hub_templates
+                                    .get(&candidate.id)
+                                    .cloned()
+                                    .unwrap_or_else(|| crate::hub::CommandTemplate {
+                                        command: candidate.insert_text.clone(),
+                                        ..Default::default()
                                     });
+                                let form = match crate::hub::TemplateForm::new(template) {
+                                    Ok(form) => form,
+                                    Err(error) => {
+                                        self.notification = Some(format!("{error:#}"));
+                                        return Ok(());
+                                    }
+                                };
+                                if !form.is_empty() {
+                                    self.hub_form = Some(form);
+                                    self.hub_form_project = project;
                                     *self.hub_query.as_mut().unwrap() = String::new();
+                                    self.request_form_values();
                                     self.refresh_hub();
                                     return Ok(());
                                 }
@@ -1994,6 +2219,7 @@ impl State {
                 return Ok(());
             }
             Input::Refresh if self.prompt && self.ready => {
+                crate::hub::refresh_commands_cache();
                 self.commands_allowed = true;
                 worker.update(|w| w.refresh = true);
                 self.reset_pending = Some(serde_json::to_string(&self.config.keys)?);
@@ -2122,6 +2348,7 @@ impl State {
 pub fn run(options: RunOptions) -> Result<u32> {
     let trace = Trace::open(options.trace_path.as_deref())?;
     trace.event("host_start", None, None, None);
+    crate::hub::warm_commands_cache();
     let mut config = config::load(options.config_path.as_deref())?;
     let descriptions = Arc::new(std::mem::take(&mut config.descriptions));
     let protocol_prefix = config.keys.protocol_prefix.clone();
@@ -2191,6 +2418,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         if trace.enabled() { "1" } else { "0" }.into(),
     );
     let cwd = std::env::current_dir()?;
+    crate::packs::set_cwd(cwd.clone());
     env.extend(pty::key_environment(&config.keys));
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let mut raw = RawMode::enable()
@@ -2224,6 +2452,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
     }
     let _child_guard = ChildGuard(child.clone_killer());
     let (tx, rx) = mpsc::sync_channel(256);
+    let commands_tx = tx.clone();
+    crate::hub::on_commands_change(move || {
+        let _ = commands_tx.try_send(HostEvent::CommandsChanged);
+    });
+    let packs_tx = tx.clone();
+    crate::packs::on_change(move || {
+        let _ = packs_tx.try_send(HostEvent::CommandsChanged);
+    });
     let read_tx = tx.clone();
     let output_trace = trace.clone();
     thread::spawn(move || {
@@ -2311,7 +2547,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         options.data_dir.join("commands.json"),
         config::specs_dir(&config, options.config_path.as_deref()),
         session_directory.join("data-sources.json"),
-        tx,
+        tx.clone(),
         trace.clone(),
     );
     let mut state = State {
@@ -2355,6 +2591,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         shell_environment: Arc::new(std::env::vars().collect()),
         learning,
         pending_accept: None,
+        presented_identity: None,
         native_request: None,
         native_ready: false,
         metadata_ready: false,
@@ -2381,8 +2618,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
         hub_history_path: None,
         history_ready: false,
         history_pending: false,
+        history_request: 0,
+        event_tx: tx.clone(),
+        form_values_request: 0,
         interaction_mode: InteractionMode::Completion,
         hub_form: None,
+        hub_form_project: false,
+        hub_templates: BTreeMap::new(),
     };
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
@@ -2565,6 +2807,43 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 HostEvent::Exit(code) => exit_code = Some(code),
                 HostEvent::Diagnostic(message) => state.diagnostic = Some(message),
                 HostEvent::Reload => {}
+                HostEvent::CommandsChanged => {
+                    let (_, error) = crate::hub::commands_status();
+                    if let Some(error) = error {
+                        state.notification = Some(format!("收藏文件读取失败：{error}"));
+                    }
+                    if let Some(status) = crate::packs::cached_status() {
+                        state.notification = Some(status);
+                    }
+                    if state.hub_query.is_some() {
+                        state.refresh_hub();
+                    }
+                    ui_dirty = true;
+                }
+                HostEvent::HistoryLoaded(request, history, partial, elapsed) => {
+                    trace.event("history_load", None, Some(elapsed), Some(history.len()));
+                    if request == state.history_request {
+                        state.hub_history = history;
+                        state.history_pending = false;
+                        if partial {
+                            state.notification = Some("部分历史：已按读取预算截取最近记录".into());
+                        }
+                        if state.hub_query.is_some() {
+                            state.refresh_hub();
+                        }
+                        ui_dirty = true;
+                    }
+                }
+                HostEvent::FormValues(request, name, values, elapsed) => {
+                    trace.event("hub_values", None, Some(elapsed), Some(values.len()));
+                    if request == state.form_values_request
+                        && let Some(form) = state.hub_form.as_mut()
+                    {
+                        form.set_values(&name, values);
+                        state.refresh_hub();
+                        ui_dirty = true;
+                    }
+                }
                 HostEvent::Eof => eof = true,
                 HostEvent::Error(error) => {
                     if exit_code.is_none() {
@@ -2619,9 +2898,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 })
                 .or_else(|| {
                     state.completion.incomplete.then(|| Candidate {
-                        label: "正在加载候选…".into(),
+                        label: "环境刷新中…".into(),
                         ..Default::default()
                     })
+                })
+                .or_else(|| {
+                    state
+                        .hub_query
+                        .as_ref()
+                        .filter(|query| !query.is_empty())
+                        .map(|_| Candidate {
+                            label: "无匹配命令".into(),
+                            description: "修改关键词后重试".into(),
+                            ..Default::default()
+                        })
                 });
             let displayed = if state.completion.candidates.is_empty() {
                 notice.as_slice()
@@ -2649,14 +2939,27 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         .then_some(state.completion.argument_hint.as_str()),
                     searching: state.searching,
                     diagnostic: state.notification.as_deref().or_else(|| {
-                        state
-                            .completion
-                            .candidates
-                            .is_empty()
-                            .then_some("提示 · 请继续输入")
+                        state.completion.candidates.is_empty().then_some(
+                            if state.completion.incomplete {
+                                "环境刷新中"
+                            } else if state.hub_query.as_ref().is_some_and(|q| !q.is_empty()) {
+                                "无匹配命令"
+                            } else {
+                                "提示 · 请继续输入"
+                            },
+                        )
                     }),
                 },
             )?;
+            state.presented_identity = if state.completion.candidates.is_empty() {
+                None
+            } else {
+                state
+                    .completion
+                    .candidates
+                    .get(state.selected)
+                    .map(|candidate| candidate.identity().to_owned())
+            };
         } else if ui_dirty {
             state.overlay.erase(state.parser.screen(), &mut frame)?;
         }

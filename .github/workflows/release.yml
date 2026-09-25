@@ -1,56 +1,116 @@
 name: Blueberry release draft
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing annotated beta tag pointing to the measured source commit
+        required: true
+        type: string
+      ci_run_id:
+        description: Successful main CI run whose immutable package was measured
+        required: true
+        type: string
+      evidence_ref:
+        description: Commit containing beta7-release-evidence.json and raw reports
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.release_tag }}
   cancel-in-progress: false
 jobs:
-  validate:
-    uses: ./.github/workflows/ci.yml
   draft:
-    needs: validate
     runs-on: ubuntu-24.04
     permissions:
+      actions: read
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      CI_RUN_ID: ${{ inputs.ci_run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.release_tag }}
           fetch-depth: 0
-      - name: Validate tag and main ancestry
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
+      - name: Validate tag, version and main ancestry
+        shell: bash
         run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v0\.5\.0-beta\.7$ ]] || { echo 'Unexpected release tag' >&2; exit 1; }
+          git fetch origin main:refs/remotes/origin/main
+          TAG_SHA="$(git rev-parse HEAD)"
+          [[ "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" == "$TAG_SHA" ]]
+          git merge-base --is-ancestor "$TAG_SHA" origin/main
+          echo "TAG_SHA=$TAG_SHA" >> "$GITHUB_ENV"
           python3 - <<'PY'
           import os, re, tomllib
           from pathlib import Path
-          with open('Cargo.toml', 'rb') as f: version = tomllib.load(f)['package']['version']
+          with open('Cargo.toml', 'rb') as f:
+              version = tomllib.load(f)['package']['version']
           assert os.environ['RELEASE_TAG'] == 'v' + version, 'Tag must match Cargo.toml'
           section = re.search(r'^## ' + re.escape(version) + r'\s*\n(.*?)(?=^## |\Z)', Path('CHANGELOG.md').read_text(), re.M | re.S)
           assert section, 'Missing release notes'
           Path('release-notes.md').write_text('# Blueberry ' + version + '\n\n' + section[1].strip() + '\n')
           PY
-          git merge-base --is-ancestor HEAD origin/main
+      - name: Confirm the measured CI run belongs to this tag commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CI_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID" > ci-run.json
+          python3 - <<'PY'
+          import json, os
+          run = json.load(open('ci-run.json'))
+          assert run['head_sha'] == os.environ['TAG_SHA'], 'CI run belongs to another source commit'
+          assert run['name'] == 'Blueberry CI' and run['event'] == 'push', 'Expected a branch CI run'
+          assert run['head_branch'] == 'main' and run['conclusion'] == 'success', 'main CI did not pass'
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.evidence_ref }}
+          fetch-depth: 0
+          path: release-evidence
+      - name: Confirm evidence commit follows the tagged source
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_SHA="$(git -C release-evidence rev-parse HEAD)"
+          git -C release-evidence merge-base --is-ancestor "$TAG_SHA" "$EVIDENCE_SHA"
+          git merge-base --is-ancestor "$EVIDENCE_SHA" origin/main
+          changed="$(git -C release-evidence diff --name-only "$TAG_SHA" "$EVIDENCE_SHA")"
+          while IFS= read -r file; do
+            [[ -z "$file" || "$file" == docs/benchmarks/v0.5/* || "$file" == docs/beta-7-validation.md ]] || { echo "Non-evidence change: $file" >&2; exit 1; }
+          done <<< "$changed"
+          test -f release-evidence/docs/benchmarks/v0.5/beta7-release-evidence.json
       - uses: actions/download-artifact@v4
         with:
           name: blueberry-windows-x64
           path: release-assets
-      - name: Create or update unpublished draft
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          run-id: ${{ inputs.ci_run_id }}
+          github-token: ${{ github.token }}
+      - name: Validate the exact CI package against every raw performance report
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum --check "blueberry-$RELEASE_TAG-windows-x64.zip.sha256"
+          cd ..
+          python3 scripts/verify-release-evidence.py \
+            release-evidence/docs/benchmarks/v0.5/beta7-release-evidence.json \
+            "release-assets/blueberry-$RELEASE_TAG-windows-x64.zip" \
+            --commit "$TAG_SHA" \
+            --bundle-out "release-assets/blueberry-$RELEASE_TAG-evidence.zip"
+      - name: Create or update unpublished draft with the measured bytes
         shell: bash
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" --json isDraft > release-state.json 2>/dev/null; then
             python3 -c 'import json; assert json.load(open("release-state.json"))["isDraft"], "Published releases are immutable"'
           else
-            options=()
-            if [[ "$RELEASE_TAG" == *-* ]]; then options+=(--prerelease); fi
-            gh release create "$RELEASE_TAG" --verify-tag --draft "${options[@]}" --title "Blueberry $RELEASE_TAG" --notes-file release-notes.md
+            gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease --title "Blueberry $RELEASE_TAG" --notes-file release-notes.md
           fi
-          find release-assets -type f -print0 | while IFS= read -r -d '' asset; do
+          find release-assets -maxdepth 1 -type f -print0 | while IFS= read -r -d '' asset; do
             gh release upload "$RELEASE_TAG" "$asset" --clobber
           done

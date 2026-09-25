@@ -346,6 +346,9 @@ pub fn state_path() -> PathBuf {
 pub fn commands_path() -> PathBuf {
     config_root().join("commands.toml")
 }
+pub fn project_packs_path() -> PathBuf {
+    config_root().join("project-packs.json")
+}
 
 impl Config {
     pub(crate) fn apply_theme(&mut self, explicit: Option<&toml::Table>) {

@@ -31,6 +31,7 @@ pub fn key_environment(keys: &crate::config::KeyBindings) -> BTreeMap<String, St
         ("DETAILS", &keys.details),
         ("REFRESH", &keys.refresh),
         ("RELOAD", &keys.reload),
+        ("SEARCH", &keys.search),
         ("RESOURCES", &keys.resources),
         ("HUB", &keys.hub),
     ] {
@@ -155,7 +156,7 @@ pub fn shell_args(integration: &Path, no_profile: bool) -> Vec<String> {
     args.extend([
         "-Command".into(),
         format!(
-            "{module_import}. '{}'",
+            "{module_import}$blueberrySourceTimer = $null; if ($env:BLUEBERRY_TRACE -eq '1') {{ $blueberrySourceTimer = [Diagnostics.Stopwatch]::StartNew() }}; . '{}'; if ($null -ne $blueberrySourceTimer) {{ Send-BlueberryTrace -Stage 'script_source' -DurationMs $blueberrySourceTimer.Elapsed.TotalMilliseconds }}",
             integration.to_string_lossy().replace('\'', "''")
         ),
     ]);
@@ -181,4 +182,33 @@ pub fn default_shell() -> PathBuf {
         return PathBuf::from(root).join("System32/WindowsPowerShell/v1.0/powershell.exe");
     }
     name.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initial_public_key_snapshot_contains_every_adapter_chord() {
+        let keys = crate::config::KeyBindings::default();
+        let environment = key_environment(&keys);
+        for name in [
+            "TRIGGER",
+            "NATIVE",
+            "DETAILS",
+            "REFRESH",
+            "RELOAD",
+            "SEARCH",
+            "RESOURCES",
+            "HUB",
+        ] {
+            assert!(
+                environment
+                    .get(&format!("BLUEBERRY_PUBLIC_KEY_{name}"))
+                    .is_some_and(|value| !value.is_empty()),
+                "missing adapter startup chord {name}"
+            );
+        }
+        assert_eq!(environment["BLUEBERRY_PUBLIC_KEY_SEARCH"], keys.search);
+    }
 }

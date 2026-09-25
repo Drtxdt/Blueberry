@@ -680,7 +680,7 @@ fn display_width(text: &str) -> usize {
     UnicodeWidthStr::width(text)
 }
 
-fn truncate_to_width(text: &str, width: usize) -> String {
+pub(crate) fn truncate_to_width(text: &str, width: usize) -> String {
     if display_width(text) <= width {
         return text.to_owned();
     }
@@ -712,7 +712,7 @@ fn take_to_width(text: &str, width: usize) -> String {
 
 /// Remove terminal control sequences and map remaining control characters to
 /// spaces. ANSI styling is added only by this module after sanitization.
-fn sanitize_text(text: &str) -> String {
+pub(crate) fn sanitize_text(text: &str) -> String {
     let mut chars = text.chars().peekable();
     let mut sanitized = String::with_capacity(text.len());
 

@@ -2,6 +2,7 @@
 use crate::{engine::CommandIndex, probe::Harness};
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     env,
@@ -10,6 +11,22 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
+
+pub fn executable_sha256(path: &Path) -> Result<String> {
+    use std::io::Read;
+    let mut file = fs::File::open(path)
+        .with_context(|| format!("cannot open executable for SHA-256: {}", path.display()))?;
+    let mut digest = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let count = file.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        digest.update(&buffer[..count]);
+    }
+    Ok(format!("{:X}", digest.finalize()))
+}
 
 const FIXTURE_COUNT: usize = 10;
 const MAX_ITERATIONS: u16 = 100;

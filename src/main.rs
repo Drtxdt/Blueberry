@@ -32,6 +32,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Diagnose visible input latency across plain, nested and complete hosts.
+    #[cfg(windows)]
+    LayerProbe {
+        #[arg(long, default_value_os_t = blueberry::pty::default_shell())]
+        shell: PathBuf,
+        #[arg(long, default_value_t = 30, value_parser=clap::value_parser!(u16).range(1..1001))]
+        samples: u16,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Internal minimal ConPTY forwarder used by layer-probe.
+    #[cfg(windows)]
+    #[command(hide = true)]
+    LayerPassthrough {
+        #[arg(long)]
+        shell: PathBuf,
+    },
     /// Measure six complete-host scenarios with profile and explicit cache states.
     BetaProbe {
         #[arg(long, default_value_os_t = blueberry::pty::default_shell())]
@@ -114,6 +131,11 @@ enum Command {
         #[arg(long, conflicts_with_all = ["add", "command"])]
         remove: Option<String>,
     },
+    /// Review and approve declarative commands supplied by the current Git repository.
+    Packs {
+        #[command(subcommand)]
+        command: PacksCommand,
+    },
     /// Enable, disable, or inspect PowerShell profile startup hooks.
     Startup {
         #[arg(value_enum)]
@@ -160,6 +182,13 @@ enum StartupAction {
     Enable,
     Disable,
     Status,
+}
+#[derive(Subcommand)]
+enum PacksCommand {
+    List,
+    Review,
+    Approve { digest: String },
+    Revoke,
 }
 
 #[derive(Subcommand)]
@@ -689,12 +718,23 @@ fn print_help_status() {
     }
 }
 fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
+    let adapter = env::var_os("BLUEBERRY_SESSION_DIR")
+        .and_then(|directory| std::fs::read(PathBuf::from(directory).join("adapter.json")).ok())
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+    let commands = match blueberry::hub::inspect_commands() {
+        Ok(count) => serde_json::json!({"valid":true,"count":count}),
+        Err(error) => serde_json::json!({"valid":false,"error":format!("{error:#}")}),
+    };
+    let build = serde_json::json!({
+        "commit":env!("BLUEBERRY_BUILD_COMMIT"),
+        "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0)
+    });
     if json {
         let path = config_path
             .map(Path::to_path_buf)
             .unwrap_or_else(config::default_path);
         let loaded = config::load(config_path);
-        let value = match loaded {
+        let mut value = match loaded {
             Ok(settings) => {
                 serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":true,"cache":config::cache_dir(),"dynamic":settings.completion.dynamic,"keys":settings.keys,"tool_registry":blueberry::tool_registry::TOOLS.iter().map(|tool|serde_json::json!({"name":tool.name,"help":tool.help,"providers":tool.providers,"resources":tool.resources,"required":tool.required})).collect::<Vec<_>>(),"help_cache":blueberry::knowledge::records(&blueberry::knowledge::cache_dir()).iter().map(|record|serde_json::json!({"command":record.entry.command,"context":record.context,"adapter":record.page.adapter,"commands_complete":record.page.commands_complete,"options_complete":record.page.options_complete,"stale":!blueberry::knowledge::current(record),"error":record.error})).collect::<Vec<_>>() })
             }
@@ -702,10 +742,43 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
                 serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH,"config":path,"valid":false,"error":format!("{error:#}")})
             }
         };
+        value["build"] = build;
+        value["shell"] = adapter
+            .as_ref()
+            .and_then(|status| status["shell_version"].as_str())
+            .map(|version| serde_json::json!({"version":version}))
+            .unwrap_or(serde_json::Value::Null);
+        value["psreadline"] = adapter
+            .as_ref()
+            .and_then(|status| status["psreadline_version"].as_str())
+            .map(|version| serde_json::json!({"version":version}))
+            .unwrap_or(serde_json::Value::Null);
+        value["transport"] = adapter
+            .as_ref()
+            .and_then(|status| status["transport"].as_str())
+            .map(|transport| serde_json::json!(transport))
+            .unwrap_or(serde_json::Value::Null);
+        value["commands"] = commands;
         println!("{}", serde_json::to_string_pretty(&value)?);
         return Ok(if value["valid"] == true { 0 } else { 1 });
     }
     print_help_status();
+    println!(
+        "Build: {} @ {} (Unix UTC)",
+        env!("BLUEBERRY_BUILD_COMMIT"),
+        env!("BLUEBERRY_BUILD_TIME_UNIX")
+    );
+    if let Some(adapter) = &adapter {
+        println!(
+            "Shell: {} · PSReadLine: {} · Transport: {}",
+            adapter["shell_version"], adapter["psreadline_version"], adapter["transport"]
+        );
+    }
+    if commands["valid"] == true {
+        println!("Commands: {} saved items", commands["count"]);
+    } else {
+        println!("Commands: error: {}", commands["error"]);
+    }
     let path = config_path
         .map(Path::to_path_buf)
         .unwrap_or_else(config::default_path);
@@ -978,6 +1051,15 @@ fn execute() -> Result<u32> {
                 blueberry::hub::run(cli.config.as_deref(), query.as_deref())
             }
         }
+        Command::Packs { command } => {
+            match command {
+                PacksCommand::List => blueberry::packs::list()?,
+                PacksCommand::Review => blueberry::packs::review()?,
+                PacksCommand::Approve { digest } => blueberry::packs::approve(&digest)?,
+                PacksCommand::Revoke => blueberry::packs::revoke()?,
+            }
+            Ok(0)
+        }
         Command::Learning {
             command: LearningCommand::Clear,
         } => {
@@ -1016,6 +1098,26 @@ fn execute() -> Result<u32> {
             println!("{text}");
             Ok(0)
         }
+        #[cfg(windows)]
+        Command::LayerProbe {
+            shell,
+            samples,
+            output,
+        } => {
+            let report =
+                blueberry::latency_layers::run(&std::env::current_exe()?, &shell, samples)?;
+            let text = serde_json::to_string_pretty(&report)?;
+            if let Some(path) = output {
+                if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(path, &text)?;
+            }
+            println!("{text}");
+            Ok(0)
+        }
+        #[cfg(windows)]
+        Command::LayerPassthrough { shell } => blueberry::latency_layers::passthrough(&shell),
         Command::Probe {
             shell,
             iterations,
