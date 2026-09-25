@@ -618,7 +618,91 @@ fn generate_registry(registry: &RegistryFile) -> String {
     out
 }
 
+#[cfg(windows)]
+fn embed_legacy_json() {
+    println!("cargo:rerun-if-changed=shell/legacy-json.cs");
+    let windows =
+        PathBuf::from(env::var_os("SystemRoot").expect("SystemRoot is required on Windows"));
+    let shell = windows.join("System32/WindowsPowerShell/v1.0/powershell.exe");
+    let compiler = windows.join("Microsoft.NET/Framework64/v4.0.30319/csc.exe");
+    let assembly = Command::new(shell)
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "[System.Management.Automation.PSObject].Assembly.Location",
+        ])
+        .output()
+        .expect("query Windows PowerShell 5.1 automation assembly");
+    assert!(
+        assembly.status.success(),
+        "cannot locate Windows PowerShell 5.1 automation assembly"
+    );
+    let automation = PathBuf::from(
+        String::from_utf8(assembly.stdout)
+            .expect("assembly path is UTF-8")
+            .trim(),
+    );
+    assert!(
+        automation.is_file(),
+        "missing Windows PowerShell automation assembly: {}",
+        automation.display()
+    );
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by Cargo"));
+    let dll = output.join("legacy-json.dll");
+    let source = env::current_dir()
+        .expect("read build directory")
+        .join("shell")
+        .join("legacy-json.cs");
+    let compile = Command::new(compiler)
+        .args([
+            "/nologo".to_owned(),
+            "/target:library".to_owned(),
+            format!("/out:{}", dll.display()),
+            "/reference:System.Web.Extensions.dll".to_owned(),
+            "/reference:System.Core.dll".to_owned(),
+            format!("/reference:{}", automation.display()),
+            source.to_string_lossy().into_owned(),
+        ])
+        .output()
+        .expect("compile PowerShell 5.1 JSON helper");
+    assert!(
+        compile.status.success(),
+        "PowerShell 5.1 JSON helper compilation failed: {} {}",
+        String::from_utf8_lossy(&compile.stdout),
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let bytes = fs::read(dll).expect("read compiled PowerShell 5.1 JSON helper");
+    assert!(
+        !bytes.is_empty(),
+        "compiled PowerShell 5.1 JSON helper is empty"
+    );
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let value = (u32::from(chunk[0]) << 16)
+            | (u32::from(*chunk.get(1).unwrap_or(&0)) << 8)
+            | u32::from(*chunk.get(2).unwrap_or(&0));
+        encoded.push(TABLE[((value >> 18) & 63) as usize] as char);
+        encoded.push(TABLE[((value >> 12) & 63) as usize] as char);
+        encoded.push(if chunk.len() > 1 {
+            TABLE[((value >> 6) & 63) as usize] as char
+        } else {
+            '='
+        });
+        encoded.push(if chunk.len() > 2 {
+            TABLE[(value & 63) as usize] as char
+        } else {
+            '='
+        });
+    }
+    fs::write(output.join("legacy-json.base64"), encoded)
+        .expect("write embedded JSON helper base64");
+}
+
 fn main() {
+    #[cfg(windows)]
+    embed_legacy_json();
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-env-changed=GITHUB_SHA");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");

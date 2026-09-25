@@ -295,6 +295,7 @@ pub fn run_with_adapter(
     let mut integrated_input = Vec::new();
     let mut psreadline_versions = Vec::new();
     let mut shell_versions = Vec::new();
+    let mut json_initialization = Vec::new();
     let baseline_module_import = std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE")
         .ok()
         .filter(|path| !path.is_empty())
@@ -359,6 +360,11 @@ pub fn run_with_adapter(
                     .as_str()
                     .context("missing PowerShell version")?
                     .to_owned(),
+            );
+            json_initialization.push(
+                capabilities["json_initialization_ms"]
+                    .as_f64()
+                    .context("missing adapter JSON initialization timing")?,
             );
             harness.send(b"\x1b[24~s")?;
             let initial = harness.event("buffer", timeout)?;
@@ -446,6 +452,7 @@ pub fn run_with_adapter(
         "platform":std::env::consts::OS,"arch":std::env::consts::ARCH,
         "shell":shell,"adapter_source":adapter_source,"profile_mode":profile_mode,
         "shell_versions":shell_versions,"psreadline_versions":psreadline_versions,
+        "json_initialization_ms":stats(&json_initialization),
         "no_profile":no_profile,"iterations":iterations,
         "public_keys": "default keys, identical JSON and startup environment as the host",
         "method":"Alternating fresh ConPTY pwsh processes; UTF-8 console and history saving disabled in both cases. The baseline wraps the profile's existing prompt and emits a controlled marker after its output; the adapter source is reported above. Prompt marker timestamp, not first visible frame. OS caches are not cleared. Query timings include PSReadLine + OSC + ConPTY roundtrip. This does not measure outer-host rendering or RSS.",

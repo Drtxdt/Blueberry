@@ -2,7 +2,14 @@
 # Select the native JSON implementation, or the inbox .NET Framework compatibility reader.
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     if ($null -eq ('Blueberry.LegacyJson.JsonSerializer' -as [type])) {
-        Add-Type -TypeDefinition ([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'legacy-json.cs'))) -ReferencedAssemblies @('System.Web.Extensions', 'System.Core', [System.Management.Automation.PSObject].Assembly.Location)
+        $embeddedLegacyJson = 'BLUEBERRY_LEGACY_ASSEMBLY_BASE64'
+        if ($embeddedLegacyJson -eq ('BLUEBERRY_LEGACY_' + 'ASSEMBLY_BASE64')) {
+            # Direct source execution remains useful for adapter tests. The
+            # product's embedded integration script uses the compiled bytes.
+            Add-Type -TypeDefinition ([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'legacy-json.cs'))) -ReferencedAssemblies @('System.Web.Extensions', 'System.Core', [System.Management.Automation.PSObject].Assembly.Location)
+        } else {
+            [void][Reflection.Assembly]::Load([Convert]::FromBase64String($embeddedLegacyJson))
+        }
     }
     $blueberryJsonNamespace = 'Blueberry.LegacyJson'
 } else { $blueberryJsonNamespace = 'System.Text.Json' }
@@ -260,8 +267,14 @@ function Initialize-BlueberryPipe {
         # setters are unsupported on this implementation.
         $script:BLUEBERRY_PIPE_BUFFER = [byte[]]::new(1048576)
         $script:BLUEBERRY_PIPE_ENABLED = $true
+        if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
+            [IO.File]::WriteAllText($env:BLUEBERRY_DIRECT_STATUS_PATH, 'connected')
+        }
         return $true
     } catch {
+        if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
+            [IO.File]::WriteAllText($env:BLUEBERRY_DIRECT_STATUS_PATH, ('connect failed: ' + $_.Exception.Message))
+        }
         Disable-BlueberryPipe
         return $false
     } finally {
@@ -345,6 +358,12 @@ function Send-BlueberryPipeEvent {
             $cts.Dispose()
         }
 
+        # The direct-console diagnostic has no outer ConPTY parser. Its Rust
+        # service reads the pipe in sequence; emitting an OSC barrier to the
+        # user's terminal would expose an internal protocol frame.
+        if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
+            return $true
+        }
         # The OSC barrier is emitted only after the complete pipe write. The
         # host consumes the matching sequence and then reads the payload, so
         # terminal cursor/output ordering remains identical to OSC mode.
@@ -498,6 +517,11 @@ function Send-BlueberryEvent {
     # original OSC event so the default transport and failure path remain
     # compatible with older hosts.
     if (Send-BlueberryPipeEvent -Payload $payload) {
+        return
+    }
+    if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
+        # The experimental direct service fails closed. A disconnected pipe
+        # must not send its private protocol frames to the visible terminal.
         return
     }
     [void](Send-BlueberryOscPayload -Payload $payload)
@@ -1004,6 +1028,11 @@ function Send-BlueberryBuffer {
         $data = [ordered]@{
             line   = [string]$line
             cursor = [int]$cursor
+        }
+        if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
+            # Shared Windows performance counter for the diagnostic path.
+            # The report stores timings only; it never stores this line.
+            $data.diagnostic_qpc = [Diagnostics.Stopwatch]::GetTimestamp()
         }
         if (Test-BlueberryComplexLine -Line ([string]$line)) {
             $ast = $null
@@ -2588,6 +2617,14 @@ function Get-BlueberryHistorySnapshot {
     return [ordered]@{ commands = @($commands.ToArray()); path = $path; save_style = $style }
 }
 
+function Invoke-BlueberryDirectProbeKey {
+    param($Key, $Arg)
+    # One-key experiment only. Preserve PSReadLine's edit and undo operation,
+    # then report its actual buffer. General key coverage needs separate proof.
+    [Microsoft.PowerShell.PSConsoleReadLine]::SelfInsert($Key, $Arg)
+    Send-BlueberryBuffer
+}
+
 function Invoke-BlueberryNativeKeyHandler {
     [CmdletBinding()]
     param()
@@ -3309,6 +3346,14 @@ function Initialize-BlueberryReadLine {
             $keyRegisterTimer.Stop()
             Send-BlueberryTrace -Stage 'key_register' -DurationMs $keyRegisterTimer.Elapsed.TotalMilliseconds
         }
+    }
+    if ($env:BLUEBERRY_DIRECT_PIPE -eq '1' -and
+        @([Microsoft.PowerShell.PSConsoleReadLine]::GetKeyHandlers([string[]]@('g'))).Count -eq 0) {
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+            [string[]]@('g'),
+            ${function:Invoke-BlueberryDirectProbeKey},
+            'BlueberryDirectProbe',
+            'Report the confirmed buffer after one delegated SelfInsert')
     }
     } finally {
         if ($null -ne $traceTimer) {

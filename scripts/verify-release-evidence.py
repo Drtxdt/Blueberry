@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail closed when beta.7 release measurements do not match the packaged EXE.
 
-Usage: python scripts/verify-release-evidence.py EVIDENCE.json PACKAGE.zip --commit SHA
+Usage: python scripts/verify-release-evidence.py EVIDENCE.json PACKAGE.zip --commit SHA --public-beta6-package BETA6.zip
 The evidence file and its raw reports are release assets. They are produced only
 after a source commit and its final package have been frozen.
 """
@@ -28,6 +28,7 @@ VARIANTS = {
     "pipe_with_descriptions": ("pipe", True),
 }
 SCENARIOS = {"root", "git", "cargo", "js", "path", "fuzzy"}
+COMPARISON_MODES = ("plain", "beta6", "candidate", "inshellisense")
 TERMINAL_TASKS = {"ime", "font_zoom", "selection", "paste", "nested_program"}
 USER_TASKS = {"install", "explain", "project_parameters", "template", "exit_restore"}
 INSTALL_TASKS = {"install", "upgrade", "rollback"}
@@ -173,7 +174,76 @@ def check_manual_acceptance(evidence, executable_hash, commit):
         require(HEX64.fullmatch(manual.get(field, "")) is not None, f"{field}: baseline file not frozen")
 
 
-def verify(evidence_path, package_path, commit):
+def check_public_beta6(package_path, expected_hash):
+    package_path = package_path.resolve(strict=True)
+    require(package_path.name == "blueberry-v0.5.0-beta.6-windows-x64.zip", "wrong public beta.6 asset name")
+    with zipfile.ZipFile(package_path) as archive:
+        require(archive.namelist().count("blueberry.exe") == 1, "public beta.6 package has no unique EXE")
+        require(sha256_zip_member(archive, "blueberry.exe") == expected_hash.upper(), "public beta.6 EXE hash mismatch")
+
+
+def check_comparison(path, executable_hash, commit, profile, manual):
+    report = read_json(path)
+    shell_name, shell_major, psreadline = PROFILES[profile]
+    label = f"{profile} comparison"
+    require(report.get("schema") == 1 and report.get("profile") == profile, f"{label}: wrong schema/profile")
+    require(report.get("source_commit", "").lower() == commit.lower(), f"{label}: different source commit")
+    require(PureWindowsPath(report.get("shell", "")).name.lower() == shell_name, f"{label}: wrong shell")
+    require(str(report.get("shell_version", "")).startswith(shell_major), f"{label}: wrong shell version")
+    require(report.get("psreadline_version") == psreadline, f"{label}: wrong PSReadLine version")
+    require(report.get("profile_mode") == "with_profile" and report.get("terminal_rows") == 30 and report.get("terminal_columns") == 120, f"{label}: different profile or terminal")
+    require(report.get("trace") == "disabled", f"{label}: diagnostic trace enabled")
+    require(report.get("os_cache_cleared") is False, f"{label}: OS cache state differs")
+    require(isinstance(report.get("machine_id"), str) and report["machine_id"].strip(), f"{label}: machine ID missing")
+    require(isinstance(report.get("power_policy"), str) and report["power_policy"].strip(), f"{label}: power policy missing")
+    startup_count = report.get("startup_pairs")
+    hot_count = report.get("hot_samples_per_mode")
+    require(type(startup_count) is int and startup_count >= 30, f"{label}: fewer than 30 startup pairs")
+    require(type(hot_count) is int and hot_count >= 300, f"{label}: fewer than 300 hot samples")
+    modes = report.get("modes")
+    require(isinstance(modes, dict) and set(modes) == set(COMPARISON_MODES), f"{label}: comparator modes incomplete")
+    expected_hashes = {
+        "plain": None,
+        "beta6": manual["public_beta6_sha256"].upper(),
+        "candidate": executable_hash,
+        "inshellisense": manual["inshellisense_sha256"].upper(),
+    }
+    for mode in COMPARISON_MODES:
+        measured = modes[mode]
+        require(isinstance(measured, dict), f"{label}/{mode}: mode missing")
+        actual_hash = measured.get("sha256")
+        require(
+            actual_hash is None if expected_hashes[mode] is None
+            else isinstance(actual_hash, str) and actual_hash.upper() == expected_hashes[mode],
+            f"{label}/{mode}: binary hash mismatch",
+        )
+        transport = measured.get("transport")
+        require(transport == ("osc" if mode in ("beta6", "candidate") else "not_applicable"), f"{label}/{mode}: incorrect transport label")
+        require(measured.get("transport_degraded") is False if mode in ("beta6", "candidate") else measured.get("transport_degraded") is None, f"{label}/{mode}: transport degraded or falsely asserted")
+        samples(measured.get("startup"), startup_count, f"{label}/{mode} startup")
+        hot = measured.get("hot")
+        require(isinstance(hot, dict) and set(hot) == SCENARIOS, f"{label}/{mode}: scenarios incomplete")
+        for scenario in SCENARIOS:
+            group = hot[scenario]
+            require(isinstance(group, dict) and set(group) == {"cache_hit", "cache_miss"}, f"{label}/{mode}/{scenario}: cache modes incomplete")
+            for cache_mode in ("cache_hit", "cache_miss"):
+                samples(group[cache_mode], hot_count, f"{label}/{mode}/{scenario}/{cache_mode}")
+    orders = report.get("startup_orders")
+    require(isinstance(orders, list) and len(orders) == startup_count, f"{label}: startup ordering missing")
+    require(all(isinstance(order, list) and set(order) == set(COMPARISON_MODES) and len(order) == 4 for order in orders), f"{label}: startup order is not four-way alternating")
+    require(all(orders[index] == list(COMPARISON_MODES[index % 4:] + COMPARISON_MODES[:index % 4]) for index in range(startup_count)), f"{label}: startup order is not rotated")
+    hot_orders = report.get("hot_session_orders")
+    require(isinstance(hot_orders, dict) and set(hot_orders) == SCENARIOS, f"{label}: hot ordering missing")
+    session_count = math.ceil(hot_count / 10)
+    for scenario in SCENARIOS:
+        require(set(hot_orders[scenario]) == {"cache_hit", "cache_miss"}, f"{label}/{scenario}: hot ordering incomplete")
+        for cache_mode in ("cache_hit", "cache_miss"):
+            orders = hot_orders[scenario][cache_mode]
+            require(isinstance(orders, list) and len(orders) == session_count, f"{label}/{scenario}/{cache_mode}: hot ordering missing")
+            require(all(order == list(COMPARISON_MODES[index % 4:] + COMPARISON_MODES[:index % 4]) for index, order in enumerate(orders)), f"{label}/{scenario}/{cache_mode}: hot order is not rotated")
+
+
+def verify(evidence_path, package_path, commit, public_beta6_package):
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
     evidence = read_json(evidence_path)
@@ -215,8 +285,10 @@ def verify(evidence_path, package_path, commit):
         require(len(records) == 1 and records[0].get("sha256", "").upper() == executable_hash, "manifest EXE SHA-256 mismatch")
     startup = evidence.get("startup_reports")
     hot = evidence.get("hot_reports")
+    comparisons = evidence.get("comparison_reports")
     require(isinstance(startup, dict) and set(startup) == set(PROFILES), "startup profile matrix incomplete")
     require(isinstance(hot, dict) and set(hot) == set(PROFILES), "hot profile matrix incomplete")
+    require(isinstance(comparisons, dict) and set(comparisons) == set(PROFILES), "comparison profile matrix incomplete")
     root = evidence_path.parent
     for profile in PROFILES:
         check_startup(report_path(root, startup[profile]), executable_hash, profile)
@@ -224,6 +296,9 @@ def verify(evidence_path, package_path, commit):
         for variant in VARIANTS:
             check_hot(report_path(root, hot[profile][variant]), executable_hash, profile, variant)
     check_manual_acceptance(evidence, executable_hash, commit)
+    check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
+    for profile in PROFILES:
+        check_comparison(report_path(root, comparisons[profile]), executable_hash, commit, profile, evidence["manual_acceptance"])
     return executable_hash
 
 
@@ -231,6 +306,7 @@ def bundle(evidence_path, output_path):
     evidence_path = evidence_path.resolve(strict=True)
     evidence = read_json(evidence_path)
     reports = set(evidence["startup_reports"].values())
+    reports.update(evidence["comparison_reports"].values())
     for variants in evidence["hot_reports"].values():
         reports.update(variants.values())
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -248,10 +324,12 @@ def main():
     parser.add_argument("evidence", type=Path)
     parser.add_argument("package", type=Path)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--public-beta6-package", required=True, type=Path,
+                        help="original ZIP downloaded from this repository's public v0.5.0-beta.6 release")
     parser.add_argument("--bundle-out", type=Path, help="write a ZIP of verified raw reports")
     args = parser.parse_args()
     try:
-        executable_hash = verify(args.evidence, args.package, args.commit)
+        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package)
         if args.bundle_out:
             bundle(args.evidence, args.bundle_out)
     except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:

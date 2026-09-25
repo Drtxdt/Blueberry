@@ -106,10 +106,17 @@ pub fn spawn(
 
 pub fn ensure_integration(directory: &Path) -> Result<std::path::PathBuf> {
     std::fs::create_dir_all(directory)?;
-    let content = include_str!("../shell/integration.ps1").replace(
+    let mut content = include_str!("../shell/integration.ps1").replace(
         "([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'legacy-json.cs')))",
         &format!("@'\n{}\n'@", include_str!("../shell/legacy-json.cs")),
     );
+    #[cfg(windows)]
+    {
+        content = content.replace(
+            "BLUEBERRY_LEGACY_ASSEMBLY_BASE64",
+            include_str!(concat!(env!("OUT_DIR"), "/legacy-json.base64")),
+        );
+    }
     use std::hash::{Hash, Hasher};
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     content.hash(&mut hash);
@@ -210,5 +217,15 @@ mod tests {
             );
         }
         assert_eq!(environment["BLUEBERRY_PUBLIC_KEY_SEARCH"], keys.search);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn extracted_adapter_embeds_compiled_legacy_json() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = ensure_integration(directory.path()).unwrap();
+        let source = std::fs::read_to_string(path).unwrap();
+        assert!(!source.contains("$embeddedLegacyJson = 'BLUEBERRY_LEGACY_ASSEMBLY_BASE64'"));
+        assert!(source.contains("[Reflection.Assembly]::Load([Convert]::FromBase64String"));
     }
 }

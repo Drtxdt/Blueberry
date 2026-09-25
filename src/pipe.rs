@@ -33,6 +33,7 @@ mod windows_pipe {
     const ERROR_NO_DATA: u32 = 232;
     const ERROR_PIPE_NOT_CONNECTED: u32 = 233;
     const ERROR_BROKEN_PIPE: u32 = 109;
+    const ERROR_NOT_FOUND: u32 = 1168;
     const ERROR_MORE_DATA: u32 = 234;
     const TOKEN_QUERY: u32 = 0x0008;
     const TOKEN_USER: u32 = 1;
@@ -333,7 +334,10 @@ mod windows_pipe {
                 return Ok(Some(pid));
             }
             let error = unsafe { GetLastError() };
-            if error == ERROR_PIPE_NOT_CONNECTED || error == ERROR_BROKEN_PIPE {
+            if matches!(
+                error,
+                ERROR_PIPE_NOT_CONNECTED | ERROR_BROKEN_PIPE | ERROR_NOT_FOUND
+            ) {
                 return Ok(None);
             }
             Err(error_with_code(error))

@@ -90,6 +90,14 @@ jobs:
           path: release-assets
           run-id: ${{ inputs.ci_run_id }}
           github-token: ${{ github.token }}
+      - name: Fetch the published beta.6 comparison asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p beta6-public
+          gh release download v0.5.0-beta.6 --repo "$GITHUB_REPOSITORY" \
+            --pattern 'blueberry-v0.5.0-beta.6-windows-x64.zip' --dir beta6-public
+          test -s beta6-public/blueberry-v0.5.0-beta.6-windows-x64.zip
       - name: Validate the exact CI package against every raw performance report
         shell: bash
         run: |
@@ -101,6 +109,7 @@ jobs:
             release-evidence/docs/benchmarks/v0.5/beta7-release-evidence.json \
             "release-assets/blueberry-$RELEASE_TAG-windows-x64.zip" \
             --commit "$TAG_SHA" \
+            --public-beta6-package beta6-public/blueberry-v0.5.0-beta.6-windows-x64.zip \
             --bundle-out "release-assets/blueberry-$RELEASE_TAG-evidence.zip"
       - name: Create or update unpublished draft with the measured bytes
         shell: bash

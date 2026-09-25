@@ -49,6 +49,15 @@ enum Command {
         #[arg(long)]
         shell: PathBuf,
     },
+    /// Internal direct-console pipe experiment used by layer-probe.
+    #[cfg(windows)]
+    #[command(hide = true)]
+    LayerDirectService {
+        #[arg(long)]
+        shell: PathBuf,
+        #[arg(long)]
+        report: PathBuf,
+    },
     /// Measure six complete-host scenarios with profile and explicit cache states.
     BetaProbe {
         #[arg(long, default_value_os_t = blueberry::pty::default_shell())]
@@ -1118,6 +1127,10 @@ fn execute() -> Result<u32> {
         }
         #[cfg(windows)]
         Command::LayerPassthrough { shell } => blueberry::latency_layers::passthrough(&shell),
+        #[cfg(windows)]
+        Command::LayerDirectService { shell, report } => {
+            blueberry::latency_layers::direct_service(&shell, &report)
+        }
         Command::Probe {
             shell,
             iterations,

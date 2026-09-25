@@ -21,13 +21,15 @@ cargo build --release --locked
 
 将 `Cargo.toml`、`Cargo.lock` 和包含精确标题 `## 0.5.0-beta.7` 的 `CHANGELOG.md` 一起提交。仅修改 `Cargo.toml` 会让 CI 的 `--locked` 构建失败。候选合并到 main 后，记下源码提交 SHA 和成功的 main CI run ID，下载该 run 的 `blueberry-windows-x64` 工件；只对其中的 EXE 和 ZIP 正式测量。任何代码改动均须重新冻结、构建与测量。
 
-在固定测试机器上对每个受支持的 PowerShell／PSReadLine 组合保存 `probe --with-profile --iterations 30` 的原始 JSON；对默认 OSC、pipe 和 OSC 关闭说明分别保存 `beta-probe --samples 300` 的原始 JSON。各热态报告含六个场景、两种缓存状态。`beta7-release-evidence.json` 记录源码提交、最终 ZIP 和 EXE 的 SHA-256，并引用全部原始报告。运行：
+在固定测试机器上对每个受支持的 PowerShell／PSReadLine 组合保存 `probe --with-profile --iterations 30` 的原始 JSON；对默认 OSC、pipe 和 OSC 关闭说明分别保存 `beta-probe --samples 300` 的原始 JSON。各热态报告含六个场景、两种缓存状态。另保存同机交替测量 plain PowerShell、公开 beta.6、候选版和固定版本 inshellisense 的四方对照 JSON：每种模式至少 30 个启动样本，六场景的两种缓存状态各至少 300 个热态样本；报告记录逐会话轮换顺序、30×120 终端、profile、Shell／PSReadLine、机器和电源策略，`trace` 为 `disabled`。plain 与 inshellisense 的 Blueberry 传输字段为 `not_applicable`，beta.6 与候选版须声明实际 `osc` 且 `transport_degraded` 为 `false`。`beta7-release-evidence.json` 记录源码提交、最终 ZIP 和 EXE 的 SHA-256，并通过 `comparison_reports` 引用每个组合的对照原始报告。运行：
 
 ```powershell
-python scripts/verify-release-evidence.py .\docs\benchmarks\v0.5\beta7-release-evidence.json .\dist\candidate\blueberry-v0.5.0-beta.7-windows-x64.zip --commit <冻结源码提交SHA>
+python scripts/verify-release-evidence.py .\docs\benchmarks\v0.5\beta7-release-evidence.json .\dist\candidate\blueberry-v0.5.0-beta.7-windows-x64.zip --commit <冻结源码提交SHA> --public-beta6-package <从公开 v0.5.0-beta.6 Release 下载的 ZIP>
 ```
 
-脚本检查每组原始样本、实测 Shell／PSReadLine 与传输方式、性能分位数、包内每个文件的清单摘要，以及人工验收记录；任何缺项或超标均失败。证据 JSON 的 `manual_acceptance` 必须写入被测 `executable_sha256` 和 `source_commit`；其 `installation` 的 `install/upgrade/rollback`、`windows_terminal` 的 `ime/font_zoom/selection/paste/nested_program` 各项须为 `true`。`user_trials` 为 8–12 个匿名 ID，每人写入同一 `executable_sha256`，且 `install/explain/project_parameters/template/exit_restore` 须全部为 `true`。另记录与公开发布附件核对后的 `public_beta6_sha256`、冻结的 `inshellisense_sha256`。这些是实际完成后的验收记录，不预填通过；换 EXE 后全部失效。随后将正式报告与原始数据作为**仅文档**提交推送到 main；这个证据提交必须是源码提交的后代，不能改动待发布的程序或包。
+脚本检查每组原始样本、实测 Shell／PSReadLine 与传输方式、性能分位数、四方对照摘要及轮换顺序、包内每个文件的清单摘要，以及人工验收记录；任何缺项或超标均失败。证据 JSON 的 `manual_acceptance` 必须写入被测 `executable_sha256` 和 `source_commit`；其 `installation` 的 `install/upgrade/rollback`、`windows_terminal` 的 `ime/font_zoom/selection/paste/nested_program` 各项须为 `true`。`user_trials` 为 8–12 个匿名 ID，每人写入同一 `executable_sha256`，且 `install/explain/project_parameters/template/exit_restore` 须全部为 `true`。另记录与公开发布附件核对后的 `public_beta6_sha256`、冻结的 `inshellisense_sha256`。这些是实际完成后的验收记录，不预填通过；换 EXE 后全部失效。随后将正式报告与原始数据作为**仅文档**提交推送到 main；这个证据提交必须是源码提交的后代，不能改动待发布的程序或包。
+
+校验器核对公开 beta.6 ZIP 内 `blueberry.exe` 的摘要与四方对照记录。发布工作流会从本仓库的公开 beta.6 Release 重新下载该 ZIP；无法下载或摘要不符时不会创建草稿。
 
 ## 创建标签与草稿
 
