@@ -129,7 +129,8 @@ impl Harness {
                     return Ok(value);
                 }
             }
-            self.pump(until.saturating_duration_since(Instant::now()))?;
+            self.pump(until.saturating_duration_since(Instant::now()))
+                .with_context(|| format!("waiting for adapter event {name}"))?;
         }
     }
     pub fn wait_text(&mut self, text: &str, timeout: Duration) -> Result<()> {

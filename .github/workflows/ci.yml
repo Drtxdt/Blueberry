@@ -54,6 +54,9 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
+          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+            Register-PSRepository -Default -ErrorAction Stop
+          }
           Save-Module PSReadLine -RequiredVersion '${{ matrix.psreadline }}' -Path $root -Repository PSGallery -Force
           $manifest = Join-Path $root 'PSReadLine/${{ matrix.psreadline }}/PSReadLine.psd1'
           "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
@@ -107,6 +110,9 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
+          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+            Register-PSRepository -Default -ErrorAction Stop
+          }
           Save-Module PSReadLine -RequiredVersion '2.4.5' -Path $root -Repository PSGallery -Force
           $manifest = Join-Path $root 'PSReadLine/2.4.5/PSReadLine.psd1'
           "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV

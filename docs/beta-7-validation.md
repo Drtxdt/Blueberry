@@ -166,3 +166,5 @@
 另外两份终端等待辅助函数每 500 ms 无输出就报错，实际未使用它们声明的 20 秒截止时间；后续改为使用剩余截止时间，仍逐帧检查同一条件、保留原截止值及正常退出断言。PS7 OSC／pipe 的本机完整 `terminal_beta` 11 项和 `terminal_modes` 3 项分别通过（各 2 项原设计 ignored）。所有这些都是功能回归调整，不更改 50／20 ms 性能门槛，也不将第三轮远程失败作业记成通过。
 
 工作台隔离修复后，PS5.1／PSReadLine 2.4.5 的 OSC／pipe 本机 `terminal_beta` 11 项及 `terminal_modes` 3 项也各通过，包括新增的迟到候选身份保持检查；Clippy 全 targets 通过。远程需再运行，同一 CI 包尚未可用。
+
+提交 `f05f729` 的[第四轮 CI](https://github.com/Drtxdt/Blueberry/actions/runs/36232445247) 中，PS7 OSC／pipe 两作业完整通过，包括 pipe 作业的单层回归；三平台核心、格式、native mouse 通过。PS5.1／2.4.5 在下载前发现运行器未注册 PSGallery，后续仅在缺失时注册默认库并继续严格选择原固定版本。PS5.1／2.0.0 的多行测试在空提示符状态下超时，其余 10 项 terminal_beta 通过；已有日志缺少初始化等待阶段上下文，不能宣称原因已消除。补充 capabilities、prompt、command snapshot 和 awaited event 的精确诊断，并定向复测；保留该失败，包步骤仍跳过。

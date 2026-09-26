@@ -275,7 +275,9 @@ fn start_host() -> Result<RunningHost> {
         .context("wait for the initial PowerShell prompt")?;
     // Do not let bootstrap messages from the first prompt satisfy a later
     // lifecycle assertion.
-    let capabilities = harness.event("capabilities", PTY_TIMEOUT)?;
+    let capabilities = harness
+        .event("capabilities", PTY_TIMEOUT)
+        .context("initial adapter capabilities")?;
     ensure!(
         capabilities["capabilities"]["command_metadata"] == true,
         "missing metadata capability: {capabilities}"
@@ -284,9 +286,15 @@ fn start_host() -> Result<RunningHost> {
         capabilities["transport"] == transport,
         "requested transport was not active: {capabilities}"
     );
-    harness.event("prompt_end", PTY_TIMEOUT)?;
+    harness
+        .event("prompt_end", PTY_TIMEOUT)
+        .context("initial confirmed prompt")?;
     loop {
-        if harness.event("commands", PTY_TIMEOUT)?["complete"] == true {
+        if harness
+            .event("commands", PTY_TIMEOUT)
+            .context("initial complete Shell command snapshot")?["complete"]
+            == true
+        {
             break;
         }
     }
