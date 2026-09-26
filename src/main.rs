@@ -112,6 +112,9 @@ enum Command {
         /// Direct is experimental until its correctness and latency gates pass.
         #[arg(long, value_enum)]
         host_mode: Option<host::HostMode>,
+        /// Select a session-private PSReadLine baseline (direct host only).
+        #[arg(long, value_enum)]
+        psreadline_version: Option<host::PsReadLineVersion>,
     },
     /// Complete an input line without starting PowerShell (cursor is a UTF-8 byte offset).
     Complete {
@@ -764,6 +767,12 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0),
         "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true"
     });
+    #[cfg(windows)]
+    let build = {
+        let mut build = build;
+        build["private_editors"] = blueberry::editor::build_identity();
+        build
+    };
     if json {
         let path = config_path
             .map(Path::to_path_buf)
@@ -788,6 +797,10 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             .and_then(|status| status["psreadline_version"].as_str())
             .map(|version| serde_json::json!({"version":version}))
             .unwrap_or(serde_json::Value::Null);
+        value["editor"] = adapter.as_ref().map(|status| serde_json::json!({
+            "mode":status["editor_mode"], "patch":status["editor_patch"],
+            "dll_sha256":status["editor_dll_sha256"], "fallback_reason":status["editor_fallback_reason"]
+        })).unwrap_or(serde_json::Value::Null);
         value["transport"] = adapter
             .as_ref()
             .and_then(|status| status["transport"].as_str())
@@ -973,6 +986,7 @@ fn execute() -> Result<u32> {
         trace: None,
         transport: None,
         host_mode: None,
+        psreadline_version: None,
     }) {
         #[cfg(windows)]
         Command::ProductProbe {
@@ -1007,6 +1021,7 @@ fn execute() -> Result<u32> {
             trace,
             transport,
             host_mode,
+            psreadline_version,
         } => {
             if !no_profile && blueberry::setup::take_first_hint() {
                 println!(
@@ -1014,6 +1029,10 @@ fn execute() -> Result<u32> {
                 );
             }
             let (mode, transport) = host::resolve_host(host_mode, transport)?;
+            anyhow::ensure!(
+                psreadline_version.is_none() || mode == host::HostMode::Direct,
+                "--psreadline-version requires --host-mode direct"
+            );
             let options = host::RunOptions {
                 shell,
                 no_profile,
@@ -1021,6 +1040,7 @@ fn execute() -> Result<u32> {
                 data_dir: data_dir.unwrap_or_else(config::cache_dir),
                 trace_path: trace,
                 transport,
+                psreadline_version: psreadline_version.unwrap_or_default(),
             };
             match mode {
                 host::HostMode::Nested => host::run(options),

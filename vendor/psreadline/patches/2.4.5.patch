@@ -1,0 +1,81 @@
+--- a/PSReadLine/ReadLine.cs
++++ b/PSReadLine/ReadLine.cs
+@@ -166,8 +166,11 @@
+             }
+         }
+ 
+-        internal static PSKeyInfo ReadKey()
+-        {
++        internal static PSKeyInfo ReadKey(bool editorSafePoint = false)
++        {
++            if (editorSafePoint && _singleton.EditorHasQueuedKey() && !_singleton._lineAcceptedExceptionThrown)
++                return _singleton._queuedKeys.Dequeue();
++
+             // Reading a key is handled on a different thread.  During process shutdown,
+             // PowerShell will wait in it's ConsoleCtrlHandler until the pipeline has completed.
+             // If we're running, we're most likely blocked waiting for user input.
+@@ -192,6 +195,7 @@
+                 _singleton._readKeyWaitHandle.Set();
+             }
+ 
++            var editorWaitHandles = _singleton.EditorWaitHandles(editorSafePoint);
+             int handleId;
+             System.Management.Automation.PowerShell ps = null;
+ 
+@@ -203,7 +207,12 @@
+                     //   - a key is pressed
+                     //   - the console is exiting
+                     //   - 300ms timeout - to process events if we're idle
+-                    handleId = WaitHandle.WaitAny(_singleton._requestKeyWaitHandles, 300);
++                    handleId = WaitHandle.WaitAny(editorWaitHandles, 300);
++                    if (handleId == _singleton._requestKeyWaitHandles.Length)
++                    {
++                        _singleton.EditorRefresh();
++                        continue;
++                    }
+                     if (handleId != WaitHandle.WaitTimeout)
+                     {
+                         break;
+@@ -263,6 +272,7 @@
+                             int cursorTop = _singleton._console.CursorTop;
+ 
+                             // Start the pipeline to process events.
++                            _singleton.EditorBeforeEvent(editorSafePoint);
+                             ps.Invoke();
+ 
+                             // Check if any event handler writes console output to the best of our effort, and adjust the initial coordinates in that case.
+@@ -300,6 +310,7 @@
+                                 _singleton._lineAcceptedExceptionThrown = true;
+                                 throw new LineAcceptedException();
+                             }
++                            if (editorSafePoint) _singleton.EditorAfterKey();
+                         }
+                     }
+                 }
+@@ -427,7 +438,7 @@
+ 
+                     _singleton._readLineReady = true;
+                     _singleton._cancelReadCancellationToken = cancellationToken;
+-                    return _singleton.InputLoop();
++                    return _singleton.ReadLineWithEditorIntegration();
+                 }
+                 catch (OperationCanceledException)
+                 {
+@@ -556,7 +567,8 @@
+ 
+                 try
+                 {
+-                    var key = ReadKey();
++                    var key = ReadKey(editorSafePoint: true);
++                    if (EditorProcessKey(key)) continue;
+                     ProcessOneKey(key, _dispatchTable, ignoreIfNoAction: false, arg: null);
+                 }
+                 catch (LineAcceptedException)
+@@ -639,6 +651,7 @@
+                         _moveToLineDesiredColumn = -1;
+                     }
+                 }
++                EditorAfterKey();
+             }
+         }
+ 

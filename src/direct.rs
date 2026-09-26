@@ -3,43 +3,13 @@
 use super::*;
 use anyhow::{bail, ensure};
 use std::{
+    os::windows::io::{AsHandle, AsRawHandle},
     path::Path,
     process::{Command, Stdio},
     time::Duration,
 };
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
-
-/// PIPE_NOWAIT avoids duplex serialization of synchronous named-pipe handles.
-/// Use a kernel high resolution timer instead of the scheduler's coarse Sleep.
-struct ReceiveTimer(std::os::windows::io::OwnedHandle);
-impl ReceiveTimer {
-    fn new() -> Result<Self> {
-        use std::os::windows::io::FromRawHandle;
-        use windows_sys::Win32::System::Threading::{CreateWaitableTimerExW, SetWaitableTimer};
-        let handle =
-            unsafe { CreateWaitableTimerExW(std::ptr::null(), std::ptr::null(), 2, 0x1f0003) };
-        ensure!(
-            !handle.is_null(),
-            "high resolution pipe receiver timer unavailable: {}",
-            std::io::Error::last_os_error()
-        );
-        let owned = unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(handle) };
-        let due = -10_000i64;
-        ensure!(
-            unsafe { SetWaitableTimer(handle, &due, 1, None, std::ptr::null(), 0) } != 0,
-            "cannot arm pipe receiver timer: {}",
-            std::io::Error::last_os_error()
-        );
-        Ok(Self(owned))
-    }
-    fn wait(&self) {
-        use std::os::windows::io::AsRawHandle;
-        unsafe {
-            windows_sys::Win32::System::Threading::WaitForSingleObject(self.0.as_raw_handle(), 100);
-        }
-    }
-}
 
 /// Keep a query and its visible frame separate: asynchronous results must not
 /// change which candidate an acceptance request identifies.
@@ -445,17 +415,18 @@ pub fn ensure_bootstrap(directory: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(directory)?;
     let assembly = include_bytes!(concat!(env!("OUT_DIR"), "/direct-bridge.dll"));
     use sha2::{Digest, Sha256};
-    let hash = format!("{:x}", Sha256::digest(assembly));
+    let mut digest = Sha256::new();
+    digest.update(assembly);
+    digest.update(include_bytes!("../shell/direct.ps1"));
+    let hash = format!("{:x}", digest.finalize());
     let directory = directory.join(format!("direct-{}", &hash[..16]));
     std::fs::create_dir_all(&directory)?;
     let dll = directory.join("direct-bridge.dll");
-    if std::fs::read(&dll).ok().as_deref() != Some(assembly.as_slice()) {
-        std::fs::write(&dll, assembly)?;
-    }
+    crate::editor::install_asset(&dll, assembly)?;
     let script = directory.join("direct.ps1");
-    std::fs::write(
+    crate::editor::install_asset(
         &script,
-        format!("\u{feff}{}", include_str!("../shell/direct.ps1")),
+        format!("\u{feff}{}", include_str!("../shell/direct.ps1")).as_bytes(),
     )?;
     Ok(script)
 }
@@ -467,12 +438,48 @@ pub fn run(options: RunOptions) -> Result<u32> {
     );
     let settings = config::load(options.config_path.as_deref())?;
     let trace = Trace::open(options.trace_path.as_deref())?;
+    if trace.enabled() {
+        trace.point("direct_start", None, None, crate::latency_layers::qpc()?);
+    }
     let token = uuid::Uuid::new_v4().to_string();
     let directory = options.data_dir.join(&token);
-    let bootstrap = ensure_bootstrap(&directory)?;
-    let mut pipe = crate::pipe::PipeServer::new()?;
-    let mut child = Command::new(&options.shell)
-        .args(pty::shell_args(&bootstrap, options.no_profile))
+    std::fs::create_dir_all(&directory)?;
+    let bootstrap = ensure_bootstrap(&std::env::temp_dir().join("blueberry-runtime"))?;
+    let editor = crate::editor::select(&options.shell, options.psreadline_version)?;
+    if trace.enabled() {
+        trace.point(
+            "direct_resources_ready",
+            None,
+            None,
+            crate::latency_layers::qpc()?,
+        );
+    }
+    let mut pipe = crate::pipe::PipeServer::new_direct()?;
+    let mut command = Command::new(&options.shell);
+    let inherited_modules = crate::pty::module_search_paths(&options.shell);
+    command.env("PSModulePath", std::env::join_paths(&inherited_modules)?);
+    if let Some(editor) = &editor {
+        let mut paths = vec![editor.module_root.clone()];
+        paths.extend(inherited_modules);
+        command
+            .env("PSModulePath", std::env::join_paths(paths)?)
+            .env("BLUEBERRY_EDITOR_MODULE_ROOT", &editor.module_root)
+            .env("BLUEBERRY_EDITOR_DLL_SHA256", &editor.dll_sha256);
+    }
+    if trace.enabled() {
+        trace.point(
+            "direct_spawn_begin",
+            None,
+            None,
+            crate::latency_layers::qpc()?,
+        );
+    }
+    let mut child = command
+        .args(pty::shell_args_with_editor(
+            &bootstrap,
+            options.no_profile,
+            editor.as_ref().map(|e| e.manifest.as_path()),
+        ))
         .env("BLUEBERRY_ACTIVE", "1")
         .env("BLUEBERRY_HOST_MODE", "direct")
         .env("BLUEBERRY_PIPE_NAME", pipe.name())
@@ -488,9 +495,30 @@ pub fn run(options: RunOptions) -> Result<u32> {
         .stderr(Stdio::inherit())
         .spawn()
         .context("start inherited-console PowerShell")?;
+    if trace.enabled() {
+        trace.point(
+            "direct_spawn_return",
+            None,
+            None,
+            crate::latency_layers::qpc()?,
+        );
+    }
     let _job = crate::latency_layers::DirectChildJob::attach(&child)?;
     pipe.set_client_pid(child.id());
     let (tx, rx) = mpsc::sync_channel(256);
+    // Process exit and pipe input both wake the dispatcher. No idle timeout
+    // is needed merely to check whether the shell is still alive.
+    let process_wait = child.as_handle().try_clone_to_owned()?;
+    let exited = tx.clone();
+    thread::spawn(move || {
+        unsafe {
+            windows_sys::Win32::System::Threading::WaitForSingleObject(
+                process_wait.as_raw_handle(),
+                u32::MAX,
+            );
+        }
+        let _ = exited.send(HostEvent::Eof);
+    });
     let worker = Worker::new(
         options.data_dir.join("commands.json"),
         config::specs_dir(&settings, options.config_path.as_deref()),
@@ -524,7 +552,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 return Ok(status.code().unwrap_or(1) as u32);
             }
             let event = if ready {
-                rx.recv_timeout(Duration::from_millis(100)).ok()
+                rx.recv().ok()
             } else {
                 match pipe.read_json() {
                     Ok(value) => Some(HostEvent::DirectMessage(value, Instant::now())),
@@ -567,6 +595,24 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         }
                     }
                     match value["event"].as_str() {
+                        Some("trace_point") if ready && trace.enabled() => {
+                            let stage = match value["stage"].as_str() {
+                                Some("editor_confirmed") => "editor_confirmed",
+                                Some("editor_refresh_enter") => "editor_refresh_enter",
+                                Some("editor_menu_written") => "editor_menu_written",
+                                Some("editor_frame_received") => "editor_frame_received",
+                                Some("direct_script_enter") => "direct_script_enter",
+                                Some("direct_module_loaded") => "direct_module_loaded",
+                                Some("direct_assembly_loaded") => "direct_assembly_loaded",
+                                _ => bail!("unknown direct timestamp phase"),
+                            };
+                            trace.point(
+                                stage,
+                                value["revision"].as_u64(),
+                                value["frame_id"].as_u64(),
+                                value["qpc"].as_i64().context("missing QPC timestamp")?,
+                            );
+                        }
                         Some("trace") if ready && trace.enabled() => {
                             let stage = match value["stage"].as_str() {
                                 Some("direct_binding_snapshot") => "direct_binding_snapshot",
@@ -584,6 +630,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     "direct_confirmed_query_send"
                                 }
                                 Some("direct_console_menu_output") => "direct_console_menu_output",
+                                Some("direct_frame_to_paint") => "direct_frame_to_paint",
                                 _ => bail!("unknown numeric direct trace phase"),
                             };
                             trace.event(
@@ -592,6 +639,9 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 value["duration_us"].as_u64().map(Duration::from_micros),
                                 value["count"].as_u64().map(|count| count as usize),
                             );
+                            if stage == "direct_readline_begin" {
+                                trace.flush();
+                            }
                         }
                         Some("hello") => {
                             ensure!(
@@ -602,26 +652,23 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 "invalid capability negotiation"
                             );
                             ready = true;
+                            if trace.enabled() {
+                                trace.point(
+                                    "direct_hello",
+                                    None,
+                                    None,
+                                    crate::latency_layers::qpc()?,
+                                );
+                            }
                             let mut reader = pipe.receiver()?;
-                            let timer = ReceiveTimer::new()?;
                             let received_tx = tx.clone();
                             thread::spawn(move || {
-                                loop {
-                                    match reader.read_json() {
-                                        Ok((value, arrived)) => {
-                                            if received_tx
-                                                .send(HostEvent::DirectMessage(value, arrived))
-                                                .is_err()
-                                            {
-                                                return;
-                                            }
-                                        }
-                                        Err(error)
-                                            if error.kind() == std::io::ErrorKind::WouldBlock =>
-                                        {
-                                            timer.wait()
-                                        }
-                                        Err(_) => break,
+                                while let Ok((value, arrived)) = reader.read_json() {
+                                    if received_tx
+                                        .send(HostEvent::DirectMessage(value, arrived))
+                                        .is_err()
+                                    {
+                                        return;
                                     }
                                 }
                                 let _ = received_tx.send(HostEvent::Eof);
@@ -643,6 +690,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             pipe.write_json(&json!({"kind":"hello","token":token,"protocol":1,"host_mode":"direct","transport":"pipe","capabilities":capabilities}))?;
                             automatic = value["automatic_menu"] == true;
                             adapter_status = json!({"shell_version":value["shell_version"],"psreadline_version":value["psreadline"],
+                            "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],
                             "transport":"pipe","host_mode":"direct","automatic_menu":automatic && settings.completion.auto_trigger,
                             "disabled_reason":if automatic && !settings.completion.auto_trigger {json!("completion.auto_trigger is disabled")} else {value["disabled_reason"].clone()}});
                             status_writer.update(adapter_status.clone());
@@ -853,7 +901,23 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         frame["lines"].as_array().map(Vec::len),
                     );
                     let output = Instant::now();
+                    if trace.enabled() {
+                        trace.point(
+                            "direct_frame_ready",
+                            Some(*revision),
+                            frame["frame_id"].as_u64(),
+                            crate::latency_layers::qpc()?,
+                        );
+                    }
                     pipe.write_json(&frame)?;
+                    if trace.enabled() {
+                        trace.point(
+                            "direct_frame_sent",
+                            Some(*revision),
+                            frame["frame_id"].as_u64(),
+                            crate::latency_layers::qpc()?,
+                        );
+                    }
                     trace.event(
                         "direct_frame_written",
                         Some(*revision),
@@ -887,9 +951,6 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 } else if matches!(event, HostEvent::CommandsChanged) && session.ui.is_some() {
                     pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                 }
-            }
-            if !ready {
-                thread::sleep(Duration::from_millis(1));
             }
         }
     })();

@@ -1,5 +1,27 @@
 # PowerShell adapter
 
+The default host remains `nested`. The experimental `run --host-mode direct`
+uses a session-private PSReadLine 2.0.0 or 2.4.5 module when available.
+`--psreadline-version auto|2.0.0|2.4.5` is direct-only; `auto` follows supported
+module discovery. The private module search root is set before child launch
+and removed from the session's exported search path after initialization.
+An already loaded assembly is never forcibly replaced. Interface or DLL
+identity mismatches report a compatibility fallback, which is ineligible for
+direct performance qualification.
+
+The version 1 editor integration calls the bridge after native editing, and
+wakes the editor's outer wait with an event when a result is ready. There are
+no ordinary-character bindings, full binding scans, PowerShell refresh events,
+or synchronous typing waits in this path. Buffer reads, edits and menu writes
+stay on the editor thread. Nested key reads preserve search/chord/numeric
+argument behavior. Completed key queues drain without repeatedly waking the
+native input reader; cancellation and editor session boundaries remain checked.
+
+Build and interface details are in [the private editor manifest](../vendor/psreadline/README.md).
+`doctor --json` records the active version, patch, DLL SHA-256, integration mode
+and fallback reason. Its build identity also lists both embedded module payloads.
+The following sections describe the existing nested compatibility adapter.
+
 `shell/integration.ps1` is dot sourced by the one PowerShell process owned by
 blueberry. A normal launch keeps the user's profile enabled and then runs:
 

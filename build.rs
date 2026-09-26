@@ -732,11 +732,70 @@ fn embed_direct_bridge() {
     );
 }
 
+#[cfg(windows)]
+fn embed_private_editor() {
+    use sha2::{Digest, Sha256};
+    let mut digest = Sha256::new();
+    for path in [
+        "scripts/prepare-editor.py",
+        "vendor/psreadline/EditorIntegration.cs",
+        "vendor/psreadline/patches/2.0.0.patch",
+        "vendor/psreadline/patches/2.4.5.patch",
+        "vendor/psreadline/upstream.json",
+    ] {
+        println!("cargo:rerun-if-changed={path}");
+        digest.update(path.as_bytes());
+        digest.update([0]);
+        digest.update(fs::read(path).expect("private editor build input"));
+    }
+    let manifest_path = PathBuf::from("target/private-editor/manifest.json");
+    println!("cargo:rerun-if-changed={}", manifest_path.display());
+    let manifest: serde_json::Value = serde_json::from_slice(&fs::read(&manifest_path).expect(
+        "Prepare private PSReadLine first: python scripts/prepare-editor.py (requires .NET SDK 8)",
+    ))
+    .expect("private editor build manifest");
+    assert_eq!(
+        manifest["source_sha256"].as_str(),
+        Some(format!("{:x}", digest.finalize()).as_str()),
+        "Private editor sources changed; rerun python scripts/prepare-editor.py"
+    );
+    let mut generated = String::from("pub const EDITOR_FILES: &[(&str, &str, &[u8], &str)] = &[\n");
+    for module in manifest["modules"].as_array().expect("editor modules") {
+        let version = module["version"].as_str().expect("editor version");
+        let root = PathBuf::from(module["root"].as_str().expect("editor root"));
+        for file in module["files"].as_array().expect("editor files") {
+            let relative = file["path"].as_str().expect("editor file name");
+            let path = root.join(relative);
+            let hash = format!(
+                "{:x}",
+                Sha256::digest(fs::read(&path).expect("editor asset"))
+            );
+            assert_eq!(
+                file["sha256"].as_str(),
+                Some(hash.as_str()),
+                "Private editor asset changed"
+            );
+            println!("cargo:rerun-if-changed={}", path.display());
+            writeln!(
+                generated,
+                "({version:?}, {relative:?}, include_bytes!({:?}), {hash:?}),",
+                path.to_string_lossy()
+            )
+            .unwrap();
+        }
+    }
+    generated.push_str("];\n");
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
+    fs::write(output.join("private_editor.rs"), generated).expect("embed private editor");
+}
+
 fn main() {
     #[cfg(windows)]
     embed_legacy_json();
     #[cfg(windows)]
     embed_direct_bridge();
+    #[cfg(windows)]
+    embed_private_editor();
     println!("cargo:rerun-if-changed=.git/HEAD");
     // HEAD contains a symbolic ref on normal checkouts, so committing on the
     // same branch does not change it. Resolve Git's paths for worktrees too.

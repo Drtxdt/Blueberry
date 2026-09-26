@@ -229,6 +229,24 @@ foreach ($package in $packages) {
     $sections.Add('')
 }
 
+foreach ($dependency in @('PSReadLine 2.0.0 / 2.4.5 (session-private patches)', 'Microsoft.PowerShell.Pager 1.0.0')) {
+    $sections.Add("[$dependency]")
+    if ($dependency.StartsWith('PSReadLine')) {
+        $sections.Add('source: https://github.com/PowerShell/PSReadLine; pinned commits: vendor/psreadline/upstream.json')
+        $sections.Add((Get-SafeText -Path (Join-Path $repoRoot 'vendor/psreadline/LICENSE.txt')))
+    } else {
+        $sections.Add('source: https://github.com/PowerShell/PSPager; NuGet Microsoft.PowerShell.Pager 1.0.0')
+        $sections.Add((Get-SafeText -Path (Join-Path $repoRoot 'vendor/psreadline/PAGER-LICENSE.txt')))
+    }
+    $sections.Add('')
+}
+
+$sections.Add('[System.Runtime.InteropServices.RuntimeInformation 4.3.0]')
+$sections.Add('source: NuGet System.Runtime.InteropServices.RuntimeInformation 4.3.0; upstream PSReadLine 2.0.0 runtime dependency')
+$sections.Add((Get-SafeText -Path (Join-Path $repoRoot 'vendor/psreadline/RUNTIME-LICENSE.txt')))
+$sections.Add((Get-SafeText -Path (Join-Path $repoRoot 'vendor/psreadline/RUNTIME-NOTICES.txt')))
+$sections.Add('')
+
 if ($missing.Count -gt 0) {
     $sections.Add('MISSING LICENSE TEXT')
     $sections.Add('=====================')

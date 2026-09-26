@@ -17,8 +17,10 @@ use std::{
 
 pub struct Harness {
     session: pty::Session,
-    receive: mpsc::Receiver<(Vec<u8>, Instant)>,
+    receive: mpsc::Receiver<(Vec<u8>, Instant, Option<i64>)>,
     last_output_arrival: Option<Instant>,
+    last_output_qpc: Option<i64>,
+    diagnostic: bool,
     decoder: Decoder,
     messages: VecDeque<Value>,
     screen: vt100::Parser,
@@ -29,6 +31,12 @@ pub struct Harness {
 }
 
 impl Harness {
+    pub fn last_output_qpc(&self) -> Option<i64> {
+        self.last_output_qpc
+    }
+    pub fn diagnostic(&self) -> bool {
+        self.diagnostic
+    }
     pub fn start(
         program: &Path,
         args: &[String],
@@ -39,11 +47,21 @@ impl Harness {
         let mut session = pty::spawn(program, args, cwd, env, 30, 120)?;
         let mut reader = std::mem::replace(&mut session.reader, Box::new(std::io::empty()));
         let (send, receive) = mpsc::channel();
+        let diagnostic = args.iter().any(|arg| arg == "--trace")
+            || env.get("BLUEBERRY_PROBE_QPC").is_some_and(|v| v == "1");
         thread::spawn(move || {
             let mut buffer = [0u8; 16384];
             while let Ok(n) = reader.read(&mut buffer) {
                 let arrived = Instant::now();
-                if n == 0 || send.send((buffer[..n].to_vec(), arrived)).is_err() {
+                #[cfg(windows)]
+                let qpc = if diagnostic {
+                    crate::latency_layers::qpc().ok()
+                } else {
+                    None
+                };
+                #[cfg(not(windows))]
+                let qpc = None;
+                if n == 0 || send.send((buffer[..n].to_vec(), arrived, qpc)).is_err() {
                     break;
                 }
             }
@@ -59,6 +77,8 @@ impl Harness {
             known_empty_buffer: false,
             last_capabilities: None,
             last_output_arrival: None,
+            last_output_qpc: None,
+            diagnostic,
         })
     }
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {
@@ -68,7 +88,7 @@ impl Harness {
         Ok(())
     }
     pub fn pump(&mut self, timeout: Duration) -> Result<()> {
-        let (bytes, arrived) = self.receive.recv_timeout(timeout).with_context(|| {
+        let (bytes, arrived, qpc) = self.receive.recv_timeout(timeout).with_context(|| {
             format!(
                 "PTY timeout/closed. Screen: {}; raw tail: {:?}",
                 self.screen.screen().contents(),
@@ -79,6 +99,7 @@ impl Harness {
             match part {
                 Part::Data(data) => {
                     self.last_output_arrival = Some(arrived);
+                    self.last_output_qpc = qpc;
                     self.trace.extend_from_slice(&data);
                     if self.trace.len() > 4096 {
                         self.trace.drain(..self.trace.len() - 4096);

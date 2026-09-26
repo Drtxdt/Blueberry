@@ -3,8 +3,8 @@
 //! The OSC protocol remains the default transport.  This module deliberately
 //! exposes a small, synchronous API so the host can keep its existing event
 //! loop and ordering barriers: nested I/O completes immediately or reports
-//! `WouldBlock`. The direct host uses a dedicated receiver with a high
-//! resolution waitable timer. Dropping either endpoint disconnects the pipe.
+//! `WouldBlock`. The direct host uses overlapped I/O and a dedicated blocking
+//! receiver; disconnect cancels pending operations and releases their waits.
 
 use serde_json::Value;
 use std::io;
@@ -23,6 +23,7 @@ mod windows_pipe {
     const MAX_FRAME_BYTES: usize = 1024 * 1024;
     const PIPE_ACCESS_DUPLEX: u32 = 0x0000_0003;
     const FILE_FLAG_FIRST_PIPE_INSTANCE: u32 = 0x0008_0000;
+    const FILE_FLAG_OVERLAPPED: u32 = 0x4000_0000;
     const PIPE_TYPE_MESSAGE: u32 = 0x0000_0004;
     const PIPE_READMODE_MESSAGE: u32 = 0x0000_0002;
     const PIPE_NOWAIT: u32 = 0x0000_0001;
@@ -41,6 +42,53 @@ mod windows_pipe {
     const INVALID_HANDLE_VALUE: RawHandle = -1isize as RawHandle;
 
     type Bool = i32;
+
+    // The OVERLAPPED and event remain alive until completion, including after
+    // timeout cancellation. Reads and writes use separate events and therefore
+    // cannot serialize each other on a synchronous duplex handle.
+    fn overlapped_io(
+        handle: RawHandle,
+        timeout: u32,
+        operation: impl FnOnce(*mut c_void) -> Bool,
+    ) -> io::Result<u32> {
+        use windows_sys::Win32::System::{
+            IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED},
+            Threading::{CreateEventW, WaitForSingleObject},
+        };
+        let raw = unsafe { CreateEventW(ptr::null(), 1, 0, ptr::null()) };
+        if raw.is_null() {
+            return Err(last_error());
+        }
+        let event = unsafe { OwnedHandle::from_raw_handle(raw) };
+        let mut overlapped: OVERLAPPED = unsafe { mem::zeroed() };
+        overlapped.hEvent = event.as_raw_handle();
+        let started = operation((&mut overlapped as *mut OVERLAPPED).cast());
+        if started == 0 {
+            let code = unsafe { GetLastError() };
+            if code != 997 {
+                return Err(error_with_code(code));
+            }
+            let wait = unsafe { WaitForSingleObject(event.as_raw_handle(), timeout) };
+            if wait != 0 {
+                let error = if wait == 258 {
+                    Error::new(ErrorKind::TimedOut, "named-pipe I/O timed out")
+                } else {
+                    last_error()
+                };
+                unsafe {
+                    CancelIoEx(handle, &overlapped);
+                    let mut ignored = 0;
+                    GetOverlappedResult(handle, &overlapped, &mut ignored, 1);
+                }
+                return Err(error);
+            }
+        }
+        let mut transferred = 0;
+        if unsafe { GetOverlappedResult(handle, &overlapped, &mut transferred, 0) } == 0 {
+            return Err(last_error());
+        }
+        Ok(transferred)
+    }
 
     #[repr(C)]
     struct SecurityAttributes {
@@ -268,6 +316,9 @@ mod windows_pipe {
         handle: Option<OwnedHandle>,
         expected_client_pid: Option<u32>,
         connected: bool,
+        overlapped: bool,
+        read_buffer: Vec<u8>,
+        read_timeout: u32,
     }
 
     /// Isolated receiver with the same frame bounds and PID validation as the
@@ -282,18 +333,28 @@ mod windows_pipe {
 
     impl PipeServer {
         pub fn new() -> io::Result<Self> {
+            Self::create(false)
+        }
+
+        pub fn new_direct() -> io::Result<Self> {
+            Self::create(true)
+        }
+
+        fn create(overlapped: bool) -> io::Result<Self> {
             let name = format!("blueberry-{}", uuid::Uuid::new_v4().simple());
             let full_name = format!(r"\\.\pipe\{name}");
             let name_wide = wide_z(&full_name);
             let security = SecurityDescriptor::for_current_user()?;
             let pipe_mode = PIPE_TYPE_MESSAGE
                 | PIPE_READMODE_MESSAGE
-                | PIPE_NOWAIT
+                | if overlapped { 0 } else { PIPE_NOWAIT }
                 | PIPE_REJECT_REMOTE_CLIENTS;
             let handle = unsafe {
                 CreateNamedPipeW(
                     name_wide.as_ptr(),
-                    PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE,
+                    PIPE_ACCESS_DUPLEX
+                        | FILE_FLAG_FIRST_PIPE_INSTANCE
+                        | if overlapped { FILE_FLAG_OVERLAPPED } else { 0 },
                     pipe_mode,
                     1,
                     MAX_FRAME_BYTES as u32,
@@ -312,6 +373,9 @@ mod windows_pipe {
                 handle: Some(handle),
                 expected_client_pid: None,
                 connected: false,
+                overlapped,
+                read_buffer: Vec::new(),
+                read_timeout: 5000,
             })
         }
 
@@ -338,6 +402,9 @@ mod windows_pipe {
                 handle: Some(owned),
                 expected_client_pid: self.expected_client_pid,
                 connected: true,
+                overlapped: self.overlapped,
+                read_buffer: Vec::new(),
+                read_timeout: u32::MAX,
             }))
         }
 
@@ -347,6 +414,14 @@ mod windows_pipe {
         /// stream.
         pub fn disable(&mut self) {
             if let Some(handle) = self.handle.take() {
+                if self.overlapped {
+                    unsafe {
+                        windows_sys::Win32::System::IO::CancelIoEx(
+                            handle.as_raw_handle(),
+                            ptr::null(),
+                        );
+                    }
+                }
                 if self.connected {
                     unsafe {
                         DisconnectNamedPipe(handle.as_raw_handle());
@@ -390,25 +465,37 @@ mod windows_pipe {
             })?;
 
             if !self.connected {
-                let ok = unsafe { ConnectNamedPipe(handle, ptr::null_mut()) };
-                if ok != 0 {
-                    self.connected = true;
-                } else {
-                    match unsafe { GetLastError() } {
-                        ERROR_PIPE_CONNECTED => self.connected = true,
-                        ERROR_PIPE_LISTENING | ERROR_NO_DATA => {
-                            // A nonblocking listener has no client yet.  A
-                            // client can connect between this call and the
-                            // next event-loop turn.
-                            if self.client_pid(handle)?.is_none() {
-                                return Err(Error::new(
-                                    ErrorKind::WouldBlock,
-                                    "named pipe has no connected client",
-                                ));
-                            }
-                            self.connected = true;
+                if self.overlapped {
+                    match overlapped_io(handle, 5000, |operation| unsafe {
+                        ConnectNamedPipe(handle, operation)
+                    }) {
+                        Ok(_) => self.connected = true,
+                        Err(error) if error.raw_os_error() == Some(ERROR_PIPE_CONNECTED as i32) => {
+                            self.connected = true
                         }
-                        _ => return Err(last_error()),
+                        Err(error) => return Err(error),
+                    }
+                } else {
+                    let ok = unsafe { ConnectNamedPipe(handle, ptr::null_mut()) };
+                    if ok != 0 {
+                        self.connected = true;
+                    } else {
+                        match unsafe { GetLastError() } {
+                            ERROR_PIPE_CONNECTED => self.connected = true,
+                            ERROR_PIPE_LISTENING | ERROR_NO_DATA => {
+                                // A nonblocking listener has no client yet.  A
+                                // client can connect between this call and the
+                                // next event-loop turn.
+                                if self.client_pid(handle)?.is_none() {
+                                    return Err(Error::new(
+                                        ErrorKind::WouldBlock,
+                                        "named pipe has no connected client",
+                                    ));
+                                }
+                                self.connected = true;
+                            }
+                            _ => return Err(last_error()),
+                        }
                     }
                 }
             }
@@ -444,6 +531,30 @@ mod windows_pipe {
 
         fn read_json_timed(&mut self) -> io::Result<(Value, std::time::Instant)> {
             let handle = self.ensure_connection()?;
+            if self.overlapped {
+                let mut buffer = mem::take(&mut self.read_buffer);
+                buffer.resize(MAX_FRAME_BYTES, 0);
+                let read = overlapped_io(handle, self.read_timeout, |operation| unsafe {
+                    ReadFile(
+                        handle,
+                        buffer.as_mut_ptr().cast(),
+                        buffer.len() as u32,
+                        ptr::null_mut(),
+                        operation,
+                    )
+                });
+                let arrived = std::time::Instant::now();
+                let result = read.and_then(|read| {
+                    if read == 0 {
+                        return Err(Error::new(ErrorKind::UnexpectedEof, "pipe closed"));
+                    }
+                    serde_json::from_slice(&buffer[..read as usize])
+                        .map(|value| (value, arrived))
+                        .map_err(|error| Error::new(ErrorKind::InvalidData, error))
+                });
+                self.read_buffer = buffer;
+                return result;
+            }
             let mut total_available = 0u32;
             let mut bytes_left = 0u32;
             let ok = unsafe {
@@ -548,6 +659,22 @@ mod windows_pipe {
                 ));
             }
             let handle = self.ensure_connection()?;
+            if self.overlapped {
+                let written = overlapped_io(handle, 5000, |operation| unsafe {
+                    WriteFile(
+                        handle,
+                        frame.as_ptr().cast(),
+                        frame.len() as u32,
+                        ptr::null_mut(),
+                        operation,
+                    )
+                })?;
+                return if written as usize == frame.len() {
+                    Ok(())
+                } else {
+                    Err(Error::new(ErrorKind::WriteZero, "partial pipe frame"))
+                };
+            }
             let mut written = 0u32;
             let ok = unsafe {
                 WriteFile(
@@ -610,6 +737,41 @@ mod windows_pipe {
             let _client = connect(server.name());
             let error = server.read_json().expect_err("wrong PID must be rejected");
             assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+        }
+
+        #[test]
+        fn direct_pending_read_does_not_block_duplex_writes() {
+            let mut server = PipeServer::new_direct().unwrap();
+            server.set_client_pid(std::process::id());
+            let mut client = connect(server.name());
+            client.write_all(b"{\"hello\":true}\n").unwrap();
+            assert_eq!(server.read_json().unwrap()["hello"], true);
+            let mut receiver = server.receiver().unwrap();
+            let read = thread::spawn(move || receiver.read_json());
+            server
+                .write_json(&serde_json::json!({"duplex":true}))
+                .unwrap();
+            let mut bytes = [0u8; 128];
+            let count = client.read(&mut bytes).unwrap();
+            assert_eq!(
+                serde_json::from_slice::<Value>(&bytes[..count]).unwrap()["duplex"],
+                true
+            );
+            client.write_all(b"{\"reply\":true}\n").unwrap();
+            assert_eq!(read.join().unwrap().unwrap().0["reply"], true);
+        }
+
+        #[test]
+        fn direct_disconnect_releases_pending_read() {
+            let mut server = PipeServer::new_direct().unwrap();
+            server.set_client_pid(std::process::id());
+            let mut client = connect(server.name());
+            client.write_all(b"{}\n").unwrap();
+            server.read_json().unwrap();
+            let mut receiver = server.receiver().unwrap();
+            let read = thread::spawn(move || receiver.read_json());
+            server.disable();
+            assert!(read.join().unwrap().is_err());
         }
 
         #[test]

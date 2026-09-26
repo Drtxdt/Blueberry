@@ -1,0 +1,80 @@
+--- a/PSReadLine/ReadLine.cs
++++ b/PSReadLine/ReadLine.cs
+@@ -167,8 +167,11 @@
+             }
+         }
+ 
+-        internal static PSKeyInfo ReadKey()
+-        {
++        internal static PSKeyInfo ReadKey(bool editorSafePoint = false)
++        {
++            if (editorSafePoint && _singleton.EditorHasQueuedKey())
++                return _singleton._queuedKeys.Dequeue();
++
+             // Reading a key is handled on a different thread.  During process shutdown,
+             // PowerShell will wait in it's ConsoleCtrlHandler until the pipeline has completed.
+             // If we're running, we're most likely blocked waiting for user input.
+@@ -184,6 +187,7 @@
+             // First, set an event so the thread to read a key actually attempts to read a key.
+             _singleton._readKeyWaitHandle.Set();
+ 
++            var editorWaitHandles = _singleton.EditorWaitHandles(editorSafePoint);
+             int handleId;
+             System.Management.Automation.PowerShell ps = null;
+ 
+@@ -197,7 +201,12 @@
+                     //   - 300ms - to process events if we're idle
+                     //   - processing of events is requested externally
+                     //   - ReadLine cancellation is requested externally
+-                    handleId = WaitHandle.WaitAny(_singleton._requestKeyWaitHandles, 300);
++                    handleId = WaitHandle.WaitAny(editorWaitHandles, 300);
++                    if (handleId == _singleton._requestKeyWaitHandles.Length)
++                    {
++                        _singleton.EditorRefresh();
++                        continue;
++                    }
+                     if (handleId != WaitHandle.WaitTimeout && handleId != EventProcessingRequested)
+                         break;
+ 
+@@ -237,12 +246,14 @@
+                             // and rerender if so.
+                             var console = _singleton._console;
+                             var y = console.CursorTop;
++                            _singleton.EditorBeforeEvent(editorSafePoint);
+                             ps.Invoke();
+                             if (y != console.CursorTop)
+                             {
+                                 _singleton._initialY = console.CursorTop;
+                                 _singleton.Render();
+                             }
++                            if (editorSafePoint) _singleton.EditorAfterKey();
+                         }
+                     }
+                 }
+@@ -361,7 +372,7 @@
+ 
+                     _singleton._cancelReadCancellationToken = cancellationToken;
+                     _singleton._requestKeyWaitHandles[2] = _singleton._cancelReadCancellationToken.WaitHandle;
+-                    return _singleton.InputLoop();
++                    return _singleton.ReadLineWithEditorIntegration();
+                 }
+                 catch (OperationCanceledException)
+                 {
+@@ -480,7 +491,8 @@
+                 var moveToLineCommandCount = _moveToLineCommandCount;
+                 var moveToEndOfLineCommandCount = _moveToEndOfLineCommandCount;
+ 
+-                var key = ReadKey();
++                var key = ReadKey(editorSafePoint: true);
++                if (EditorProcessKey(key)) continue;
+                 ProcessOneKey(key, _dispatchTable, ignoreIfNoAction: false, arg: null);
+                 if (_inputAccepted)
+                 {
+@@ -552,6 +564,7 @@
+                         _moveToLineDesiredColumn = -1;
+                     }
+                 }
++                EditorAfterKey();
+             }
+         }
+ 

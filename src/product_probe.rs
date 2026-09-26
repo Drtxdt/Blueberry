@@ -239,7 +239,36 @@ fn measure(
             shell_metadata(screen).is_some()
         })?;
         let contents = harness.viewport_contents();
-        let status = shell_metadata(&contents).context("missing complete plain metadata")?;
+        let mut status = shell_metadata(&contents).context("missing complete plain metadata")?;
+        // Collect the actually loaded assembly after all timed observations.
+        // Windows inbox modules can share a version label with a different
+        // upstream binary, so the label alone is not a reproducible baseline.
+        let metadata_path = directory.join("plain-editor.txt");
+        let command = format!(
+            "[IO.File]::WriteAllLines('{}', [string[]]@((Get-Module PSReadLine).Path,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.FullName,[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes([Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location))).Replace('-',''))); Write-Output 'BB_PLAIN_IDENTITY_DONE'\r",
+            metadata_path.to_string_lossy().replace('\'', "''")
+        );
+        harness.send(command.as_bytes())?;
+        wait(&mut harness, "plain assembly identity", |screen| {
+            screen
+                .lines()
+                .any(|line| line.trim() == "BB_PLAIN_IDENTITY_DONE")
+        })?;
+        let metadata = std::fs::read_to_string(&metadata_path).with_context(|| {
+            format!(
+                "read plain identity {}: {}",
+                metadata_path.display(),
+                harness.viewport_contents()
+            )
+        })?;
+        let fields = metadata.lines().collect::<Vec<_>>();
+        ensure!(
+            fields.len() == 4
+                && fields[3].len() == 64
+                && fields[3].bytes().all(|b| b.is_ascii_hexdigit()),
+            "invalid plain DLL identity"
+        );
+        status["editor"] = json!({"module_path":fields[0],"dll_path":fields[1],"assembly":fields[2],"dll_sha256":fields[3]});
         harness.finish(TIMEOUT)?;
         (None, None, status)
     };
@@ -267,9 +296,13 @@ pub fn run_with_trace(
         "invalid product probe options"
     );
     let frozen = environment(shell)?;
-    if let Some(path) = trace_directory {
-        std::fs::create_dir_all(path)?;
-    }
+    let trace_path = trace_directory
+        .map(|path| {
+            std::fs::create_dir_all(path)?;
+            std::fs::canonicalize(path)
+        })
+        .transpose()?;
+    let trace_directory = trace_path.as_deref();
     let identity = metrics::build_identity(executable)?;
     let executable_hash = metrics::executable_sha256(executable)?;
     let root =
@@ -286,6 +319,8 @@ pub fn run_with_trace(
     let mut transports = Vec::new();
     let mut hosts = Vec::new();
     let mut automatic_menus = Vec::new();
+    let mut editors = Vec::new();
+    let mut plain_editors = Vec::new();
     let mut orders = Vec::new();
     for index in 0..iterations {
         let directory = root.join(format!("pair-{index}"));
@@ -320,6 +355,13 @@ pub fn run_with_trace(
         }
         let baseline = baseline.unwrap();
         let product = product.unwrap();
+        if let Some(first) = plain_editors.first() {
+            ensure!(
+                first == &baseline.status["editor"],
+                "plain editor identity changed during batch"
+            );
+        }
+        plain_editors.push(baseline.status["editor"].clone());
         ensure!(
             baseline.status["shell_version"] == product.status["shell_version"],
             "paired Shell versions differ: plain={}, candidate={}",
@@ -347,6 +389,8 @@ pub fn run_with_trace(
         transports.push(product.status["transport"].clone());
         hosts.push(product.status["host_mode"].clone());
         automatic_menus.push(product.status["automatic_menu"].clone());
+        editors.push(json!({"mode":product.status["editor_mode"],"patch":product.status["editor_patch"],
+            "dll_sha256":product.status["editor_dll_sha256"],"fallback_reason":product.status["editor_fallback_reason"]}));
     }
     ensure!(
         environment(shell)? == frozen,
@@ -368,11 +412,14 @@ pub fn run_with_trace(
         "startup_orders":orders,"plain_first_input":stats(&plain),"candidate_first_input":stats(&candidate),
         "paired_first_input_delta":stats(&delta),"first_key_echo":stats(&keys),"first_static_candidate":stats(&static_menus),
         "first_dynamic_candidate":stats(&dynamic_menus),"shell_versions":shells,"psreadline_versions":psreadline,
-        "actual_transports":transports,"actual_host_modes":hosts,"actual_automatic_menu":automatic_menus});
+        "actual_transports":transports,"actual_host_modes":hosts,"actual_automatic_menu":automatic_menus,
+        "editors":editors,"private_editors":identity["private_editors"],
+        "editor_eligible":host_mode!="direct" || editors.iter().all(|editor|editor["mode"]=="editor_hooks_v1")});
     report
         .as_object_mut()
         .unwrap()
         .extend(frozen.as_object().unwrap().clone());
+    report["plain_editors"] = json!(plain_editors);
     Ok(report)
 }
 

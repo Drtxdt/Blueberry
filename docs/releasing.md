@@ -16,6 +16,7 @@ GitHub 仓库存放源码；Release 存放用户下载的程序。CI 为已冻�
 
 ```powershell
 cargo update --offline --package blueberry
+python scripts/prepare-editor.py
 cargo build --release --locked
 ```
 
@@ -61,6 +62,7 @@ git push origin v0.5.0-beta.7
 ## 本地打包
 
 ```powershell
+python scripts/prepare-editor.py
 cargo build --release --locked
 .\scripts\licenses.ps1 -OutputPath .\THIRD-PARTY-NOTICES.txt
 .\scripts\release.ps1 -ExePath .\target\release\blueberry.exe -Version 0.5.0-beta.7 -OutputDirectory .\dist\release
@@ -81,3 +83,19 @@ cargo build --release --locked
 本机通过和远程 Actions 通过分别记录；CI 徽章链接到真实工作流结果。
 
 发布界面操作见 [GitHub 发布说明](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)。运行器配置参照 [GitHub runner 列表](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)，`macos-15` 使用 ARM64。
+
+## 私有编辑器候选矩阵
+
+本轮保留默认 nested。direct 候选与默认切换分别验收，不能用这次探索结果代替发布门槛。
+Windows 构建先执行 `scripts/prepare-editor.py`；上游提交、补丁、许可证和每个 DLL 摘要
+由私有编辑器构建清单管理，`doctor --json` 的 `build.private_editors` 随发布清单一起封存。
+
+`scripts/run-editor-matrix.ps1` 串行运行三个组合的启动与说明开／关热态矩阵；默认是
+10 对启动、每子组 30 个样本的探索。正式运行须指定 `-Formal -Samples 300 -StartupPairs 30`，
+提供 CI EXE、探针及两者期望 SHA-256，并指定原版 2.0.0 和 2.4.5 模块用于 plain 对照。
+脚本拒绝覆盖既有目录，保存原始样本与失败日志，任何降级或子组超标即阻断。
+原始数据目录由 `BLUEBERRY_BENCH_EVIDENCE` 控制；正式矩阵脚本自动设置并在结束后还原。
+诊断可用 `--diagnostic-trace-directory`，再由 `scripts/analyze-editor-trace.py` 关联 QPC 阶段，
+但启用 trace 的数据不能作为正式计时。
+
+自动矩阵不替代 Windows Terminal 的真实输入法、剪贴板、视觉、升级和回滚检查。

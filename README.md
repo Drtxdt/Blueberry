@@ -181,9 +181,11 @@ blueberry run --shell pwsh.exe
 
 ## 开发与测试
 
-构建需要 Rust 1.94 或更新版本：
+构建需要 Rust 1.94 或更新版本。Windows 还需要 Python 3、Git 和 .NET SDK 8.0.425，用于在构建阶段准备两条私有 PSReadLine 补丁线（产品启动时不编译）：
 
 ```powershell
+# Windows 首次构建，以及 vendor/psreadline 或准备脚本变更后执行
+python scripts/prepare-editor.py
 cargo build --release --locked
 .\scripts\verify-local.ps1 -Shell pwsh.exe
 ```

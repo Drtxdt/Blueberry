@@ -42,6 +42,17 @@ pub struct RunOptions {
     pub data_dir: PathBuf,
     pub trace_path: Option<PathBuf>,
     pub transport: Transport,
+    pub psreadline_version: PsReadLineVersion,
+}
+
+#[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
+pub enum PsReadLineVersion {
+    #[default]
+    Auto,
+    #[value(name = "2.0.0")]
+    V200,
+    #[value(name = "2.4.5")]
+    V245,
 }
 
 #[derive(Clone, Copy, Default, clap::ValueEnum)]
