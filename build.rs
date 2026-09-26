@@ -738,6 +738,41 @@ fn main() {
     #[cfg(windows)]
     embed_direct_bridge();
     println!("cargo:rerun-if-changed=.git/HEAD");
+    // HEAD contains a symbolic ref on normal checkouts, so committing on the
+    // same branch does not change it. Resolve Git's paths for worktrees too.
+    for name in ["HEAD", "index", "packed-refs"] {
+        if let Ok(output) = Command::new("git")
+            .args(["rev-parse", "--git-path", name])
+            .output()
+            && output.status.success()
+        {
+            println!(
+                "cargo:rerun-if-changed={}",
+                String::from_utf8_lossy(&output.stdout).trim()
+            );
+        }
+    }
+    if let Ok(output) = Command::new("git")
+        .args(["symbolic-ref", "-q", "HEAD"])
+        .output()
+        && output.status.success()
+        && let Ok(path) = Command::new("git")
+            .args([
+                "rev-parse",
+                "--git-path",
+                String::from_utf8_lossy(&output.stdout).trim(),
+            ])
+            .output()
+        && path.status.success()
+    {
+        println!(
+            "cargo:rerun-if-changed={}",
+            String::from_utf8_lossy(&path.stdout).trim()
+        );
+    }
+    for path in ["src", "shell", "Cargo.toml", "Cargo.lock"] {
+        println!("cargo:rerun-if-changed={path}");
+    }
     println!("cargo:rerun-if-env-changed=GITHUB_SHA");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
     let commit = env::var("GITHUB_SHA")

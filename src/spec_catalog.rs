@@ -583,6 +583,14 @@ impl Catalog {
                 aliases.insert(normalize_alias(spelling), alias.canonical.to_owned());
             }
         }
+        // Index every root, including tools without a declared alias. Unknown
+        // executables used to rescan and lowercase the whole node tree for
+        // every candidate during command metadata rendering.
+        for root in nodes.keys().filter(|path| !path.contains(' ')) {
+            aliases
+                .entry(normalize_alias(root))
+                .or_insert_with(|| root.clone());
+        }
         Self {
             nodes,
             aliases,
@@ -707,14 +715,7 @@ impl Catalog {
 
     pub fn canonical_command(&self, command: &str) -> Option<String> {
         let normalized = normalize_command(command);
-        if let Some(canonical) = self.aliases.get(&normalized) {
-            return Some(canonical.clone());
-        }
-        self.nodes
-            .keys()
-            .filter(|path| !path.contains(' '))
-            .find(|path| normalize_alias(path) == normalized)
-            .cloned()
+        self.aliases.get(&normalized).cloned()
     }
 
     /// Return the localized description for a root command or one of its
@@ -723,17 +724,7 @@ impl Catalog {
     /// static table.
     pub fn describe_command(&self, command: &str) -> Option<&str> {
         let normalized = normalize_command(command);
-        let canonical = self
-            .aliases
-            .get(&normalized)
-            .map(String::as_str)
-            .or_else(|| {
-                self.nodes
-                    .keys()
-                    .filter(|path| !path.contains(' '))
-                    .find(|path| normalize_alias(path) == normalized)
-                    .map(String::as_str)
-            })?;
+        let canonical = self.aliases.get(&normalized).map(String::as_str)?;
         self.nodes
             .get(canonical)
             .map(|node| node.description.as_str())

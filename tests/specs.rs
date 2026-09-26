@@ -652,3 +652,34 @@ fn builtin_examples_never_contain_generated_placeholders() {
     );
     assert!(!catalog.contains(" 示例\""));
 }
+
+#[test]
+fn root_lookup_indexes_tools_without_declared_aliases_and_keeps_case_behavior() {
+    let catalog = Catalog::builtin();
+    for root in catalog
+        .list()
+        .into_iter()
+        .filter(|entry| !entry.path.contains(' '))
+    {
+        assert_eq!(
+            catalog
+                .canonical_command(&root.path.to_ascii_uppercase())
+                .as_deref(),
+            Some(root.path.as_str())
+        );
+        assert_eq!(
+            catalog.describe_command(&root.path.to_ascii_uppercase()),
+            Some(root.description.as_str())
+        );
+    }
+    assert!(
+        catalog
+            .canonical_command("unknown-local-program.exe")
+            .is_none()
+    );
+    assert!(
+        catalog
+            .describe_command("unknown-local-program.exe")
+            .is_none()
+    );
+}

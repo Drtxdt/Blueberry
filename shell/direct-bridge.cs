@@ -159,14 +159,7 @@ namespace Blueberry.Direct {
                     wrappers.Add(hook);
                     register(new string[] { saved.Key }, hook, saved.Brief, saved.Description);
                 }
-                var characters = new List<string>();
-                for (int unit = 32; unit <= Char.MaxValue; unit++) {
-                    char ch = (char)unit;
-                    if (!Char.IsControl(ch) && !bound.Contains(ch.ToString())) characters.Add(ch.ToString());
-                }
-                Action<ConsoleKeyInfo?, object> insert = delegate(ConsoleKeyInfo? key, object arg) { Edit(selfInsert, key, arg); };
-                wrappers.Add(insert);
-                register(characters.ToArray(), insert, "SelfInsert", "Blueberry confirmed edit");
+                RegisterCharacters(bound);
                 Action<ConsoleKeyInfo?, object> hub = delegate(ConsoleKeyInfo? key, object arg) {
                     if (!AutomaticMenu || !editing) return;
                     Clear(); interaction = interaction == "completion" ? "hub" : "completion";
@@ -210,6 +203,19 @@ namespace Blueberry.Direct {
             TraceStage("direct_binding_snapshot",snapshotTicks,originals.Count);
             TraceStage("direct_binding_registration",registrationTicks,installed.Count);
             TraceStage("direct_bridge_initialization",Stopwatch.GetTimestamp()-initialization,installed.Count);
+        }
+        static void RegisterCharacters(HashSet<string> bound) {
+            var characters = new List<string>();
+            for (int unit = 32; unit <= Char.MaxValue; unit++) {
+                char ch = (char)unit;
+                // PSReadLine stores literal space as Spacebar. Do not overwrite
+                // the captured original action with the default SelfInsert hook.
+                if (!Char.IsControl(ch) && !bound.Contains(ch.ToString())
+                    && !(ch == ' ' && bound.Contains("Spacebar"))) characters.Add(ch.ToString());
+            }
+            Action<ConsoleKeyInfo?, object> insert = delegate(ConsoleKeyInfo? key, object arg) { Edit(selfInsert, key, arg); };
+            wrappers.Add(insert);
+            register(characters.ToArray(), insert, "SelfInsert", "Blueberry confirmed edit");
         }
         static void Disable(string reason) {
             enabled = false; DisabledReason = reason; Clear();

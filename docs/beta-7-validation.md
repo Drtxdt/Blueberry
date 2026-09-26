@@ -129,3 +129,28 @@
 最终本机单层三固定组合各 8 项通过；最新库 87 项通过，包括防止把版本命令回显误当作实际版本的新测试。高精度等待遵守响应预算后暴露的迟到刷新问题尚未收口；代码留在候选分支，默认仍是 nested，远程结果另行记录，不合并 main 或发布。
 
 提交前重跑剩余核心集，合计 172 项通过（87 库、4 CLI、3 收藏库进程、22 引擎、10 帮助知识、1 项目包 CLI、20 提供器、25 规格）。PS5.1／2.0.0 与 PS7／2.4.5 的嵌套 OSC／pipe 四组各 21 项通过，2 项按原设计 ignored；原生 Windows 11 鼠标仍交给专门 CI job。`cargo fmt --all`、Clippy 全 targets `-D warnings` 和 Python 21 项通过。另修正 doctor 在配置关闭 auto_trigger 时的状态与原因，单层测试验证真实会话状态；该诊断修正及观察探针解析测试在上述 DB5A 性能构建之后，未来正式 EXE 必须重测。
+
+## 43c41e5 之后：根命令索引与 main 集成授权
+
+候选已提交为 `43c41e597a149cc39277207b7a2b34f85030d4d1`，不再是未提交源码。用户随后明确要求“本地合并到 main 然后推送”，因此本轮将候选本地快进合并到 main 并推送以取得远程 CI；此授权只调整源码集成顺序，没有豁免性能、安装、Windows Terminal 人工验收、默认宿主切换或发布门槛。上述“不合并 main”描述保留为当时状态。默认继续 nested，版本继续候选，不创建 beta.7 标签。
+
+诊断发现 `Catalog::canonical_command`／`describe_command` 在未知入口上逐个扫描所有规格节点。命令索引中多个未知入口把 root 规划放大到约 11–20 ms。现在加载时将所有根命令加入同一规范化索引，保留显式别名优先级、大小写、用户覆盖和帮助学习语义；按键查询直接查索引。[独立 numeric trace](benchmarks/v0.5/beta7-direct-product-root-index-trace.jsonl) 中 root `completion_plan` 约 0.8–1.9 ms，完整候选计算约 1.1–2.4 ms。诊断样本不计入正式计时。
+
+本轮被测 EXE SHA-256 为 `2D1F182F2F406C83E604204C4C7D1D3F139B092DCCA21558944F325A7FFFE101`，实际源码为 `43c41e5` 加根索引未提交修改；EXE 的构建字段仍为 `59dd80f`／dirty，原因是 Cargo 只监控 `.git/HEAD`，同分支提交不改变该文件。本轮随后修正构建监控，覆盖实际 Git ref、packed-refs、index 和产品源码路径，支持 worktree。保留原始报告字段，不把这批带过期构建字段的本机探索提升为正式证据。
+
+关闭 trace、无并发编译的 PS7／PSReadLine 2.4.5 [完整产品 10 对](benchmarks/v0.5/beta7-direct-product-ps7-root-index-10.json)：启动增量 P50 **179.45 ms**，首键回显 P50 **37.44 ms**，首次静态完整菜单 P50 **45.70 ms**（上一批 367.57 ms），首次动态完整菜单 P50／P95 **16.47／30.35 ms**。启动仍失败。
+
+[同一 EXE 的热态 30 样本](benchmarks/v0.5/beta7-direct-hot-ps7-root-index-30.json) 保留十二组全部数组及慢样本；固定环境、实际 direct／pipe、说明开启。miss／hit 仍指会话命令索引缓存，OS 缓存没有清除。
+
+| 场景 | miss 完整菜单 P95 | hit 完整菜单 P95 |
+| --- | --- | --- |
+| root | 47.55 ms | 32.06 ms |
+| git | 46.92 ms | 47.33 ms |
+| cargo | 342.70 ms | 371.39 ms |
+| js | 46.92 ms | 47.12 ms |
+| path | 45.71 ms | 31.03 ms |
+| fuzzy | 35.85 ms | 41.14 ms |
+
+十二组仍失败，未扩大到 300 样本。多数 root／path／fuzzy 热态中位数已约 16 ms，但尾延迟和 cargo 迟到安全回调仍未收口；不能用中位数代替 P95，也不能用静态条目代替动态完成。
+
+另外修正字符批量注册覆盖原 `Spacebar` 绑定的风险，真实 PSReadLine API 回归证明预先绑定的 `ForwardChar` 不被改成 `SelfInsert`。该桥接修复和构建字段修复发生在被测 EXE 之后，之后的正式包必须重新测试。新增根索引行为回归后核心测试共 173 项；三个固定组合单层各 8 项通过，Clippy 全 targets `-D warnings`、格式检查及发布证据 Python 21 项通过；远程 CI 结果另记。
