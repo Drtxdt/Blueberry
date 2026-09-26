@@ -56,6 +56,22 @@ fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_lin
     )?;
     host.harness.send(b"\x1b[112;7u")?;
     select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    // Drain late ordinary completion/history replies before accepting. They
+    // must not replace the selected hub operation with a normal -p menu.
+    let until = Instant::now() + Duration::from_millis(400);
+    while Instant::now() < until {
+        if let Err(error) = host.harness.pump(Duration::from_millis(50))
+            && error.downcast_ref::<std::sync::mpsc::RecvTimeoutError>()
+                != Some(&std::sync::mpsc::RecvTimeoutError::Timeout)
+        {
+            return Err(error);
+        }
+        ensure!(
+            selected_candidate_line(&host.harness.viewport_contents())
+                .is_some_and(|line| candidate_line_has(line, "继续填写 Cargo 包")),
+            "late ordinary completion replaced the displayed hub operation"
+        );
+    }
     host.harness.send(b"\r")?;
     wait_until(
         &mut host.harness,
@@ -367,7 +383,7 @@ fn wait_until(
             bail!("timed out waiting for {description}; screen:\n{contents}");
         }
         harness
-            .pump(remaining.min(Duration::from_millis(500)))
+            .pump(remaining)
             .with_context(|| format!("while waiting for {description}"))?;
     }
 }
@@ -578,16 +594,21 @@ fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknow
         ("Write-Output '", "gi"),
         ("Write-Output \x60", "gi"),
     ] {
-        clear_line(&mut host.harness)?;
+        clear_line(&mut host.harness)
+            .with_context(|| format!("clear before continuation {prefix:?}"))?;
         host.harness.send(prefix.as_bytes())?;
         host.harness.send(b"\r")?;
-        let editing = host.harness.event("editing", PTY_TIMEOUT)?;
+        let editing = host
+            .harness
+            .event("editing", PTY_TIMEOUT)
+            .with_context(|| format!("enter continuation {prefix:?}"))?;
         ensure!(
             editing["state"] == "continuation",
             "Enter did not report a confirmed continuation: {editing}"
         );
         host.harness.send(tail.as_bytes())?;
-        let buffer = request_buffer(&mut host.harness, tail)?;
+        let buffer = request_buffer(&mut host.harness, tail)
+            .with_context(|| format!("confirm continuation {prefix:?} / {tail:?}"))?;
         let context = buffer["context"]
             .as_object()
             .with_context(|| format!("continuation omitted context: {buffer}"))?;
@@ -605,7 +626,8 @@ fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknow
                 .is_some_and(|value| value.ends_with(tail)),
             "continuation prefix did not reach the live cursor: {buffer}"
         );
-        cancel_to_prompt(&mut host.harness)?;
+        cancel_to_prompt(&mut host.harness)
+            .with_context(|| format!("cancel continuation {prefix:?}"))?;
     }
 
     // Here-string body text is intentionally opaque to the adapter.

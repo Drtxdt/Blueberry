@@ -1244,6 +1244,15 @@ impl State {
                 self.line = line.into();
                 self.cursor = cursor;
                 self.context = decode_context(line, &value["context"]);
+                if self.hub_query.is_some() {
+                    // A serialized editor response can arrive after the hub
+                    // opens. Keep its confirmed line, but never replace hub or
+                    // form entries with ordinary completion results.
+                    if self.hub_form.is_none() {
+                        self.refresh_hub();
+                    }
+                    return Ok(());
+                }
                 if self.interaction_mode == InteractionMode::Completion
                     && !self.dismissed
                     && (self.explicit
@@ -1540,6 +1549,7 @@ impl State {
         } else if self.dirty
             && self.ready
             && self.prompt
+            && self.hub_query.is_none()
             && self.pending_query.is_none()
             && self.native_request.is_none()
         {
@@ -2267,6 +2277,11 @@ impl State {
                 return Ok(());
             }
             Input::Hub if self.prompt && self.ready => {
+                self.dirty = false;
+                worker.update(|work| {
+                    work.cancel = true;
+                    work.query = None;
+                });
                 self.hub_query = Some(String::new());
                 self.hub_form = None;
                 self.history_pending = self.history_ready;
@@ -2745,6 +2760,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if revision == state.revision
                         && state.prompt
                         && !state.dismissed
+                        && state.hub_query.is_none()
                         && state.interaction_mode == InteractionMode::Completion
                         && !state.native_menu =>
                 {

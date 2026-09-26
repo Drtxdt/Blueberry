@@ -395,7 +395,7 @@ fn wait_until(
             bail!("timed out waiting for {description}; screen:\n{contents}");
         }
         harness
-            .pump(remaining.min(Duration::from_millis(500)))
+            .pump(remaining)
             .with_context(|| format!("while waiting for {description}"))?;
     }
 }
