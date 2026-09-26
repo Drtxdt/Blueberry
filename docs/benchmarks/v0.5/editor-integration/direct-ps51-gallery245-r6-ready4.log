@@ -1,0 +1,41 @@
+   Compiling blueberry v0.5.0-beta.7 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.68s
+     Running tests\direct_terminal.rs (target\debug\deps\direct_terminal-65fcc4fe878430b1.exe)
+
+running 14 tests
+test compiled_bridge_codec_runs_in_selected_shell ... ok
+test console_output_transport_experiment ... ignored, isolated output timing experiment; never part of acceptance
+Error: Unicode input lost
+test direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_keys ... FAILED
+test direct_dismiss_external_program_and_ctrl_c_restore_shell ... ok
+test direct_empty_line_cancels_menu_and_disabled_autotrigger_preserves_typing ... ok
+test direct_form_confirmation_precedes_immediately_following_typing ... ok
+test direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute ... ok
+test direct_late_frames_wake_editor_without_another_key_or_character_bindings ... FAILED
+Error: PTY timeout/closed. Screen: PS C:\Users\dell\AppData\Local\Temp\.tmpNwONhV> if ([Blueberry.Direct.Bridge]::EditorHooks -and @(Get-PSReadLineKeyHandler).Count -lt 1000) { Write-Output 'HOOKS-VERIFIED' }                                                                   HOOKS-VERIFIED                                                                                                          PS C:\Users\dell\AppData\Local\Temp\.tmpNwONhV>                                                                                                                                                                                                                                                                                                                         ; raw tail: "\u{1b}[?9001h\u{1b}[?1004h\u{1b}[m\u{1b}]0;E:\\OpenSource\\shellsense-rs\\target\\debug\\blueberry.exe\u{7}\u{1b}[?25hPS C:\\Users\\dell\\AppData\\Local\\Temp\\.tmpNwONhV> \u{1b}[?25l\u{1b}[91m\u{1b}[1;47H> \u{1b}[92mif \u{1b}[37m([Blueberry.Direct.Bridge]::EditorHooks \u{1b}[90m-and \u{1b}[37m@(\u{1b}[93mG                     \u{1b}[m                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        \r\n\u{1b}[27X\u{1b}[1;100H\u{1b}[?25h\u{1b}[?25l\u{1b}[1;47H> \u{1b}[92mif \u{1b}[37m([Blueberry.Direct.Bridge]::EditorHooks \u{1b}[90m-and \u{1b}[37m@(\u{1b}[93mGet-PSReadLineKeyHandler\u{1b}[37m).Count \u{1b}[90m-lt \u{1b}[97m1000\u{1b}[37m) { \u{1b}[93mWrite-Output \u{1b}[36m'HOOKS-VERIFIED' \u{1b}[37m}\r\n\u{1b}[?25h\u{1b}[mHOOKS-VERIFIED\r\nPS C:\\Users\\dell\\AppData\\Local\\Temp\\.tmpNwONhV> "
+
+Caused by:
+    timed out waiting on channel
+test direct_menu_accept_is_fill_only_and_shell_still_edits_unicode ... FAILED
+Error: PTY timeout/closed. Screen: PS C:\Users\dell\AppData\Local\Temp\.tmpSc425T> Write-Output '中文终端'
+中文终端
+PS C:\Users\dell\AppData\Local\Temp\.tmpSc425T> ; raw tail: "\u{1b}[?9001h\u{1b}[?1004h\u{1b}[m\u{1b}]0;E:\\OpenSource\\shellsense-rs\\target\\debug\\blueberry.exe\u{7}\u{1b}[?25hPS C:\\Users\\dell\\AppData\\Local\\Temp\\.tmpSc425T> \u{1b}[?25l\u{1b}[1;47H> \u{1b}[93mWrite-Output \u{1b}[36m'中文终端'\r\n\u{1b}[?25h\u{1b}[m中文终端\r\nPS C:\\Users\\dell\\AppData\\Local\\Temp\\.tmpSc425T> "
+
+Caused by:
+    timed out waiting on channel
+test direct_preserves_command_status_across_prompt_lifecycle ... ok
+test direct_runtime_builtin_rebinding_takes_priority_over_menu_accept ... ok
+test direct_runtime_custom_binding_is_preserved ... ok
+test direct_selected_frame_navigation_survives_resize_and_disconnect ... ok
+test plain_psreadline_preserves_the_same_unicode_input ... ok
+
+failures:
+
+failures:
+    direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_keys
+    direct_late_frames_wake_editor_without_another_key_or_character_bindings
+    direct_menu_accept_is_fill_only_and_shell_still_edits_unicode
+
+test result: FAILED. 10 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 56.42s
+
+error: test failed, to rerun pass `--test direct_terminal`

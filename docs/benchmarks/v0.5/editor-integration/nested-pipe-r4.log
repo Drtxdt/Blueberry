@@ -1,0 +1,56 @@
+   Compiling blueberry v0.5.0-beta.7 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.91s
+     Running tests\host.rs (target\debug\deps\host-760c0a42dc0305ec.exe)
+
+running 4 tests
+test host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out ... ok
+test host_finds_real_cargo_and_merges_more_than_512_shell_commands ... ok
+test host_preserves_psreadline_history_search ... ok
+test host_reloads_context_descriptions_and_applies_the_same_real_buffer ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.73s
+
+     Running tests\hub_terminal.rs (target\debug\deps\hub_terminal-1e7f2c94c14b3079.exe)
+
+running 1 test
+test standalone_template_form_cancel_and_query_shrink_leave_no_stale_rows ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests\startup_host.rs (target\debug\deps\startup_host-a8fcf49488ab563e.exe)
+
+running 2 tests
+test no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path ... ok
+test profile_hook_keeps_shell_skips_recursion_and_returns_to_parent ... enable: C:\Users\dell\AppData\Local\Temp\.tmpzG7jtk\中文 profile.ps1
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.87s
+
+     Running tests\terminal_beta.rs (target\debug\deps\terminal_beta-8dc74f93099f4ea3.exe)
+
+running 11 tests
+test loading_notice_is_not_a_selectable_candidate ... ok
+test terminal_beta_learning_records_only_an_applied_edit ... ok
+test terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknown_text ... ok
+test terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range ... ok
+test terminal_beta_paste_and_history_mode_preserve_psreadline_editing ... ok
+test terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode ... ok
+test terminal_guided_form_cancel_preserves_original_line ... ok
+test terminal_guided_package_form_fills_without_execution_and_cancel_preserves_line ... ok
+test terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion ... ok
+test terminal_static_function_metadata_refreshes_values_without_execution ... ok
+test terminal_workbench_reloads_external_store_and_keeps_last_good_snapshot ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.55s
+
+     Running tests\terminal_modes.rs (target\debug\deps\terminal_modes-0cb46f4903870475.exe)
+
+running 5 tests
+test alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f12 ... ok
+test conpty_mouse_input_record_helper ... ignored, launched by conpty_mouse_passthrough_for_external_program
+test conpty_mouse_passthrough_for_external_program ... ok
+test conpty_native_mouse_passthrough_for_external_program ... ignored, requires Windows 11 / Server 2025 native ConPTY mouse support; CI runs explicitly
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 4.56s
+

@@ -1,0 +1,35 @@
+   Compiling blueberry v0.5.0-beta.7 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.60s
+     Running tests\direct_terminal.rs (target\debug\deps\direct_terminal-65fcc4fe878430b1.exe)
+
+running 14 tests
+test compiled_bridge_codec_runs_in_selected_shell ... ok
+test console_output_transport_experiment ... ignored, isolated output timing experiment; never part of acceptance
+Error: native editing diverged: [["3\n中文e", "6\nabc dZef", "5\nabcdX", "9\nundo-redo", "5\nCHORD", "2\nxx"], ["11\n中文😀e\u{301}👩\u{200d}💻", "6\nabc dZef", "5\nabcdX", "9\nundo-redo", "5\nCHORD", "2\nxx"]]
+test direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_keys ... FAILED
+test direct_dismiss_external_program_and_ctrl_c_restore_shell ... ok
+test direct_empty_line_cancels_menu_and_disabled_autotrigger_preserves_typing ... ok
+test direct_form_confirmation_precedes_immediately_following_typing ... ok
+test direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute ... ok
+frame delay 0 ms: receive-to-paint [0.965, 0.259, 0.239, 0.309, 0.348]
+frame delay 3 ms: receive-to-paint [0.956]
+frame delay 5 ms: receive-to-paint [1.796]
+frame delay 10 ms: receive-to-paint [2.978]
+frame delay 40 ms: receive-to-paint [2.574]
+frame delay 100 ms: receive-to-paint [2.8240000000000003]
+test direct_late_frames_wake_editor_without_another_key_or_character_bindings ... ok
+test direct_menu_accept_is_fill_only_and_shell_still_edits_unicode ... ok
+test direct_preserves_command_status_across_prompt_lifecycle ... ok
+test direct_runtime_builtin_rebinding_takes_priority_over_menu_accept ... ok
+test direct_runtime_custom_binding_is_preserved ... ok
+test direct_selected_frame_navigation_survives_resize_and_disconnect ... ok
+test plain_psreadline_preserves_the_same_unicode_input ... ok
+
+failures:
+
+failures:
+    direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_keys
+
+test result: FAILED. 12 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 22.07s
+
+error: test failed, to rerun pass `--test direct_terminal`
