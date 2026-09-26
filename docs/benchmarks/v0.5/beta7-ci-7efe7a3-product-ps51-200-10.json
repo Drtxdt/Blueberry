@@ -1,0 +1,251 @@
+{
+  "actual_automatic_menu": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "actual_host_modes": [
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct"
+  ],
+  "actual_transports": [
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe"
+  ],
+  "adapter_source": "embedded",
+  "arch": "x86_64",
+  "build": "release",
+  "candidate_first_input": {
+    "median": 504.0052,
+    "p95": 543.3596,
+    "samples": [
+      499.9244,
+      487.1679,
+      483.1245,
+      543.3596,
+      533.6016999999999,
+      501.38660000000004,
+      532.5064000000001,
+      499.12489999999997,
+      510.3508,
+      506.62379999999996
+    ],
+    "unit": "ms"
+  },
+  "executable_sha256": "76B02B562E6F6B2E5F37D7AA808F9CE15216697D875A870E4398186ADA395D50",
+  "first_dynamic_candidate": {
+    "median": 16.576999999999998,
+    "p95": 30.0444,
+    "samples": [
+      30.0444,
+      22.0181,
+      15.693700000000002,
+      19.3585,
+      16.4493,
+      11.9909,
+      12.213,
+      23.9381,
+      16.7047,
+      15.060799999999999
+    ],
+    "unit": "ms"
+  },
+  "first_key_echo": {
+    "median": 33.64385,
+    "p95": 37.8808,
+    "samples": [
+      33.320299999999996,
+      34.120200000000004,
+      32.258,
+      35.411,
+      32.8101,
+      27.7712,
+      37.8808,
+      33.7736,
+      33.5141,
+      34.2399
+    ],
+    "unit": "ms"
+  },
+  "first_static_candidate": {
+    "median": 33.64385,
+    "p95": 37.8808,
+    "samples": [
+      33.320299999999996,
+      34.120200000000004,
+      32.258,
+      35.411,
+      32.8101,
+      27.7712,
+      37.8808,
+      33.7736,
+      33.5141,
+      34.2399
+    ],
+    "unit": "ms"
+  },
+  "host_mode": "direct",
+  "index_cache": "new directory per pair",
+  "iterations": 10,
+  "machine_id": "LIUHETONG",
+  "measurement": "complete_product",
+  "no_profile": false,
+  "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+  "os_cache_cleared": false,
+  "paired_first_input_delta": {
+    "median": 186.07389999999998,
+    "p95": 235.43470000000002,
+    "samples": [
+      175.2883,
+      176.56599999999997,
+      188.12169999999998,
+      235.43470000000002,
+      206.91039999999992,
+      176.91940000000005,
+      233.8160000000001,
+      172.31009999999998,
+      206.5555,
+      184.02609999999999
+    ],
+    "unit": "ms"
+  },
+  "plain_first_input": {
+    "median": 316.59979999999996,
+    "p95": 326.8148,
+    "samples": [
+      324.6361,
+      310.6019,
+      295.00280000000004,
+      307.9249,
+      326.6913,
+      324.4672,
+      298.6904,
+      326.8148,
+      303.7953,
+      322.5977
+    ],
+    "unit": "ms"
+  },
+  "platform": "windows",
+  "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+  "power_policy_label": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+  "profile_autostart": "suppressed identically with BLUEBERRY_ACTIVE=1",
+  "profile_inventory": [
+    {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Users\\dell\\Documents\\WindowsPowerShell\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Users\\dell\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1",
+      "sha256": "C89A47F14D800D25777F726FC8CF782B243E87D6BCD18EC71C86C2F14E8372B4"
+    }
+  ],
+  "profile_mode": "with_profile",
+  "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+  "psreadline_versions": [
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0"
+  ],
+  "schema": 3,
+  "scratch_directory": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-product-probe-9a36f944-034e-412b-a4fe-b8783dee4f4b",
+  "shell": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+  "shell_versions": [
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444"
+  ],
+  "source_commit": "7efe7a3d89426bef50978e76c4c6b465a973ec91",
+  "source_dirty": false,
+  "startup_orders": [
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ]
+  ],
+  "terminal_columns": 120,
+  "terminal_rows": 30,
+  "trace": "disabled",
+  "trace_directory": null
+}

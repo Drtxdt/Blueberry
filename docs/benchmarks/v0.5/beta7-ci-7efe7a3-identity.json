@@ -1,0 +1,272 @@
+{
+  "schema": 1,
+  "purpose": "candidate_ci_identity_and_exploration_not_release_acceptance",
+  "source_commit": "7efe7a3d89426bef50978e76c4c6b465a973ec91",
+  "source_dirty": false,
+  "build_profile": "release",
+  "version": "0.5.0-beta.7",
+  "ci": {
+    "repository": "Drtxdt/Blueberry",
+    "branch": "main",
+    "run_id": 36232787492,
+    "url": "https://github.com/Drtxdt/Blueberry/actions/runs/36232787492",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 108378976288,
+        "name": "format",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976331,
+        "name": "Native ConPTY mouse / windows-2025",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976335,
+        "name": "Core / macos-15",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976352,
+        "name": "PowerShell 7 / PSReadLine 2.4.5 / pipe",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976392,
+        "name": "PowerShell 7 / PSReadLine 2.4.5 / osc",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976394,
+        "name": "Core / ubuntu-24.04",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976418,
+        "name": "Windows PowerShell 5.1 / PSReadLine 2.4.5",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976483,
+        "name": "Core / windows-2022",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108378976528,
+        "name": "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 108379494319,
+        "name": "package",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "github_artifact": {
+    "id": 10902873054,
+    "name": "blueberry-windows-x64",
+    "sha256": "0219A44E124E2000E688FDEF134153545B76BFD0EBFAEA43CD8D030873D3B762",
+    "bytes": 2871616,
+    "expires_at": "2026-12-25T09:26:37Z"
+  },
+  "package": {
+    "name": "blueberry-v0.5.0-beta.7-windows-x64.zip",
+    "sha256": "5F40CBB9213EB411FD76584A0838490B201923460D606AAC658DAFEFEF990EA0",
+    "manifest_files_verified": 27,
+    "signed": false,
+    "performance_artifacts": []
+  },
+  "executable": {
+    "name": "blueberry.exe",
+    "sha256": "76B02B562E6F6B2E5F37D7AA808F9CE15216697D875A870E4398186ADA395D50",
+    "bytes": 7378944,
+    "build_time_unix": 1790415078
+  },
+  "public_beta6": {
+    "zip_sha256": "4D40AE29FEA9B92820DCB72373FE1AFD6538F682EC58B72A337FC24A3B3B40BA",
+    "exe_sha256": "C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86",
+    "verified": true
+  },
+  "installation_upgrade_rollback": {
+    "status": "passed",
+    "date": "2026-09-26",
+    "shell": "PowerShell 7.6.6",
+    "script": "scripts/test-release.ps1",
+    "executable_sha256": "76B02B562E6F6B2E5F37D7AA808F9CE15216697D875A870E4398186ADA395D50",
+    "previous_executable_sha256": "C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86",
+    "scope": "isolated test directory; current release test repackages the verified public beta.6 EXE with current installer scripts; verifies rollback EXE bytes, locked-file failure restoration, config preservation, tamper rejection, interrupted pack, Terminal settings fixtures and uninstall preservation; not Windows Terminal manual acceptance",
+    "exit_code": 0,
+    "script_sha256": "168BC90AD501712492BFBDD79A718B07E77CF4953C71BC749B9BD327F54B0800"
+  },
+  "manual_acceptance": {
+    "windows_terminal": {
+      "status": "not_executed"
+    },
+    "target_users": {
+      "status": "waived_by_user",
+      "executed": false,
+      "reason": "User explicitly waived the 8–12 target-user trial for beta.7."
+    }
+  },
+  "release_status": "blocked_performance_and_remaining_acceptance",
+  "default_host_mode": "nested",
+  "experimental_host_mode": "direct",
+  "performance_limits": {
+    "startup_increment_p50_ms": 50,
+    "hot_menu_p95_ms": 20
+  },
+  "notes": [
+    "Keep this measured CI ZIP and EXE immutable. Subsequent report-only commits do not change their source identity.",
+    "Short-group exploration is not formal performance acceptance. Missing fixed-combination matrices, four-way controls, process-tree idle resources and Windows Terminal manual acceptance remain required.",
+    "No beta.7 tag or release created."
+  ],
+  "exploratory_performance": {
+    "startup_reports": [
+      {
+        "profile": "ps51-200",
+        "path": "beta7-ci-7efe7a3-product-ps51-200-10.json",
+        "sha256": "D7A8583FA60A5A440361D50444F85D766EA889D27CA7B89F2101CD90851AB0CE",
+        "pairs": 10,
+        "increment_p50_ms": 186.07389999999998,
+        "gate_status": "failed",
+        "formal_acceptance": false
+      },
+      {
+        "profile": "ps51-245",
+        "path": "beta7-ci-7efe7a3-product-ps51-245-10.json",
+        "sha256": "EF310D2D2FE4BFE1476932B3709BA7EDEB231BCAFE060F4FD66ED9FE9747F10F",
+        "pairs": 10,
+        "increment_p50_ms": 188.01065000000008,
+        "gate_status": "failed",
+        "formal_acceptance": false
+      },
+      {
+        "profile": "ps7-245",
+        "path": "beta7-ci-7efe7a3-product-ps7-10.json",
+        "sha256": "E37B441EDF99BE85952FA592D4EE3C77EA903ED17A3E40E5401E2116CCF0AE22",
+        "pairs": 10,
+        "increment_p50_ms": 157.6128,
+        "gate_status": "failed",
+        "formal_acceptance": false
+      }
+    ],
+    "hot_report": {
+      "path": "beta7-ci-7efe7a3-hot-ps7-30.json",
+      "sha256": "C1A464565C5374DC46DFDBD9E1F9C80A96DB117467C48DFB908E6A8BC780A439",
+      "profile": "ps7-245",
+      "host_mode": "direct",
+      "transport": "pipe",
+      "descriptions": true,
+      "groups": [
+        {
+          "scenario": "root",
+          "cache_mode": "cache_miss",
+          "samples": 30,
+          "p95_ms": 33.1034,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "root",
+          "cache_mode": "cache_hit",
+          "samples": 30,
+          "p95_ms": 37.4358,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "git",
+          "cache_mode": "cache_miss",
+          "samples": 30,
+          "p95_ms": 341.3725,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "git",
+          "cache_mode": "cache_hit",
+          "samples": 30,
+          "p95_ms": 37.5177,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "cargo",
+          "cache_mode": "cache_miss",
+          "samples": 30,
+          "p95_ms": 345.5421,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "cargo",
+          "cache_mode": "cache_hit",
+          "samples": 30,
+          "p95_ms": 41.3944,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "js",
+          "cache_mode": "cache_miss",
+          "samples": 30,
+          "p95_ms": 48.419999999999995,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "js",
+          "cache_mode": "cache_hit",
+          "samples": 30,
+          "p95_ms": 350.22360000000003,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "path",
+          "cache_mode": "cache_miss",
+          "samples": 30,
+          "p95_ms": 37.4247,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "path",
+          "cache_mode": "cache_hit",
+          "samples": 30,
+          "p95_ms": 47.8803,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "fuzzy",
+          "cache_mode": "cache_miss",
+          "samples": 30,
+          "p95_ms": 37.506,
+          "gate_status": "failed"
+        },
+        {
+          "scenario": "fuzzy",
+          "cache_mode": "cache_hit",
+          "samples": 30,
+          "p95_ms": 29.6322,
+          "gate_status": "failed"
+        }
+      ],
+      "formal_acceptance": false
+    },
+    "trace": "disabled",
+    "measurement": "Receive-thread timestamps forming complete VT observation; physical display pixels are not measured.",
+    "sampling": "Sequential short groups; no concurrent compilation, installer tests or other heavy workloads; slow samples retained.",
+    "release_acceptance": "failed",
+    "missing": [
+      "formal startup 30-pair groups",
+      "formal hot 300-sample matrices for all combinations and both description variants",
+      "four-way comparison",
+      "nested compatibility performance",
+      "process-tree idle resources"
+    ]
+  }
+}

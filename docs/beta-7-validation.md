@@ -1,5 +1,7 @@
 # 0.5.0-beta.7 候选验收记录
 
+**最新状态（2026-09-26）：**按用户明确授权，候选已合并并推送 main；源码 `7efe7a3d89426bef50978e76c4c6b465a973ec91` 的[完整 main CI](https://github.com/Drtxdt/Blueberry/actions/runs/36232787492) 十个作业全部通过，已取得并校验该次 Windows x64 包。被测 CI EXE SHA-256 为 `76B02B562E6F6B2E5F37D7AA808F9CE15216697D875A870E4398186ADA395D50`，干净 release 构建。该 EXE 的 PS7 短组启动 P50 **157.61 ms**，十二组热态完整菜单 P95 **29.63–350.22 ms**，仍不达标。隔离安装及真实公开 beta.6 EXE 升级回滚自测通过；Windows Terminal 人工验收、正式矩阵和四方对照未完成。默认仍 nested，direct 实验状态，未打标签或发布。后续证据提交只保存报告与原始数组，不改变这份包的源码身份；下文旧状态均属于历史记录。
+
 公开 beta.6 标签 `v0.5.0-beta.6` 指向 `decd47e0416524985c210dccc16cbced0403280a`；本次功能候选开始前的开发基线为其后的 `c5b0c09af692a028c51ecfd45b74d97defc94b82`。两者不能混作同一个版本。beta.7 功能候选已提交于独立分支 `codex/beta7-candidate`，起点提交为 `7242c6a87c07bae17aa794cdd379f1629bad5812`。早期探索 EXE 在该提交之前构建；本轮后续 EXE 包含尚未冻结的诊断与启动改动。两者都不能当作最终候选；正式验收必须以最终 main CI 工件重测。历史 [0.5 性能报告](performance-v0.5.md) 测量的是更早的提交，不能代表本候选。
 
 2026-09-26 已下载并核验[公开 beta.6 ZIP](https://github.com/Drtxdt/Blueberry/releases/download/v0.5.0-beta.6/blueberry-v0.5.0-beta.6-windows-x64.zip)：ZIP SHA-256 `4D40AE29FEA9B92820DCB72373FE1AFD6538F682EC58B72A337FC24A3B3B40BA`；包内 EXE 与本机安装版摘要均为 `C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86`。公开附件来源核验已完成；四方正式交替测量仍未执行。
@@ -20,9 +22,10 @@
 
 | 项目 | 门槛 | 当前状态 |
 | --- | --- | --- |
-| 首次输入增量 | P50 ≤50 ms，固定机器、profile 和交替顺序 | 历史嵌套探索 P50 199.8764 ms 未达标；本轮完整单层产品探索见文末，正式验收尚未执行 |
-| 热态菜单 | 正式单层各场景 P95 ≤20 ms，完整动态结果 | 历史嵌套 P95 31.89–32.76 ms；不适用于新单层实现，正式矩阵尚未执行 |
-| 完整 ConPTY 回归 | 固定 PowerShell/PSReadLine 三组合、单层与嵌套兼容 | 本机单层三组合 7/7；PS7 嵌套 OSC/pipe 各 21 项通过，2 项按原设计 ignored；远程 CI 待确认 |
+| 首次输入增量 | P50 ≤50 ms，固定机器、profile 和交替顺序 | 同一 main CI EXE 的 PS7 10 对探索 P50 157.61 ms，失败；三组合探索详见文末，正式验收未执行 |
+| 热态菜单 | 正式单层各场景 P95 ≤20 ms，完整动态结果 | 同一 main CI EXE 的 PS7 各 30 个探索样本，十二组 P95 29.63–350.22 ms，全部失败；正式矩阵未执行 |
+| 完整 ConPTY 回归 | 固定 PowerShell/PSReadLine 三组合、单层与嵌套兼容 | 源码 7efe7a3 的远程三固定组合单层、嵌套 OSC／pipe 及 native mouse 全部通过；剩余全流程覆盖见文末 |
+| 安装升级回滚 | 同一 main CI EXE，保留用户配置、失败恢复与公开 beta.6 回滚 | 远程包自测及本机隔离公开 beta.6 EXE 升级回滚通过，绑定摘要见文末；不替代 Windows Terminal 人工验收 |
 | Windows Terminal | 输入法、字体缩放、选择、粘贴、嵌套程序 | 待人工验收 |
 | 目标用户 | 本版按用户明确要求豁免 | 用户要求豁免、未执行；不得记录成“通过” |
 
@@ -168,3 +171,52 @@
 工作台隔离修复后，PS5.1／PSReadLine 2.4.5 的 OSC／pipe 本机 `terminal_beta` 11 项及 `terminal_modes` 3 项也各通过，包括新增的迟到候选身份保持检查；Clippy 全 targets 通过。远程需再运行，同一 CI 包尚未可用。
 
 提交 `f05f729` 的[第四轮 CI](https://github.com/Drtxdt/Blueberry/actions/runs/36232445247) 中，PS7 OSC／pipe 两作业完整通过，包括 pipe 作业的单层回归；三平台核心、格式、native mouse 通过。PS5.1／2.4.5 在下载前发现运行器未注册 PSGallery，后续仅在缺失时注册默认库并继续严格选择原固定版本。PS5.1／2.0.0 的多行测试在空提示符状态下超时，其余 10 项 terminal_beta 通过；已有日志缺少初始化等待阶段上下文，不能宣称原因已消除。补充 capabilities、prompt、command snapshot 和 awaited event 的精确诊断，并定向复测；保留该失败，包步骤仍跳过。
+
+## 7efe7a3：完整 main CI、不可变工件与重新测量
+
+源码提交 `7efe7a3d89426bef50978e76c4c6b465a973ec91` 的[第五轮 main CI](https://github.com/Drtxdt/Blueberry/actions/runs/36232787492) **十个作业全部通过**：格式与发布证据 Python 21 项、Windows／Ubuntu／macOS 核心、PS5.1／PSReadLine 2.0.0 和 2.4.5 的适配器／启动／嵌套 OSC／pipe／单层、PS7／2.4.5 的 OSC／pipe（pipe 作业包含单层）、Windows 2025 native mouse，以及构建与包自测。第四轮 PS5.1／2.0.0 初始化超时保留为历史失败；本轮观察到完整矩阵成功，不据此声称已找出该间歇失败的唯一原因。
+
+### 包身份与隔离安装升级回滚
+
+[机器可读身份记录](benchmarks/v0.5/beta7-ci-7efe7a3-identity.json) 保存源码、CI 十个 job 身份、包摘要、自测绑定和未完成状态。它是候选身份与探索记录，**不是正式 release-evidence.json**，不能通过它绕过发布校验。
+
+| 对象 | SHA-256 |
+| --- | --- |
+| GitHub artifact 10902873054／blueberry-windows-x64 的外层 ZIP | `0219A44E124E2000E688FDEF134153545B76BFD0EBFAEA43CD8D030873D3B762` |
+| 包内发布 ZIP blueberry-v0.5.0-beta.7-windows-x64.zip | `5F40CBB9213EB411FD76584A0838490B201923460D606AAC658DAFEFEF990EA0` |
+| 包内 blueberry.exe（7,378,944 bytes） | `76B02B562E6F6B2E5F37D7AA808F9CE15216697D875A870E4398186ADA395D50` |
+
+外层 ZIP 与 GitHub API artifact digest 相同，发布 ZIP 与工件内 `.sha256` 相同；逐项核对 `release.json` 的 27 个文件摘要、字节数与路径范围。EXE `doctor --json` 报告上述完整源码提交、`dirty=false`、`profile=release`、构建时间 `1790415078`。后续所有本节测量均直接运行下载包内 EXE，没有用本机重新构建 EXE 替换它。工件记录的过期时间为 2026-12-25T09:26:37Z；须保留下载字节，不能在过期后重新构建并沿用本节结果。包的 `performance_artifacts=[]`，尚未形成通过验收的发布资产。
+
+本机用该 EXE 执行 `scripts/test-release.ps1 -PreviousExePath <已核验公开 beta.6 EXE>`，正常退出码 **0**，隔离安装、升级、回滚、篡改拒绝、写入中断与卸载保留自测通过；回滚 EXE 校验为公开 beta.6 的 `C27404F6…C7FB86`，用户配置保留。旧 EXE 被测试主动锁定时的“升级失败并恢复”是预期负例，随后正常升级和回滚成功。Windows Terminal settings／JSONC 使用隔离夹具，不改用户真实 Terminal 设置。旧版自测包使用真实公开 beta.6 EXE 和本轮安装脚本构造；不把它称作对原始 beta.6 ZIP 的完整旧安装器验收。这项结果不替代真实 Windows Terminal 输入法与视觉人工验收。
+
+### 同一 CI EXE 的探索性能（未达标）
+
+固定机器 LIUHETONG、30×120、现有 profile 和平衡电源策略；三个组合各 10 对 plain／完整 direct 产品交替启动，实际传输 pipe、自动菜单开启、trace 关闭。串行测量期间无编译、安装自测或其他重负载任务；保存全部原始数组。下表是接收线程时间戳形成的 VT 观察终端完整内容，不是物理屏幕像素时间。
+
+| Shell／PSReadLine | 启动增量 P50 | 首键回显 P50 | 首次静态完整菜单 P50 | 首次动态完整菜单 P50／P95 | 原始数组 |
+| --- | --- | --- | --- | --- | --- |
+| PS5.1／2.0.0 | 186.07 ms | 33.64 ms | 33.64 ms | 16.58／30.04 ms | [10 对](benchmarks/v0.5/beta7-ci-7efe7a3-product-ps51-200-10.json) |
+| PS5.1／2.4.5 | 188.01 ms | 34.68 ms | 34.68 ms | 17.15／35.65 ms | [10 对](benchmarks/v0.5/beta7-ci-7efe7a3-product-ps51-245-10.json) |
+| PS7／2.4.5 | 157.61 ms | 37.95 ms | 43.22 ms | 16.32／28.54 ms | [10 对](benchmarks/v0.5/beta7-ci-7efe7a3-product-ps7-10.json) |
+
+三个启动组均失败，未扩大到正式 30 对。PS7／2.4.5 的[六场景热态数组](benchmarks/v0.5/beta7-ci-7efe7a3-hot-ps7-30.json) 每场景 miss／hit 各 30 个样本，实际 direct／pipe、说明开启，未降级，完整动态菜单才计为完成。命令索引 miss／hit 是会话缓存条件，不是每键提供器冷启动；OS 文件缓存保留，首次查询另列，不混入热态。
+
+| 场景 | 命令索引 miss 热态 P95 | 命令索引 hit 热态 P95 |
+| --- | --- | --- |
+| root | 33.10 ms | 37.44 ms |
+| git | 341.37 ms | 37.52 ms |
+| cargo | 345.54 ms | 41.39 ms |
+| js | 48.42 ms | 350.22 ms |
+| path | 37.42 ms | 47.88 ms |
+| fuzzy | 37.51 ms | 29.63 ms |
+
+十二组均失败，保留约 350 ms 迟到样本；不扩大到 300 样本，也不将较快首个静态帧或中位数视作通过。该批只覆盖 PS7／说明开启探索，不是三组合、说明开／关正式矩阵，不替代四方对照或嵌套性能报告。
+
+### 剩余发布阻断与下一轮入口
+
+性能仍是主动工程阻断：先分离启动脚本与约 6.5 万键注册成本，再定位 4 ms 即时预算之后安全回调刷新、菜单输出与 VT 尾延迟；每次产品代码变化须获得新 CI EXE 并重测受影响结果。不能提前显示未经 PSReadLine 确认的输入或延长键处理等待来伪造达标。
+
+此外仍欠正式三组合启动／热态矩阵、说明关闭变体、嵌套兼容性能、四方交替对照、进程树空闲资源与 Windows Terminal 人工验收，以及前文列出的部分单层快捷键／Shell 元数据／真实剪贴板输入法／协议故障全流程覆盖。目标用户试用为 `waived_by_user`、`executed=false`，不是通过。成功 CI 和隔离安装回滚已补齐，公开 beta.6 来源已核验，不再列作未取得。当前不创建 beta.7 标签、不公开发布、不切换默认宿主。
+
+报告和原始数组作为后续证据提交；本节测量源码始终是 `7efe7a3d89426bef50978e76c4c6b465a973ec91`。后续 main 的文档提交和它们新生成的 CI 工件不自动继承本节结果；若未来发布改用另一包，必须重新绑定及验收。
