@@ -109,6 +109,7 @@ jobs:
             release-evidence/docs/benchmarks/v0.5/beta7-release-evidence.json \
             "release-assets/blueberry-$RELEASE_TAG-windows-x64.zip" \
             --commit "$TAG_SHA" \
+            --ci-run-id '${{ inputs.ci_run_id }}' \
             --public-beta6-package beta6-public/blueberry-v0.5.0-beta.6-windows-x64.zip \
             --bundle-out "release-assets/blueberry-$RELEASE_TAG-evidence.zip"
       - name: Create or update unpublished draft with the measured bytes

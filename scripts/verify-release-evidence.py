@@ -23,10 +23,10 @@ PROFILES = {
     "ps7-2.4.5": ("pwsh.exe", "7.", "2.4.5"),
 }
 VARIANTS = {
-    "osc_with_descriptions": ("osc", True),
-    "osc_without_descriptions": ("osc", False),
     "pipe_with_descriptions": ("pipe", True),
+    "pipe_without_descriptions": ("pipe", False),
 }
+NESTED_VARIANTS = {"osc_with_descriptions": "osc", "osc_without_descriptions": "osc", "pipe_with_descriptions": "pipe"}
 SCENARIOS = {"root", "git", "cargo", "js", "path", "fuzzy"}
 COMPARISON_MODES = ("plain", "beta6", "candidate", "inshellisense")
 TERMINAL_TASKS = {"ime", "font_zoom", "selection", "paste", "nested_program"}
@@ -106,6 +106,15 @@ def check_identity(report, executable_hash, profile):
     return shell_major, psreadline
 
 
+def check_frozen_report(report, commit, environment, label):
+    require(report.get("source_commit", "").lower() == commit.lower(), f"{label}: source commit mismatch")
+    require(report.get("source_dirty") is False, f"{label}: unfrozen or unknown build state")
+    for field in ("machine_id", "power_policy", "profile_sha256", "terminal_rows", "terminal_columns"):
+        require(report.get(field) == environment.get(field), f"{label}: environment changed ({field})")
+    require(report.get("trace") == "disabled", f"{label}: diagnostic trace enabled")
+    require(report.get("os_cache_cleared") is False, f"{label}: OS cache state missing or changed")
+
+
 def check_versions(versions, expected, count, label):
     require(isinstance(versions, list) and len(versions) == count, f"{label}: missing version samples")
     require(all(isinstance(value, str) and value.startswith(expected) for value in versions), f"{label}: version mismatch")
@@ -114,7 +123,9 @@ def check_versions(versions, expected, count, label):
 def check_startup(path, executable_hash, profile):
     report = read_json(path)
     shell_major, psreadline = check_identity(report, executable_hash, profile)
-    require(report.get("schema") == 2, f"{profile}: unsupported startup schema")
+    require(report.get("schema") == 3 and report.get("measurement") == "complete_product", f"{profile}: startup must measure the complete product")
+    require(report.get("host_mode") == "direct" and report.get("actual_host_modes") == ["direct"] * report.get("iterations", 0)
+            and report.get("actual_transports") == ["pipe"] * report.get("iterations", 0), f"{profile}: direct startup host/transport mismatch")
     require(report.get("adapter_source") == "embedded", f"{profile}: external adapter")
     require(report.get("profile_mode") == "with_profile" and report.get("no_profile") is False, f"{profile}: profile disabled")
     count = report.get("iterations")
@@ -122,6 +133,16 @@ def check_startup(path, executable_hash, profile):
     check_versions(report.get("shell_versions"), shell_major, count, f"{profile} shell")
     check_versions(report.get("psreadline_versions"), psreadline, count, f"{profile} PSReadLine")
     median, _ = samples(report.get("paired_first_input_delta"), count, f"{profile} startup")
+    for metric in ("plain_first_input", "candidate_first_input", "first_key_echo", "first_static_candidate", "first_dynamic_candidate"):
+        samples(report.get(metric), count, f"{profile} {metric}")
+        require(all(value >= 0 for value in report[metric]["samples"]), f"{profile}: negative {metric} duration")
+    require(all(math.isclose(candidate - plain, delta, abs_tol=0.0001)
+                for plain, candidate, delta in zip(report["plain_first_input"]["samples"],
+                    report["candidate_first_input"]["samples"], report["paired_first_input_delta"]["samples"])),
+            f"{profile}: paired startup delta disagrees with raw product and plain samples")
+    require(report.get("startup_orders") == [["plain", "candidate"] if index % 2 == 0 else ["candidate", "plain"] for index in range(count)],
+            f"{profile}: startup order is not alternating")
+    require(report.get("actual_automatic_menu") == [True] * count, f"{profile}: automatic direct menu unavailable at startup")
     require(median <= 50.0, f"{profile}: startup P50 {median:.3f} ms exceeds 50 ms")
 
 
@@ -129,7 +150,7 @@ def check_hot(path, executable_hash, profile, variant):
     report = read_json(path)
     shell_major, psreadline = check_identity(report, executable_hash, profile)
     transport, descriptions = VARIANTS[variant]
-    require(report.get("schema") == 1, f"{profile}/{variant}: unsupported hot schema")
+    require(report.get("schema") == 2 and report.get("host_mode") == "direct", f"{profile}/{variant}: formal hot matrix must use direct host")
     require(report.get("transport") == transport and report.get("descriptions") is descriptions, f"{profile}/{variant}: wrong variant")
     require(report.get("trace") == "disabled" and report.get("profile_mode") == "preserved", f"{profile}/{variant}: trace or profile mismatch")
     require(report.get("transport_degraded") is False, f"{profile}/{variant}: transport degraded")
@@ -147,11 +168,30 @@ def check_hot(path, executable_hash, profile, variant):
             check_versions(measurement.get("shell_versions"), shell_major, session_count, f"{label} shell")
             check_versions(measurement.get("psreadline_versions"), psreadline, session_count, f"{label} PSReadLine")
             require(measurement.get("actual_transport") == [transport] * session_count, f"{label}: transport mismatch")
+            require(measurement.get("actual_host_mode") == ["direct"] * session_count and measurement.get("automatic_menu") == [True] * session_count, f"{label}: automatic direct menu unavailable")
             acceptance = scenario.get("acceptance", {}).get(cache_mode, {})
             require(acceptance.get("status") == "passed", f"{label}: acceptance failed")
             require(acceptance.get("observed_samples") == count and acceptance.get("expected_samples") == count, f"{label}: sample count mismatch")
             _, p95 = samples(acceptance.get("statistics"), count, label)
             require(p95 <= 20.0, f"{label}: P95 {p95:.3f} ms exceeds 20 ms")
+
+
+def check_nested(path, executable_hash, profile, variant):
+    report = read_json(path)
+    check_identity(report, executable_hash, profile)
+    require(report.get("host_mode") == "nested" and report.get("transport") == NESTED_VARIANTS[variant]
+            and report.get("transport_degraded") is False, f"{profile}/{variant}: nested compatibility transport mismatch")
+    require(report.get("correctness_status") == "passed", f"{profile}/{variant}: nested correctness failed")
+    count = report.get("samples_per_group")
+    require(type(count) is int and count >= 30, f"{profile}/{variant}: nested performance samples missing")
+    groups = report.get("groups")
+    require(isinstance(groups, dict) and set(groups) == SCENARIOS, f"{profile}/{variant}: nested scenarios missing")
+    for scenario, modes in groups.items():
+        require(isinstance(modes, dict) and set(modes) == {"cache_hit", "cache_miss"}, f"{profile}/{scenario}: nested cache groups missing")
+        for mode, measurement in modes.items():
+            # The nested path is a compatibility path. Its actual performance
+            # is mandatory evidence but is not the direct host's <=20ms gate.
+            samples(measurement, count, f"{profile}/{variant}/{scenario}/{mode}")
 
 
 def check_manual_acceptance(evidence, executable_hash, commit):
@@ -163,7 +203,15 @@ def check_manual_acceptance(evidence, executable_hash, commit):
         tasks = manual.get(field)
         require(isinstance(tasks, dict) and set(tasks) == expected and all(value is True for value in tasks.values()), f"{field}: incomplete manual acceptance")
     trials = manual.get("user_trials")
-    require(isinstance(trials, list) and 8 <= len(trials) <= 12, "need 8–12 target user trials")
+    waiver = manual.get("user_trial_waiver")
+    if waiver is not None:
+        require(isinstance(waiver, dict) and waiver.get("status") == "waived_by_user"
+                and waiver.get("version") == VERSION and waiver.get("executed") is False
+                and isinstance(waiver.get("reason"), str) and waiver["reason"].strip(),
+                "user trial waiver must explicitly record user authorization and non-execution")
+        require(trials == [], "waived user trials cannot be reported as executed or passed")
+    else:
+        require(isinstance(trials, list) and 8 <= len(trials) <= 12, "need 8–12 target user trials or explicit user waiver")
     identifiers = [trial.get("id") for trial in trials]
     require(all(isinstance(identifier, str) and identifier for identifier in identifiers) and len(set(identifiers)) == len(identifiers), "user trial identifiers missing or duplicated")
     for trial in trials:
@@ -186,7 +234,7 @@ def check_comparison(path, executable_hash, commit, profile, manual):
     report = read_json(path)
     shell_name, shell_major, psreadline = PROFILES[profile]
     label = f"{profile} comparison"
-    require(report.get("schema") == 1 and report.get("profile") == profile, f"{label}: wrong schema/profile")
+    require(report.get("schema") == 2 and report.get("profile") == profile, f"{label}: wrong schema/profile")
     require(report.get("source_commit", "").lower() == commit.lower(), f"{label}: different source commit")
     require(PureWindowsPath(report.get("shell", "")).name.lower() == shell_name, f"{label}: wrong shell")
     require(str(report.get("shell_version", "")).startswith(shell_major), f"{label}: wrong shell version")
@@ -218,7 +266,16 @@ def check_comparison(path, executable_hash, commit, profile, manual):
             f"{label}/{mode}: binary hash mismatch",
         )
         transport = measured.get("transport")
-        require(transport == ("osc" if mode in ("beta6", "candidate") else "not_applicable"), f"{label}/{mode}: incorrect transport label")
+        require(transport == {"beta6":"osc", "candidate":"pipe"}.get(mode, "not_applicable"), f"{label}/{mode}: incorrect transport label")
+        require(measured.get("host_mode") == {"beta6":"nested", "candidate":"direct"}.get(mode,"not_applicable"), f"{label}/{mode}: incorrect host label")
+        entry = measured.get("entry")
+        dependencies = measured.get("dependencies")
+        require(isinstance(entry, dict) and isinstance(entry.get("path"), str) and entry["path"].strip()
+                and HEX64.fullmatch(entry.get("sha256", "")), f"{label}/{mode}: entry file not frozen")
+        require(isinstance(dependencies, list) and dependencies and all(isinstance(item, dict)
+                and isinstance(item.get("path"), str) and item["path"].strip() and HEX64.fullmatch(item.get("sha256", "")) for item in dependencies), f"{label}/{mode}: dependencies not frozen")
+        if mode != "plain":
+            require(entry["sha256"].upper() == expected_hashes[mode], f"{label}/{mode}: entry hash mismatch")
         require(measured.get("transport_degraded") is False if mode in ("beta6", "candidate") else measured.get("transport_degraded") is None, f"{label}/{mode}: transport degraded or falsely asserted")
         samples(measured.get("startup"), startup_count, f"{label}/{mode} startup")
         hot = measured.get("hot")
@@ -227,7 +284,13 @@ def check_comparison(path, executable_hash, commit, profile, manual):
             group = hot[scenario]
             require(isinstance(group, dict) and set(group) == {"cache_hit", "cache_miss"}, f"{label}/{mode}/{scenario}: cache modes incomplete")
             for cache_mode in ("cache_hit", "cache_miss"):
-                samples(group[cache_mode], hot_count, f"{label}/{mode}/{scenario}/{cache_mode}")
+                measurement = group[cache_mode]
+                samples(measurement.get("input_echo"), hot_count, f"{label}/{mode}/{scenario}/{cache_mode} echo")
+                if mode == "plain":
+                    require(measurement.get("menu") is None and measurement.get("cache_capability") == "not_applicable", f"{label}/plain: menu/cache must be not applicable")
+                else:
+                    samples(measurement.get("menu"), hot_count, f"{label}/{mode}/{scenario}/{cache_mode} menu")
+                    require(measurement.get("cache_capability") in ("supported", "not_applicable"), f"{label}/{mode}: cache capability missing")
     orders = report.get("startup_orders")
     require(isinstance(orders, list) and len(orders) == startup_count, f"{label}: startup ordering missing")
     require(all(isinstance(order, list) and set(order) == set(COMPARISON_MODES) and len(order) == 4 for order in orders), f"{label}: startup order is not four-way alternating")
@@ -243,17 +306,23 @@ def check_comparison(path, executable_hash, commit, profile, manual):
             require(all(order == list(COMPARISON_MODES[index % 4:] + COMPARISON_MODES[:index % 4]) for index, order in enumerate(orders)), f"{label}/{scenario}/{cache_mode}: hot order is not rotated")
 
 
-def verify(evidence_path, package_path, commit, public_beta6_package):
+def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None):
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
     evidence = read_json(evidence_path)
-    require(evidence.get("schema") == 1 and evidence.get("version") == VERSION, "wrong evidence version/schema")
+    require(evidence.get("schema") == 2 and evidence.get("version") == VERSION, "wrong evidence version/schema")
     require(HEX40.fullmatch(commit) is not None, "--commit must be a 40-character Git SHA")
     require(evidence.get("source_commit", "").lower() == commit.lower(), "evidence source commit mismatch")
     executable_hash = evidence.get("executable_sha256", "").upper()
     package_hash = evidence.get("package_sha256", "").upper()
     require(HEX64.fullmatch(executable_hash) and HEX64.fullmatch(package_hash), "missing SHA-256")
     require(sha256_file(package_path) == package_hash, "package SHA-256 mismatch")
+    ci = evidence.get("ci", {})
+    if ci_run_id is not None:
+        require(ci.get("run_id") == ci_run_id, "evidence refers to a different CI run than the downloaded artifact")
+    require(ci.get("source_commit", "").lower() == commit.lower() and ci.get("status") == "success"
+            and ci.get("branch") == "main" and ci.get("event") == "push" and type(ci.get("run_id")) is int and ci["run_id"] > 0
+            and ci.get("package_sha256", "").upper() == package_hash, "successful frozen main CI package record missing")
     with zipfile.ZipFile(package_path) as archive:
         names = [entry.filename for entry in archive.infolist() if not entry.is_dir()]
         require(len(names) == len(set(names)), "package contains duplicate file paths")
@@ -286,15 +355,31 @@ def verify(evidence_path, package_path, commit, public_beta6_package):
     startup = evidence.get("startup_reports")
     hot = evidence.get("hot_reports")
     comparisons = evidence.get("comparison_reports")
+    nested = evidence.get("nested_compatibility_reports")
+    environments = evidence.get("environments")
     require(isinstance(startup, dict) and set(startup) == set(PROFILES), "startup profile matrix incomplete")
     require(isinstance(hot, dict) and set(hot) == set(PROFILES), "hot profile matrix incomplete")
     require(isinstance(comparisons, dict) and set(comparisons) == set(PROFILES), "comparison profile matrix incomplete")
+    require(isinstance(nested, dict) and set(nested) == set(PROFILES), "nested compatibility profile matrix incomplete")
+    require(isinstance(environments, dict) and set(environments) == set(PROFILES), "environment profile matrix incomplete")
     root = evidence_path.parent
     for profile in PROFILES:
+        environment = environments[profile]
+        require(isinstance(environment, dict) and HEX64.fullmatch(environment.get("profile_sha256", ""))
+                and environment.get("terminal_rows") == 30 and environment.get("terminal_columns") == 120
+                and all(isinstance(environment.get(field), str) and environment[field].strip() for field in ("machine_id", "power_policy")), f"{profile}: frozen environment missing")
+        check_frozen_report(read_json(report_path(root, startup[profile])), commit, environment, profile)
         check_startup(report_path(root, startup[profile]), executable_hash, profile)
         require(isinstance(hot[profile], dict) and set(hot[profile]) == set(VARIANTS), f"{profile}: hot variants incomplete")
         for variant in VARIANTS:
+            check_frozen_report(read_json(report_path(root, hot[profile][variant])), commit, environment, f"{profile}/{variant}")
             check_hot(report_path(root, hot[profile][variant]), executable_hash, profile, variant)
+        require(isinstance(nested[profile], dict) and set(nested[profile]) == set(NESTED_VARIANTS), f"{profile}: nested compatibility variants incomplete")
+        for variant in NESTED_VARIANTS:
+            path = report_path(root, nested[profile][variant])
+            check_frozen_report(read_json(path), commit, environment, f"{profile}/{variant}")
+            check_nested(path, executable_hash, profile, variant)
+        check_frozen_report(read_json(report_path(root, comparisons[profile])), commit, environment, f"{profile} comparison")
     check_manual_acceptance(evidence, executable_hash, commit)
     check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
     for profile in PROFILES:
@@ -308,6 +393,8 @@ def bundle(evidence_path, output_path):
     reports = set(evidence["startup_reports"].values())
     reports.update(evidence["comparison_reports"].values())
     for variants in evidence["hot_reports"].values():
+        reports.update(variants.values())
+    for variants in evidence["nested_compatibility_reports"].values():
         reports.update(variants.values())
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -324,12 +411,13 @@ def main():
     parser.add_argument("evidence", type=Path)
     parser.add_argument("package", type=Path)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--ci-run-id", type=int, help="independently verified CI run supplying this package")
     parser.add_argument("--public-beta6-package", required=True, type=Path,
                         help="original ZIP downloaded from this repository's public v0.5.0-beta.6 release")
     parser.add_argument("--bundle-out", type=Path, help="write a ZIP of verified raw reports")
     args = parser.parse_args()
     try:
-        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package)
+        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package, args.ci_run_id)
         if args.bundle_out:
             bundle(args.evidence, args.bundle_out)
     except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:

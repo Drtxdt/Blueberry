@@ -2,9 +2,9 @@
 //!
 //! The OSC protocol remains the default transport.  This module deliberately
 //! exposes a small, synchronous API so the host can keep its existing event
-//! loop and ordering barriers: a read or write either completes immediately
-//! or reports `WouldBlock`.  There is no polling thread and no background
-//! lifetime that could outlive a Blueberry session.
+//! loop and ordering barriers: nested I/O completes immediately or reports
+//! `WouldBlock`. The direct host uses a dedicated receiver with a high
+//! resolution waitable timer. Dropping either endpoint disconnects the pipe.
 
 use serde_json::Value;
 use std::io;
@@ -81,6 +81,15 @@ mod windows_pipe {
         ) -> RawHandle;
         fn ConnectNamedPipe(handle: RawHandle, overlapped: *mut c_void) -> Bool;
         fn DisconnectNamedPipe(handle: RawHandle) -> Bool;
+        fn DuplicateHandle(
+            source_process: RawHandle,
+            source: RawHandle,
+            target_process: RawHandle,
+            target: *mut RawHandle,
+            access: u32,
+            inherit: Bool,
+            options: u32,
+        ) -> Bool;
         fn GetNamedPipeClientProcessId(handle: RawHandle, process_id: *mut u32) -> Bool;
         fn PeekNamedPipe(
             handle: RawHandle,
@@ -261,6 +270,16 @@ mod windows_pipe {
         connected: bool,
     }
 
+    /// Isolated receiver with the same frame bounds and PID validation as the
+    /// nested transport. A pending synchronous ReadFile on a duplicated pipe
+    /// handle would serialize duplex writes; peek before reading instead.
+    pub struct PipeReader(PipeServer);
+    impl PipeReader {
+        pub fn read_json(&mut self) -> io::Result<(Value, std::time::Instant)> {
+            self.0.read_json_timed()
+        }
+    }
+
     impl PipeServer {
         pub fn new() -> io::Result<Self> {
             let name = format!("blueberry-{}", uuid::Uuid::new_v4().simple());
@@ -302,6 +321,24 @@ mod windows_pipe {
 
         pub fn set_client_pid(&mut self, pid: u32) {
             self.expected_client_pid = (pid != 0).then_some(pid);
+        }
+
+        /// Called only after authenticated hello. The independent receiver
+        /// timestamps completion before parsing or waiting on the host queue.
+        pub fn receiver(&mut self) -> io::Result<PipeReader> {
+            let handle = self.ensure_connection()?;
+            let process = unsafe { GetCurrentProcess() };
+            let mut duplicate = ptr::null_mut();
+            if unsafe { DuplicateHandle(process, handle, process, &mut duplicate, 0, 0, 2) } == 0 {
+                return Err(last_error());
+            }
+            let owned = unsafe { OwnedHandle::from_raw_handle(duplicate) };
+            Ok(PipeReader(PipeServer {
+                name: self.name.clone(),
+                handle: Some(owned),
+                expected_client_pid: self.expected_client_pid,
+                connected: true,
+            }))
         }
 
         /// Make the server unusable and close the pipe.  The host uses this
@@ -402,6 +439,10 @@ mod windows_pipe {
         }
 
         pub fn read_json(&mut self) -> io::Result<Value> {
+            self.read_json_timed().map(|(value, _)| value)
+        }
+
+        fn read_json_timed(&mut self) -> io::Result<(Value, std::time::Instant)> {
             let handle = self.ensure_connection()?;
             let mut total_available = 0u32;
             let mut bytes_left = 0u32;
@@ -458,6 +499,7 @@ mod windows_pipe {
                     ptr::null_mut(),
                 )
             };
+            let arrived = std::time::Instant::now();
             if ok == 0 {
                 let error = unsafe { GetLastError() };
                 return Err(if error == ERROR_MORE_DATA {
@@ -481,12 +523,14 @@ mod windows_pipe {
             {
                 frame.pop();
             }
-            serde_json::from_slice(&frame).map_err(|error| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("invalid UTF-8/JSON named-pipe frame: {error}"),
-                )
-            })
+            serde_json::from_slice(&frame)
+                .map(|value| (value, arrived))
+                .map_err(|error| {
+                    Error::new(
+                        ErrorKind::InvalidData,
+                        format!("invalid UTF-8/JSON named-pipe frame: {error}"),
+                    )
+                })
         }
 
         pub fn write_json(&mut self, value: &Value) -> io::Result<()> {

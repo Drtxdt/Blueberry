@@ -31,6 +31,10 @@ use std::{
     time::Instant,
 };
 
+#[cfg(windows)]
+#[path = "direct.rs"]
+pub mod direct;
+
 pub struct RunOptions {
     pub shell: PathBuf,
     pub no_profile: bool,
@@ -47,7 +51,32 @@ pub enum Transport {
     Pipe,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum HostMode {
+    Direct,
+    Nested,
+}
+
+pub fn resolve_host(
+    mode: Option<HostMode>,
+    transport: Option<Transport>,
+) -> Result<(HostMode, Transport)> {
+    // Keep the compatibility default until direct passes the release gates.
+    let mode = mode.unwrap_or(HostMode::Nested);
+    let transport = transport.unwrap_or(match mode {
+        HostMode::Direct => Transport::Pipe,
+        HostMode::Nested => Transport::Osc,
+    });
+    anyhow::ensure!(
+        !(mode == HostMode::Direct && matches!(transport, Transport::Osc)),
+        "--host-mode direct cannot use --transport osc; choose pipe or the nested host"
+    );
+    Ok((mode, transport))
+}
+
 enum HostEvent {
+    #[cfg(windows)]
+    DirectMessage(Value, Instant),
     Output(Vec<u8>, Instant),
     Input(Vec<Event>, Instant),
     Eof,
@@ -512,6 +541,12 @@ impl Worker {
                             q.dynamic,
                             &q.descriptions,
                         );
+                        trace.event(
+                            "completion_plan",
+                            Some(q.revision),
+                            Some(started.elapsed()),
+                            Some(result.0.candidates.len()),
+                        );
                         prepared = Some((q.revision, result.0.clone(), result.1.clone()));
                         result
                     };
@@ -571,6 +606,7 @@ impl Worker {
                         source_status.update(provider_state.clone());
                         last_source_status = provider_state;
                     }
+                    let merging = Instant::now();
                     let result = crate::completion::merge(
                         base,
                         request.as_ref().unwrap(),
@@ -578,6 +614,12 @@ impl Worker {
                         q.usage.as_deref(),
                         q.limit,
                         &q.descriptions,
+                    );
+                    trace.event(
+                        "completion_merge",
+                        Some(q.revision),
+                        Some(merging.elapsed()),
+                        Some(result.candidates.len()),
                     );
                     trace.event(
                         "completion",
@@ -930,57 +972,7 @@ impl State {
             return;
         };
         if let Some(form) = self.hub_form.as_ref() {
-            let Some(field) = form.current() else {
-                return;
-            };
-            let name = if field.label.is_empty() {
-                &field.name
-            } else {
-                &field.label
-            };
-            let preview = form.preview();
-            let (position, count) = form.position();
-            self.completion = Completion {
-                replace_start: 0,
-                replace_end: self.line.len(),
-                candidates: vec![Candidate {
-                    label: format!("填写参数：{name}"),
-                    insert_text: preview,
-                    description: if !field.values.is_empty() {
-                        format!(
-                            "↑↓ 选值：{}",
-                            field
-                                .values
-                                .iter()
-                                .take(5)
-                                .cloned()
-                                .collect::<Vec<_>>()
-                                .join("、")
-                        )
-                    } else if query.is_empty() {
-                        if field.default.is_empty() {
-                            if field.required {
-                                "输入参数值后按 Enter".into()
-                            } else {
-                                "可跳过；按 Enter 继续".into()
-                            }
-                        } else {
-                            format!("默认值：{} · Enter 使用默认值", field.default)
-                        }
-                    } else {
-                        format!("当前值：{query}")
-                    },
-                    kind: crate::model::CandidateKind::Value,
-                    id: format!("hub-form:{name}"),
-                    source: "Blueberry 工作台/参数表单".into(),
-                    append_space: false,
-                    ..Default::default()
-                }],
-                incomplete: false,
-                argument_hint: format!(
-                    "参数 {position}/{count} · {name} · Enter 下一项 · Esc 取消"
-                ),
-            };
+            self.completion = crate::hub::form_completion(form, query, self.line.len());
             self.selected = 0;
             self.dismissed = false;
             self.searching = true;
@@ -2845,6 +2837,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }
                 }
                 HostEvent::Eof => eof = true,
+                #[cfg(windows)]
+                HostEvent::DirectMessage(_, _) => {}
                 HostEvent::Error(error) => {
                     if exit_code.is_none() {
                         return Err(anyhow::anyhow!(error));
@@ -2937,7 +2931,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     detail_page: state.detail_page,
                     argument_hint: (!state.completion.candidates.is_empty())
                         .then_some(state.completion.argument_hint.as_str()),
-                    searching: state.searching,
+                    searching: state.searching && state.hub_query.is_none(),
                     diagnostic: state.notification.as_deref().or_else(|| {
                         state.completion.candidates.is_empty().then_some(
                             if state.completion.incomplete {

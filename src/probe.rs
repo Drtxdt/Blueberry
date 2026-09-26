@@ -17,7 +17,8 @@ use std::{
 
 pub struct Harness {
     session: pty::Session,
-    receive: mpsc::Receiver<Vec<u8>>,
+    receive: mpsc::Receiver<(Vec<u8>, Instant)>,
+    last_output_arrival: Option<Instant>,
     decoder: Decoder,
     messages: VecDeque<Value>,
     screen: vt100::Parser,
@@ -41,7 +42,8 @@ impl Harness {
         thread::spawn(move || {
             let mut buffer = [0u8; 16384];
             while let Ok(n) = reader.read(&mut buffer) {
-                if n == 0 || send.send(buffer[..n].to_vec()).is_err() {
+                let arrived = Instant::now();
+                if n == 0 || send.send((buffer[..n].to_vec(), arrived)).is_err() {
                     break;
                 }
             }
@@ -56,6 +58,7 @@ impl Harness {
             protocol_seen: false,
             known_empty_buffer: false,
             last_capabilities: None,
+            last_output_arrival: None,
         })
     }
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {
@@ -65,7 +68,7 @@ impl Harness {
         Ok(())
     }
     pub fn pump(&mut self, timeout: Duration) -> Result<()> {
-        let bytes = self.receive.recv_timeout(timeout).with_context(|| {
+        let (bytes, arrived) = self.receive.recv_timeout(timeout).with_context(|| {
             format!(
                 "PTY timeout/closed. Screen: {}; raw tail: {:?}",
                 self.screen.screen().contents(),
@@ -75,6 +78,7 @@ impl Harness {
         for part in self.decoder.feed(&bytes) {
             match part {
                 Part::Data(data) => {
+                    self.last_output_arrival = Some(arrived);
                     self.trace.extend_from_slice(&data);
                     if self.trace.len() > 4096 {
                         self.trace.drain(..self.trace.len() - 4096);
@@ -133,6 +137,11 @@ impl Harness {
     }
     pub fn contents(&self) -> String {
         self.screen.screen().contents()
+    }
+    /// Arrival of the bytes that most recently changed the VT observation.
+    /// This excludes test-thread scheduling and is not a physical pixel time.
+    pub fn last_output_arrival(&self) -> Option<Instant> {
+        self.last_output_arrival
     }
     /// Physical rows for visual assertions. `contents()` joins soft-wrapped
     /// lines, including historical rows later covered by a menu after resize.

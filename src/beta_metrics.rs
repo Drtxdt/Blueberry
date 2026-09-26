@@ -1,12 +1,12 @@
 //! Auditable Beta performance measurements over the real PowerShell host.
 //!
 //! This module intentionally owns no shell state and does not use the probe
-//! event tap.  Each sample is observed from the same physical rows a user
-//! sees in a ConPTY.  A cache-miss and a cache-hit run use the same per-
+//! event tap. Each sample observes a VT terminal from ConPTY output; physical
+//! screen pixels are not measured. A cache-miss and a cache-hit run use the same per-
 //! scenario data directory, while every measured query still gets its own
 //! input, first-menu, and complete-dynamic-menu timestamp.
 
-use crate::probe::Harness;
+use crate::{metrics, probe::Harness};
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::{Value, json};
 use std::{
@@ -23,7 +23,7 @@ const WAIT_TIMEOUT: Duration = Duration::from_secs(20);
 const CLEANUP_TIMEOUT: Duration = Duration::from_millis(500);
 const IDLE_CPU_SAMPLE: Duration = Duration::from_millis(200);
 const OUTPUT_BYTES: usize = 256 * 1024;
-const METRICS_SCHEMA: u32 = 1;
+const METRICS_SCHEMA: u32 = 2;
 const MIN_ACCEPTANCE_SAMPLES: usize = 300;
 
 #[derive(Clone, Copy)]
@@ -145,6 +145,8 @@ struct Measurements {
     first_query: Vec<f64>,
     first_dynamic_query: Vec<f64>,
     actual_transport: Vec<String>,
+    actual_host_mode: Vec<String>,
+    automatic_menu: Vec<bool>,
     shell_versions: Vec<String>,
     psreadline_versions: Vec<String>,
     input_echo: Vec<f64>,
@@ -200,6 +202,8 @@ impl Measurements {
             "first_dynamic_query": f64_stats(&self.first_dynamic_query, "ms"),
             "first_query": f64_stats(&self.first_query, "ms"),
             "actual_transport": &self.actual_transport,
+            "actual_host_mode": &self.actual_host_mode,
+            "automatic_menu": &self.automatic_menu,
             "shell_versions": &self.shell_versions,
             "psreadline_versions": &self.psreadline_versions,
             "transport_ineligible_hot_queries": self.transport_ineligible_hot_queries,
@@ -268,6 +272,56 @@ pub fn run(
     descriptions: bool,
     transport: &str,
 ) -> Result<Value> {
+    run_with_host(
+        executable,
+        shell,
+        samples,
+        descriptions,
+        transport,
+        "nested",
+    )
+}
+
+pub fn run_with_host(
+    executable: &Path,
+    shell: &Path,
+    samples: u16,
+    descriptions: bool,
+    transport: &str,
+    host_mode: &str,
+) -> Result<Value> {
+    run_traced(
+        executable,
+        shell,
+        samples,
+        descriptions,
+        transport,
+        host_mode,
+        None,
+    )
+}
+
+pub fn run_traced(
+    executable: &Path,
+    shell: &Path,
+    samples: u16,
+    descriptions: bool,
+    transport: &str,
+    host_mode: &str,
+    trace_directory: Option<&Path>,
+) -> Result<Value> {
+    let identity = metrics::build_identity(executable)?;
+    let hash_before = metrics::executable_sha256(executable)?;
+    #[cfg(windows)]
+    let frozen_environment = crate::product_probe::environment(shell)?;
+    ensure!(
+        matches!(host_mode, "direct" | "nested"),
+        "host mode must be direct or nested"
+    );
+    ensure!(
+        host_mode != "direct" || transport == "pipe",
+        "direct host requires pipe"
+    );
     ensure!(samples > 0, "性能样本数必须大于 0");
     let transport = transport.to_ascii_lowercase();
     ensure!(
@@ -284,7 +338,15 @@ pub fn run(
     let fixtures = create_fixtures(&temporary.path)?;
     let config = temporary.path.join("beta-config.toml");
     write_config(&config, descriptions)?;
-    let environment = host_environment(&fixtures)?;
+    let mut environment = host_environment(&fixtures)?;
+    environment.insert("BLUEBERRY_PROBE_HOST_MODE".into(), host_mode.into());
+    if let Some(directory) = trace_directory {
+        fs::create_dir_all(directory)?;
+        environment.insert(
+            "BLUEBERRY_PROBE_TRACE_DIR".into(),
+            fs::canonicalize(directory)?.to_string_lossy().into_owned(),
+        );
+    }
     let sample_count = usize::from(samples);
     let session_count = sample_count.div_ceil(QUERY_BATCH);
 
@@ -381,6 +443,9 @@ pub fn run(
     let dynamic_p95 = target_dynamic_stats.get("p95").and_then(Value::as_f64);
     let hot_p95 = target_hot_stats.get("p95").and_then(Value::as_f64);
     let mut reasons = Vec::new();
+    if trace_directory.is_some() {
+        reasons.push("diagnostic trace enabled; excluded from acceptance".into());
+    }
     if sample_count < MIN_ACCEPTANCE_SAMPLES {
         reasons.push(format!(
             "每种 cache 模式只有 {sample_count} 个热态样本，正式验收至少需要 {MIN_ACCEPTANCE_SAMPLES} 个"
@@ -402,10 +467,14 @@ pub fn run(
     let passed = reasons.is_empty();
 
     let executable_sha256 = crate::metrics::executable_sha256(executable)?;
-    Ok(json!({
+    ensure!(
+        executable_sha256 == hash_before,
+        "measured EXE changed during batch"
+    );
+    let report = json!({
         "schema": METRICS_SCHEMA,
         "executable_sha256": executable_sha256,
-        "build": if cfg!(debug_assertions) { "debug" } else { "release" },
+        "build": identity["profile"],
         "platform": env::consts::OS,
         "arch": env::consts::ARCH,
         "power": power_status(),
@@ -418,16 +487,19 @@ pub fn run(
         "acceptance_sample_count_ok": sample_count >= MIN_ACCEPTANCE_SAMPLES,
         "descriptions": descriptions,
         "transport": transport,
+        "host_mode": host_mode,
+        "source_commit": identity["commit"],
+        "source_dirty": identity["dirty"],
         "actual_transports": actual_transports,
         "transport_degraded": transport_degraded,
         "profile_mode": "preserved",
         "no_history": true,
-        "trace": "disabled",
+        "trace": if trace_directory.is_some() { "enabled_diagnostic" } else { "disabled" },
         "os_cache_cleared": false,
         "target": {
             "startup": {
                 "status": "not_measured",
-                "reason": "启动增量由独立 probe --with-profile 配对测量；本 harness 只记录提示符后的输入回显",
+                "reason": "启动增量由 product-probe 配对测量；本 harness 只记录提示符后的输入回显",
             },
             "complete_dynamic_menu": target_dynamic_stats,
             "complete_dynamic_menu_p95_ms": dynamic_p95,
@@ -456,7 +528,7 @@ pub fn run(
             "cpu": "Windows 使用 GetProcessTimes，空闲约 200 ms；其他平台报告 unavailable",
             "throughput": "固定安全文本夹具通过 Get-Content -Raw 输出，并用独立 pwsh 同命令作基准",
             "profile": "不传 --no-profile；BLUEBERRY_NO_HISTORY=1 只禁止历史落盘，不改变 profile 加载",
-            "trace": "未设置 trace 路径，BLUEBERRY_TRACE=0",
+            "trace": if trace_directory.is_some() { "阶段诊断，不能用于验收" } else { "未设置 trace 路径，BLUEBERRY_TRACE=0" },
             "cache_state": "保留 OS 文件缓存，不清空系统缓存",
         },
         "fixture": {
@@ -467,7 +539,21 @@ pub fn run(
             "paths": fixtures.paths,
             "throughput_bytes": OUTPUT_BYTES,
         },
-    }))
+    });
+    #[cfg(windows)]
+    let report = {
+        let mut report = report;
+        ensure!(
+            crate::product_probe::environment(shell)? == frozen_environment,
+            "environment changed: whole hot batch invalidated"
+        );
+        report
+            .as_object_mut()
+            .unwrap()
+            .extend(frozen_environment.as_object().unwrap().clone());
+        report
+    };
+    Ok(report)
 }
 
 #[cfg(windows)]
@@ -619,6 +705,8 @@ fn append_measurements(target: &mut Measurements, mut source: Measurements) {
         .first_dynamic_query
         .append(&mut source.first_dynamic_query);
     target.actual_transport.append(&mut source.actual_transport);
+    target.actual_host_mode.append(&mut source.actual_host_mode);
+    target.automatic_menu.append(&mut source.automatic_menu);
     target.shell_versions.append(&mut source.shell_versions);
     target
         .psreadline_versions
@@ -663,7 +751,20 @@ fn measure_session(
     session_index: usize,
     mode: &str,
 ) -> Result<Measurements> {
-    let args = host_args(config, shell, data_dir, transport);
+    let host_mode = environment
+        .get("BLUEBERRY_PROBE_HOST_MODE")
+        .map(String::as_str)
+        .unwrap_or("nested");
+    let mut args = host_args(config, shell, data_dir, transport, host_mode);
+    if let Some(directory) = environment.get("BLUEBERRY_PROBE_TRACE_DIR") {
+        args.extend([
+            "--trace".into(),
+            Path::new(directory)
+                .join(format!("{}-{mode}-{session_index}.jsonl", kind.name()))
+                .to_string_lossy()
+                .into_owned(),
+        ]);
+    }
     let cwd = kind.cwd(fixtures);
     let token = uuid::Uuid::new_v4().to_string();
     // StatusWriter creates one session-UUID directory per host.  Keep the
@@ -677,11 +778,15 @@ fn measure_session(
     // StatusWriter publishes the transport selected by the adapter in a
     // session-specific adapter.json.  Observe it before recording any query
     // so a pipe fallback can never be included in the requested-pipe sample.
-    let (actual_transport, shell_version, psreadline_version) =
+    let (actual_transport, shell_version, psreadline_version, actual_host, automatic) =
         wait_for_transport(data_dir, transport, &previous_adapters)?;
-    let transport_valid = actual_transport == transport;
+    let transport_valid = actual_transport == transport
+        && actual_host == host_mode
+        && (host_mode != "direct" || automatic);
     let mut measurements = Measurements::default();
     measurements.actual_transport.push(actual_transport);
+    measurements.actual_host_mode.push(actual_host);
+    measurements.automatic_menu.push(automatic);
     measurements.shell_versions.push(shell_version);
     measurements.psreadline_versions.push(psreadline_version);
     sample_memory(&mut measurements.memory_prompt, &harness);
@@ -758,28 +863,32 @@ fn observe_query(
     let mut dynamic_complete_menu = None;
     loop {
         let screen = harness.viewport_contents();
+        let observed = harness
+            .last_output_arrival()
+            .filter(|arrival| *arrival >= started)
+            .map(|arrival| milliseconds(arrival.duration_since(started)));
         if input_echo.is_none() && has_input_echo(&screen, line) {
-            input_echo = Some(milliseconds(started.elapsed()));
+            input_echo = observed;
         }
         if input_echo.is_some() {
             if first_menu.is_none() && has_menu_row(&screen) {
-                first_menu = Some(milliseconds(started.elapsed()));
+                first_menu = observed;
             }
             if first_candidate_menu.is_none()
                 && has_expected_menu_row(&screen, expected)
                 && (dynamic || has_complete_status(&screen))
             {
-                first_candidate_menu = Some(milliseconds(started.elapsed()));
+                first_candidate_menu = observed;
             }
             if dynamic {
                 if dynamic_complete_menu.is_none()
                     && has_expected_menu_row(&screen, expected)
                     && has_complete_status(&screen)
                 {
-                    dynamic_complete_menu = Some(milliseconds(started.elapsed()));
+                    dynamic_complete_menu = observed;
                 }
             } else if has_expected_menu_row(&screen, expected) && has_complete_status(&screen) {
-                dynamic_complete_menu = Some(milliseconds(started.elapsed()));
+                dynamic_complete_menu = observed;
             }
         }
         let complete = dynamic_complete_menu.is_some();
@@ -801,7 +910,7 @@ fn observe_query(
     }
 }
 
-fn wait_for_prompt(harness: &mut Harness, timeout: Duration) -> Result<()> {
+pub(crate) fn wait_for_prompt(harness: &mut Harness, timeout: Duration) -> Result<()> {
     let deadline = Instant::now() + timeout;
     loop {
         let screen = harness.viewport_contents();
@@ -879,7 +988,7 @@ fn has_expected_menu_row(screen: &str, expected: &str) -> bool {
         .any(|line| is_menu_row(line) && line.contains(expected))
 }
 
-fn has_complete_status(screen: &str) -> bool {
+pub(crate) fn has_complete_status(screen: &str) -> bool {
     // The fixed benchmark layout reserves a visible status row. Requiring
     // the complete footer rejects diagnostic replacement or clipped status;
     // absence of a loading marker alone cannot prove provider completion.
@@ -888,7 +997,13 @@ fn has_complete_status(screen: &str) -> bool {
     })
 }
 
-fn host_args(config: &Path, shell: &Path, data_dir: &Path, transport: &str) -> Vec<String> {
+fn host_args(
+    config: &Path,
+    shell: &Path,
+    data_dir: &Path,
+    transport: &str,
+    host_mode: &str,
+) -> Vec<String> {
     vec![
         "--config".to_owned(),
         config.to_string_lossy().into_owned(),
@@ -899,6 +1014,8 @@ fn host_args(config: &Path, shell: &Path, data_dir: &Path, transport: &str) -> V
         data_dir.to_string_lossy().into_owned(),
         "--transport".to_owned(),
         transport.to_owned(),
+        "--host-mode".to_owned(),
+        host_mode.to_owned(),
     ]
 }
 
@@ -1141,7 +1258,7 @@ fn measure_pwsh_baseline(
     fixtures: &Fixtures,
 ) -> Result<Value> {
     let mut baseline_environment = environment.clone();
-    baseline_environment.remove("BLUEBERRY_ACTIVE");
+    baseline_environment.insert("BLUEBERRY_ACTIVE".into(), "1".into());
     baseline_environment.remove("BLUEBERRY_TRACE");
     // BLUEBERRY_NO_HISTORY is consumed by the adapter and has no meaning to
     // a bare PowerShell process. Explicitly configure PSReadLine after the
@@ -1255,7 +1372,7 @@ fn wait_for_transport(
     data_dir: &Path,
     requested: &str,
     previous_adapters: &BTreeSet<PathBuf>,
-) -> Result<(String, String, String)> {
+) -> Result<(String, String, String, String, bool)> {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
         if let Ok(entries) = fs::read_dir(data_dir) {
@@ -1285,6 +1402,10 @@ fn wait_for_transport(
                         actual.to_owned(),
                         shell_version.to_owned(),
                         psreadline_version.to_owned(),
+                        value["host_mode"].as_str().unwrap_or("nested").to_owned(),
+                        value["automatic_menu"]
+                            .as_bool()
+                            .unwrap_or(value["capabilities"]["ready"] == true),
                     ));
                 }
             }

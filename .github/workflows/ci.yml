@@ -83,6 +83,11 @@ jobs:
         run: |
           cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'pipe terminal regressions failed' }
+      - name: Direct inherited-console regressions
+        shell: pwsh
+        run: |
+          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
   powershell-7:
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
@@ -120,6 +125,12 @@ jobs:
         run: |
           cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'PowerShell 7 ConPTY regressions failed' }
+      - name: Direct inherited-console regressions
+        if: matrix.transport == 'pipe'
+        shell: pwsh
+        run: |
+          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
   native-mouse:
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025

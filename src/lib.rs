@@ -14,6 +14,8 @@ pub mod packs;
 pub mod paths;
 pub mod pipe;
 pub mod probe;
+#[cfg(windows)]
+pub mod product_probe;
 pub mod protocol;
 pub mod providers;
 pub mod pty;

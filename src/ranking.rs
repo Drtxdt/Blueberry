@@ -145,6 +145,9 @@ impl UsageSnapshot {
         }
     }
     fn score(&self, candidate: &Candidate, project: &Path) -> (u64, u64) {
+        if self.entries.is_empty() {
+            return (0, 0);
+        }
         self.entries
             .get(&self.key(candidate.identity(), project))
             .map(|e| (e.count, e.last))

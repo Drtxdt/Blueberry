@@ -2,11 +2,15 @@
 
 ## 0.5.0-beta.7
 
+候选版本，尚未公开发布；性能与人工门槛未完成。
+
 - 收藏和模板改为跨进程锁保护的原子写入；损坏文件、未知 schema 与外部修改会报错，后台重载保留上一份有效快照。
 - 会话工作台和独立工作台共用参数校验与 PowerShell 引用；支持从 `git switch -c`、`cargo test`、`docker compose up/logs` 的当前输入继续填写。
 - 增加经 SHA-256 审批的仓库命令包及 `blueberry packs list/review/approve/revoke`；文件变化会立即停用批准。
 - 帮助入口识别和历史加载移到后台，历史读取有预算；`doctor --json` 报告构建、Shell、PSReadLine、传输方式和命令库状态。
 - 性能与兼容性验收以同一发布包的原始证据为准；证据包随 Release 提供。
+- 增加 `run --host-mode direct|nested` 和构建时编译的 PSReadLine 桥接；单层目前为实验模式，按原委托编辑、由 Shell 线程绘制共享菜单，revision 与已显示帧身份保护插入。
+- 增加实际产品 `product-probe`，热态探针支持 direct，接收线程记录到达时间；发布证据区分单层正式矩阵、嵌套兼容报告和明确的用户试用豁免。
 
 ## 0.5.0-beta.6
 

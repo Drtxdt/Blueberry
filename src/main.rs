@@ -32,6 +32,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Paired plain PowerShell vs complete product startup, with the same profiles.
+    #[cfg(windows)]
+    ProductProbe {
+        #[arg(long, default_value_os_t=blueberry::pty::default_shell())]
+        shell: PathBuf,
+        #[arg(long,default_value_t=10,value_parser=clap::value_parser!(u16).range(1..1001))]
+        iterations: u16,
+        #[arg(long, value_enum, default_value = "direct")]
+        host_mode: host::HostMode,
+        #[arg(long)]
+        host_executable: Option<PathBuf>,
+        /// Diagnostic only: writes numeric candidate traces, invalid for acceptance.
+        #[arg(long)]
+        diagnostic_trace_directory: Option<PathBuf>,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
     /// Diagnose visible input latency across plain, nested and complete hosts.
     #[cfg(windows)]
     LayerProbe {
@@ -66,10 +83,15 @@ enum Command {
         samples: u16,
         #[arg(long, value_enum, default_value = "osc")]
         transport: host::Transport,
+        #[arg(long, value_enum, default_value = "nested")]
+        host_mode: host::HostMode,
         #[arg(long)]
         no_descriptions: bool,
         #[arg(long)]
         host_executable: Option<PathBuf>,
+        /// Diagnostic only: numeric traces invalidate acceptance timing.
+        #[arg(long)]
+        diagnostic_trace_directory: Option<PathBuf>,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -84,9 +106,12 @@ enum Command {
         /// Write numeric performance events to a new JSONL file (no input text).
         #[arg(long)]
         trace: Option<PathBuf>,
-        /// Explicit transport experiment; OSC remains the default.
-        #[arg(long, value_enum, default_value = "osc")]
-        transport: host::Transport,
+        /// Transport for the selected host (direct requires pipe).
+        #[arg(long, value_enum)]
+        transport: Option<host::Transport>,
+        /// Direct is experimental until its correctness and latency gates pass.
+        #[arg(long, value_enum)]
+        host_mode: Option<host::HostMode>,
     },
     /// Complete an input line without starting PowerShell (cursor is a UTF-8 byte offset).
     Complete {
@@ -736,7 +761,8 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
     };
     let build = serde_json::json!({
         "commit":env!("BLUEBERRY_BUILD_COMMIT"),
-        "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0)
+        "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0),
+        "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true"
     });
     if json {
         let path = config_path
@@ -768,6 +794,26 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             .map(|transport| serde_json::json!(transport))
             .unwrap_or(serde_json::Value::Null);
         value["commands"] = commands;
+        value["host_mode"] = adapter
+            .as_ref()
+            .and_then(|status| status["host_mode"].as_str())
+            .map(|mode| serde_json::json!(mode))
+            .or_else(|| {
+                env::var("BLUEBERRY_HOST_MODE")
+                    .ok()
+                    .map(|mode| serde_json::json!(mode))
+            })
+            .unwrap_or(serde_json::Value::Null);
+        value["automatic_menu"] = adapter
+            .as_ref()
+            .and_then(|status| status["automatic_menu"].as_bool())
+            .map(|enabled| serde_json::json!(enabled))
+            .unwrap_or(serde_json::Value::Null);
+        value["automatic_menu_disabled_reason"] = adapter
+            .as_ref()
+            .and_then(|status| status["disabled_reason"].as_str())
+            .map(|reason| serde_json::json!(reason))
+            .unwrap_or(serde_json::Value::Null);
         println!("{}", serde_json::to_string_pretty(&value)?);
         return Ok(if value["valid"] == true { 0 } else { 1 });
     }
@@ -925,28 +971,64 @@ fn execute() -> Result<u32> {
         no_profile: false,
         data_dir: None,
         trace: None,
-        transport: host::Transport::Osc,
+        transport: None,
+        host_mode: None,
     }) {
+        #[cfg(windows)]
+        Command::ProductProbe {
+            shell,
+            iterations,
+            host_mode,
+            host_executable,
+            diagnostic_trace_directory,
+            output,
+        } => {
+            let report = blueberry::product_probe::run_with_trace(
+                &host_executable.unwrap_or(std::env::current_exe()?),
+                &shell,
+                iterations,
+                match host_mode {
+                    host::HostMode::Direct => "direct",
+                    host::HostMode::Nested => "nested",
+                },
+                diagnostic_trace_directory.as_deref(),
+            )?;
+            let text = serde_json::to_string_pretty(&report)?;
+            if let Some(path) = output {
+                std::fs::write(path, &text)?;
+            }
+            println!("{text}");
+            Ok(0)
+        }
         Command::Run {
             shell,
             no_profile,
             data_dir,
             trace,
             transport,
+            host_mode,
         } => {
             if !no_profile && blueberry::setup::take_first_hint() {
                 println!(
                     "Blueberry 提示：首次使用可运行 `blueberry setup`，两分钟了解补全、图标和自动启动设置。"
                 );
             }
-            host::run(host::RunOptions {
+            let (mode, transport) = host::resolve_host(host_mode, transport)?;
+            let options = host::RunOptions {
                 shell,
                 no_profile,
                 config_path: cli.config,
                 data_dir: data_dir.unwrap_or_else(config::cache_dir),
                 trace_path: trace,
                 transport,
-            })
+            };
+            match mode {
+                host::HostMode::Nested => host::run(options),
+                #[cfg(windows)]
+                host::HostMode::Direct => host::direct::run(options),
+                #[cfg(not(windows))]
+                host::HostMode::Direct => anyhow::bail!("direct host is only supported on Windows"),
+            }
         }
         Command::Startup {
             action,
@@ -1083,11 +1165,13 @@ fn execute() -> Result<u32> {
             shell,
             samples,
             transport,
+            host_mode,
             no_descriptions,
             host_executable,
+            diagnostic_trace_directory,
             output,
         } => {
-            let report = blueberry::beta_metrics::run(
+            let report = blueberry::beta_metrics::run_traced(
                 &host_executable.unwrap_or(std::env::current_exe()?),
                 &shell,
                 samples,
@@ -1096,6 +1180,11 @@ fn execute() -> Result<u32> {
                     host::Transport::Osc => "osc",
                     host::Transport::Pipe => "pipe",
                 },
+                match host_mode {
+                    host::HostMode::Direct => "direct",
+                    host::HostMode::Nested => "nested",
+                },
+                diagnostic_trace_directory.as_deref(),
             )?;
             let text = serde_json::to_string_pretty(&report)?;
             if let Some(path) = output {

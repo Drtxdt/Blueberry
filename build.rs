@@ -700,9 +700,43 @@ fn embed_legacy_json() {
         .expect("write embedded JSON helper base64");
 }
 
+#[cfg(windows)]
+fn embed_direct_bridge() {
+    println!("cargo:rerun-if-changed=shell/direct-bridge.cs");
+    println!("cargo:rerun-if-changed=shell/direct.ps1");
+    let compiler = PathBuf::from(env::var_os("SystemRoot").expect("SystemRoot"))
+        .join("Microsoft.NET/Framework64/v4.0.30319/csc.exe");
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
+    let dll = output.join("direct-bridge.dll");
+    let result = Command::new(compiler)
+        .args([
+            "/nologo".to_owned(),
+            "/target:library".to_owned(),
+            "/optimize+".to_owned(),
+            format!("/out:{}", dll.display()),
+            "/reference:System.Core.dll".to_owned(),
+            env::current_dir()
+                .expect("build directory")
+                .join("shell")
+                .join("direct-bridge.cs")
+                .to_string_lossy()
+                .into_owned(),
+        ])
+        .output()
+        .expect("compile direct PSReadLine bridge at build time");
+    assert!(
+        result.status.success(),
+        "direct bridge compilation failed: {} {}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+
 fn main() {
     #[cfg(windows)]
     embed_legacy_json();
+    #[cfg(windows)]
+    embed_direct_bridge();
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-env-changed=GITHUB_SHA");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
@@ -728,6 +762,18 @@ fn main() {
                 .as_secs()
         });
     println!("cargo:rustc-env=BLUEBERRY_BUILD_COMMIT={commit}");
+    let dirty = Command::new("git")
+        .args(["status", "--porcelain", "--untracked-files=normal"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| !output.stdout.is_empty())
+        .unwrap_or(true);
+    println!("cargo:rustc-env=BLUEBERRY_BUILD_DIRTY={dirty}");
+    println!(
+        "cargo:rustc-env=BLUEBERRY_BUILD_PROFILE={}",
+        env::var("PROFILE").unwrap_or_else(|_| "unknown".into())
+    );
     println!("cargo:rustc-env=BLUEBERRY_BUILD_TIME_UNIX={build_time}");
     println!("cargo:rerun-if-changed=specs/builtin");
     println!("cargo:rerun-if-changed=specs/tools.toml");

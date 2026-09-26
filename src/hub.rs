@@ -350,6 +350,63 @@ impl TemplateForm {
         self.template.render(&self.values)
     }
 }
+
+/// The same form frame is used by both terminal hosts. Validation remains in
+/// TemplateForm::submit; display never mutates the user's original buffer.
+pub fn form_completion(
+    form: &TemplateForm,
+    entered: &str,
+    original_len: usize,
+) -> crate::model::Completion {
+    let Some(field) = form.current() else {
+        return Default::default();
+    };
+    let name = if field.label.is_empty() {
+        &field.name
+    } else {
+        &field.label
+    };
+    let (position, count) = form.position();
+    crate::model::Completion {
+        replace_start: 0,
+        replace_end: original_len,
+        candidates: vec![Candidate {
+            label: format!("填写参数：{name}"),
+            insert_text: form.preview(),
+            description: if !field.values.is_empty() {
+                format!(
+                    "↑↓ 选值：{}",
+                    field
+                        .values
+                        .iter()
+                        .take(5)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join("、")
+                )
+            } else if entered.is_empty() {
+                if field.default.is_empty() {
+                    if field.required {
+                        "输入参数值后按 Enter".into()
+                    } else {
+                        "可跳过；按 Enter 继续".into()
+                    }
+                } else {
+                    format!("默认值：{} · Enter 使用默认值", field.default)
+                }
+            } else {
+                format!("当前值：{entered}")
+            },
+            kind: CandidateKind::Value,
+            id: format!("hub-form:{name}"),
+            source: "Blueberry 工作台/参数表单".into(),
+            append_space: false,
+            ..Default::default()
+        }],
+        incomplete: false,
+        argument_hint: format!("参数 {position}/{count} · {name} · Enter 下一项 · Esc 取消"),
+    }
+}
 impl TemplateParameter {
     fn label_or_name(&self) -> &str {
         if self.label.is_empty() {

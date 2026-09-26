@@ -2,11 +2,13 @@
 
 公开 beta.6 标签 `v0.5.0-beta.6` 指向 `decd47e0416524985c210dccc16cbced0403280a`；本次功能候选开始前的开发基线为其后的 `c5b0c09af692a028c51ecfd45b74d97defc94b82`。两者不能混作同一个版本。beta.7 功能候选已提交于独立分支 `codex/beta7-candidate`，起点提交为 `7242c6a87c07bae17aa794cdd379f1629bad5812`。早期探索 EXE 在该提交之前构建；本轮后续 EXE 包含尚未冻结的诊断与启动改动。两者都不能当作最终候选；正式验收必须以最终 main CI 工件重测。历史 [0.5 性能报告](performance-v0.5.md) 测量的是更早的提交，不能代表本候选。
 
-本机安装目录有一份 beta.6 可执行文件（SHA-256 `C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86`），但尚未与公开发布附件逐字节核对，不能作为正式 beta.6 对照。plain PowerShell／公开 beta.6 发布包／候选版／inshellisense 的交替对照仍待取得并冻结各文件哈希后执行。
+2026-09-26 已下载并核验[公开 beta.6 ZIP](https://github.com/Drtxdt/Blueberry/releases/download/v0.5.0-beta.6/blueberry-v0.5.0-beta.6-windows-x64.zip)：ZIP SHA-256 `4D40AE29FEA9B92820DCB72373FE1AFD6538F682EC58B72A337FC24A3B3B40BA`；包内 EXE 与本机安装版摘要均为 `C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86`。公开附件来源核验已完成；四方正式交替测量仍未执行。
 
-本机 inshellisense 为 `@microsoft/inshellisense` `0.0.1-rc.21`；当前 `build/index.js` 的 SHA-256 为 `6F005109131EF301C15219CDE1E5B1994BA683D78FAF125CFCA90009D56E9713`，pnpm 启动脚本的 SHA-256 为 `E239747E939671C0AEDD0543CC6C6A527ECBD36067085F5799871DD74C822460`。正式对照前须再次确认文件未变化。公开 beta.6 附件查询因本机 GitHub TLS 连接失败，仍缺正式来源核验。
+本机 inshellisense 为 `@microsoft/inshellisense` `0.0.1-rc.21`；当前 `build/index.js` 的 SHA-256 为 `6F005109131EF301C15219CDE1E5B1994BA683D78FAF125CFCA90009D56E9713`，pnpm 启动脚本的 SHA-256 为 `E239747E939671C0AEDD0543CC6C6A527ECBD36067085F5799871DD74C822460`。正式对照前须再次确认文件未变化。先前 GitHub TLS 失败来自受限运行环境的 Schannel 凭证，正常权限取得公开附件成功。
 
 ## 已完成的自动验证
+
+以下为历次记录。本轮从 `59dd80f0db3d9796d213e2ee781abbfb87cf5703` 继续的单层实现及其测量另见文末；历史 EXE 和嵌套样本不能替代单层正式验收。
 
 - `cargo fmt --all`、`cargo clippy --all-targets --locked -- -D warnings` 通过。
 - 库测试 83 项通过，包含损坏/未知 schema 不覆写、注释与无关字段保留、12 个并发写入者、外部修改冲突、进程写入中断、Windows 拒绝替换、历史尾部跨行记录、结构化参数、启动快捷键环境完整性与项目包哈希失效。独立进程收藏写入测试用 16 个进程验证，项目包 CLI 测试验证跨进程改动后批准失效。
@@ -18,11 +20,11 @@
 
 | 项目 | 门槛 | 当前状态 |
 | --- | --- | --- |
-| 首次输入增量 | P50 ≤50 ms，固定机器、profile 和交替顺序 | 最近 10 对探索样本 P50 199.8764 ms，未达标；冻结候选仍须正式复测 |
-| 热态菜单 | 各场景 P95 ≤20 ms | 最近六场景各 10 次探索样本 P95 31.89–32.76 ms，未达标；冻结候选仍须正式复测 |
-| 完整 ConPTY 回归 | PowerShell 5.1/7、OSC/pipe 全部通过 | 本机双 Shell、双传输通过；固定 PSReadLine 版本及远程矩阵待确认 |
+| 首次输入增量 | P50 ≤50 ms，固定机器、profile 和交替顺序 | 历史嵌套探索 P50 199.8764 ms 未达标；本轮完整单层产品探索见文末，正式验收尚未执行 |
+| 热态菜单 | 正式单层各场景 P95 ≤20 ms，完整动态结果 | 历史嵌套 P95 31.89–32.76 ms；不适用于新单层实现，正式矩阵尚未执行 |
+| 完整 ConPTY 回归 | 固定 PowerShell/PSReadLine 三组合、单层与嵌套兼容 | 本机单层三组合 7/7；PS7 嵌套 OSC/pipe 各 21 项通过，2 项按原设计 ignored；远程 CI 待确认 |
 | Windows Terminal | 输入法、字体缩放、选择、粘贴、嵌套程序 | 待人工验收 |
-| 目标用户 | 8–12 位独立完成安装、解释、项目参数、模板、退出恢复 | 待候选达到技术门槛后执行 |
+| 目标用户 | 本版按用户明确要求豁免 | 用户要求豁免、未执行；不得记录成“通过” |
 
 ## 当前源码候选的探索性样本
 
@@ -64,3 +66,66 @@
 - 旧 release EXE SHA-256 为 `275861F6CC5356F07DBF322EE447FE885586AA7C73D326EB0F3A8B576EB1C9ED`，新 release EXE SHA-256 为 `684C0BF530FB3EF4EE5311CE240589CEFA734CD2A66C4AB9B92C54A29CF5A7B8`。固定同一个本机 PowerShell 5.1、PSReadLine 2.4.5、profile 和 30×120 ConPTY，按旧／新／旧／新顺序每轮各采 5 对；OS 缓存未清除。原始报告：[旧 A](benchmarks/v0.5/beta7-before-embedded-legacy-5a.json)、[新 A](benchmarks/v0.5/beta7-after-embedded-legacy-5a.json)、[旧 B](benchmarks/v0.5/beta7-before-embedded-legacy-5b.json)、[新 B](benchmarks/v0.5/beta7-after-embedded-legacy-5b.json)。
 - 首次输入增量的各轮 P50：旧 **427.74／458.58 ms**，新 **225.62／207.62 ms**；新构建 JSON 初始化各轮 P50 **11.50／10.61 ms**。旧构建的探针尚未单独输出 JSON 初始化时间；独立新进程的 `Add-Type` 阶段曾测得约 246 ms。优化消除了一个明确的启动大阶段，但首次输入仍明显超过 50 ms，且 PS7 热态菜单尚未因这项改动重测，不能用于发布验收。
 - 新源码的 `cargo test --locked -- --test-threads=1` 全部通过（2 项按设计 ignored），`cargo clippy --all-targets --locked -- -D warnings`、PowerShell 5.1／7 的适配器与启动脚本测试、发布证据校验 12 项测试均通过。PowerShell 5.1 的 OSC 和 pipe，以及 PowerShell 7 的 pipe，`terminal_beta` 与 `hub_terminal` 各 11 项通过；全量 Rust 测试还覆盖默认 PowerShell 7 终端路径。启动脚本测试在受限文件系统中无法替换临时 profile，正常 Windows 权限复测通过。以上仍是本机回归，不代替远程 CI 和人工验收。
+
+## 从 59dd80f 继续：可用单层候选与完整产品测量
+
+本轮单层宿主已接入产品 `run --host-mode direct`，仍为实验模式。默认保持 nested；显式 `--transport osc|pipe` 且没有宿主参数继续选择 nested；direct 与 OSC 的组合报错。PowerShell 继承终端，Rust 不读取键盘或并发写终端。CLR 4 托管桥接在构建时编译并嵌入，启动只加载程序集；没有产品启动时 C# 编译。PSReadLine 2.0.0 和 2.4.5 共用公开编辑 API，保存并委托真实原处理函数，未按描述字符串重建处理函数，也未修改私有编辑状态。
+
+- 自动菜单、共享工作台与参数表单由 Rust 原有 Worker、候选引擎和表单逻辑产生。Shell 编辑线程恢复覆盖区、委托原编辑动作、确认 UTF-16 整行／光标，再绘制 Rust 净化后的菜单。能力协商、递增 revision、帧身份和候选身份贯穿查询与接受；过期结果丢弃。接受只填回，表单取消不改变原行，替换通过 PSReadLine 公开 API 保留撤销。
+- 管道独立接收线程在 ReadFile 后、JSON 解析前记录到达时间；高精度定时器配合非阻塞管道避免同步双向句柄互相阻塞。服务退出或协议失败后保留原 Shell，清理菜单并恢复编辑。`doctor --json` 保留旧字段，增加实际宿主、自动菜单状态与停用原因；会话外状态为空。
+- 本机最初三固定组合的单层 7/7 回归通过；包含中文／组合 emoji、两次打开表单、取消和确认、光标右侧文本、撤销、上一帧接受、窄窗口、外部程序、Ctrl+C、运行中自定义绑定及服务断开。PS7 嵌套 OSC／pipe 各 21 项通过，2 项按原设计 ignored。共享逻辑完整 Rust 核心回归 171 项通过；库 86 项包含独立进程写入中断、权限失败、16 进程并发收藏写入及项目包失效。后续新增空行／关闭自动触发回归，最终组合结果另记下方。
+- Windows PowerShell 5.1／PSReadLine 2.4.5 在 PSReadLine 启动前修改 Console 编码会丢失 emoji；在 plain 与最小桥接会话复现后，撤回提前改编码，由 PSReadLine 保持其编码生命周期。三个固定组合的 Unicode 回归均通过。
+- 运行中绑定审查尝试过只看 Dictionary 版本计数，实测 PowerShell 7 替换 Backspace 前后计数均为 72，不能用于保护。该方案已撤回；现在核对处理器对象身份，并在必要时重新完整校验。编译桥接测试证明同数量自定义重绑被发现且原绑定保留。输入批次只在最终确认查询前审查，避免对每个 UTF-16 单元重复扫描约 6.5 万项。
+- 单层历史从实际 Shell 历史路径在后台按既有预算读取；会话内新命令保留于内存。参数值后台更新受表单 generation 和字段身份校验，复用两种宿主的参数校验与渲染。
+
+### 原始探索记录与下一阶段热点
+
+下列 EXE 均由 `59dd80f` 加未提交改动构建，`source_dirty=true`，不是冻结的 main CI 工件。诊断 trace 与关闭 trace 的计时分别保存；所有时间均指接收线程所见输出形成 VT 观察终端的完整内容，不指物理屏幕像素显示。
+
+| EXE SHA-256 | PS7 配对启动 10 对 P50 | 首键回显 P50 | 首次动态菜单 P50／P95 | 原始报告 |
+| --- | --- | --- | --- | --- |
+| `F68BAC042954B6974519ADDEB3E40F50141F501359878B3D7946E7E581DD08C4` | 201.14 ms | 57.87 ms | 17.92／31.42 ms | [优化前](benchmarks/v0.5/beta7-direct-product-ps7-10.json) |
+| `95A5C5018BB1E35DEDB27CEA660E0327A4E6C353D321CC1DC7D1FC07F4EDD1BD` | 184.27 ms | 45.53 ms | 50.65／383.86 ms | [中间探索](benchmarks/v0.5/beta7-direct-product-ps7-after-10.json) |
+
+两批都未达到启动 50 ms 门槛；首次键的成本仍需收口，不能只看提示符速度。第二批尚未包含最终批次审查、高精度响应等待和空行取消调整，不能代表之后的 EXE。
+
+- [优化前 numeric trace](benchmarks/v0.5/beta7-direct-product-before-optimization-trace.jsonl) 来自第一份 EXE：桥接初始化 55.83 ms，其中约 6.5 万个按键注册 50.55 ms、初始绑定快照 1.19 ms；候选计算最大 20.91 ms。阶段相互包含，不能直接相加。
+- [早期热态 30 样本](benchmarks/v0.5/beta7-direct-hot-ps7-30.json) 保留全部原始数组，已整批标记 `batch_validity.status=invalidated`：采样期间运行了 cargo clippy。排除整批，不挑选其中的快样本。后续诊断报告启用 trace，同样不能替代正式计时。
+- 中间构建六场景 trace 的 Git 首次数据源约 40.85 ms 才返回，完整候选到菜单绘制又等待约 290 ms；命中缓存时数据源／合并通常不到 1 ms。空行候选规划约 11–12 ms 的重复工作也在 trace 中出现。下一构建改为收到不完整帧后使用剩余 4 ms 预算等完整帧，使用高精度响应定时器；空行或关闭 auto_trigger 时取消自动查询，与嵌套宿主行为一致。冷数据源超过 4 ms 时仍依赖 PSReadLine 安全回调，慢样本必须保留，不能提前显示未经确认的输入。
+
+### 发布证据与仍未完成的门槛
+
+发布证据校验器现在区分正式单层性能与嵌套兼容结果，核对干净 release 构建、源码、同一 CI 包、EXE、profile 摘要、机器、电源策略、30×120 终端与实际传输。完整产品启动必须提供 plain／candidate 原始数组、可复算配对差值、交替顺序、首键／首次静态／首次动态数组及自动菜单状态。诊断 trace、旧摘要、缺样本或不实的 plain 菜单指标被拒绝。Python 拒绝性测试已增加到 21 项，通过。CI 加入三个固定组合的单层回归，嵌套 OSC／pipe 保留。
+
+目标用户试用记录为 **用户要求豁免、未执行**，不再作为本版缺项；历史段落中的未执行状态仅描述当时。安装升级回滚、Windows Terminal 输入法／缩放／选择／粘贴／嵌套程序人工验收仍未针对最终 CI EXE 完成。四方正式对照、进程树空闲资源、完整正式性能矩阵和成功 main CI 工件尚未取得。
+
+单层所有可配置公共快捷键、Shell 自定义命令／别名元数据、真实剪贴板多行与输入法、项目包即时失效和乱序／协议故障的全流程回归仍需收口。已有测试证明原行与接受身份安全，但不能宣称用户计划中的全部功能覆盖完成。性能失败期间不切换默认、不合并 main、不打标签、不发布；下轮先针对最终探索 EXE 继续最大阶段优化与短组重测。
+
+### 高精度等待、批次审查、空行取消后的探索
+
+本轮最后被测 EXE SHA-256 为 `DB5AC1C13567730DA1D4523FB0742BE539CEAD378135F350ADFE834AC8665592`，release 构建仍标记 `59dd80f`、dirty。三个组合各 10 对，固定 profile、30×120、电源策略，关闭 trace，串行采样且无并发编译。PS5.1 最初一轮因探针误读回显中的版本命令而被版本一致性检查拒绝，未产生验收报告；修正为只解析完整元数据结束标记后重新整批采样。探针源码的后续解析测试不改变被测 EXE。
+
+| Shell／PSReadLine | 启动增量 P50 | 首键回显 P50 | 首次静态完整菜单 P50 | 首次动态完整菜单 P50 | 原始数组 |
+| --- | --- | --- | --- | --- | --- |
+| PS5.1／2.0.0 | 171.57 ms | 36.25 ms | 360.46 ms | 19.67 ms | [10 对](benchmarks/v0.5/beta7-direct-product-ps51-200-final-exploration-10.json) |
+| PS5.1／2.4.5 | 188.75 ms | 38.87 ms | 363.95 ms | 15.95 ms | [10 对](benchmarks/v0.5/beta7-direct-product-ps51-245-final-exploration-10.json) |
+| PS7／2.4.5 | 166.56 ms | 41.44 ms | 367.57 ms | 16.11 ms | [10 对](benchmarks/v0.5/beta7-direct-product-ps7-final-exploration-10.json) |
+
+三个启动组均失败。首次静态菜单变慢说明严格 4 ms 预算下首次计算无法即时交付、依赖安全回调的路径仍未解决；这是回归风险，不以较快的动态 P50 掩盖。下一阶段必须同时收口启动同步工作、首次静态候选与迟到安全刷新。
+
+[同一 EXE 的 PS7 热态原始数组](benchmarks/v0.5/beta7-direct-hot-ps7-final-exploration-30.json) 关闭 trace，六场景每缓存条件各 30 个样本，三个 miss／hit 配对会话。这里 miss／hit 指命令索引持久缓存的会话启动状态；各会话首个数据源查询单独记录，不能把后续热态当作每键数据源冷启动或 OS 缓存冷启动。
+
+| 场景 | 命令索引 miss 热态完整菜单 P95 | 命令索引 hit 热态完整菜单 P95 |
+| --- | --- | --- |
+| root | 362.53 ms | 35.78 ms |
+| git | 37.37 ms | 47.69 ms |
+| cargo | 47.06 ms | 353.72 ms |
+| js | 360.14 ms | 357.19 ms |
+| path | 352.16 ms | 361.88 ms |
+| fuzzy | 369.06 ms | 349.19 ms |
+
+十二组都失败；完整保留约 350 ms 的迟到样本，不能按首个加载帧或静态帧代替动态完成。root hit 回显 P50 为 16.24 ms、P95 28.87 ms，菜单 P50 为 18.64 ms；同条件 plain 诊断回显 P50 为 18.02 ms、P95 40.06 ms（仅 10 个控制样本），说明普通终端路径也有尾延迟，不能把所有慢样本归因于 Rust 候选计算。正式测量尚未开始，不扩大到 300 样本矩阵。
+
+最终本机单层三固定组合各 8 项通过；最新库 87 项通过，包括防止把版本命令回显误当作实际版本的新测试。高精度等待遵守响应预算后暴露的迟到刷新问题尚未收口；代码留在候选分支，默认仍是 nested，远程结果另行记录，不合并 main 或发布。
+
+提交前重跑剩余核心集，合计 172 项通过（87 库、4 CLI、3 收藏库进程、22 引擎、10 帮助知识、1 项目包 CLI、20 提供器、25 规格）。PS5.1／2.0.0 与 PS7／2.4.5 的嵌套 OSC／pipe 四组各 21 项通过，2 项按原设计 ignored；原生 Windows 11 鼠标仍交给专门 CI job。`cargo fmt --all`、Clippy 全 targets `-D warnings` 和 Python 21 项通过。另修正 doctor 在配置关闭 auto_trigger 时的状态与原因，单层测试验证真实会话状态；该诊断修正及观察探针解析测试在上述 DB5A 性能构建之后，未来正式 EXE 必须重测。

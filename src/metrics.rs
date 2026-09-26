@@ -12,6 +12,24 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Identity comes from the measured executable, which may differ from the
+/// probe executable. Probe-side compile constants cannot identify a CI asset.
+pub fn build_identity(path: &Path) -> Result<Value> {
+    let output = std::process::Command::new(path)
+        .args(["doctor", "--json"])
+        .output()
+        .with_context(|| format!("read build identity from {}", path.display()))?;
+    let value: Value =
+        serde_json::from_slice(&output.stdout).context("invalid measured EXE doctor JSON")?;
+    ensure!(
+        value["build"]["commit"]
+            .as_str()
+            .is_some_and(|commit| commit.len() == 40),
+        "measured EXE has no build commit"
+    );
+    Ok(value["build"].clone())
+}
+
 pub fn executable_sha256(path: &Path) -> Result<String> {
     use std::io::Read;
     let mut file = fs::File::open(path)

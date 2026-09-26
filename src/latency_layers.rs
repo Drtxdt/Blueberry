@@ -28,7 +28,7 @@ unsafe extern "system" {
     fn QueryPerformanceFrequency(value: *mut i64) -> i32;
 }
 
-fn qpc() -> Result<i64> {
+pub(crate) fn qpc() -> Result<i64> {
     let mut value = 0i64;
     ensure!(
         unsafe { QueryPerformanceCounter(&mut value) } != 0,
@@ -37,7 +37,7 @@ fn qpc() -> Result<i64> {
     Ok(value)
 }
 
-fn qpc_frequency() -> Result<f64> {
+pub(crate) fn qpc_frequency() -> Result<f64> {
     let mut value = 0i64;
     ensure!(
         unsafe { QueryPerformanceFrequency(&mut value) } != 0 && value > 0,
@@ -556,10 +556,10 @@ pub fn direct_service(shell: &Path, report: &Path) -> Result<u32> {
     }
 }
 
-struct DirectChildJob(windows_sys::Win32::Foundation::HANDLE);
+pub(crate) struct DirectChildJob(windows_sys::Win32::Foundation::HANDLE);
 
 impl DirectChildJob {
-    fn attach(child: &std::process::Child) -> Result<Self> {
+    pub(crate) fn attach(child: &std::process::Child) -> Result<Self> {
         use std::os::windows::io::AsRawHandle;
         use windows_sys::Win32::System::JobObjects::*;
         unsafe {

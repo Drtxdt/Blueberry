@@ -137,6 +137,9 @@ pub fn merge(
     let mut seen = HashSet::new();
     base.candidates
         .retain(|c| seen.insert((c.insert_text.clone(), c.kind)));
+    // Descriptions and suffix rendering do not affect ranking or identity.
+    // Avoid formatting entries that can never be presented to the user.
+    base.candidates.truncate(limit);
     for candidate in &mut base.candidates {
         if let Some(description) = descriptions.get(candidate.identity()) {
             candidate.description = description.clone();
@@ -151,7 +154,6 @@ pub fn merge(
             base.replace_end,
         );
     }
-    base.candidates.truncate(limit);
     base
 }
 
