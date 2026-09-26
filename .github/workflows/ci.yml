@@ -116,9 +116,9 @@ jobs:
       - name: Adapter and startup regressions
         shell: pwsh
         run: |
-          ./tests/adapter.tests.ps1
+          & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/adapter.tests.ps1
           if ($LASTEXITCODE -ne 0) { throw 'adapter regressions failed' }
-          ./tests/startup.tests.ps1
+          & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/startup.tests.ps1
           if ($LASTEXITCODE -ne 0) { throw 'startup regressions failed' }
       - name: Real ConPTY interaction
         shell: pwsh

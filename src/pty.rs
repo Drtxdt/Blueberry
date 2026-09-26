@@ -106,17 +106,17 @@ pub fn spawn(
 
 pub fn ensure_integration(directory: &Path) -> Result<std::path::PathBuf> {
     std::fs::create_dir_all(directory)?;
-    let mut content = include_str!("../shell/integration.ps1").replace(
+    let content = include_str!("../shell/integration.ps1").replace(
         "([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'legacy-json.cs')))",
         &format!("@'\n{}\n'@", include_str!("../shell/legacy-json.cs")),
     );
     #[cfg(windows)]
-    {
-        content = content.replace(
+    let content = {
+        content.replace(
             "BLUEBERRY_LEGACY_ASSEMBLY_BASE64",
             include_str!(concat!(env!("OUT_DIR"), "/legacy-json.base64")),
-        );
-    }
+        )
+    };
     use std::hash::{Hash, Hasher};
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     content.hash(&mut hash);

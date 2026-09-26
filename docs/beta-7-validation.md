@@ -154,3 +154,7 @@
 十二组仍失败，未扩大到 300 样本。多数 root／path／fuzzy 热态中位数已约 16 ms，但尾延迟和 cargo 迟到安全回调仍未收口；不能用中位数代替 P95，也不能用静态条目代替动态完成。
 
 另外修正字符批量注册覆盖原 `Spacebar` 绑定的风险，真实 PSReadLine API 回归证明预先绑定的 `ForwardChar` 不被改成 `SelfInsert`。该桥接修复和构建字段修复发生在被测 EXE 之后，之后的正式包必须重新测试。新增根索引行为回归后核心测试共 173 项；三个固定组合单层各 8 项通过，Clippy 全 targets `-D warnings`、格式检查及发布证据 Python 21 项通过；远程 CI 结果另记。
+
+### 首次 main 推送与远程 CI 修复
+
+用户授权的快进合并及 main 推送已完成，源码提交为 `db33807a05178ad6ea2551f897c9e1908d238796`。[首次 main CI](https://github.com/Drtxdt/Blueberry/actions/runs/36231575759) 的格式及证据测试通过，但 macOS／Ubuntu Clippy 发现 Windows 条件编译之外的 `unused_mut`；PS7 适配器脚本实际通过后，作业错误地把测试夹具刻意留下的 `$LASTEXITCODE=7` 当作失败。后续修复使用条件变量遮蔽，并按 PS5.1 相同方式在独立 PowerShell 进程运行 PS7 两份脚本、检查实际进程退出码。保持原 Clippy `-D warnings` 和全部回归，不放宽门槛。本机同一 CI 调用方式的 PS7 适配器／启动回归及 Clippy 已通过；远程结果继续跟踪，尚无成功 main 包可作为正式验收对象。
