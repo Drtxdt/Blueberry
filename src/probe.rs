@@ -100,7 +100,10 @@ impl Harness {
                 }
                 Part::CursorQuery(private) => {
                     let (row, col) = self.screen.screen().cursor_position();
-                    self.send(
+                    // A terminal cursor response is not an editor keystroke.
+                    // Preserve the last confirmed empty-buffer state, especially
+                    // when ConPTY asks for its position after prompt_end.
+                    self.session.writer.write_all(
                         format!(
                             "\x1b[{}{};{}R",
                             if private { "?" } else { "" },
@@ -109,6 +112,7 @@ impl Harness {
                         )
                         .as_bytes(),
                     )?;
+                    self.session.writer.flush()?;
                 }
             }
         }

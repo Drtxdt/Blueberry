@@ -158,3 +158,5 @@
 ### 首次 main 推送与远程 CI 修复
 
 用户授权的快进合并及 main 推送已完成，源码提交为 `db33807a05178ad6ea2551f897c9e1908d238796`。[首次 main CI](https://github.com/Drtxdt/Blueberry/actions/runs/36231575759) 的格式及证据测试通过，但 macOS／Ubuntu Clippy 发现 Windows 条件编译之外的 `unused_mut`；PS7 适配器脚本实际通过后，作业错误地把测试夹具刻意留下的 `$LASTEXITCODE=7` 当作失败。后续修复使用条件变量遮蔽，并按 PS5.1 相同方式在独立 PowerShell 进程运行 PS7 两份脚本、检查实际进程退出码。保持原 Clippy `-D warnings` 和全部回归，不放宽门槛。本机同一 CI 调用方式的 PS7 适配器／启动回归及 Clippy 已通过；远程结果继续跟踪，尚无成功 main 包可作为正式验收对象。
+
+修复提交 `7e4087f` 的[第二轮 CI](https://github.com/Drtxdt/Blueberry/actions/runs/36231709142) 中，三平台核心、格式与 native mouse 通过；交互组在 `startup_host` 的回退 Shell 正常退出步骤超时，命令输出和下一提示符都已显示。探针会把 ConPTY 的光标位置应答错误地当成输入、取消已确认的空缓冲区状态，退出测试也没有等待命令之后的 `prompt_end` 边界。后续保留光标应答前的编辑状态，并在实际下一提示符确认后退出；仍要求 Shell 正常结束，不以 kill 替代退出、不跳过测试。远程运行不得计为成功包，需修复后重新执行矩阵。

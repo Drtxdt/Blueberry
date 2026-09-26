@@ -1,6 +1,6 @@
 #![cfg(windows)]
 
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use blueberry::{probe::Harness, pty};
 use std::{
     collections::BTreeMap,
@@ -128,8 +128,15 @@ fn no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path() -> Result<()> {
         &mut terminal,
         "Write-Output ('BB_FALLBACK_' + $PSVersionTable.PSEdition + '_' + $env:BLUEBERRY_ACTIVE)",
     )?;
-    wait_line(&mut terminal, "BB_FALLBACK_Desktop_1")?;
-    terminal.finish(Duration::from_secs(10))?;
+    wait_line(&mut terminal, "BB_FALLBACK_Desktop_1").context("fallback Shell command output")?;
+    // Output can arrive before the next PSReadLine invocation. Confirm the
+    // prompt boundary instead of issuing cleanup edits into that transition.
+    terminal
+        .event("prompt_end", Duration::from_secs(30))
+        .context("fallback Shell next prompt")?;
+    terminal
+        .finish(Duration::from_secs(10))
+        .context("fallback Shell normal exit")?;
     Ok(())
 }
 
