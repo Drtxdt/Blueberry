@@ -1,0 +1,13 @@
+   Compiling blueberry v0.5.0-beta.7 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.08s
+     Running tests\terminal_modes.rs (target\debug\deps\terminal_modes-0cb46f4903870475.exe)
+
+running 5 tests
+test alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f12 ... ok
+test conpty_mouse_input_record_helper ... ignored, launched by conpty_mouse_passthrough_for_external_program
+test conpty_mouse_passthrough_for_external_program ... ok
+test conpty_native_mouse_passthrough_for_external_program ... ignored, requires Windows 11 / Server 2025 native ConPTY mouse support; CI runs explicitly
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 7.55s
+

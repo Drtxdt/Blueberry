@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -30,6 +31,7 @@ namespace Blueberry.Direct {
         static Dictionary<string, object> pending, displayed;
         static readonly Queue<Dictionary<string, object>> reliableFrames = new Queue<Dictionary<string, object>>();
         static Dictionary<string, object> acceptingFrame;
+        static long expectedUiEditRevision = -1, receivedFrameRevision = -1, receivedFrameId = -1;
         static long revision;
         static bool editing, enabled;
         static volatile bool connected, negotiated;
@@ -37,6 +39,7 @@ namespace Blueberry.Direct {
         static bool waitingForFrame;
         static IDisposable editorRegistration;
         static Action requestEditorRefresh;
+        static Func<long[]> editorTracePoints;
         static string hubChord;
         public static bool EditorHooks { get; private set; }
         static string editorHash, editorFallbackReason;
@@ -152,20 +155,14 @@ namespace Blueberry.Direct {
             if(EditorHooks && !String.Equals(editorHash,Environment.GetEnvironmentVariable("BLUEBERRY_EDITOR_DLL_SHA256"),StringComparison.OrdinalIgnoreCase)) {
                 EditorHooks=false; editorFallbackReason="private editor identity mismatch";
             } else if(!EditorHooks && editorFallbackReason==null) editorFallbackReason="loaded PSReadLine has no editor integration v1";
-            // Observe a pending input burst, without reading/consuming keys or
-            // changing any private state. All buffer confirmation is still
-            // via GetBufferState. The supported layouts are verified below.
-            var singleton=api.GetField("_singleton",BindingFlags.NonPublic|BindingFlags.Static);
-            var queue=api.GetField("_queuedKeys",BindingFlags.NonPublic|BindingFlags.Instance);
-            if(!EditorHooks && singleton!=null && queue!=null) queuedInput=queue.GetValue(singleton.GetValue(null)) as ICollection;
+            if(EditorHooks) StartBackgroundJit();
             buffer = (BufferState)Public("GetBufferState", typeof(BufferState), typeof(string).MakeByRefType(), typeof(int).MakeByRefType());
-            register = (Register)Public("SetKeyHandler", typeof(Register), typeof(string[]), typeof(Action<ConsoleKeyInfo?, object>), typeof(string), typeof(string));
             replace = (ReplaceText)Public("Replace", typeof(ReplaceText), typeof(int), typeof(int), typeof(string), typeof(Action<ConsoleKeyInfo?, object>), typeof(object));
-            selfInsert = (Action<ConsoleKeyInfo?, object>)Public("SelfInsert", typeof(Action<ConsoleKeyInfo?, object>), typeof(ConsoleKeyInfo?), typeof(object));
             try {
                 if (EditorHooks) {
                     hubChord = Environment.GetEnvironmentVariable("BLUEBERRY_PUBLIC_KEY_HUB") ?? "Ctrl+Alt+p";
                     requestEditorRefresh = (Action)Public("RequestEditorRefresh", typeof(Action));
+                    if(diagnostic) editorTracePoints=(Func<long[]>)Public("GetEditorTracePoints",typeof(Func<long[]>));
                     editorRegistration = (IDisposable)api.GetMethod("RegisterEditorIntegration").Invoke(null, new object[] {
                         1, (Action<string,string>)Begin, (Action)Clear,
                         (Func<ConsoleKeyInfo?,object,bool,bool>)EditorKey,
@@ -174,6 +171,40 @@ namespace Blueberry.Direct {
                     });
                     enabled = true;
                 } else {
+                    InitializeLegacy(initialization, out snapshotTicks, out registrationTicks);
+                }
+            } catch (Exception error) {
+                Disable(error.GetBaseException().Message);
+            }
+            pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+            pipe.Connect(5000); connected = true;
+            new Thread(ReadFrames) { IsBackground = true, Name = "Blueberry frame receiver" }.Start();
+            Send(new Dictionary<string, object> {
+                {"event", "hello"}, {"protocol", 1}, {"host_mode", "direct"}, {"transport", "pipe"},
+                {"automatic_menu", enabled}, {"disabled_reason", DisabledReason},
+                {"psreadline", moduleVersion.ToString()},
+                {"editor_mode", EditorHooks ? "editor_hooks_v1" : "legacy"},
+                {"editor_patch", EditorHooks ? "blueberry-editor-v1" : null},
+                {"editor_dll_sha256", editorHash}, {"editor_fallback_reason", editorFallbackReason},
+                {"shell_version", shellVersion},
+                {"capabilities", new object[] {"revision", "frame_identity", "accept_identity", "utf16_edit"}}
+            });
+            long handshakeDeadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency*5;
+            while(connected && !negotiated && Stopwatch.GetTimestamp()<handshakeDeadline) arrived.WaitOne(10);
+            if(!negotiated) Disable("direct protocol capabilities were not acknowledged");
+            TraceStage("direct_binding_snapshot",snapshotTicks,originals.Count);
+            TraceStage("direct_binding_registration",registrationTicks,installed.Count);
+            TraceStage("direct_bridge_initialization",Stopwatch.GetTimestamp()-initialization,installed.Count);
+        }
+        static void InitializeLegacy(long initialization, out long snapshotTicks, out long registrationTicks) {
+            // Observe a pending input burst, without reading/consuming keys or
+            // changing any private state. All buffer confirmation is still
+            // via GetBufferState. The supported layouts are verified below.
+            var singleton=api.GetField("_singleton",BindingFlags.NonPublic|BindingFlags.Static);
+            var queue=api.GetField("_queuedKeys",BindingFlags.NonPublic|BindingFlags.Instance);
+            if(!EditorHooks && singleton!=null && queue!=null) queuedInput=queue.GetValue(singleton.GetValue(null)) as ICollection;
+            register = (Register)Public("SetKeyHandler", typeof(Register), typeof(string[]), typeof(Action<ConsoleKeyInfo?, object>), typeof(string), typeof(string));
+            selfInsert = (Action<ConsoleKeyInfo?, object>)Public("SelfInsert", typeof(Action<ConsoleKeyInfo?, object>), typeof(ConsoleKeyInfo?), typeof(object));
                 responseTimer=CreateWaitableTimerExW(IntPtr.Zero,null,2,0x1f0003);
                 if(responseTimer==IntPtr.Zero) throw new NotSupportedException("high resolution response timer unavailable");
                 // Use the complete public snapshot on 2.0.0 as well. Never call
@@ -220,29 +251,38 @@ namespace Blueberry.Direct {
                 RememberBindingVersion();
                 enabled = true;
                 registrationTicks=Stopwatch.GetTimestamp()-registration;
-                }
-            } catch (Exception error) {
-                Disable(error.GetBaseException().Message);
+        }
+        public static void PublishEnvironment() {
+            string root=Environment.GetEnvironmentVariable("BLUEBERRY_EDITOR_MODULE_ROOT");
+            if(!String.IsNullOrEmpty(root)) {
+                var paths=new List<string>();
+                foreach(string path in (Environment.GetEnvironmentVariable("PSModulePath") ?? "").Split(';'))
+                    if(!String.Equals(path,root,StringComparison.OrdinalIgnoreCase)) paths.Add(path);
+                Environment.SetEnvironmentVariable("PSModulePath",String.Join(";",paths.ToArray()));
             }
-            pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-            pipe.Connect(5000); connected = true;
-            new Thread(ReadFrames) { IsBackground = true, Name = "Blueberry frame receiver" }.Start();
-            Send(new Dictionary<string, object> {
-                {"event", "hello"}, {"protocol", 1}, {"host_mode", "direct"}, {"transport", "pipe"},
-                {"automatic_menu", enabled}, {"disabled_reason", DisabledReason},
-                {"psreadline", moduleVersion.ToString()},
-                {"editor_mode", EditorHooks ? "editor_hooks_v1" : "legacy"},
-                {"editor_patch", EditorHooks ? "blueberry-editor-v1" : null},
-                {"editor_dll_sha256", editorHash}, {"editor_fallback_reason", editorFallbackReason},
-                {"shell_version", shellVersion},
-                {"capabilities", new object[] {"revision", "frame_identity", "accept_identity", "utf16_edit"}}
-            });
-            long handshakeDeadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency*5;
-            while(connected && !negotiated && Stopwatch.GetTimestamp()<handshakeDeadline) arrived.WaitOne(10);
-            if(!negotiated) Disable("direct protocol capabilities were not acknowledged");
-            TraceStage("direct_binding_snapshot",snapshotTicks,originals.Count);
-            TraceStage("direct_binding_registration",registrationTicks,installed.Count);
-            TraceStage("direct_bridge_initialization",Stopwatch.GetTimestamp()-initialization,installed.Count);
+            Environment.SetEnvironmentVariable("BLUEBERRY_HOST_MODE","direct");
+            Environment.SetEnvironmentVariable("BLUEBERRY_TRANSPORT_ACTUAL","pipe");
+            Environment.SetEnvironmentVariable("BLUEBERRY_AUTOMATIC_MENU",AutomaticMenu ? "true" : "false");
+            Environment.SetEnvironmentVariable("BLUEBERRY_AUTOMATIC_MENU_DISABLED_REASON",DisabledReason);
+        }
+        static void StartBackgroundJit() {
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_NO_HISTORY")=="1" && Environment.GetEnvironmentVariable("BLUEBERRY_TEST_DISABLE_PREJIT")=="1") return;
+            // Compile only: never invoke editor methods, read the input buffer,
+            // or write the console from this worker. This finite pass overlaps
+            // CLR compilation with the shell's remaining initialization.
+            new Thread(delegate() {
+                long started=Stopwatch.GetTimestamp(); int prepared=0, failed=0;
+                var names=new HashSet<string>(new string[]{"Initialize","DelayedOneTimeInitialize","Render","ForceRender","ReallyRender","GenerateRender","Insert","SelfInsert","ReadKey","InputLoop","ProcessOneKey","ReadLineWithEditorIntegration","EditorProcessKey","EditorAfterKey"});
+                foreach(MethodInfo method in api.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static|BindingFlags.Instance|BindingFlags.DeclaredOnly)) {
+                    if(!names.Contains(method.Name) || method.ContainsGenericParameters || method.IsAbstract) continue;
+                    try { RuntimeHelpers.PrepareMethod(method.MethodHandle); prepared++; } catch { failed++; }
+                }
+                foreach(string name in new string[]{"Begin","Clear","EditorKey","Query","Refresh","Paint"}) {
+                    try { RuntimeHelpers.PrepareMethod(typeof(Bridge).GetMethod(name,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static).MethodHandle); prepared++; } catch { failed++; }
+                }
+                TraceStage("direct_background_jit",Stopwatch.GetTimestamp()-started,prepared);
+                if(failed>0) TraceStage("direct_background_jit_failed",0,failed);
+            }) { IsBackground=true, Name="Blueberry startup compilation" }.Start();
         }
         static bool EditorKey(ConsoleKeyInfo? key, object nativeHandler, bool builtin) {
             if (!editing || !AutomaticMenu || !key.HasValue || !builtin) return false;
@@ -316,7 +356,7 @@ namespace Blueberry.Direct {
         }
         public static void Begin(string cwd, string historyPath) {
             long beginning=diagnostic ? Stopwatch.GetTimestamp() : 0;
-            Clear(); displayed = null; acceptingFrame = null; interaction = "completion"; directory = cwd; editing = true; editorThread = Thread.CurrentThread.ManagedThreadId;
+            Clear(); displayed = null; acceptingFrame = null; expectedUiEditRevision=-1; interaction = "completion"; directory = cwd; editing = true; editorThread = Thread.CurrentThread.ManagedThreadId;
             revision++;
             if (enabled && !EditorHooks) {
                 try { AuditBindings(); } catch (Exception error) { Disable(error.GetBaseException().Message); }
@@ -329,7 +369,7 @@ namespace Blueberry.Direct {
         }
         public static void End() {
             string line; int cursor; buffer(out line,out cursor);
-            Clear(); displayed = null; editing = false; revision++;
+            Clear(); displayed = null; acceptingFrame=null; expectedUiEditRevision=-1; editing = false; revision++;
             Send(new Dictionary<string, object> { {"event", "end"}, {"revision", revision}, {"line",line} });
         }
         static void Edit(Action<ConsoleKeyInfo?, object> original, ConsoleKeyInfo? key, object arg) {
@@ -357,6 +397,7 @@ namespace Blueberry.Direct {
         }
         static void SendKey(ConsoleKeyInfo key, string operation="ui_key") {
             string line; int cursor; buffer(out line, out cursor); revision++;
+            expectedUiEditRevision=operation=="ui_key" && (key.Key==ConsoleKey.Enter || key.Key==ConsoleKey.Tab) ? revision : -1;
             Send(new Dictionary<string,object> {
                 {"event",operation},{"revision",revision},{"line",line},{"cursor",cursor},
                 {"key",key.Key.ToString()},{"character_unit",(long)key.KeyChar},{"modifiers",(int)key.Modifiers},
@@ -379,12 +420,18 @@ namespace Blueberry.Direct {
             WaitFrame();
         }
         static void Query(string operation) {
+            expectedUiEditRevision=-1;
             string line; int cursor; buffer(out line, out cursor);
             long confirmed=diagnostic ? Stopwatch.GetTimestamp() : 0;
             // A high UTF-16 surrogate can arrive as one console key before its
             // low surrogate. Wait for PSReadLine to confirm the complete pair.
             if (SplitsPair(line,cursor) || Unpaired(line)) { displayed=null; return; }
             revision++; displayed = null;
+            if(diagnostic && editorTracePoints!=null) {
+                long[] points=editorTracePoints();
+                string[] stages={"editor_loop_enter","editor_begin_complete","editor_key_received","editor_native_dispatch","editor_native_complete"};
+                for(int i=0;i<points.Length;i++) if(points[i]!=0) TracePoint(stages[i],revision,-1,points[i]);
+            }
             // Do not spend a 4 ms response budget for each character already
             // queued in a paste/burst. The final confirmed edit sends a query.
             // A single first key never skips initialization or its query.
@@ -465,25 +512,47 @@ namespace Blueberry.Direct {
             TracePoint("editor_refresh_enter",revision,Json.Long(frame,"frame_id"),Stopwatch.GetTimestamp());
             string line; int cursor; buffer(out line, out cursor);
             if (Json.String(frame, "expected_line") != line || Json.Long(frame, "expected_cursor") != cursor) return false;
-            Clear();
-            if (Json.String(frame,"kind") == "clear") { displayed=null; interaction="completion"; return true; }
+            if (Json.String(frame,"kind") == "clear") { Clear(); displayed=null; expectedUiEditRevision=-1; interaction="completion"; return true; }
             if (Json.String(frame, "kind") == "edit") {
-                if (acceptingFrame != null && (Json.Long(frame,"frame_id") != Json.Long(acceptingFrame,"frame_id")
-                    || Json.String(frame,"candidate_id") != Json.String(acceptingFrame,"candidate_id"))) return false;
+                if (!EditAuthorized(frame)) return false;
                 int start = (int)Json.Long(frame, "start"), length = (int)Json.Long(frame, "length");
                 string text = Json.String(frame, "text");
                 if (start < 0 || length < 0 || start > line.Length - length || SplitsPair(line, start) || SplitsPair(line, start + length)) return false;
+                Clear(); expectedUiEditRevision=-1;
                 replace(start, length, text, null, null); acceptingFrame = null; displayed = null; interaction="completion"; Query("query"); return true;
             }
             if (acceptingFrame != null) return false;
             object lines;
             if (Json.String(frame, "kind") != "frame" || !frame.TryGetValue("lines", out lines) || !(lines is List<object>)) return false;
+            Clear();
             long painted=diagnostic ? Stopwatch.GetTimestamp() : 0;
             if (!Paint((List<object>)lines, (int)Json.Long(frame, "tail_rows"), (int)Json.Long(frame, "width"))) { displayed = null; return false; }
             TracePoint("editor_menu_written",revision,Json.Long(frame,"frame_id"),Stopwatch.GetTimestamp());
             if(diagnostic) TraceStage("direct_console_menu_output",Stopwatch.GetTimestamp()-painted,((List<object>)lines).Count);
             if(diagnostic && frameReceived!=0) TraceStage("direct_frame_to_paint",Stopwatch.GetTimestamp()-frameReceived,1);
+            expectedUiEditRevision=-1;
             interaction=Json.String(frame,"interaction") ?? "completion"; displayed = frame; return true;
+        }
+        static bool EditAuthorized(Dictionary<string,object> frame) {
+            if(Json.Long(frame,"revision")!=revision) return false;
+            if(acceptingFrame!=null) return Json.Long(acceptingFrame,"revision")==revision && Json.Long(frame,"frame_id")==Json.Long(acceptingFrame,"frame_id")
+                && Json.String(frame,"candidate_id")==Json.String(acceptingFrame,"candidate_id");
+            return expectedUiEditRevision==revision && Json.Long(frame,"revision")==revision && !frame.ContainsKey("frame_id");
+        }
+        static bool QueueIncomingFrame(Dictionary<string,object> frame, long received) {
+            lock(frameLock) {
+                if(Json.String(frame,"kind")=="frame") {
+                    long rev=Json.Long(frame,"revision"), id=Json.Long(frame,"frame_id");
+                    if(rev<receivedFrameRevision || (rev==receivedFrameRevision && id<=receivedFrameId)) return false;
+                    receivedFrameRevision=rev; receivedFrameId=id;
+                }
+                frame["received_qpc"]=received;
+                if(Json.String(frame,"kind")!="frame" || Json.String(frame,"interaction")!="completion") {
+                    if(reliableFrames.Count>=4096) throw new InvalidDataException("control frame queue exceeded");
+                    reliableFrames.Enqueue(frame);
+                } else pending=frame;
+                return true;
+            }
         }
         static bool SplitsPair(string line, int at) {
             return at > 0 && at < line.Length && Char.IsHighSurrogate(line[at-1]) && Char.IsLowSurrogate(line[at]);
@@ -528,14 +597,8 @@ namespace Blueberry.Direct {
                         }
                         if(!negotiated || (Json.String(frame,"kind")!="frame" && Json.String(frame,"kind")!="edit" && Json.String(frame,"kind")!="clear")) throw new InvalidDataException("unexpected direct frame");
                         if(testFrameDelay>0 && Json.String(frame,"kind")=="frame") Thread.Sleep(testFrameDelay);
-                        lock (frameLock) {
-                            receivedQpc=Stopwatch.GetTimestamp();
-                            frame["received_qpc"]=receivedQpc;
-                            if (Json.String(frame,"kind") != "frame") {
-                                if (reliableFrames.Count >= 4096) throw new InvalidDataException("control frame queue exceeded");
-                                reliableFrames.Enqueue(frame);
-                            } else if (pending == null || Json.Long(frame, "revision") >= Json.Long(pending, "revision")) pending = frame;
-                        }
+                        receivedQpc=Stopwatch.GetTimestamp();
+                        if(!QueueIncomingFrame(frame,receivedQpc)) continue;
                         arrived.Set();
                         if (EditorHooks) requestEditorRefresh(); else Events.Raise();
                         TracePoint("editor_frame_received",Json.Long(frame,"revision"),Json.Long(frame,"frame_id"),receivedQpc);

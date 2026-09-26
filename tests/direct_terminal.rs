@@ -412,14 +412,27 @@ fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<(
 
 #[test]
 fn direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_keys() -> Result<()> {
-    let cases = [
-        "中文😀e\u{301}👩‍💻",
-        "abc def\x1b[D\x1b[DZ",
-        "abcdef\x1b[1;2D\x1b[1;2DX",
-        "undo-redo\x1a\x19",
-        "\x18\x01",
-        "\x1b2x",
-    ];
+    editor_equivalence(false)
+}
+
+#[test]
+fn direct_and_original_editor_agree_on_vi_command_and_insert_transitions() -> Result<()> {
+    editor_equivalence(true)
+}
+
+fn editor_equivalence(vi: bool) -> Result<()> {
+    let cases: &[&str] = if vi {
+        &["abc\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_hxiZ"]
+    } else {
+        &[
+            "中文😀e\u{301}👩‍💻",
+            "abc def\x1b[D\x1b[DZ",
+            "abcdef\x1b[1;2D\x1b[1;2DX",
+            "undo-redo\x1a\x19",
+            "\x18\x01",
+            "\x1b2x",
+        ]
+    };
     let mut results = Vec::new();
     for direct in [false, true] {
         let dir = tempfile::tempdir()?;
@@ -451,13 +464,14 @@ fn direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_ke
         h.wait_text("PS ", TIMEOUT)?;
         h.send(
             format!(
-                ". '{}' -Snapshot '{}'\r",
+                ". '{}' -Snapshot '{}'{}\r",
                 setup.display().to_string().replace('\'', "''"),
-                snapshot.display().to_string().replace('\'', "''")
+                snapshot.display().to_string().replace('\'', "''"),
+                if vi { " -Vi" } else { "" }
             )
             .as_bytes(),
         )?;
-        h.wait_line("EQUIVALENCE-READY", TIMEOUT)?;
+        wait_output_line(&mut h, "EQUIVALENCE-READY")?;
         if direct {
             wait_editor_begin(&mut h, dir.path(), 2)?;
         } else {
@@ -517,6 +531,13 @@ fn direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_ke
         results[0] == results[1],
         "native editing diverged: {results:?}"
     );
+    if vi {
+        ensure!(
+            results[1][0].ends_with("aZc"),
+            "Vi transitions were not exercised: {results:?}"
+        );
+        return Ok(());
+    }
     ensure!(
         results[1][0].contains("中文😀e\u{301}👩‍💻"),
         "Unicode input lost"
@@ -527,6 +548,42 @@ fn direct_and_original_editor_agree_on_bursts_cursor_selection_undo_and_modal_ke
         results[1]
     );
     Ok(())
+}
+
+#[test]
+fn editor_callback_exception_unregisters_without_losing_native_input() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let script = dir.path().join("inject-callback.ps1");
+    let fault = dir.path().join("fault.txt");
+    std::fs::write(
+        &script,
+        r#"param([string]$FaultPath)
+$global:BlueberryFaultPath=$FaultPath
+$field=[Blueberry.Direct.Bridge].GetField('editorRegistration',[Reflection.BindingFlags]'NonPublic,Static')
+$field.GetValue($null).Dispose()
+$global:BlueberryTestRegistration=[Microsoft.PowerShell.PSConsoleReadLine]::RegisterEditorIntegration(1,$null,[Action]{throw 'injected editor callback fault'},$null,$null,$null,$null,[Action[string]]{param($message) [IO.File]::WriteAllText($global:BlueberryFaultPath,$message)})
+[Console]::WriteLine('CALLBACK-INJECTED')
+"#,
+    )?;
+    let mut h = start(dir.path())?;
+    h.send(
+        format!(
+            ". '{}' -FaultPath '{}'\r",
+            script.display(),
+            fault.display()
+        )
+        .as_bytes(),
+    )?;
+    wait_output_line(&mut h, "CALLBACK-INJECTED")?;
+    h.send(b"Write-Output 'CALLBACK-EDIT-OK'\r")?;
+    wait_output_line(&mut h, "CALLBACK-EDIT-OK")?;
+    ensure!(
+        std::fs::read_to_string(&fault)?.contains("injected editor callback fault"),
+        "fault callback missing"
+    );
+    h.send(b"Write-Output 'NEXT-PROMPT-OK'\r")?;
+    wait_output_line(&mut h, "NEXT-PROMPT-OK")?;
+    h.finish(TIMEOUT)
 }
 
 #[test]

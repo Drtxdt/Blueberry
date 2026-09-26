@@ -1,7 +1,7 @@
 # Single-layer bootstrap. The assembly is built with the EXE, never compiled
 # during product startup. The editing thread owns every console write.
 $blueberryDirectScriptEnter = if ($env:BLUEBERRY_DIRECT_TRACE -eq '1') { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
-$blueberryDirectModule = Get-Module PSReadLine
+if (-not $blueberryDirectModule) { $blueberryDirectModule = Get-Module PSReadLine }
 if (-not $blueberryDirectModule) {
     Import-Module PSReadLine -ErrorAction Stop
     $blueberryDirectModule = Get-Module PSReadLine
@@ -31,13 +31,7 @@ if (-not [Blueberry.Direct.Bridge]::EditorHooks) {
 }
 # Keep the originally loaded module, but do not expose the private search root
 # to external PowerShell programs launched from this session.
-if ($env:BLUEBERRY_EDITOR_MODULE_ROOT) {
-    $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -ine $env:BLUEBERRY_EDITOR_MODULE_ROOT }) -join ';'
-}
-$env:BLUEBERRY_HOST_MODE = 'direct'
-$env:BLUEBERRY_TRANSPORT_ACTUAL = 'pipe'
-$env:BLUEBERRY_AUTOMATIC_MENU = [Blueberry.Direct.Bridge]::AutomaticMenu.ToString().ToLowerInvariant()
-$env:BLUEBERRY_AUTOMATIC_MENU_DISABLED_REASON = [Blueberry.Direct.Bridge]::DisabledReason
+[Blueberry.Direct.Bridge]::PublishEnvironment()
 if (-not [Blueberry.Direct.Bridge]::AutomaticMenu) {
     Write-Warning ('Blueberry 自动菜单已停用：' + [Blueberry.Direct.Bridge]::DisabledReason)
 }

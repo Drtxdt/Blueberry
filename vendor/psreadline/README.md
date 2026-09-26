@@ -34,6 +34,19 @@ The editor thread owns callbacks, buffer reads, replacement and console output.
 Callback exceptions unregister the integration. A read-line session ends before
 command execution; revisions reject results from preceding prompts.
 
+After assembly identity verification, a finite background pass asks the CLR to
+prepare selected initialization, editing and painting methods. It invokes no
+editor methods and performs no console I/O; normal CLR compilation remains the
+fallback. This overlaps first-use JIT work with the remainder of shell startup.
+It is not an idle polling thread. Isolated probes can compare it with
+`BLUEBERRY_TEST_DISABLE_PREJIT=1`; formal matrices reject that override.
+
+Incoming ordinary frames are coalesced only after revision/frame-order checks.
+Workbench frames and edit/control replies retain their receive order. An edit
+requires either the displayed candidate's pending acceptance identity or the
+current explicit form confirmation, as well as the expected buffer and cursor.
+Invalid replies leave the current visible candidate intact.
+
 The direct renderer ends its single menu/cursor write with the inert private
 OSC 1337 action `BlueberryFrame`. Legacy ConPTY synchronously flushes the real
 backing buffer before forwarding OSC 1337 actions. Terminals that do not know

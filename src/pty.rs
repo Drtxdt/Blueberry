@@ -194,7 +194,7 @@ pub fn shell_args_with_editor(
             if editor.is_some() {
                 // A profile may deliberately load another module. Keep that
                 // assembly; the bridge verifies identity and reports fallback.
-                format!("if (-not (Get-Module PSReadLine)) {{ try {{ Import-Module '{path}' -ErrorAction Stop }} catch {{ Import-Module PSReadLine -ErrorAction Stop }} }}; ")
+                format!("$blueberryDirectModule = Get-Module PSReadLine; if (-not $blueberryDirectModule) {{ try {{ Import-Module '{path}' -ErrorAction Stop }} catch {{ Import-Module PSReadLine -ErrorAction Stop }}; $blueberryDirectModule = Get-Module PSReadLine }}; ")
             } else {
                 format!("if (-not (Get-Module PSReadLine)) {{ Import-Module '{path}' -ErrorAction Stop }}; if ((Get-Module PSReadLine).ModuleBase -ine (Split-Path -LiteralPath '{path}')) {{ throw 'Unexpected PSReadLine version loaded' }}; ")
             }

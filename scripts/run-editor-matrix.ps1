@@ -10,6 +10,7 @@ param(
     [int]$Samples = 30,
     [int]$StartupPairs = 10,
     [switch]$Formal,
+    [switch]$Resume,
     [string]$ExpectedExecutableSha256,
     [string]$ExpectedProbeSha256
 )
@@ -26,17 +27,38 @@ if ($ExpectedProbeSha256 -and $probeHash -ine $ExpectedProbeSha256) { throw 'Pro
 $identity=& $Executable doctor --json | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or -not $identity.build.private_editors) { throw 'Missing private module build identity' }
 if ($Formal -and $identity.build.dirty) { throw 'Formal qualification requires a clean CI candidate' }
-if (Test-Path -LiteralPath $OutputDirectory) { throw 'Use a new output directory; previous evidence is never overwritten.' }
-$out=(New-Item -ItemType Directory -Path $OutputDirectory).FullName
-$manifest=[ordered]@{ formal=$Formal.IsPresent; executable_sha256=$exeHash; probe_sha256=$probeHash; build=$identity.build; samples=$Samples; startup_pairs=$StartupPairs; results=@() }
+if ($Formal -and ($env:BLUEBERRY_TEST_DISABLE_PREJIT -or $env:BLUEBERRY_TEST_FRAME_DELAY_MS -or $env:BLUEBERRY_DIRECT_TRACE)) { throw 'Formal qualification forbids diagnostic timing overrides.' }
+if ($Resume) {
+    if ($Formal) { throw 'Formal batches cannot resume across an interruption; retain the interrupted batch and use a new directory.' }
+    $out=(Resolve-Path -LiteralPath $OutputDirectory).Path
+    $manifest=Get-Content -LiteralPath (Join-Path $out 'matrix.json') -Raw | ConvertFrom-Json -AsHashtable
+    if ($manifest.formal -or $manifest.executable_sha256 -ine $exeHash -or $manifest.probe_sha256 -ine $probeHash -or $manifest.samples -ne $Samples -or $manifest.startup_pairs -ne $StartupPairs) { throw 'Cannot resume: artifact identity or sampling configuration differs.' }
+    $manifest['resumed_at_utc']=@($manifest.resumed_at_utc | Where-Object { $_ })+[DateTime]::UtcNow.ToString('o')
+} else {
+    if (Test-Path -LiteralPath $OutputDirectory) { throw 'Use a new output directory; previous evidence is never overwritten.' }
+    $out=(New-Item -ItemType Directory -Path $OutputDirectory).FullName
+    $manifest=[ordered]@{ formal=$Formal.IsPresent; started_at_utc=[DateTime]::UtcNow.ToString('o'); executable_sha256=$exeHash; probe_sha256=$probeHash; build=$identity.build; samples=$Samples; startup_pairs=$StartupPairs; results=@() }
+}
 $saved=@{}
 foreach($name in @('BLUEBERRY_NO_HISTORY','BLUEBERRY_TEST_PSREADLINE_MODULE','BLUEBERRY_BENCH_EVIDENCE')) { $saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process') }
 function Save-State {
     $manifest | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath (Join-Path $out 'matrix.json') -Encoding utf8
 }
 function Invoke-Probe([string]$Name,[string[]]$Arguments) {
+    $previous=@($manifest.results | Where-Object { $_.name -eq $Name })
+    if($previous.Count -gt 0) {
+        if($previous.Count -ne 1 -or $previous[0].exit_code -ne 0) { throw "$Name has a retained failure; resuming cannot erase it." }
+        return (Get-Content -LiteralPath $previous[0].report -Raw | ConvertFrom-Json)
+    }
     $json=Join-Path $out ($Name+'.json')
     $log=Join-Path $out ($Name+'.log')
+    $attempt=1
+    while((Test-Path -LiteralPath $json) -or (Test-Path -LiteralPath $log)) {
+        $attempt++
+        $json=Join-Path $out ($Name+'-attempt-'+$attempt+'.json')
+        $log=Join-Path $out ($Name+'-attempt-'+$attempt+'.log')
+    }
+    $env:BLUEBERRY_BENCH_EVIDENCE=Join-Path $out ('raw-'+$Name+'-attempt-'+$attempt)
     & $Probe @Arguments --host-executable $Executable --output $json *> $log
     $exitCode=$LASTEXITCODE
     $manifest.results+=@{name=$Name;exit_code=$exitCode;report=$json;log=$log}
@@ -68,7 +90,13 @@ try {
     }
     if((Get-FileHash $Executable).Hash -ne $exeHash -or (Get-FileHash $Probe).Hash -ne $probeHash) { throw 'Artifact changed during measurement' }
     $manifest['automated_performance_passed']=$true
+    $manifest['completed_at_utc']=[DateTime]::UtcNow.ToString('o')
     Save-State
+} catch {
+    $manifest['gate_error']=$_.Exception.Message
+    $manifest['stopped_at_utc']=[DateTime]::UtcNow.ToString('o')
+    Save-State
+    throw
 } finally {
     foreach($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name,$saved[$name],'Process') }
 }

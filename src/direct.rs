@@ -604,6 +604,11 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 Some("direct_script_enter") => "direct_script_enter",
                                 Some("direct_module_loaded") => "direct_module_loaded",
                                 Some("direct_assembly_loaded") => "direct_assembly_loaded",
+                                Some("editor_loop_enter") => "editor_loop_enter",
+                                Some("editor_begin_complete") => "editor_begin_complete",
+                                Some("editor_key_received") => "editor_key_received",
+                                Some("editor_native_dispatch") => "editor_native_dispatch",
+                                Some("editor_native_complete") => "editor_native_complete",
                                 _ => bail!("unknown direct timestamp phase"),
                             };
                             trace.point(
@@ -623,6 +628,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     "direct_bridge_initialization"
                                 }
                                 Some("direct_readline_begin") => "direct_readline_begin",
+                                Some("direct_background_jit") => "direct_background_jit",
+                                Some("direct_background_jit_failed") => {
+                                    "direct_background_jit_failed"
+                                }
                                 Some("direct_binding_audit") => "direct_binding_audit",
                                 Some("direct_response_wait") => "direct_response_wait",
                                 Some("direct_original_edit") => "direct_original_edit",

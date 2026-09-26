@@ -1,5 +1,6 @@
 // Blueberry editor integration, API v1. MIT licensed; upstream editing stays intact.
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Microsoft.PowerShell
@@ -11,6 +12,9 @@ namespace Microsoft.PowerShell
 
         private readonly AutoResetEvent _editorRefreshEvent = new AutoResetEvent(false);
         private EditorRegistration _editorIntegration;
+        private static readonly bool _editorTraceEnabled = Environment.GetEnvironmentVariable("BLUEBERRY_DIRECT_TRACE") == "1";
+        private readonly long[] _editorTracePoints = new long[5];
+        public static long[] GetEditorTracePoints() { return (long[])_singleton._editorTracePoints.Clone(); }
 
         // Callbacks are synchronous and run exclusively on the ReadLine thread.
         // The bool passed to key means the resolved binding is an upstream action
@@ -70,11 +74,13 @@ namespace Microsoft.PowerShell
         {
             var registration = _editorIntegration;
             if (registration == null) return InputLoop();
+            if (_editorTraceEnabled) { Array.Clear(_editorTracePoints, 0, _editorTracePoints.Length); _editorTracePoints[0] = Stopwatch.GetTimestamp(); }
             _editorRefreshEvent.Reset();
             registration.Active = true;
             EditorCall(registration, () => registration.Begin?.Invoke(
                 _engineIntrinsics.SessionState.Path.CurrentFileSystemLocation.Path,
                 _options.HistorySavePath));
+            if (_editorTraceEnabled) _editorTracePoints[1] = Stopwatch.GetTimestamp();
             try { return InputLoop(); }
             finally
             {
@@ -122,10 +128,14 @@ namespace Microsoft.PowerShell
 
         private bool EditorProcessKey(PSKeyInfo key)
         {
+            if (_editorTraceEnabled) _editorTracePoints[2] = Stopwatch.GetTimestamp();
             var registration = _editorIntegration;
             if (registration == null || !registration.Active) return false;
             EditorCall(registration, registration.Before);
-            if (_editorIntegration != registration || registration.Key == null || InViCommandMode()) return false;
+            if (_editorIntegration != registration || registration.Key == null || InViCommandMode()) {
+                if (_editorTraceEnabled) _editorTracePoints[3] = Stopwatch.GetTimestamp();
+                return false;
+            }
             KeyHandler handler;
             _dispatchTable.TryGetValue(key, out handler);
             bool builtin = handler == null || (handler.ScriptBlock == null &&
@@ -133,11 +143,13 @@ namespace Microsoft.PowerShell
             bool consumed = false;
             EditorCall(registration, () => consumed = registration.Key(key.AsConsoleKeyInfo(),
                 handler == null ? null : (object)handler.Action, builtin));
+            if (_editorTraceEnabled) _editorTracePoints[3] = Stopwatch.GetTimestamp();
             return consumed;
         }
 
         private void EditorAfterKey()
         {
+            if (_editorTraceEnabled) _editorTracePoints[4] = Stopwatch.GetTimestamp();
             var registration = _editorIntegration;
             if (registration != null && registration.Active && !_inputAccepted &&
                 _queuedKeys.Count == 0 && !InViCommandMode())

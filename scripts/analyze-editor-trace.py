@@ -37,6 +37,10 @@ for scenario in report["scenarios"]:
                 row.update(revision=rev, frame_id=frame, qpc=stages)
                 row["spans_ms"] = {a + "__" + b: (stages[b] - stages[a]) * 1000 / frequency.value
                                    for a, b in zip(names, names[1:]) if a in stages and b in stages}
+                native = ["input", "editor_key_received", "editor_native_dispatch",
+                          "editor_native_complete", "editor_confirmed"]
+                row["native_spans_ms"] = {a + "__" + b: (stages[b] - stages[a]) * 1000 / frequency.value
+                                          for a, b in zip(native, native[1:]) if a in stages and b in stages}
             else:
                 row["correlation_error"] = "No menu write found in observation window"
             rows.append(row)

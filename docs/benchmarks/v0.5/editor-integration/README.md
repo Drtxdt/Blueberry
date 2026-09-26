@@ -34,6 +34,61 @@ mode. Its compatibility path remains available and reports degradation.
   first plain launch took 2452 ms. Both reports are retained; neither is a
   final 30-pair result. New reports record the actual plain DLL identity.
 
+## Subsequent startup and functional work
+
+The latest local code is still blocked on startup qualification. These are
+separate exploratory builds/batches, **not** a combined acceptance result:
+
+| Evidence | Combination | Result |
+| --- | --- | --- |
+| `matrix-b7bfb4b` | PS5.1 / 2.0.0 | Startup paired P50 55.07 ms, failed |
+| `matrix-r10` | PS5.1 / 2.0.0 | Startup 46.30 ms; all 24 hot subgroups passed at 30 samples each, P95 6.60–13.26 ms |
+| `matrix-r10` | PS5.1 / 2.4.5 | Startup 62.54 ms, failed; matrix stopped |
+| r12 same-EXE pre-JIT off/on | PS5.1 / 2.4.5 | Startup 51.34 / 45.53 ms; first-key P50 38.54 / 29.79 ms, 10 pairs per batch |
+| `matrix-r12` | PS5.1 / 2.0.0 | Startup 51.51 ms, failed; matrix stopped |
+| `matrix-r13` | PS5.1 / 2.0.0 | Startup 64.69 ms, failed; first-key P50 21.13 ms |
+| `hot-ps51-245-r13.json` | PS5.1 / 2.4.5 | Separate hot regression: all 12 subgroups passed, 30 samples each, P95 6.83–12.15 ms, descriptions enabled |
+
+r10's first hot invocation was interrupted. Its raw partial data is retained;
+the successful descriptions-on batch is explicitly named `attempt-2`. Resume
+is exploratory-only and checks artifact identities. The formal runner refuses
+resume, diagnostic overrides, dirty builds, wrong original DLL identities and
+undersized batches. Every failed gate stops the matrix and is retained.
+
+The private-DLL control report loads the identical private 2.4.5 assembly in
+the plain side without bridge registration. Its four deltas remained
+50.57–90.77 ms; this diagnostic is not a substitute for the original-module
+baseline. Assembly changes alone therefore do not explain the remaining cost.
+The numeric traces now separate input-loop entry, begin completion, key
+acquisition, native dispatch and native completion. A finite CLR method
+preparation pass improves first-key latency in the r12 comparison but has not
+established stable startup acceptance. The shell interval before bootstrap
+still includes module and profile costs that need finer attribution.
+
+WPR CPU/.NET recording could not start: Windows returned `0xc5585011` while
+enabling the system performance profiling policy. A status check confirmed no
+recording remained. A second attempt with the DotNET profile alone failed with
+the same error and also left no recording. There is no scheduler or CLR ETW
+evidence from either attempt. `startup-attribution-r14.json` retains the
+available numeric stage breakdown and explicitly labels its unresolved spans.
+
+The r13 direct logs contain **16 passed tests on each of the three combinations**,
+with one ignored output experiment. Added coverage includes Vi command/insert
+transitions, callback failure recovery, reordered and duplicate frames, wrong
+candidate identities, unsolicited replacements, and reliable workbench/edit
+queue ordering. The r14 pipe change additionally removes the five-second
+connection deadline for a live shell: slow profiles can finish, while actual
+child exit cancels connection/read/write waits. Its core log has 92 passing
+library tests, including delayed connection and early child exit. Older
+performance reports do not qualify this later pipe change. The later r14
+PS5.1/2.4.5 direct regression has 16 passes; nested terminal-mode regression has
+3 passes and 2 explicit skips (helper/native mouse capability).
+
+Raw archives include fixtures, failure/partial logs and numeric traces where
+available. The JSON reports retain EXE and private DLL identities, plain module
+identities, profiles and power policy. All reports here remain local evidence;
+no CI candidate, full formal matrix or manual Terminal sign-off exists yet.
+
 ## Regression scope and probe corrections
 
 The r9 logs contain 14 direct tests passed on each of the three combinations;

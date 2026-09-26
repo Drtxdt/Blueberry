@@ -18,6 +18,7 @@ mod windows_pipe {
         mem,
         os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle},
         ptr,
+        sync::Arc,
     };
 
     const MAX_FRAME_BYTES: usize = 1024 * 1024;
@@ -49,11 +50,12 @@ mod windows_pipe {
     fn overlapped_io(
         handle: RawHandle,
         timeout: u32,
+        client_exit: Option<RawHandle>,
         operation: impl FnOnce(*mut c_void) -> Bool,
     ) -> io::Result<u32> {
         use windows_sys::Win32::System::{
             IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED},
-            Threading::{CreateEventW, WaitForSingleObject},
+            Threading::{CreateEventW, WaitForMultipleObjects, WaitForSingleObject},
         };
         let raw = unsafe { CreateEventW(ptr::null(), 1, 0, ptr::null()) };
         if raw.is_null() {
@@ -68,10 +70,17 @@ mod windows_pipe {
             if code != 997 {
                 return Err(error_with_code(code));
             }
-            let wait = unsafe { WaitForSingleObject(event.as_raw_handle(), timeout) };
+            let wait = if let Some(client) = client_exit {
+                let handles = [event.as_raw_handle(), client];
+                unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, timeout) }
+            } else {
+                unsafe { WaitForSingleObject(event.as_raw_handle(), timeout) }
+            };
             if wait != 0 {
                 let error = if wait == 258 {
                     Error::new(ErrorKind::TimedOut, "named-pipe I/O timed out")
+                } else if wait == 1 && client_exit.is_some() {
+                    Error::new(ErrorKind::BrokenPipe, "named-pipe client exited")
                 } else {
                     last_error()
                 };
@@ -315,6 +324,7 @@ mod windows_pipe {
         name: String,
         handle: Option<OwnedHandle>,
         expected_client_pid: Option<u32>,
+        client_exit: Option<Arc<OwnedHandle>>,
         connected: bool,
         overlapped: bool,
         read_buffer: Vec<u8>,
@@ -372,6 +382,7 @@ mod windows_pipe {
                 name,
                 handle: Some(handle),
                 expected_client_pid: None,
+                client_exit: None,
                 connected: false,
                 overlapped,
                 read_buffer: Vec::new(),
@@ -385,6 +396,17 @@ mod windows_pipe {
 
         pub fn set_client_pid(&mut self, pid: u32) {
             self.expected_client_pid = (pid != 0).then_some(pid);
+            if self.overlapped && pid != 0 {
+                // A profile may take arbitrarily long before the bridge connects.
+                // Wait for connection or actual child exit, never a startup timer.
+                let handle = unsafe {
+                    windows_sys::Win32::System::Threading::OpenProcess(0x0010_0000, 0, pid)
+                };
+                if !handle.is_null() {
+                    self.client_exit =
+                        Some(Arc::new(unsafe { OwnedHandle::from_raw_handle(handle) }));
+                }
+            }
         }
 
         /// Called only after authenticated hello. The independent receiver
@@ -401,6 +423,7 @@ mod windows_pipe {
                 name: self.name.clone(),
                 handle: Some(owned),
                 expected_client_pid: self.expected_client_pid,
+                client_exit: self.client_exit.clone(),
                 connected: true,
                 overlapped: self.overlapped,
                 read_buffer: Vec::new(),
@@ -466,9 +489,17 @@ mod windows_pipe {
 
             if !self.connected {
                 if self.overlapped {
-                    match overlapped_io(handle, 5000, |operation| unsafe {
-                        ConnectNamedPipe(handle, operation)
-                    }) {
+                    let timeout = if self.client_exit.is_some() {
+                        u32::MAX
+                    } else {
+                        5000
+                    };
+                    match overlapped_io(
+                        handle,
+                        timeout,
+                        self.client_exit.as_ref().map(|p| p.as_raw_handle()),
+                        |operation| unsafe { ConnectNamedPipe(handle, operation) },
+                    ) {
                         Ok(_) => self.connected = true,
                         Err(error) if error.raw_os_error() == Some(ERROR_PIPE_CONNECTED as i32) => {
                             self.connected = true
@@ -534,15 +565,20 @@ mod windows_pipe {
             if self.overlapped {
                 let mut buffer = mem::take(&mut self.read_buffer);
                 buffer.resize(MAX_FRAME_BYTES, 0);
-                let read = overlapped_io(handle, self.read_timeout, |operation| unsafe {
-                    ReadFile(
-                        handle,
-                        buffer.as_mut_ptr().cast(),
-                        buffer.len() as u32,
-                        ptr::null_mut(),
-                        operation,
-                    )
-                });
+                let read = overlapped_io(
+                    handle,
+                    self.read_timeout,
+                    self.client_exit.as_ref().map(|p| p.as_raw_handle()),
+                    |operation| unsafe {
+                        ReadFile(
+                            handle,
+                            buffer.as_mut_ptr().cast(),
+                            buffer.len() as u32,
+                            ptr::null_mut(),
+                            operation,
+                        )
+                    },
+                );
                 let arrived = std::time::Instant::now();
                 let result = read.and_then(|read| {
                     if read == 0 {
@@ -660,15 +696,20 @@ mod windows_pipe {
             }
             let handle = self.ensure_connection()?;
             if self.overlapped {
-                let written = overlapped_io(handle, 5000, |operation| unsafe {
-                    WriteFile(
-                        handle,
-                        frame.as_ptr().cast(),
-                        frame.len() as u32,
-                        ptr::null_mut(),
-                        operation,
-                    )
-                })?;
+                let written = overlapped_io(
+                    handle,
+                    5000,
+                    self.client_exit.as_ref().map(|p| p.as_raw_handle()),
+                    |operation| unsafe {
+                        WriteFile(
+                            handle,
+                            frame.as_ptr().cast(),
+                            frame.len() as u32,
+                            ptr::null_mut(),
+                            operation,
+                        )
+                    },
+                )?;
                 return if written as usize == frame.len() {
                     Ok(())
                 } else {
@@ -728,6 +769,40 @@ mod windows_pipe {
                 }
             }
             panic!("timed out connecting named pipe")
+        }
+
+        #[test]
+        fn direct_connection_waits_for_slow_profile_without_polling() {
+            let mut server = PipeServer::new_direct().unwrap();
+            server.set_client_pid(std::process::id());
+            let name = server.name().to_owned();
+            let client = thread::spawn(move || {
+                thread::sleep(std::time::Duration::from_millis(5200));
+                connect(&name)
+                    .write_all(b"{\"event\":\"hello\"}\n")
+                    .unwrap();
+            });
+            assert_eq!(server.read_json().unwrap()["event"], "hello");
+            client.join().unwrap();
+        }
+
+        #[test]
+        fn direct_child_exit_cancels_pending_connection() {
+            use std::os::windows::process::CommandExt;
+            let mut child = std::process::Command::new("cmd.exe")
+                .args(["/d", "/c", "exit", "0"])
+                .creation_flags(0x0800_0000)
+                .spawn()
+                .unwrap();
+            let mut server = PipeServer::new_direct().unwrap();
+            server.set_client_pid(child.id());
+            let started = std::time::Instant::now();
+            assert_eq!(
+                server.read_json().unwrap_err().kind(),
+                ErrorKind::BrokenPipe
+            );
+            assert!(started.elapsed() < std::time::Duration::from_secs(2));
+            assert!(child.wait().unwrap().success());
         }
 
         #[test]
