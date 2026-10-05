@@ -1,0 +1,122 @@
+{
+  "formal": false,
+  "executable_sha256": "906398F1A891D801EC49FBFDC598F00D8E5FD5D7EC9F17A20EEE817A55A8B20D",
+  "probe_sha256": "906398F1A891D801EC49FBFDC598F00D8E5FD5D7EC9F17A20EEE817A55A8B20D",
+  "build": {
+    "commit": "b7bfb4b23c58a95921e96413a3ce15f4ca38be69",
+    "dirty": true,
+    "private_editors": {
+      "files": [
+        {
+          "path": "License.txt",
+          "sha256": "2c679724a13cec8a7589034b5725c749a304cef4a8ce4dc474f508095e627f4b",
+          "version": "2.0.0"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine2.dll",
+          "sha256": "b555493c53369080b5e1a561d626d16a177ab16d1e475e72e705c0b917bcd704",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "da79d15c91edd0559d70dbcda76f9b41ef1b17a141d137a485027971a08df1bb",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "8da4596d105078a4d6d5ae64ddf433fd7a538acea8c253df2945612bc0c98dd7",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "98c2733e43ffe148378f645b5626e585578fcfd04fcc2fcb443ba61d54430912",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-LICENSE.txt",
+          "sha256": "f1db688d8481c91a452fabcea5060a23da9ea5088329b58c478a040e2e426297",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-NOTICES.txt",
+          "sha256": "0684b2349427ee28e392ae8914645832e59731dba8a38a984f72b3fb8769c76b",
+          "version": "2.0.0"
+        },
+        {
+          "path": "System.Runtime.InteropServices.RuntimeInformation.dll",
+          "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8",
+          "version": "2.0.0"
+        },
+        {
+          "path": "License.txt",
+          "sha256": "577273b040bdddb01b02768d9ad07fcb40415479fc2e65c8287294c6abf56de6",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.Pager.dll",
+          "sha256": "451994c3d3e38d939b4fa5f8594d0207840f45e7a210aa75f81aef85aa17c592",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine.dll",
+          "sha256": "cd8212558997b5eb4a8e25da0f82508c58e2cc3a53eb94b0cec76d2ee97eb7fe",
+          "version": "2.4.5"
+        },
+        {
+          "path": "net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "2d8f1af773f704aa4496d8a4c6a0c9967a5f509367252e9a70c0f963d26db6a8",
+          "version": "2.4.5"
+        },
+        {
+          "path": "netstd/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "df8f69333e1a8802adfbd16d61c954a7bf8c51deca1b081647c78dac95206c52",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Pager-LICENSE.txt",
+          "sha256": "ac40d0ffe53b81204451b78b6772b5bb53c5c9ea7d32f694596fae5b9150c9b9",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "9676711e5883b8aeea5affae7868c6b651e5250a132691ec26a6e94c79702e22",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "243b46505e5e0ed7d313d340d9c717b2a7bdd1a9e184b99d36d921e9d48cee02",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "ea065fe561207681b987eee788ac24e7d58c45daca310ff53ceeff01ceb86edd",
+          "version": "2.4.5"
+        }
+      ],
+      "patch": "blueberry-editor-v1",
+      "repository": "https://github.com/PowerShell/PSReadLine",
+      "versions": {
+        "2.0.0": {
+          "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c",
+          "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6"
+        },
+        "2.4.5": {
+          "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0",
+          "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f"
+        }
+      }
+    },
+    "profile": "release",
+    "time_unix": 1790431717
+  },
+  "samples": 30,
+  "startup_pairs": 10,
+  "results": [
+    {
+      "exit_code": 0,
+      "report": "E:\\OpenSource\\shellsense-rs\\target\\editor-explore\\matrix-r12\\ps51-200-startup.json",
+      "name": "ps51-200-startup",
+      "log": "E:\\OpenSource\\shellsense-rs\\target\\editor-explore\\matrix-r12\\ps51-200-startup.log"
+    }
+  ]
+}

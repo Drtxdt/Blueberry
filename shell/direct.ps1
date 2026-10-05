@@ -1,32 +1,51 @@
 # Single-layer bootstrap. The assembly is built with the EXE, never compiled
 # during product startup. The editing thread owns every console write.
-if ($env:BLUEBERRY_NO_HISTORY -eq '1' -and $env:BLUEBERRY_TEST_PSREADLINE_MODULE) {
-    Import-Module $env:BLUEBERRY_TEST_PSREADLINE_MODULE -Force -ErrorAction Stop
-} else {
-    Import-Module PSReadLine -ErrorAction Stop
+param([string]$EditorManifest)
+$blueberryDirectScriptEnter = if ($env:BLUEBERRY_DIRECT_TRACE -eq '1') { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+$null = [Reflection.Assembly]::LoadFrom("$PSScriptRoot\direct-bridge.dll")
+$blueberryDirectAssemblyLoaded = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+[Blueberry.Direct.Bridge]::PrepareStartup()
+$blueberryDirectModule = Get-Module PSReadLine
+$blueberryDirectModuleLookup = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+if (-not $blueberryDirectModule) {
+    if ($EditorManifest) {
+        try { Import-Module -Name $EditorManifest -ErrorAction Stop }
+        catch { Import-Module PSReadLine -ErrorAction Stop }
+    } else {
+        Import-Module PSReadLine -ErrorAction Stop
+    }
+    $blueberryDirectModule = Get-Module PSReadLine
 }
-if ($env:BLUEBERRY_NO_HISTORY -eq '1') {
-    Set-PSReadLineOption -HistorySaveStyle SaveNothing
+$blueberryDirectModuleImported = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+if ($env:BLUEBERRY_NO_HISTORY -eq '1') { Set-PSReadLineOption -HistorySaveStyle SaveNothing }
+$blueberryDirectModuleLoaded = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+[Blueberry.Direct.Bridge]::Initialize([Microsoft.PowerShell.PSConsoleReadLine], $env:BLUEBERRY_PIPE_NAME, $env:BLUEBERRY_TOKEN, $PSVersionTable.PSVersion.ToString(), $blueberryDirectModule.Version.ToString())
+if ($blueberryDirectScriptEnter) {
+    if ($blueberryDirectCommandEnter) { [Blueberry.Direct.Bridge]::StartupPoint('direct_command_enter', $blueberryDirectCommandEnter) }
+    if ($blueberryDirectExplicitModuleReady) { [Blueberry.Direct.Bridge]::StartupPoint('direct_explicit_module_ready', $blueberryDirectExplicitModuleReady) }
+    [Blueberry.Direct.Bridge]::StartupPoint('direct_script_enter', $blueberryDirectScriptEnter)
+    [Blueberry.Direct.Bridge]::StartupPoint('direct_module_lookup', $blueberryDirectModuleLookup)
+    [Blueberry.Direct.Bridge]::StartupPoint('direct_module_imported', $blueberryDirectModuleImported)
+    [Blueberry.Direct.Bridge]::StartupPoint('direct_module_loaded', $blueberryDirectModuleLoaded)
+    [Blueberry.Direct.Bridge]::StartupPoint('direct_assembly_loaded', $blueberryDirectAssemblyLoaded)
 }
-$null = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'direct-bridge.dll')))
-[Blueberry.Direct.Bridge]::Initialize([Microsoft.PowerShell.PSConsoleReadLine], $env:BLUEBERRY_PIPE_NAME, $env:BLUEBERRY_TOKEN, $PSVersionTable.PSVersion.ToString(), (Get-Module PSReadLine).Version.ToString())
-# Object events are queued to the current runspace. PSReadLine processes these
-# on its editing thread, including while waiting for input. This is deliberately
-# not an injected keyboard wakeup and cannot leak a key to an external program.
-$global:BlueberryDirectSubscription = Register-ObjectEvent -InputObject ([Blueberry.Direct.Bridge]::Events) -EventName FrameAvailable -SourceIdentifier Blueberry.Direct.Frame -SupportEvent -Action {
-    $null = [Blueberry.Direct.Bridge]::Refresh()
+if (-not [Blueberry.Direct.Bridge]::EditorHooks) {
+    Write-Warning ('Blueberry direct 兼容模式：' + [Blueberry.Direct.Bridge]::EditorFallbackReason)
+    # Compatibility only: stock PSReadLine processes this queue on its idle timer.
+    $global:BlueberryDirectSubscription = Register-ObjectEvent -InputObject ([Blueberry.Direct.Bridge]::Events) -EventName FrameAvailable -SourceIdentifier Blueberry.Direct.Frame -SupportEvent -Action {
+        $null = [Blueberry.Direct.Bridge]::Refresh()
+    }
+    $global:BlueberryDirectReadLine = $function:global:PSConsoleHostReadLine
+    $global:BlueberryDirectHistoryPath = if ($env:BLUEBERRY_NO_HISTORY -eq '1') { $null } else { (Get-PSReadLineOption).HistorySavePath }
+    function global:PSConsoleHostReadLine {
+        [Blueberry.Direct.Bridge]::Begin($ExecutionContext.SessionState.Path.CurrentFileSystemLocation.Path, $global:BlueberryDirectHistoryPath)
+        try { & $global:BlueberryDirectReadLine }
+        finally { [Blueberry.Direct.Bridge]::End() }
+    }
 }
-$global:BlueberryDirectReadLine = $function:global:PSConsoleHostReadLine
-$global:BlueberryDirectHistoryPath = if ($env:BLUEBERRY_NO_HISTORY -eq '1') { $null } else { (Get-PSReadLineOption).HistorySavePath }
-function global:PSConsoleHostReadLine {
-    [Blueberry.Direct.Bridge]::Begin($ExecutionContext.SessionState.Path.CurrentFileSystemLocation.Path, $global:BlueberryDirectHistoryPath)
-    try { & $global:BlueberryDirectReadLine }
-    finally { [Blueberry.Direct.Bridge]::End() }
-}
-$env:BLUEBERRY_HOST_MODE = 'direct'
-$env:BLUEBERRY_TRANSPORT_ACTUAL = 'pipe'
-$env:BLUEBERRY_AUTOMATIC_MENU = [Blueberry.Direct.Bridge]::AutomaticMenu.ToString().ToLowerInvariant()
-$env:BLUEBERRY_AUTOMATIC_MENU_DISABLED_REASON = [Blueberry.Direct.Bridge]::DisabledReason
+# Keep the originally loaded module, but do not expose the private search root
+# to external PowerShell programs launched from this session.
+[Blueberry.Direct.Bridge]::PublishEnvironment()
 if (-not [Blueberry.Direct.Bridge]::AutomaticMenu) {
     Write-Warning ('Blueberry 自动菜单已停用：' + [Blueberry.Direct.Bridge]::DisabledReason)
 }

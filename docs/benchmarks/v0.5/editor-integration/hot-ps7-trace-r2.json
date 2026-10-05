@@ -1,0 +1,4590 @@
+{
+  "acceptance_sample_count_ok": false,
+  "actual_transports": [
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe"
+  ],
+  "arch": "x86_64",
+  "build": "release",
+  "descriptions": true,
+  "executable": "E:\\OpenSource\\shellsense-rs\\target\\release\\blueberry.exe",
+  "executable_sha256": "F8462230E899C266B0FD86052B524DA1550B0D57E6C6417722C31343D0BED5DB",
+  "fixture": {
+    "cargo": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-beta-metrics-9b57af24-6106-45a5-a9a6-029cd720ccbb\\fixtures\\cargo\\app",
+    "git": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-beta-metrics-9b57af24-6106-45a5-a9a6-029cd720ccbb\\fixtures\\git",
+    "javascript": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-beta-metrics-9b57af24-6106-45a5-a9a6-029cd720ccbb\\fixtures\\javascript",
+    "paths": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-beta-metrics-9b57af24-6106-45a5-a9a6-029cd720ccbb\\fixtures\\paths",
+    "root": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-beta-metrics-9b57af24-6106-45a5-a9a6-029cd720ccbb\\fixtures",
+    "throughput_bytes": 262144
+  },
+  "host_mode": "direct",
+  "machine_id": "LIUHETONG",
+  "method": {
+    "cache": "每个 session pair 先在全新空 data 目录测量 miss，再复用同一份已验证 complete=true 的 commands.json 测量 hit；hit 后检查文件时间未改变",
+    "cache_state": "保留 OS 文件缓存，不清空系统缓存",
+    "cpu": "Windows 使用 GetProcessTimes，空闲约 200 ms；其他平台报告 unavailable",
+    "dynamic": "计时前确认无旧输入/菜单；动态结果须出现目标候选和完整可见的 F1 状态行且无加载标记。诊断替代或裁切状态行不算完成；静态场景不计作动态完成",
+    "host": "每个样本都在真实 PowerShell + Blueberry + 外层 ConPTY 中测量",
+    "initial_query": "每个 session 的首个查询单独等待完整动态结果；它不进入热态菜单统计。静态场景的首个查询只等待首个可用候选",
+    "memory": "Windows 采样 Blueberry host working set；其他平台报告 unavailable",
+    "observation": "只读取 Harness 的 viewport 行；输入回显和带候选图标的真实菜单行分别确认",
+    "ordering": "每场景每种 cache 模式使用 0..9 循环的十个唯一夹具候选",
+    "profile": "不传 --no-profile；BLUEBERRY_NO_HISTORY=1 只禁止历史落盘，不改变 profile 加载",
+    "throughput": "固定安全文本夹具通过 Get-Content -Raw 输出，并用独立 pwsh 同命令作基准",
+    "trace": "阶段诊断，不能用于验收",
+    "transport": "每个 host 读取新建 session 的 adapter.json；只有与请求 transport 相同的热态样本进入验收统计，降级样本只保留为诊断"
+  },
+  "minimum_acceptance_samples_per_cache_mode": 300,
+  "no_history": true,
+  "os_cache_cleared": false,
+  "overall": {
+    "complete_dynamic_menu": {
+      "available": true,
+      "median": 20.91115,
+      "p95": 33.4186,
+      "samples": [
+        23.937,
+        24.8852,
+        22.9545,
+        25.9519,
+        23.9523,
+        24.9039,
+        24.8906,
+        8.2557,
+        16.5474,
+        17.6204,
+        23.6722,
+        23.9471,
+        8.4348,
+        12.3645,
+        19.961199999999998,
+        27.599800000000002,
+        16.7819,
+        16.665599999999998,
+        20.8754,
+        16.6803,
+        31.674500000000002,
+        16.5655,
+        28.3357,
+        11.298300000000001,
+        16.5977,
+        16.5463,
+        33.4186,
+        40.777300000000004,
+        20.9469,
+        45.761700000000005,
+        28.9256,
+        29.1646,
+        24.868399999999998,
+        22.72,
+        20.7141,
+        28.8345,
+        25.0211,
+        23.8815,
+        33.2125,
+        24.8337,
+        44.8262,
+        8.0581,
+        28.8583,
+        27.2253,
+        20.7874,
+        8.3146,
+        33.067899999999995,
+        16.7502,
+        28.058400000000002,
+        24.017799999999998,
+        12.532,
+        24.8857,
+        25.0373,
+        8.3275,
+        9.4526,
+        15.5194,
+        8.3573,
+        29.0684,
+        8.2966,
+        34.2754,
+        24.0863,
+        8.1697,
+        16.6651,
+        16.6251,
+        15.1576,
+        24.887900000000002,
+        28.070999999999998,
+        16.6417,
+        12.5323,
+        12.4565,
+        8.1756,
+        8.572,
+        29.221799999999998,
+        8.2464,
+        7.6827,
+        20.7315,
+        28.9901,
+        17.5085,
+        16.4724,
+        16.4631
+      ],
+      "unit": "ms"
+    },
+    "first_dynamic_query": {
+      "available": true,
+      "median": 40.3547,
+      "p95": 88.2386,
+      "samples": [
+        88.2386,
+        84.24470000000001,
+        37.150000000000006,
+        35.8543,
+        39.417,
+        41.2924,
+        35.0377,
+        48.5805
+      ],
+      "unit": "ms"
+    },
+    "first_query": {
+      "available": true,
+      "median": 40.353,
+      "p95": 88.2386,
+      "samples": [
+        36.585300000000004,
+        32.739,
+        88.2386,
+        84.24470000000001,
+        37.150000000000006,
+        35.8543,
+        39.417,
+        41.2924,
+        35.0377,
+        48.5805,
+        49.7014,
+        41.289
+      ],
+      "unit": "ms"
+    },
+    "input_echo": {
+      "available": true,
+      "median": 12.3951,
+      "p95": 28.0932,
+      "samples": [
+        8.2997,
+        8.141300000000001,
+        12.2918,
+        16.6524,
+        20.814200000000003,
+        8.3882,
+        12.2247,
+        12.6167,
+        8.1847,
+        24.106099999999998,
+        19.8714,
+        25.3217,
+        16.6442,
+        28.0932,
+        8.3807,
+        17.5218,
+        8.153799999999999,
+        19.852700000000002,
+        20.7019,
+        8.353299999999999,
+        8.0593,
+        24.8852,
+        22.9545,
+        10.2194,
+        23.9523,
+        24.9039,
+        8.2028,
+        8.2557,
+        8.1752,
+        17.6204,
+        7.965800000000001,
+        23.9471,
+        8.4348,
+        12.3645,
+        19.961199999999998,
+        27.599800000000002,
+        16.7819,
+        16.665599999999998,
+        20.8754,
+        8.1288,
+        19.243199999999998,
+        16.5655,
+        28.3357,
+        11.298300000000001,
+        16.5977,
+        8.065,
+        16.5148,
+        32.307900000000004,
+        8.2706,
+        24.9816,
+        28.9256,
+        16.4396,
+        8.4408,
+        22.72,
+        20.7141,
+        28.8345,
+        8.2189,
+        8.2195,
+        23.4001,
+        16.4348,
+        15.5608,
+        8.0581,
+        28.8583,
+        8.1674,
+        8.0284,
+        8.3146,
+        17.2301,
+        16.7502,
+        28.058400000000002,
+        24.017799999999998,
+        12.532,
+        8.1745,
+        8.2406,
+        8.3275,
+        9.4526,
+        15.5194,
+        8.3573,
+        16.4413,
+        8.2966,
+        17.4588,
+        7.3597,
+        8.1697,
+        16.6651,
+        16.6251,
+        15.1576,
+        8.223700000000001,
+        8.225100000000001,
+        8.405100000000001,
+        12.5323,
+        12.4565,
+        8.1756,
+        8.572,
+        29.221799999999998,
+        8.2464,
+        7.6827,
+        12.3538,
+        20.561,
+        17.5085,
+        16.4724,
+        16.4631,
+        8.555,
+        19.6798,
+        8.7259,
+        16.3486,
+        8.5281,
+        12.425699999999999,
+        20.550800000000002,
+        8.285300000000001,
+        8.2195,
+        12.1014,
+        8.1906,
+        8.2495,
+        8.2633,
+        8.2031,
+        5.9565,
+        12.2227,
+        8.2431,
+        7.959300000000001,
+        8.1448,
+        8.3272
+      ],
+      "unit": "ms"
+    }
+  },
+  "platform": "windows",
+  "power": {
+    "ac_line_status": 1,
+    "available": true,
+    "battery_flag": 1,
+    "battery_percent": 100,
+    "battery_saver": false
+  },
+  "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+  "power_policy_label": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+  "profile_inventory": [
+    {
+      "path": "D:\\pwsh\\7\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "D:\\pwsh\\7\\Microsoft.PowerShell_profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Users\\dell\\Documents\\PowerShell\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Users\\dell\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1",
+      "sha256": "EDB6F516938CB8B672A52BF2E08CE653BAF49A3626C6BB158CA1D7AB7A9597D2"
+    }
+  ],
+  "profile_mode": "preserved",
+  "profile_sha256": "B20D571BA371284899E16232864AEBE3AD6BF412283CCCCDF9EAA03E93058A42",
+  "queries_per_session": 10,
+  "samples_per_cache_mode": 10,
+  "scenarios": [
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 20.28665,
+            "p95": 34.1679,
+            "samples": [
+              19.8714,
+              25.3217,
+              16.6442,
+              28.0932,
+              8.3807,
+              34.1679,
+              28.2068,
+              19.852700000000002,
+              20.7019,
+              16.723
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 16.59975,
+            "p95": 28.0563,
+            "samples": [
+              8.2997,
+              16.5471,
+              20.6905,
+              16.6524,
+              20.814200000000003,
+              8.3882,
+              12.2247,
+              12.6167,
+              28.0563,
+              24.106099999999998
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "pipe"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "pipe"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 20.28665,
+          "p95": 34.1679,
+          "samples": [
+            19.8714,
+            25.3217,
+            16.6442,
+            28.0932,
+            8.3807,
+            34.1679,
+            28.2068,
+            19.852700000000002,
+            20.7019,
+            16.723
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 20.28665,
+          "p95": 34.1679,
+          "samples": [
+            19.8714,
+            25.3217,
+            16.6442,
+            28.0932,
+            8.3807,
+            34.1679,
+            28.2068,
+            19.852700000000002,
+            20.7019,
+            16.723
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 32.739,
+          "p95": 32.739,
+          "samples": [
+            32.739
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 18.68725,
+          "p95": 28.0932,
+          "samples": [
+            19.8714,
+            25.3217,
+            16.6442,
+            28.0932,
+            8.3807,
+            17.5218,
+            8.153799999999999,
+            19.852700000000002,
+            20.7019,
+            8.353299999999999
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 21737472.0,
+          "p95": 21786624,
+          "samples": [
+            20680704,
+            21327872,
+            21372928,
+            21565440,
+            21733376,
+            21753856,
+            21737472,
+            21745664,
+            21757952,
+            21786624,
+            21766144
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 18866176.0,
+          "p95": 18866176,
+          "samples": [
+            18866176
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 19.8714,
+            "first_menu": 19.8714,
+            "input_echo": 19.8714,
+            "input_qpc": 198079231246,
+            "menu_arrival_qpc": 198079429967
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 25.3217,
+            "first_menu": 25.3217,
+            "input_echo": 25.3217,
+            "input_qpc": 198079523346,
+            "menu_arrival_qpc": 198079776565
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 16.6442,
+            "first_menu": 16.6442,
+            "input_echo": 16.6442,
+            "input_qpc": 198079898051,
+            "menu_arrival_qpc": 198080064496
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 28.0932,
+            "first_menu": 28.0932,
+            "input_echo": 28.0932,
+            "input_qpc": 198080147994,
+            "menu_arrival_qpc": 198080428932
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.3807,
+            "first_menu": 8.3807,
+            "input_echo": 8.3807,
+            "input_qpc": 198080522913,
+            "menu_arrival_qpc": 198080606721
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 34.1679,
+            "first_menu": 34.1679,
+            "input_echo": 17.5218,
+            "input_qpc": 198080763479,
+            "menu_arrival_qpc": 198081105161
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 28.2068,
+            "first_menu": 28.2068,
+            "input_echo": 8.153799999999999,
+            "input_qpc": 198081189871,
+            "menu_arrival_qpc": 198081471945
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 19.852700000000002,
+            "first_menu": 19.852700000000002,
+            "input_echo": 19.852700000000002,
+            "input_qpc": 198081563948,
+            "menu_arrival_qpc": 198081762479
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 20.7019,
+            "first_menu": 20.7019,
+            "input_echo": 20.7019,
+            "input_qpc": 198081856693,
+            "menu_arrival_qpc": 198082063713
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 16.723,
+            "first_menu": 16.723,
+            "input_echo": 8.353299999999999,
+            "input_qpc": 198082146967,
+            "menu_arrival_qpc": 198082314199
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3459359.024099279,
+          "p95": 3459359.024099279,
+          "samples": [
+            3459359.024099279
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 20.28665,
+          "p95": 34.1679,
+          "samples": [
+            19.8714,
+            25.3217,
+            16.6442,
+            28.0932,
+            8.3807,
+            34.1679,
+            28.2068,
+            19.852700000000002,
+            20.7019,
+            16.723
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 16.59975,
+          "p95": 28.0563,
+          "samples": [
+            8.2997,
+            16.5471,
+            20.6905,
+            16.6524,
+            20.814200000000003,
+            8.3882,
+            12.2247,
+            12.6167,
+            28.0563,
+            24.106099999999998
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 16.59975,
+          "p95": 28.0563,
+          "samples": [
+            8.2997,
+            16.5471,
+            20.6905,
+            16.6524,
+            20.814200000000003,
+            8.3882,
+            12.2247,
+            12.6167,
+            28.0563,
+            24.106099999999998
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 36.585300000000004,
+          "p95": 36.585300000000004,
+          "samples": [
+            36.585300000000004
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 12.25825,
+          "p95": 24.106099999999998,
+          "samples": [
+            8.2997,
+            8.141300000000001,
+            12.2918,
+            16.6524,
+            20.814200000000003,
+            8.3882,
+            12.2247,
+            12.6167,
+            8.1847,
+            24.106099999999998
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 21438464.0,
+          "p95": 21630976,
+          "samples": [
+            20787200,
+            21438464,
+            21311488,
+            21364736,
+            21417984,
+            21430272,
+            21630976,
+            21475328,
+            21618688,
+            21553152,
+            21516288
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 18669568.0,
+          "p95": 18669568,
+          "samples": [
+            18669568
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.2997,
+            "first_menu": 8.2997,
+            "input_echo": 8.2997,
+            "input_qpc": 198063066779,
+            "menu_arrival_qpc": 198063149780
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 16.5471,
+            "first_menu": 16.5471,
+            "input_echo": 8.141300000000001,
+            "input_qpc": 198063317002,
+            "menu_arrival_qpc": 198063482473
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 20.6905,
+            "first_menu": 20.6905,
+            "input_echo": 12.2918,
+            "input_qpc": 198063567761,
+            "menu_arrival_qpc": 198063774667
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 16.6524,
+            "first_menu": 16.6524,
+            "input_echo": 16.6524,
+            "input_qpc": 198063858488,
+            "menu_arrival_qpc": 198064025013
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 20.814200000000003,
+            "first_menu": 20.814200000000003,
+            "input_echo": 20.814200000000003,
+            "input_qpc": 198064107834,
+            "menu_arrival_qpc": 198064315978
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.3882,
+            "first_menu": 8.3882,
+            "input_echo": 8.3882,
+            "input_qpc": 198064398956,
+            "menu_arrival_qpc": 198064482841
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 12.2247,
+            "first_menu": 12.2247,
+            "input_echo": 12.2247,
+            "input_qpc": 198064651727,
+            "menu_arrival_qpc": 198064773977
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 12.6167,
+            "first_menu": 12.6167,
+            "input_echo": 12.6167,
+            "input_qpc": 198064857306,
+            "menu_arrival_qpc": 198064983474
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 28.0563,
+            "first_menu": 28.0563,
+            "input_echo": 8.1847,
+            "input_qpc": 198065066357,
+            "menu_arrival_qpc": 198065346921
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 24.106099999999998,
+            "first_menu": 24.106099999999998,
+            "input_echo": 24.106099999999998,
+            "input_qpc": 198065440143,
+            "menu_arrival_qpc": 198065681211
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3570398.316569397,
+          "p95": 3570398.316569397,
+          "samples": [
+            3570398.316569397
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 16.59975,
+          "p95": 28.0563,
+          "samples": [
+            8.2997,
+            16.5471,
+            20.6905,
+            16.6524,
+            20.814200000000003,
+            8.3882,
+            12.2247,
+            12.6167,
+            28.0563,
+            24.106099999999998
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "首词命令索引",
+      "dynamic": false,
+      "name": "root",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 25.195500000000003,
+          "p95": 43.0146,
+          "samples": [
+            43.0146,
+            13.817599999999999,
+            33.1825,
+            21.6389,
+            17.0398,
+            25.4827,
+            16.6323,
+            28.547199999999997,
+            24.9083,
+            26.026
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 Blueberry host",
+        "profile_mode": "preserved",
+        "shell": "D:\\pwsh\\7\\pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 2346454.324771391,
+          "p95": 2346454.324771391,
+          "samples": [
+            2346454.324771391
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 18.37155,
+            "p95": 27.599800000000002,
+            "samples": [
+              23.6722,
+              23.9471,
+              8.4348,
+              12.3645,
+              19.961199999999998,
+              27.599800000000002,
+              16.7819,
+              16.665599999999998,
+              20.8754,
+              16.6803
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 23.944650000000003,
+            "p95": 25.9519,
+            "samples": [
+              23.937,
+              24.8852,
+              22.9545,
+              25.9519,
+              23.9523,
+              24.9039,
+              24.8906,
+              8.2557,
+              16.5474,
+              17.6204
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "pipe"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "pipe"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 18.37155,
+          "p95": 27.599800000000002,
+          "samples": [
+            23.6722,
+            23.9471,
+            8.4348,
+            12.3645,
+            19.961199999999998,
+            27.599800000000002,
+            16.7819,
+            16.665599999999998,
+            20.8754,
+            16.6803
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 18.37155,
+          "p95": 27.599800000000002,
+          "samples": [
+            23.6722,
+            23.9471,
+            8.4348,
+            12.3645,
+            19.961199999999998,
+            27.599800000000002,
+            16.7819,
+            16.665599999999998,
+            20.8754,
+            16.6803
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 84.24470000000001,
+          "p95": 84.24470000000001,
+          "samples": [
+            84.24470000000001
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 18.37155,
+          "p95": 27.599800000000002,
+          "samples": [
+            23.6722,
+            23.9471,
+            8.4348,
+            12.3645,
+            19.961199999999998,
+            27.599800000000002,
+            16.7819,
+            16.665599999999998,
+            20.8754,
+            16.6803
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 84.24470000000001,
+          "p95": 84.24470000000001,
+          "samples": [
+            84.24470000000001
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 16.72375,
+          "p95": 27.599800000000002,
+          "samples": [
+            7.965800000000001,
+            23.9471,
+            8.4348,
+            12.3645,
+            19.961199999999998,
+            27.599800000000002,
+            16.7819,
+            16.665599999999998,
+            20.8754,
+            8.1288
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 24170496.0,
+          "p95": 24584192,
+          "samples": [
+            22372352,
+            23146496,
+            23347200,
+            23306240,
+            24170496,
+            24166400,
+            24342528,
+            24264704,
+            24461312,
+            24584192,
+            24379392
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 18907136.0,
+          "p95": 18907136,
+          "samples": [
+            18907136
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 23.6722,
+            "first_candidate_menu": 23.6722,
+            "first_menu": 23.6722,
+            "input_echo": 7.965800000000001,
+            "input_qpc": 198132185735,
+            "menu_arrival_qpc": 198132422461
+          },
+          {
+            "dynamic_complete_menu": 23.9471,
+            "first_candidate_menu": 23.9471,
+            "first_menu": 23.9471,
+            "input_echo": 23.9471,
+            "input_qpc": 198132516500,
+            "menu_arrival_qpc": 198132755977
+          },
+          {
+            "dynamic_complete_menu": 8.4348,
+            "first_candidate_menu": 8.4348,
+            "first_menu": 8.4348,
+            "input_echo": 8.4348,
+            "input_qpc": 198132848819,
+            "menu_arrival_qpc": 198132933172
+          },
+          {
+            "dynamic_complete_menu": 12.3645,
+            "first_candidate_menu": 12.3645,
+            "first_menu": 12.3645,
+            "input_echo": 12.3645,
+            "input_qpc": 198133058394,
+            "menu_arrival_qpc": 198133182045
+          },
+          {
+            "dynamic_complete_menu": 19.961199999999998,
+            "first_candidate_menu": 19.961199999999998,
+            "first_menu": 19.961199999999998,
+            "input_echo": 19.961199999999998,
+            "input_qpc": 198133265567,
+            "menu_arrival_qpc": 198133465187
+          },
+          {
+            "dynamic_complete_menu": 27.599800000000002,
+            "first_candidate_menu": 27.599800000000002,
+            "first_menu": 27.599800000000002,
+            "input_echo": 27.599800000000002,
+            "input_qpc": 198133558679,
+            "menu_arrival_qpc": 198133834682
+          },
+          {
+            "dynamic_complete_menu": 16.7819,
+            "first_candidate_menu": 16.7819,
+            "first_menu": 16.7819,
+            "input_echo": 16.7819,
+            "input_qpc": 198133933964,
+            "menu_arrival_qpc": 198134101787
+          },
+          {
+            "dynamic_complete_menu": 16.665599999999998,
+            "first_candidate_menu": 16.665599999999998,
+            "first_menu": 16.665599999999998,
+            "input_echo": 16.665599999999998,
+            "input_qpc": 198134224177,
+            "menu_arrival_qpc": 198134390834
+          },
+          {
+            "dynamic_complete_menu": 20.8754,
+            "first_candidate_menu": 20.8754,
+            "first_menu": 20.8754,
+            "input_echo": 20.8754,
+            "input_qpc": 198134474095,
+            "menu_arrival_qpc": 198134682851
+          },
+          {
+            "dynamic_complete_menu": 16.6803,
+            "first_candidate_menu": 16.6803,
+            "first_menu": 16.6803,
+            "input_echo": 8.1288,
+            "input_qpc": 198134766359,
+            "menu_arrival_qpc": 198134933164
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3485869.3729812675,
+          "p95": 3485869.3729812675,
+          "samples": [
+            3485869.3729812675
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 18.37155,
+          "p95": 27.599800000000002,
+          "samples": [
+            23.6722,
+            23.9471,
+            8.4348,
+            12.3645,
+            19.961199999999998,
+            27.599800000000002,
+            16.7819,
+            16.665599999999998,
+            20.8754,
+            16.6803
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 18.37155,
+          "p95": 27.599800000000002,
+          "samples": [
+            23.6722,
+            23.9471,
+            8.4348,
+            12.3645,
+            19.961199999999998,
+            27.599800000000002,
+            16.7819,
+            16.665599999999998,
+            20.8754,
+            16.6803
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 23.944650000000003,
+          "p95": 25.9519,
+          "samples": [
+            23.937,
+            24.8852,
+            22.9545,
+            25.9519,
+            23.9523,
+            24.9039,
+            24.8906,
+            8.2557,
+            16.5474,
+            17.6204
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 23.944650000000003,
+          "p95": 25.9519,
+          "samples": [
+            23.937,
+            24.8852,
+            22.9545,
+            25.9519,
+            23.9523,
+            24.9039,
+            24.8906,
+            8.2557,
+            16.5474,
+            17.6204
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 88.2386,
+          "p95": 88.2386,
+          "samples": [
+            88.2386
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 23.944650000000003,
+          "p95": 25.9519,
+          "samples": [
+            23.937,
+            24.8852,
+            22.9545,
+            25.9519,
+            23.9523,
+            24.9039,
+            24.8906,
+            8.2557,
+            16.5474,
+            17.6204
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 88.2386,
+          "p95": 88.2386,
+          "samples": [
+            88.2386
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 13.9199,
+          "p95": 24.9039,
+          "samples": [
+            8.0593,
+            24.8852,
+            22.9545,
+            10.2194,
+            23.9523,
+            24.9039,
+            8.2028,
+            8.2557,
+            8.1752,
+            17.6204
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 24719360.0,
+          "p95": 24821760,
+          "samples": [
+            22700032,
+            23564288,
+            23818240,
+            23961600,
+            24170496,
+            24788992,
+            24821760,
+            24764416,
+            24719360,
+            24760320,
+            24743936
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 19005440.0,
+          "p95": 19005440,
+          "samples": [
+            19005440
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 23.937,
+            "first_candidate_menu": 23.937,
+            "first_menu": 23.937,
+            "input_echo": 8.0593,
+            "input_qpc": 198112852749,
+            "menu_arrival_qpc": 198113092126
+          },
+          {
+            "dynamic_complete_menu": 24.8852,
+            "first_candidate_menu": 24.8852,
+            "first_menu": 24.8852,
+            "input_echo": 24.8852,
+            "input_qpc": 198113185983,
+            "menu_arrival_qpc": 198113434837
+          },
+          {
+            "dynamic_complete_menu": 22.9545,
+            "first_candidate_menu": 22.9545,
+            "first_menu": 22.9545,
+            "input_echo": 22.9545,
+            "input_qpc": 198113519908,
+            "menu_arrival_qpc": 198113749460
+          },
+          {
+            "dynamic_complete_menu": 25.9519,
+            "first_candidate_menu": 25.9519,
+            "first_menu": 25.9519,
+            "input_echo": 10.2194,
+            "input_qpc": 198113831984,
+            "menu_arrival_qpc": 198114091508
+          },
+          {
+            "dynamic_complete_menu": 23.9523,
+            "first_candidate_menu": 23.9523,
+            "first_menu": 23.9523,
+            "input_echo": 23.9523,
+            "input_qpc": 198114186783,
+            "menu_arrival_qpc": 198114426317
+          },
+          {
+            "dynamic_complete_menu": 24.9039,
+            "first_candidate_menu": 24.9039,
+            "first_menu": 24.9039,
+            "input_echo": 24.9039,
+            "input_qpc": 198114518622,
+            "menu_arrival_qpc": 198114767664
+          },
+          {
+            "dynamic_complete_menu": 24.8906,
+            "first_candidate_menu": 24.8906,
+            "first_menu": 24.8906,
+            "input_echo": 8.2028,
+            "input_qpc": 198114851893,
+            "menu_arrival_qpc": 198115100803
+          },
+          {
+            "dynamic_complete_menu": 8.2557,
+            "first_candidate_menu": 8.2557,
+            "first_menu": 8.2557,
+            "input_echo": 8.2557,
+            "input_qpc": 198115185083,
+            "menu_arrival_qpc": 198115267645
+          },
+          {
+            "dynamic_complete_menu": 16.5474,
+            "first_candidate_menu": 16.5474,
+            "first_menu": 16.5474,
+            "input_echo": 8.1752,
+            "input_qpc": 198115394075,
+            "menu_arrival_qpc": 198115559550
+          },
+          {
+            "dynamic_complete_menu": 17.6204,
+            "first_candidate_menu": 17.6204,
+            "first_menu": 17.6204,
+            "input_echo": 17.6204,
+            "input_qpc": 198115757960,
+            "menu_arrival_qpc": 198115934168
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3624508.125776007,
+          "p95": 3624508.125776007,
+          "samples": [
+            3624508.125776007
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 23.944650000000003,
+          "p95": 25.9519,
+          "samples": [
+            23.937,
+            24.8852,
+            22.9545,
+            25.9519,
+            23.9523,
+            24.9039,
+            24.8906,
+            8.2557,
+            16.5474,
+            17.6204
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 23.944650000000003,
+          "p95": 25.9519,
+          "samples": [
+            23.937,
+            24.8852,
+            22.9545,
+            25.9519,
+            23.9523,
+            24.9039,
+            24.8906,
+            8.2557,
+            16.5474,
+            17.6204
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "Git 本地分支动态值",
+      "dynamic": true,
+      "name": "git",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 16.7198,
+          "p95": 34.600100000000005,
+          "samples": [
+            34.600100000000005,
+            19.6627,
+            16.6439,
+            16.788,
+            21.0232,
+            19.075100000000003,
+            16.6516,
+            8.4434,
+            9.977,
+            7.887
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 Blueberry host",
+        "profile_mode": "preserved",
+        "shell": "D:\\pwsh\\7\\pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 3690469.3190600947,
+          "p95": 3690469.3190600947,
+          "samples": [
+            3690469.3190600947
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 24.94475,
+            "p95": 33.2125,
+            "samples": [
+              28.9256,
+              29.1646,
+              24.868399999999998,
+              22.72,
+              20.7141,
+              28.8345,
+              25.0211,
+              23.8815,
+              33.2125,
+              24.8337
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 24.6413,
+            "p95": 45.761700000000005,
+            "samples": [
+              31.674500000000002,
+              16.5655,
+              28.3357,
+              11.298300000000001,
+              16.5977,
+              16.5463,
+              33.4186,
+              40.777300000000004,
+              20.9469,
+              45.761700000000005
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "pipe"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "pipe"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 24.94475,
+          "p95": 33.2125,
+          "samples": [
+            28.9256,
+            29.1646,
+            24.868399999999998,
+            22.72,
+            20.7141,
+            28.8345,
+            25.0211,
+            23.8815,
+            33.2125,
+            24.8337
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 24.94475,
+          "p95": 33.2125,
+          "samples": [
+            28.9256,
+            29.1646,
+            24.868399999999998,
+            22.72,
+            20.7141,
+            28.8345,
+            25.0211,
+            23.8815,
+            33.2125,
+            24.8337
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 35.8543,
+          "p95": 35.8543,
+          "samples": [
+            35.8543
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 24.94475,
+          "p95": 33.2125,
+          "samples": [
+            28.9256,
+            29.1646,
+            24.868399999999998,
+            22.72,
+            20.7141,
+            28.8345,
+            25.0211,
+            23.8815,
+            33.2125,
+            24.8337
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 35.8543,
+          "p95": 35.8543,
+          "samples": [
+            35.8543
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 18.57685,
+          "p95": 28.9256,
+          "samples": [
+            28.9256,
+            16.4396,
+            8.4408,
+            22.72,
+            20.7141,
+            28.8345,
+            8.2189,
+            8.2195,
+            23.4001,
+            16.4348
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 24883200.0,
+          "p95": 25133056,
+          "samples": [
+            22642688,
+            23670784,
+            23605248,
+            24649728,
+            24809472,
+            24907776,
+            25133056,
+            24883200,
+            24911872,
+            24965120,
+            24895488
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 19173376.0,
+          "p95": 19173376,
+          "samples": [
+            19173376
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 28.9256,
+            "first_candidate_menu": 28.9256,
+            "first_menu": 28.9256,
+            "input_echo": 28.9256,
+            "input_qpc": 198181166415,
+            "menu_arrival_qpc": 198181455678
+          },
+          {
+            "dynamic_complete_menu": 29.1646,
+            "first_candidate_menu": 29.1646,
+            "first_menu": 29.1646,
+            "input_echo": 16.4396,
+            "input_qpc": 198181551704,
+            "menu_arrival_qpc": 198181843351
+          },
+          {
+            "dynamic_complete_menu": 24.868399999999998,
+            "first_candidate_menu": 24.868399999999998,
+            "first_menu": 24.868399999999998,
+            "input_echo": 8.4408,
+            "input_qpc": 198181928327,
+            "menu_arrival_qpc": 198182177015
+          },
+          {
+            "dynamic_complete_menu": 22.72,
+            "first_candidate_menu": 22.72,
+            "first_menu": 22.72,
+            "input_echo": 22.72,
+            "input_qpc": 198182261906,
+            "menu_arrival_qpc": 198182489110
+          },
+          {
+            "dynamic_complete_menu": 20.7141,
+            "first_candidate_menu": 20.7141,
+            "first_menu": 20.7141,
+            "input_echo": 20.7141,
+            "input_qpc": 198182594153,
+            "menu_arrival_qpc": 198182801300
+          },
+          {
+            "dynamic_complete_menu": 28.8345,
+            "first_candidate_menu": 28.8345,
+            "first_menu": 28.8345,
+            "input_echo": 28.8345,
+            "input_qpc": 198182884213,
+            "menu_arrival_qpc": 198183172567
+          },
+          {
+            "dynamic_complete_menu": 25.0211,
+            "first_candidate_menu": 25.0211,
+            "first_menu": 25.0211,
+            "input_echo": 8.2189,
+            "input_qpc": 198183259727,
+            "menu_arrival_qpc": 198183509939
+          },
+          {
+            "dynamic_complete_menu": 23.8815,
+            "first_candidate_menu": 23.8815,
+            "first_menu": 23.8815,
+            "input_echo": 8.2195,
+            "input_qpc": 198183592745,
+            "menu_arrival_qpc": 198183831571
+          },
+          {
+            "dynamic_complete_menu": 33.2125,
+            "first_candidate_menu": 33.2125,
+            "first_menu": 33.2125,
+            "input_echo": 23.4001,
+            "input_qpc": 198183926648,
+            "menu_arrival_qpc": 198184258776
+          },
+          {
+            "dynamic_complete_menu": 24.8337,
+            "first_candidate_menu": 24.8337,
+            "first_menu": 24.8337,
+            "input_echo": 16.4348,
+            "input_qpc": 198184344053,
+            "menu_arrival_qpc": 198184592397
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3721189.0475440156,
+          "p95": 3721189.0475440156,
+          "samples": [
+            3721189.0475440156
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 24.94475,
+          "p95": 33.2125,
+          "samples": [
+            28.9256,
+            29.1646,
+            24.868399999999998,
+            22.72,
+            20.7141,
+            28.8345,
+            25.0211,
+            23.8815,
+            33.2125,
+            24.8337
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 24.94475,
+          "p95": 33.2125,
+          "samples": [
+            28.9256,
+            29.1646,
+            24.868399999999998,
+            22.72,
+            20.7141,
+            28.8345,
+            25.0211,
+            23.8815,
+            33.2125,
+            24.8337
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 24.6413,
+          "p95": 45.761700000000005,
+          "samples": [
+            31.674500000000002,
+            16.5655,
+            28.3357,
+            11.298300000000001,
+            16.5977,
+            16.5463,
+            33.4186,
+            40.777300000000004,
+            20.9469,
+            45.761700000000005
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 22.96425,
+          "p95": 40.777300000000004,
+          "samples": [
+            31.674500000000002,
+            16.5655,
+            28.3357,
+            11.298300000000001,
+            16.5977,
+            16.5463,
+            33.4186,
+            40.777300000000004,
+            20.9469,
+            24.9816
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 37.150000000000006,
+          "p95": 37.150000000000006,
+          "samples": [
+            37.150000000000006
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 22.96425,
+          "p95": 40.777300000000004,
+          "samples": [
+            31.674500000000002,
+            16.5655,
+            28.3357,
+            11.298300000000001,
+            16.5977,
+            16.5463,
+            33.4186,
+            40.777300000000004,
+            20.9469,
+            24.9816
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 37.150000000000006,
+          "p95": 37.150000000000006,
+          "samples": [
+            37.150000000000006
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 16.5816,
+          "p95": 32.307900000000004,
+          "samples": [
+            19.243199999999998,
+            16.5655,
+            28.3357,
+            11.298300000000001,
+            16.5977,
+            8.065,
+            16.5148,
+            32.307900000000004,
+            8.2706,
+            24.9816
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 24875008.0,
+          "p95": 25104384,
+          "samples": [
+            23019520,
+            23814144,
+            23801856,
+            24961024,
+            25104384,
+            24875008,
+            25059328,
+            24809472,
+            25075712,
+            25059328,
+            24653824
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 18874368.0,
+          "p95": 18874368,
+          "samples": [
+            18874368
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 31.674500000000002,
+            "first_candidate_menu": 31.674500000000002,
+            "first_menu": 31.674500000000002,
+            "input_echo": 19.243199999999998,
+            "input_qpc": 198163819387,
+            "menu_arrival_qpc": 198164136133
+          },
+          {
+            "dynamic_complete_menu": 16.5655,
+            "first_candidate_menu": 16.5655,
+            "first_menu": 16.5655,
+            "input_echo": 16.5655,
+            "input_qpc": 198164262132,
+            "menu_arrival_qpc": 198164427791
+          },
+          {
+            "dynamic_complete_menu": 28.3357,
+            "first_candidate_menu": 28.3357,
+            "first_menu": 28.3357,
+            "input_echo": 28.3357,
+            "input_qpc": 198164511063,
+            "menu_arrival_qpc": 198164794429
+          },
+          {
+            "dynamic_complete_menu": 11.298300000000001,
+            "first_candidate_menu": 11.298300000000001,
+            "first_menu": 11.298300000000001,
+            "input_echo": 11.298300000000001,
+            "input_qpc": 198164897768,
+            "menu_arrival_qpc": 198165010754
+          },
+          {
+            "dynamic_complete_menu": 16.5977,
+            "first_candidate_menu": 16.5977,
+            "first_menu": 16.5977,
+            "input_echo": 16.5977,
+            "input_qpc": 198165136890,
+            "menu_arrival_qpc": 198165302873
+          },
+          {
+            "dynamic_complete_menu": 16.5463,
+            "first_candidate_menu": 16.5463,
+            "first_menu": 16.5463,
+            "input_echo": 8.065,
+            "input_qpc": 198165471301,
+            "menu_arrival_qpc": 198165636768
+          },
+          {
+            "dynamic_complete_menu": 33.4186,
+            "first_candidate_menu": 33.4186,
+            "first_menu": 33.4186,
+            "input_echo": 16.5148,
+            "input_qpc": 198165845206,
+            "menu_arrival_qpc": 198166179395
+          },
+          {
+            "dynamic_complete_menu": 40.777300000000004,
+            "first_candidate_menu": 40.777300000000004,
+            "first_menu": 40.777300000000004,
+            "input_echo": 32.307900000000004,
+            "input_qpc": 198166269878,
+            "menu_arrival_qpc": 198166677653
+          },
+          {
+            "dynamic_complete_menu": 20.9469,
+            "first_candidate_menu": 20.9469,
+            "first_menu": 20.9469,
+            "input_echo": 8.2706,
+            "input_qpc": 198166803363,
+            "menu_arrival_qpc": 198167012836
+          },
+          {
+            "dynamic_complete_menu": 45.761700000000005,
+            "first_candidate_menu": 24.9816,
+            "first_menu": 24.9816,
+            "input_echo": 24.9816,
+            "input_qpc": 198167137684,
+            "menu_arrival_qpc": 198167595305
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3670163.5405743313,
+          "p95": 3670163.5405743313,
+          "samples": [
+            3670163.5405743313
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 24.6413,
+          "p95": 45.761700000000005,
+          "samples": [
+            31.674500000000002,
+            16.5655,
+            28.3357,
+            11.298300000000001,
+            16.5977,
+            16.5463,
+            33.4186,
+            40.777300000000004,
+            20.9469,
+            45.761700000000005
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 22.96425,
+          "p95": 40.777300000000004,
+          "samples": [
+            31.674500000000002,
+            16.5655,
+            28.3357,
+            11.298300000000001,
+            16.5977,
+            16.5463,
+            33.4186,
+            40.777300000000004,
+            20.9469,
+            24.9816
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "Cargo features 动态值",
+      "dynamic": true,
+      "name": "cargo",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 16.860999999999997,
+          "p95": 35.7194,
+          "samples": [
+            35.7194,
+            8.4098,
+            16.9324,
+            17.593,
+            20.8366,
+            8.2235,
+            16.7351,
+            8.377799999999999,
+            16.789599999999997,
+            27.9661
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 Blueberry host",
+        "profile_mode": "preserved",
+        "shell": "D:\\pwsh\\7\\pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 3278226.0283223204,
+          "p95": 3278226.0283223204,
+          "samples": [
+            3278226.0283223204
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 14.0257,
+            "p95": 34.2754,
+            "samples": [
+              12.532,
+              24.8857,
+              25.0373,
+              8.3275,
+              9.4526,
+              15.5194,
+              8.3573,
+              29.0684,
+              8.2966,
+              34.2754
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 25.62155,
+            "p95": 44.8262,
+            "samples": [
+              44.8262,
+              8.0581,
+              28.8583,
+              27.2253,
+              20.7874,
+              8.3146,
+              33.067899999999995,
+              16.7502,
+              28.058400000000002,
+              24.017799999999998
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "pipe"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "pipe"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 14.0257,
+          "p95": 34.2754,
+          "samples": [
+            12.532,
+            24.8857,
+            25.0373,
+            8.3275,
+            9.4526,
+            15.5194,
+            8.3573,
+            29.0684,
+            8.2966,
+            34.2754
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 14.0257,
+          "p95": 34.2754,
+          "samples": [
+            12.532,
+            24.8857,
+            25.0373,
+            8.3275,
+            9.4526,
+            15.5194,
+            8.3573,
+            29.0684,
+            8.2966,
+            34.2754
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 41.2924,
+          "p95": 41.2924,
+          "samples": [
+            41.2924
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 14.0257,
+          "p95": 34.2754,
+          "samples": [
+            12.532,
+            24.8857,
+            25.0373,
+            8.3275,
+            9.4526,
+            15.5194,
+            8.3573,
+            29.0684,
+            8.2966,
+            34.2754
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 41.2924,
+          "p95": 41.2924,
+          "samples": [
+            41.2924
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 8.90495,
+          "p95": 17.4588,
+          "samples": [
+            12.532,
+            8.1745,
+            8.2406,
+            8.3275,
+            9.4526,
+            15.5194,
+            8.3573,
+            16.4413,
+            8.2966,
+            17.4588
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 23937024.0,
+          "p95": 25026560,
+          "samples": [
+            22593536,
+            22888448,
+            23760896,
+            23937024,
+            23961600,
+            24928256,
+            24850432,
+            23932928,
+            24895488,
+            25026560,
+            23924736
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 19222528.0,
+          "p95": 19222528,
+          "samples": [
+            19222528
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 12.532,
+            "first_candidate_menu": 12.532,
+            "first_menu": 12.532,
+            "input_echo": 12.532,
+            "input_qpc": 198230419504,
+            "menu_arrival_qpc": 198230544825
+          },
+          {
+            "dynamic_complete_menu": 24.8857,
+            "first_candidate_menu": 24.8857,
+            "first_menu": 24.8857,
+            "input_echo": 8.1745,
+            "input_qpc": 198230629145,
+            "menu_arrival_qpc": 198230878006
+          },
+          {
+            "dynamic_complete_menu": 25.0373,
+            "first_candidate_menu": 25.0373,
+            "first_menu": 25.0373,
+            "input_echo": 8.2406,
+            "input_qpc": 198230962012,
+            "menu_arrival_qpc": 198231212387
+          },
+          {
+            "dynamic_complete_menu": 8.3275,
+            "first_candidate_menu": 8.3275,
+            "first_menu": 8.3275,
+            "input_echo": 8.3275,
+            "input_qpc": 198231294317,
+            "menu_arrival_qpc": 198231377598
+          },
+          {
+            "dynamic_complete_menu": 9.4526,
+            "first_candidate_menu": 9.4526,
+            "first_menu": 9.4526,
+            "input_echo": 9.4526,
+            "input_qpc": 198231532625,
+            "menu_arrival_qpc": 198231627156
+          },
+          {
+            "dynamic_complete_menu": 15.5194,
+            "first_candidate_menu": 15.5194,
+            "first_menu": 15.5194,
+            "input_echo": 15.5194,
+            "input_qpc": 198231711583,
+            "menu_arrival_qpc": 198231866781
+          },
+          {
+            "dynamic_complete_menu": 8.3573,
+            "first_candidate_menu": 8.3573,
+            "first_menu": 8.3573,
+            "input_echo": 8.3573,
+            "input_qpc": 198231961083,
+            "menu_arrival_qpc": 198232044658
+          },
+          {
+            "dynamic_complete_menu": 29.0684,
+            "first_candidate_menu": 29.0684,
+            "first_menu": 29.0684,
+            "input_echo": 16.4413,
+            "input_qpc": 198232212241,
+            "menu_arrival_qpc": 198232502927
+          },
+          {
+            "dynamic_complete_menu": 8.2966,
+            "first_candidate_menu": 8.2966,
+            "first_menu": 8.2966,
+            "input_echo": 8.2966,
+            "input_qpc": 198232586313,
+            "menu_arrival_qpc": 198232669281
+          },
+          {
+            "dynamic_complete_menu": 34.2754,
+            "first_candidate_menu": 34.2754,
+            "first_menu": 34.2754,
+            "input_echo": 17.4588,
+            "input_qpc": 198232869140,
+            "menu_arrival_qpc": 198233211898
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3483803.233372981,
+          "p95": 3483803.233372981,
+          "samples": [
+            3483803.233372981
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 14.0257,
+          "p95": 34.2754,
+          "samples": [
+            12.532,
+            24.8857,
+            25.0373,
+            8.3275,
+            9.4526,
+            15.5194,
+            8.3573,
+            29.0684,
+            8.2966,
+            34.2754
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 14.0257,
+          "p95": 34.2754,
+          "samples": [
+            12.532,
+            24.8857,
+            25.0373,
+            8.3275,
+            9.4526,
+            15.5194,
+            8.3573,
+            29.0684,
+            8.2966,
+            34.2754
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 25.62155,
+          "p95": 44.8262,
+          "samples": [
+            44.8262,
+            8.0581,
+            28.8583,
+            27.2253,
+            20.7874,
+            8.3146,
+            33.067899999999995,
+            16.7502,
+            28.058400000000002,
+            24.017799999999998
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 25.62155,
+          "p95": 34.8134,
+          "samples": [
+            34.8134,
+            8.0581,
+            28.8583,
+            27.2253,
+            20.7874,
+            8.3146,
+            33.067899999999995,
+            16.7502,
+            28.058400000000002,
+            24.017799999999998
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 39.417,
+          "p95": 39.417,
+          "samples": [
+            39.417
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 25.62155,
+          "p95": 34.8134,
+          "samples": [
+            34.8134,
+            8.0581,
+            28.8583,
+            27.2253,
+            20.7874,
+            8.3146,
+            33.067899999999995,
+            16.7502,
+            28.058400000000002,
+            24.017799999999998
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 39.417,
+          "p95": 39.417,
+          "samples": [
+            39.417
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 16.1555,
+          "p95": 28.8583,
+          "samples": [
+            15.5608,
+            8.0581,
+            28.8583,
+            8.1674,
+            8.0284,
+            8.3146,
+            17.2301,
+            16.7502,
+            28.058400000000002,
+            24.017799999999998
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 23851008.0,
+          "p95": 25010176,
+          "samples": [
+            22597632,
+            22757376,
+            23613440,
+            23797760,
+            24793088,
+            24711168,
+            25010176,
+            23814144,
+            23851008,
+            23883776,
+            24793088
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 18956288.0,
+          "p95": 18956288,
+          "samples": [
+            18956288
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 44.8262,
+            "first_candidate_menu": 34.8134,
+            "first_menu": 34.8134,
+            "input_echo": 15.5608,
+            "input_qpc": 198212848599,
+            "menu_arrival_qpc": 198213296864
+          },
+          {
+            "dynamic_complete_menu": 8.0581,
+            "first_candidate_menu": 8.0581,
+            "first_menu": 8.0581,
+            "input_echo": 8.0581,
+            "input_qpc": 198213382860,
+            "menu_arrival_qpc": 198213463447
+          },
+          {
+            "dynamic_complete_menu": 28.8583,
+            "first_candidate_menu": 28.8583,
+            "first_menu": 28.8583,
+            "input_echo": 28.8583,
+            "input_qpc": 198213547728,
+            "menu_arrival_qpc": 198213836314
+          },
+          {
+            "dynamic_complete_menu": 27.2253,
+            "first_candidate_menu": 27.2253,
+            "first_menu": 27.2253,
+            "input_echo": 8.1674,
+            "input_qpc": 198213923361,
+            "menu_arrival_qpc": 198214195620
+          },
+          {
+            "dynamic_complete_menu": 20.7874,
+            "first_candidate_menu": 20.7874,
+            "first_menu": 20.7874,
+            "input_echo": 8.0284,
+            "input_qpc": 198214298253,
+            "menu_arrival_qpc": 198214506131
+          },
+          {
+            "dynamic_complete_menu": 8.3146,
+            "first_candidate_menu": 8.3146,
+            "first_menu": 8.3146,
+            "input_echo": 8.3146,
+            "input_qpc": 198214589069,
+            "menu_arrival_qpc": 198214672219
+          },
+          {
+            "dynamic_complete_menu": 33.067899999999995,
+            "first_candidate_menu": 33.067899999999995,
+            "first_menu": 33.067899999999995,
+            "input_echo": 17.2301,
+            "input_qpc": 198214839697,
+            "menu_arrival_qpc": 198215170380
+          },
+          {
+            "dynamic_complete_menu": 16.7502,
+            "first_candidate_menu": 16.7502,
+            "first_menu": 16.7502,
+            "input_echo": 16.7502,
+            "input_qpc": 198215257688,
+            "menu_arrival_qpc": 198215425194
+          },
+          {
+            "dynamic_complete_menu": 28.058400000000002,
+            "first_candidate_menu": 28.058400000000002,
+            "first_menu": 28.058400000000002,
+            "input_echo": 28.058400000000002,
+            "input_qpc": 198215547774,
+            "menu_arrival_qpc": 198215828360
+          },
+          {
+            "dynamic_complete_menu": 24.017799999999998,
+            "first_candidate_menu": 24.017799999999998,
+            "first_menu": 24.017799999999998,
+            "input_echo": 24.017799999999998,
+            "input_qpc": 198215922719,
+            "menu_arrival_qpc": 198216162902
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3366154.5731441104,
+          "p95": 3366154.5731441104,
+          "samples": [
+            3366154.5731441104
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 25.62155,
+          "p95": 44.8262,
+          "samples": [
+            44.8262,
+            8.0581,
+            28.8583,
+            27.2253,
+            20.7874,
+            8.3146,
+            33.067899999999995,
+            16.7502,
+            28.058400000000002,
+            24.017799999999998
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 25.62155,
+          "p95": 34.8134,
+          "samples": [
+            34.8134,
+            8.0581,
+            28.8583,
+            27.2253,
+            20.7874,
+            8.3146,
+            33.067899999999995,
+            16.7502,
+            28.058400000000002,
+            24.017799999999998
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "npm scripts 动态值",
+      "dynamic": true,
+      "name": "js",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 18.881149999999998,
+          "p95": 31.216,
+          "samples": [
+            31.216,
+            8.4832,
+            16.0357,
+            21.1736,
+            16.6845,
+            20.8215,
+            20.9787,
+            16.9408,
+            16.5821,
+            24.017699999999998
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 Blueberry host",
+        "profile_mode": "preserved",
+        "shell": "D:\\pwsh\\7\\pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 2252833.616501621,
+          "p95": 2252833.616501621,
+          "samples": [
+            2252833.616501621
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 16.467750000000002,
+            "p95": 29.221799999999998,
+            "samples": [
+              8.1756,
+              8.572,
+              29.221799999999998,
+              8.2464,
+              7.6827,
+              20.7315,
+              28.9901,
+              17.5085,
+              16.4724,
+              16.4631
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "dynamic_complete_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 16.6334,
+            "p95": 28.070999999999998,
+            "samples": [
+              24.0863,
+              8.1697,
+              16.6651,
+              16.6251,
+              15.1576,
+              24.887900000000002,
+              28.070999999999998,
+              16.6417,
+              12.5323,
+              12.4565
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "pipe"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "pipe"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 16.467750000000002,
+          "p95": 29.221799999999998,
+          "samples": [
+            8.1756,
+            8.572,
+            29.221799999999998,
+            8.2464,
+            7.6827,
+            20.7315,
+            28.9901,
+            17.5085,
+            16.4724,
+            16.4631
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 16.467750000000002,
+          "p95": 29.221799999999998,
+          "samples": [
+            8.1756,
+            8.572,
+            29.221799999999998,
+            8.2464,
+            7.6827,
+            20.7315,
+            28.9901,
+            17.5085,
+            16.4724,
+            16.4631
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 48.5805,
+          "p95": 48.5805,
+          "samples": [
+            48.5805
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 16.467750000000002,
+          "p95": 29.221799999999998,
+          "samples": [
+            8.1756,
+            8.572,
+            29.221799999999998,
+            8.2464,
+            7.6827,
+            20.7315,
+            28.9901,
+            17.5085,
+            16.4724,
+            16.4631
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 48.5805,
+          "p95": 48.5805,
+          "samples": [
+            48.5805
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 14.40845,
+          "p95": 29.221799999999998,
+          "samples": [
+            8.1756,
+            8.572,
+            29.221799999999998,
+            8.2464,
+            7.6827,
+            12.3538,
+            20.561,
+            17.5085,
+            16.4724,
+            16.4631
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 21454848.0,
+          "p95": 21516288,
+          "samples": [
+            20439040,
+            21065728,
+            20987904,
+            21008384,
+            21454848,
+            21454848,
+            21471232,
+            21475328,
+            21487616,
+            21479424,
+            21516288
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 19046400.0,
+          "p95": 19046400,
+          "samples": [
+            19046400
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 8.1756,
+            "first_candidate_menu": 8.1756,
+            "first_menu": 8.1756,
+            "input_echo": 8.1756,
+            "input_qpc": 198278373173,
+            "menu_arrival_qpc": 198278454932
+          },
+          {
+            "dynamic_complete_menu": 8.572,
+            "first_candidate_menu": 8.572,
+            "first_menu": 8.572,
+            "input_echo": 8.572,
+            "input_qpc": 198278538586,
+            "menu_arrival_qpc": 198278624309
+          },
+          {
+            "dynamic_complete_menu": 29.221799999999998,
+            "first_candidate_menu": 29.221799999999998,
+            "first_menu": 29.221799999999998,
+            "input_echo": 29.221799999999998,
+            "input_qpc": 198278746317,
+            "menu_arrival_qpc": 198279038542
+          },
+          {
+            "dynamic_complete_menu": 8.2464,
+            "first_candidate_menu": 8.2464,
+            "first_menu": 8.2464,
+            "input_echo": 8.2464,
+            "input_qpc": 198279122789,
+            "menu_arrival_qpc": 198279205260
+          },
+          {
+            "dynamic_complete_menu": 7.6827,
+            "first_candidate_menu": 7.6827,
+            "first_menu": 7.6827,
+            "input_echo": 7.6827,
+            "input_qpc": 198279295210,
+            "menu_arrival_qpc": 198279372044
+          },
+          {
+            "dynamic_complete_menu": 20.7315,
+            "first_candidate_menu": 20.7315,
+            "first_menu": 20.7315,
+            "input_echo": 12.3538,
+            "input_qpc": 198279580537,
+            "menu_arrival_qpc": 198279787855
+          },
+          {
+            "dynamic_complete_menu": 28.9901,
+            "first_candidate_menu": 28.9901,
+            "first_menu": 28.9901,
+            "input_echo": 20.561,
+            "input_qpc": 198279873064,
+            "menu_arrival_qpc": 198280162969
+          },
+          {
+            "dynamic_complete_menu": 17.5085,
+            "first_candidate_menu": 17.5085,
+            "first_menu": 17.5085,
+            "input_echo": 17.5085,
+            "input_qpc": 198280362619,
+            "menu_arrival_qpc": 198280537709
+          },
+          {
+            "dynamic_complete_menu": 16.4724,
+            "first_candidate_menu": 16.4724,
+            "first_menu": 16.4724,
+            "input_echo": 16.4724,
+            "input_qpc": 198280664160,
+            "menu_arrival_qpc": 198280828886
+          },
+          {
+            "dynamic_complete_menu": 16.4631,
+            "first_candidate_menu": 16.4631,
+            "first_menu": 16.4631,
+            "input_echo": 16.4631,
+            "input_qpc": 198280997671,
+            "menu_arrival_qpc": 198281162307
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3710171.1827104758,
+          "p95": 3710171.1827104758,
+          "samples": [
+            3710171.1827104758
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 16.467750000000002,
+          "p95": 29.221799999999998,
+          "samples": [
+            8.1756,
+            8.572,
+            29.221799999999998,
+            8.2464,
+            7.6827,
+            20.7315,
+            28.9901,
+            17.5085,
+            16.4724,
+            16.4631
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 16.467750000000002,
+          "p95": 29.221799999999998,
+          "samples": [
+            8.1756,
+            8.572,
+            29.221799999999998,
+            8.2464,
+            7.6827,
+            20.7315,
+            28.9901,
+            17.5085,
+            16.4724,
+            16.4631
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": true,
+          "median": 16.6334,
+          "p95": 28.070999999999998,
+          "samples": [
+            24.0863,
+            8.1697,
+            16.6651,
+            16.6251,
+            15.1576,
+            24.887900000000002,
+            28.070999999999998,
+            16.6417,
+            12.5323,
+            12.4565
+          ],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 16.6334,
+          "p95": 28.070999999999998,
+          "samples": [
+            24.0863,
+            8.1697,
+            16.6651,
+            16.6251,
+            15.1576,
+            24.887900000000002,
+            28.070999999999998,
+            16.6417,
+            12.5323,
+            12.4565
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": true,
+          "median": 35.0377,
+          "p95": 35.0377,
+          "samples": [
+            35.0377
+          ],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 16.6334,
+          "p95": 28.070999999999998,
+          "samples": [
+            24.0863,
+            8.1697,
+            16.6651,
+            16.6251,
+            15.1576,
+            24.887900000000002,
+            28.070999999999998,
+            16.6417,
+            12.5323,
+            12.4565
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 35.0377,
+          "p95": 35.0377,
+          "samples": [
+            35.0377
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 10.430800000000001,
+          "p95": 16.6651,
+          "samples": [
+            7.3597,
+            8.1697,
+            16.6651,
+            16.6251,
+            15.1576,
+            8.223700000000001,
+            8.225100000000001,
+            8.405100000000001,
+            12.5323,
+            12.4565
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 21794816.0,
+          "p95": 21995520,
+          "samples": [
+            20996096,
+            21536768,
+            21721088,
+            21741568,
+            21753856,
+            21794816,
+            21803008,
+            21815296,
+            21995520,
+            21827584,
+            21819392
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 18907136.0,
+          "p95": 18907136,
+          "samples": [
+            18907136
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": 24.0863,
+            "first_candidate_menu": 24.0863,
+            "first_menu": 24.0863,
+            "input_echo": 7.3597,
+            "input_qpc": 198261091010,
+            "menu_arrival_qpc": 198261331878
+          },
+          {
+            "dynamic_complete_menu": 8.1697,
+            "first_candidate_menu": 8.1697,
+            "first_menu": 8.1697,
+            "input_echo": 8.1697,
+            "input_qpc": 198261416459,
+            "menu_arrival_qpc": 198261498159
+          },
+          {
+            "dynamic_complete_menu": 16.6651,
+            "first_candidate_menu": 16.6651,
+            "first_menu": 16.6651,
+            "input_echo": 16.6651,
+            "input_qpc": 198261706966,
+            "menu_arrival_qpc": 198261873622
+          },
+          {
+            "dynamic_complete_menu": 16.6251,
+            "first_candidate_menu": 16.6251,
+            "first_menu": 16.6251,
+            "input_echo": 16.6251,
+            "input_qpc": 198261956640,
+            "menu_arrival_qpc": 198262122893
+          },
+          {
+            "dynamic_complete_menu": 15.1576,
+            "first_candidate_menu": 15.1576,
+            "first_menu": 15.1576,
+            "input_echo": 15.1576,
+            "input_qpc": 198262206832,
+            "menu_arrival_qpc": 198262358412
+          },
+          {
+            "dynamic_complete_menu": 24.887900000000002,
+            "first_candidate_menu": 24.887900000000002,
+            "first_menu": 24.887900000000002,
+            "input_echo": 8.223700000000001,
+            "input_qpc": 198262458253,
+            "menu_arrival_qpc": 198262707139
+          },
+          {
+            "dynamic_complete_menu": 28.070999999999998,
+            "first_candidate_menu": 28.070999999999998,
+            "first_menu": 28.070999999999998,
+            "input_echo": 8.225100000000001,
+            "input_qpc": 198262791400,
+            "menu_arrival_qpc": 198263072115
+          },
+          {
+            "dynamic_complete_menu": 16.6417,
+            "first_candidate_menu": 16.6417,
+            "first_menu": 16.6417,
+            "input_echo": 8.405100000000001,
+            "input_qpc": 198263165621,
+            "menu_arrival_qpc": 198263332042
+          },
+          {
+            "dynamic_complete_menu": 12.5323,
+            "first_candidate_menu": 12.5323,
+            "first_menu": 12.5323,
+            "input_echo": 12.5323,
+            "input_qpc": 198263415815,
+            "menu_arrival_qpc": 198263541146
+          },
+          {
+            "dynamic_complete_menu": 12.4565,
+            "first_candidate_menu": 12.4565,
+            "first_menu": 12.4565,
+            "input_echo": 12.4565,
+            "input_qpc": 198263665955,
+            "menu_arrival_qpc": 198263790527
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3701103.791406296,
+          "p95": 3701103.791406296,
+          "samples": [
+            3701103.791406296
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": true,
+          "median": 16.6334,
+          "p95": 28.070999999999998,
+          "samples": [
+            24.0863,
+            8.1697,
+            16.6651,
+            16.6251,
+            15.1576,
+            24.887900000000002,
+            28.070999999999998,
+            16.6417,
+            12.5323,
+            12.4565
+          ],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 16.6334,
+          "p95": 28.070999999999998,
+          "samples": [
+            24.0863,
+            8.1697,
+            16.6651,
+            16.6251,
+            15.1576,
+            24.887900000000002,
+            28.070999999999998,
+            16.6417,
+            12.5323,
+            12.4565
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "PowerShell 目录路径",
+      "dynamic": true,
+      "name": "path",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 8.9238,
+          "p95": 32.658300000000004,
+          "samples": [
+            32.658300000000004,
+            12.6041,
+            8.485700000000001,
+            8.305399999999999,
+            9.361899999999999,
+            20.930500000000002,
+            8.4675,
+            8.2048,
+            16.6792,
+            8.174000000000001
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 Blueberry host",
+        "profile_mode": "preserved",
+        "shell": "D:\\pwsh\\7\\pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 2687735.688492352,
+          "p95": 2687735.688492352,
+          "samples": [
+            2687735.688492352
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    },
+    {
+      "acceptance": {
+        "cache_hit": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 13.27905,
+            "p95": 27.154799999999998,
+            "samples": [
+              27.154799999999998,
+              20.772599999999997,
+              8.2633,
+              16.583099999999998,
+              14.3354,
+              12.2227,
+              8.2431,
+              7.959300000000001,
+              8.1448,
+              16.6589
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        },
+        "cache_miss": {
+          "expected_samples": 10,
+          "metric": "first_candidate_menu",
+          "observed_samples": 10,
+          "p95_limit_ms": 20.0,
+          "statistics": {
+            "available": true,
+            "median": 12.263549999999999,
+            "p95": 24.3828,
+            "samples": [
+              8.555,
+              19.6798,
+              24.3828,
+              16.3486,
+              8.5281,
+              12.425699999999999,
+              20.550800000000002,
+              8.285300000000001,
+              8.2195,
+              12.1014
+            ],
+            "unit": "ms"
+          },
+          "status": "failed"
+        }
+      },
+      "cache": {
+        "definition": "每个 session pair 的 miss 使用全新 data 目录；随后 hit 复用同一份已验证 complete commands.json",
+        "pairs": [
+          {
+            "hit_complete": true,
+            "hit_transport": [
+              "pipe"
+            ],
+            "miss_complete": true,
+            "miss_transport": [
+              "pipe"
+            ],
+            "queries": 10,
+            "rewritten_on_hit": false,
+            "session": 0
+          }
+        ]
+      },
+      "cache_hit": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 13.27905,
+          "p95": 27.154799999999998,
+          "samples": [
+            27.154799999999998,
+            20.772599999999997,
+            8.2633,
+            16.583099999999998,
+            14.3354,
+            12.2227,
+            8.2431,
+            7.959300000000001,
+            8.1448,
+            16.6589
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 13.27905,
+          "p95": 27.154799999999998,
+          "samples": [
+            27.154799999999998,
+            20.772599999999997,
+            8.2633,
+            16.583099999999998,
+            14.3354,
+            12.2227,
+            8.2431,
+            7.959300000000001,
+            8.1448,
+            16.6589
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 41.289,
+          "p95": 41.289,
+          "samples": [
+            41.289
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 7.792966928393981,
+          "p95": 7.792966928393981,
+          "samples": [
+            7.792966928393981
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 8.223099999999999,
+          "p95": 12.2227,
+          "samples": [
+            8.1906,
+            8.2495,
+            8.2633,
+            8.2031,
+            5.9565,
+            12.2227,
+            8.2431,
+            7.959300000000001,
+            8.1448,
+            8.3272
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 21147648.0,
+          "p95": 21225472,
+          "samples": [
+            20529152,
+            21016576,
+            21037056,
+            21041152,
+            21053440,
+            21217280,
+            21155840,
+            21221376,
+            21147648,
+            21225472,
+            21188608
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 19128320.0,
+          "p95": 19128320,
+          "samples": [
+            19128320
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 27.154799999999998,
+            "first_menu": 27.154799999999998,
+            "input_echo": 8.1906,
+            "input_qpc": 198324324260,
+            "menu_arrival_qpc": 198324595814
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 20.772599999999997,
+            "first_menu": 20.772599999999997,
+            "input_echo": 8.2495,
+            "input_qpc": 198324699467,
+            "menu_arrival_qpc": 198324907199
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.2633,
+            "first_menu": 8.2633,
+            "input_echo": 8.2633,
+            "input_qpc": 198324991766,
+            "menu_arrival_qpc": 198325074404
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 16.583099999999998,
+            "first_menu": 16.583099999999998,
+            "input_echo": 8.2031,
+            "input_qpc": 198325241350,
+            "menu_arrival_qpc": 198325407184
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 14.3354,
+            "first_menu": 14.3354,
+            "input_echo": 5.9565,
+            "input_qpc": 198325555652,
+            "menu_arrival_qpc": 198325699008
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 12.2227,
+            "first_menu": 12.2227,
+            "input_echo": 12.2227,
+            "input_qpc": 198325784992,
+            "menu_arrival_qpc": 198325907221
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.2431,
+            "first_menu": 8.2431,
+            "input_echo": 8.2431,
+            "input_qpc": 198325990921,
+            "menu_arrival_qpc": 198326073357
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 7.959300000000001,
+            "first_menu": 7.959300000000001,
+            "input_echo": 7.959300000000001,
+            "input_qpc": 198326160750,
+            "menu_arrival_qpc": 198326240347
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.1448,
+            "first_menu": 8.1448,
+            "input_echo": 8.1448,
+            "input_qpc": 198326325560,
+            "menu_arrival_qpc": 198326407012
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 16.6589,
+            "first_menu": 16.6589,
+            "input_echo": 8.3272,
+            "input_qpc": 198326573872,
+            "menu_arrival_qpc": 198326740466
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3372828.6476339484,
+          "p95": 3372828.6476339484,
+          "samples": [
+            3372828.6476339484
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 13.27905,
+          "p95": 27.154799999999998,
+          "samples": [
+            27.154799999999998,
+            20.772599999999997,
+            8.2633,
+            16.583099999999998,
+            14.3354,
+            12.2227,
+            8.2431,
+            7.959300000000001,
+            8.1448,
+            16.6589
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "cache_miss": {
+        "actual_host_mode": [
+          "direct"
+        ],
+        "actual_transport": [
+          "pipe"
+        ],
+        "automatic_menu": [
+          true
+        ],
+        "dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "editors": [
+          {
+            "dll_sha256": "a98308ebfa8c1b8824c2b17d299e6a8dde93a2f92f5d1dc4f533e3f507e037b7",
+            "fallback_reason": null,
+            "mode": "editor_hooks_v1",
+            "patch": "blueberry-editor-v1"
+          }
+        ],
+        "first_candidate_menu": {
+          "available": true,
+          "median": 12.263549999999999,
+          "p95": 24.3828,
+          "samples": [
+            8.555,
+            19.6798,
+            24.3828,
+            16.3486,
+            8.5281,
+            12.425699999999999,
+            20.550800000000002,
+            8.285300000000001,
+            8.2195,
+            12.1014
+          ],
+          "unit": "ms"
+        },
+        "first_dynamic_query": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "first_menu": {
+          "available": true,
+          "median": 12.263549999999999,
+          "p95": 24.3828,
+          "samples": [
+            8.555,
+            19.6798,
+            24.3828,
+            16.3486,
+            8.5281,
+            12.425699999999999,
+            20.550800000000002,
+            8.285300000000001,
+            8.2195,
+            12.1014
+          ],
+          "unit": "ms"
+        },
+        "first_query": {
+          "available": true,
+          "median": 49.7014,
+          "p95": 49.7014,
+          "samples": [
+            49.7014
+          ],
+          "unit": "ms"
+        },
+        "idle_cpu": {
+          "available": true,
+          "median": 0.0,
+          "p95": 0.0,
+          "samples": [
+            0.0
+          ],
+          "unit": "percent"
+        },
+        "input_echo": {
+          "available": true,
+          "median": 10.41365,
+          "p95": 20.550800000000002,
+          "samples": [
+            8.555,
+            19.6798,
+            8.7259,
+            16.3486,
+            8.5281,
+            12.425699999999999,
+            20.550800000000002,
+            8.285300000000001,
+            8.2195,
+            12.1014
+          ],
+          "unit": "ms"
+        },
+        "memory_menu": {
+          "available": true,
+          "median": 21606400.0,
+          "p95": 21659648,
+          "samples": [
+            20992000,
+            21479424,
+            21516288,
+            21659648,
+            21577728,
+            21614592,
+            21594112,
+            21639168,
+            21626880,
+            21618688,
+            21606400
+          ],
+          "unit": "bytes"
+        },
+        "memory_prompt": {
+          "available": true,
+          "median": 19234816.0,
+          "p95": 19234816,
+          "samples": [
+            19234816
+          ],
+          "unit": "bytes"
+        },
+        "missing": {
+          "dynamic_complete_menu": 0,
+          "first_candidate_menu": 0,
+          "first_menu": 0,
+          "input_echo": 0
+        },
+        "observations": [
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.555,
+            "first_menu": 8.555,
+            "input_echo": 8.555,
+            "input_qpc": 198308239152,
+            "menu_arrival_qpc": 198308324706
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 19.6798,
+            "first_menu": 19.6798,
+            "input_echo": 19.6798,
+            "input_qpc": 198308408814,
+            "menu_arrival_qpc": 198308605621
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 24.3828,
+            "first_menu": 24.3828,
+            "input_echo": 8.7259,
+            "input_qpc": 198308701428,
+            "menu_arrival_qpc": 198308945259
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 16.3486,
+            "first_menu": 16.3486,
+            "input_echo": 16.3486,
+            "input_qpc": 198309078688,
+            "menu_arrival_qpc": 198309242176
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.5281,
+            "first_menu": 8.5281,
+            "input_echo": 8.5281,
+            "input_qpc": 198309326344,
+            "menu_arrival_qpc": 198309411628
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 12.425699999999999,
+            "first_menu": 12.425699999999999,
+            "input_echo": 12.425699999999999,
+            "input_qpc": 198309536777,
+            "menu_arrival_qpc": 198309661040
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 20.550800000000002,
+            "first_menu": 20.550800000000002,
+            "input_echo": 20.550800000000002,
+            "input_qpc": 198309744631,
+            "menu_arrival_qpc": 198309950142
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.285300000000001,
+            "first_menu": 8.285300000000001,
+            "input_echo": 8.285300000000001,
+            "input_qpc": 198310034209,
+            "menu_arrival_qpc": 198310117071
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 8.2195,
+            "first_menu": 8.2195,
+            "input_echo": 8.2195,
+            "input_qpc": 198310243199,
+            "menu_arrival_qpc": 198310325396
+          },
+          {
+            "dynamic_complete_menu": null,
+            "first_candidate_menu": 12.1014,
+            "first_menu": 12.1014,
+            "input_echo": 12.1014,
+            "input_qpc": 198310412787,
+            "menu_arrival_qpc": 198310533807
+          }
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "queries": 10,
+        "sessions": 1,
+        "shell_versions": [
+          "7.6.6"
+        ],
+        "throughput": {
+          "available": true,
+          "median": 3768131.357923894,
+          "p95": 3768131.357923894,
+          "samples": [
+            3768131.357923894
+          ],
+          "unit": "bytes_per_second"
+        },
+        "transport_eligible_dynamic_complete_menu": {
+          "available": false,
+          "missing": true,
+          "samples": [],
+          "unit": "ms"
+        },
+        "transport_eligible_first_candidate_menu": {
+          "available": true,
+          "median": 12.263549999999999,
+          "p95": 24.3828,
+          "samples": [
+            8.555,
+            19.6798,
+            24.3828,
+            16.3486,
+            8.5281,
+            12.425699999999999,
+            20.550800000000002,
+            8.285300000000001,
+            8.2195,
+            12.1014
+          ],
+          "unit": "ms"
+        },
+        "transport_ineligible_hot_queries": 0
+      },
+      "description": "模糊匹配命令",
+      "dynamic": false,
+      "name": "fuzzy",
+      "same_pwsh_baseline": {
+        "input_echo_control": {
+          "available": true,
+          "median": 24.8657,
+          "p95": 45.8517,
+          "samples": [
+            45.8517,
+            12.5837,
+            29.024,
+            24.7974,
+            25.008499999999998,
+            24.934,
+            12.5933,
+            25.0572,
+            20.8289,
+            19.503800000000002
+          ],
+          "unit": "ms"
+        },
+        "input_echo_control_note": "10 个编辑后清空、不执行的输入样本，仅诊断；不替代正式宿主热态验收",
+        "method": "同一 shell、cwd 和固定文本夹具；没有 --no-profile，也没有 Blueberry host",
+        "profile_mode": "preserved",
+        "shell": "D:\\pwsh\\7\\pwsh.exe",
+        "throughput": {
+          "available": true,
+          "median": 3124932.201187537,
+          "p95": 3124932.201187537,
+          "samples": [
+            3124932.201187537
+          ],
+          "unit": "bytes_per_second"
+        }
+      }
+    }
+  ],
+  "schema": 2,
+  "sessions_per_cache_mode": 1,
+  "shell": "D:\\pwsh\\7\\pwsh.exe",
+  "source_commit": "e394f24a008a3b92e59dc05fa3148f757830c1c5",
+  "source_dirty": true,
+  "target": {
+    "complete_dynamic_menu": {
+      "available": true,
+      "median": 20.91115,
+      "p95": 33.4186,
+      "samples": [
+        23.937,
+        24.8852,
+        22.9545,
+        25.9519,
+        23.9523,
+        24.9039,
+        24.8906,
+        8.2557,
+        16.5474,
+        17.6204,
+        23.6722,
+        23.9471,
+        8.4348,
+        12.3645,
+        19.961199999999998,
+        27.599800000000002,
+        16.7819,
+        16.665599999999998,
+        20.8754,
+        16.6803,
+        31.674500000000002,
+        16.5655,
+        28.3357,
+        11.298300000000001,
+        16.5977,
+        16.5463,
+        33.4186,
+        40.777300000000004,
+        20.9469,
+        45.761700000000005,
+        28.9256,
+        29.1646,
+        24.868399999999998,
+        22.72,
+        20.7141,
+        28.8345,
+        25.0211,
+        23.8815,
+        33.2125,
+        24.8337,
+        44.8262,
+        8.0581,
+        28.8583,
+        27.2253,
+        20.7874,
+        8.3146,
+        33.067899999999995,
+        16.7502,
+        28.058400000000002,
+        24.017799999999998,
+        12.532,
+        24.8857,
+        25.0373,
+        8.3275,
+        9.4526,
+        15.5194,
+        8.3573,
+        29.0684,
+        8.2966,
+        34.2754,
+        24.0863,
+        8.1697,
+        16.6651,
+        16.6251,
+        15.1576,
+        24.887900000000002,
+        28.070999999999998,
+        16.6417,
+        12.5323,
+        12.4565,
+        8.1756,
+        8.572,
+        29.221799999999998,
+        8.2464,
+        7.6827,
+        20.7315,
+        28.9901,
+        17.5085,
+        16.4724,
+        16.4631
+      ],
+      "unit": "ms"
+    },
+    "complete_dynamic_menu_p95_ms": 33.4186,
+    "hot_menu": {
+      "available": true,
+      "median": 19.76625,
+      "p95": 33.2125,
+      "samples": [
+        8.2997,
+        16.5471,
+        20.6905,
+        16.6524,
+        20.814200000000003,
+        8.3882,
+        12.2247,
+        12.6167,
+        28.0563,
+        24.106099999999998,
+        19.8714,
+        25.3217,
+        16.6442,
+        28.0932,
+        8.3807,
+        34.1679,
+        28.2068,
+        19.852700000000002,
+        20.7019,
+        16.723,
+        23.937,
+        24.8852,
+        22.9545,
+        25.9519,
+        23.9523,
+        24.9039,
+        24.8906,
+        8.2557,
+        16.5474,
+        17.6204,
+        23.6722,
+        23.9471,
+        8.4348,
+        12.3645,
+        19.961199999999998,
+        27.599800000000002,
+        16.7819,
+        16.665599999999998,
+        20.8754,
+        16.6803,
+        31.674500000000002,
+        16.5655,
+        28.3357,
+        11.298300000000001,
+        16.5977,
+        16.5463,
+        33.4186,
+        40.777300000000004,
+        20.9469,
+        45.761700000000005,
+        28.9256,
+        29.1646,
+        24.868399999999998,
+        22.72,
+        20.7141,
+        28.8345,
+        25.0211,
+        23.8815,
+        33.2125,
+        24.8337,
+        44.8262,
+        8.0581,
+        28.8583,
+        27.2253,
+        20.7874,
+        8.3146,
+        33.067899999999995,
+        16.7502,
+        28.058400000000002,
+        24.017799999999998,
+        12.532,
+        24.8857,
+        25.0373,
+        8.3275,
+        9.4526,
+        15.5194,
+        8.3573,
+        29.0684,
+        8.2966,
+        34.2754,
+        24.0863,
+        8.1697,
+        16.6651,
+        16.6251,
+        15.1576,
+        24.887900000000002,
+        28.070999999999998,
+        16.6417,
+        12.5323,
+        12.4565,
+        8.1756,
+        8.572,
+        29.221799999999998,
+        8.2464,
+        7.6827,
+        20.7315,
+        28.9901,
+        17.5085,
+        16.4724,
+        16.4631,
+        8.555,
+        19.6798,
+        24.3828,
+        16.3486,
+        8.5281,
+        12.425699999999999,
+        20.550800000000002,
+        8.285300000000001,
+        8.2195,
+        12.1014,
+        27.154799999999998,
+        20.772599999999997,
+        8.2633,
+        16.583099999999998,
+        14.3354,
+        12.2227,
+        8.2431,
+        7.959300000000001,
+        8.1448,
+        16.6589
+      ],
+      "unit": "ms"
+    },
+    "hot_menu_p95_ms": 33.2125,
+    "limits": {
+      "hot_menu_p95_ms": 20.0,
+      "startup_increment_p50_ms": 50.0
+    },
+    "reasons": [
+      "diagnostic trace enabled; excluded from acceptance",
+      "每种 cache 模式只有 10 个热态样本，正式验收至少需要 300 个",
+      "热态菜单 P95 超过 20 ms 或无可用样本",
+      "root cache_miss 热态 failed（观测 10/10）",
+      "root cache_hit 热态 failed（观测 10/10）",
+      "git cache_miss 热态 failed（观测 10/10）",
+      "git cache_hit 热态 failed（观测 10/10）",
+      "cargo cache_miss 热态 failed（观测 10/10）",
+      "cargo cache_hit 热态 failed（观测 10/10）",
+      "js cache_miss 热态 failed（观测 10/10）",
+      "js cache_hit 热态 failed（观测 10/10）",
+      "path cache_miss 热态 failed（观测 10/10）",
+      "path cache_hit 热态 failed（观测 10/10）",
+      "fuzzy cache_miss 热态 failed（观测 10/10）",
+      "fuzzy cache_hit 热态 failed（观测 10/10）"
+    ],
+    "startup": {
+      "reason": "启动增量由 product-probe 配对测量；本 harness 只记录提示符后的输入回显",
+      "status": "not_measured"
+    },
+    "status": "failed"
+  },
+  "terminal_columns": 120,
+  "terminal_rows": 30,
+  "trace": "enabled_diagnostic",
+  "transport": "pipe",
+  "transport_degraded": false
+}

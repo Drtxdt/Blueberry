@@ -206,6 +206,12 @@ fn ps_quote(value: &Path) -> String {
 }
 
 fn start_host() -> Result<RunningHost> {
+    start_host_with_unpainted_reply(false)
+}
+
+fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/nested-terminal-evidence");
+    fs::create_dir_all(&evidence)?;
     let cwd = tempdir().context("create terminal test cwd")?;
     fs::write(
         cwd.path().join("git.cmd"),
@@ -218,7 +224,10 @@ fn start_host() -> Result<RunningHost> {
     )
     .context("create Unicode path fixture")?;
 
-    let data_dir = tempdir().context("create terminal test data directory")?;
+    let mut data_dir = tempfile::Builder::new()
+        .prefix("data-")
+        .tempdir_in(&evidence)?;
+    data_dir.disable_cleanup(true);
     let config_path = data_dir.path().join("config.toml");
     fs::write(&config_path, config::example()).context("write temporary config")?;
 
@@ -230,7 +239,7 @@ fn start_host() -> Result<RunningHost> {
     let native_marker = cwd.path().join("native-called.txt");
     let input_trace = cwd.path().join("input-trace.txt");
     let clipboard_fixture = cwd.path().join("clipboard-fixture.txt");
-    let env = BTreeMap::from([
+    let mut env = BTreeMap::from([
         (
             "APPDATA".to_owned(),
             data_dir.path().to_string_lossy().into_owned(),
@@ -256,16 +265,27 @@ fn start_host() -> Result<RunningHost> {
             input_trace.to_string_lossy().into_owned(),
         ),
     ]);
+    if inject_reply {
+        env.insert("BLUEBERRY_TEST_UNPAINTED_COMPLETION".into(), "1".into());
+    }
     let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
     let args = vec![
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
         "run".to_owned(),
+        "--host-mode".to_owned(),
+        "nested".to_owned(),
         "--transport".to_owned(),
         transport.clone(),
         "--no-profile".to_owned(),
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),
+        "--trace".into(),
+        data_dir
+            .path()
+            .join("trace.jsonl")
+            .to_string_lossy()
+            .into_owned(),
     ];
     let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let mut harness = Harness::start(&program, &args, cwd.path(), &env, token)
@@ -275,9 +295,25 @@ fn start_host() -> Result<RunningHost> {
         .context("wait for the initial PowerShell prompt")?;
     // Do not let bootstrap messages from the first prompt satisfy a later
     // lifecycle assertion.
-    let capabilities = harness
-        .event("capabilities", PTY_TIMEOUT)
-        .context("initial adapter capabilities")?;
+    let mut capabilities = None;
+    let mut prompted = false;
+    let mut commands_complete = false;
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    while capabilities.is_none() || !prompted || !commands_complete {
+        let event = harness
+            .event_any(
+                &["capabilities", "prompt_end", "commands"],
+                deadline.saturating_duration_since(Instant::now()),
+            )
+            .with_context(|| format!("initial events: capabilities={}, prompt={prompted}, complete commands={commands_complete}; evidence={}", capabilities.is_some(), data_dir.path().display()))?;
+        match event["event"].as_str() {
+            Some("capabilities") => capabilities = Some(event),
+            Some("prompt_end") => prompted = true,
+            Some("commands") => commands_complete |= event["complete"] == true,
+            _ => unreachable!(),
+        }
+    }
+    let capabilities = capabilities.context("missing initial capabilities")?;
     ensure!(
         capabilities["capabilities"]["command_metadata"] == true,
         "missing metadata capability: {capabilities}"
@@ -286,18 +322,6 @@ fn start_host() -> Result<RunningHost> {
         capabilities["transport"] == transport,
         "requested transport was not active: {capabilities}"
     );
-    harness
-        .event("prompt_end", PTY_TIMEOUT)
-        .context("initial confirmed prompt")?;
-    loop {
-        if harness
-            .event("commands", PTY_TIMEOUT)
-            .context("initial complete Shell command snapshot")?["complete"]
-            == true
-        {
-            break;
-        }
-    }
 
     let session_dir = fs::read_dir(data_dir.path())?
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -553,6 +577,15 @@ fn loading_notice_is_not_a_selectable_candidate() {
 
 fn accept_selected(harness: &mut Harness) -> Result<Value> {
     harness.send(b"\t")?;
+    let state = harness.event("accept_state", PTY_TIMEOUT)?;
+    ensure!(
+        state["revision"] == state["presented_revision"]
+            && state["line_matches"] == true
+            && state["cursor_matches"] == true
+            && state["prompt"] == true
+            && state["dismissed"] == false,
+        "displayed candidate could not be accepted: {state}"
+    );
     let result = harness.event("edit_result", PTY_TIMEOUT)?;
     ensure!(
         result["applied"] == true,
@@ -706,7 +739,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
         .send("Get-ChildItem -Name '中文😀".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "Get-ChildItem -Name '中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    host.harness.send(b"\t")?;
+    let _ = accept_selected(&mut host.harness)?;
     wait_until(
         &mut host.harness,
         "single quote and Unicode acceptance",
@@ -727,7 +760,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
         .send("Get-ChildItem -Name \"中文😀".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    host.harness.send(b"\t")?;
+    let _ = accept_selected(&mut host.harness)?;
     wait_until(
         &mut host.harness,
         "double quote and Unicode acceptance",
@@ -740,6 +773,29 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     )?;
 
     host.harness.stop()?;
+    Ok(())
+}
+
+#[test]
+fn terminal_tab_accepts_displayed_candidate_after_unpainted_worker_reply() -> Result<()> {
+    let mut host = start_host_with_unpainted_reply(true)?;
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"giXYZ")?;
+    host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
+    let _ = request_buffer(&mut host.harness, "giXYZ")?;
+    select_candidate(&mut host.harness, "git")?;
+    accept_selected(&mut host.harness)?;
+    let actual = read_real_buffer(
+        &mut host.harness,
+        "displayed candidate after late reply",
+        "gitXYZ",
+        None,
+    )?;
+    ensure!(
+        actual["line"] == "gitXYZ",
+        "unseen reply changed the accepted edit: {actual}"
+    );
+    host.harness.finish(PTY_TIMEOUT)?;
     Ok(())
 }
 

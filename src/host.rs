@@ -42,6 +42,17 @@ pub struct RunOptions {
     pub data_dir: PathBuf,
     pub trace_path: Option<PathBuf>,
     pub transport: Transport,
+    pub psreadline_version: PsReadLineVersion,
+}
+
+#[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
+pub enum PsReadLineVersion {
+    #[default]
+    Auto,
+    #[value(name = "2.0.0")]
+    V200,
+    #[value(name = "2.4.5")]
+    V245,
 }
 
 #[derive(Clone, Copy, Default, clap::ValueEnum)]
@@ -61,8 +72,15 @@ pub fn resolve_host(
     mode: Option<HostMode>,
     transport: Option<Transport>,
 ) -> Result<(HostMode, Transport)> {
-    // Keep the compatibility default until direct passes the release gates.
-    let mode = mode.unwrap_or(HostMode::Nested);
+    // An explicit legacy OSC transport still selects the compatible host.
+    // Windows sessions otherwise use the single-layer editor integration.
+    let mode = mode.unwrap_or(
+        if cfg!(windows) && !matches!(transport, Some(Transport::Osc)) {
+            HostMode::Direct
+        } else {
+            HostMode::Nested
+        },
+    );
     let transport = transport.unwrap_or(match mode {
         HostMode::Direct => Transport::Pipe,
         HostMode::Nested => Transport::Osc,
@@ -200,6 +218,7 @@ impl Worker {
             let mut shell_commands = Vec::new();
             let mut latest_query: Option<Query> = None;
             let mut prepared: Option<(u64, Completion, crate::sources::SourceRequest)> = None;
+            let mut published = crate::completion::PublishedCompletion::default();
             loop {
                 let (lock, condition) = &*thread_shared;
                 let mut work = lock.lock().unwrap();
@@ -248,6 +267,7 @@ impl Worker {
                 }
                 drop(work);
                 if cancel {
+                    published.clear();
                     learner.cancel();
                     prepared = None;
                     latest_query = None;
@@ -552,6 +572,18 @@ impl Worker {
                     };
                     let force = invalidate_sources || refresh || reload_catalog.is_some();
                     if request.as_ref() != Some(&next) || force {
+                        trace.event(
+                            "source_submit",
+                            Some(q.revision),
+                            None,
+                            Some(
+                                usize::from(next.paths)
+                                    | (usize::from(next.project) << 1)
+                                    | (usize::from(force) << 2)
+                                    | (usize::from(help_changed) << 3)
+                                    | (usize::from(entry_changed) << 4),
+                            ),
+                        );
                         parts = [None, None];
                         sources.submit(next.clone(), force);
                         request = Some(next);
@@ -615,11 +647,18 @@ impl Worker {
                         q.limit,
                         &q.descriptions,
                     );
+                    let result = published.update(request.as_ref().unwrap(), result);
                     trace.event(
                         "completion_merge",
                         Some(q.revision),
                         Some(merging.elapsed()),
                         Some(result.candidates.len()),
+                    );
+                    trace.event(
+                        "completion_incomplete",
+                        Some(q.revision),
+                        None,
+                        Some(usize::from(result.incomplete)),
                     );
                     trace.event(
                         "completion",
@@ -833,6 +872,72 @@ enum InteractionMode {
     History,
 }
 
+// A completion reply and a Tab can share an event batch. Keep the actual
+// displayed edit, including its replacement range, until the next repaint;
+// an unseen reply must neither replace it nor silently consume the Tab.
+struct PresentedCandidate {
+    revision: u64,
+    line: String,
+    cursor: usize,
+    candidate: Candidate,
+    replacement: crate::model::Replacement,
+}
+
+impl PresentedCandidate {
+    fn capture(
+        revision: u64,
+        line: &str,
+        cursor: usize,
+        completion: &Completion,
+        selected: usize,
+    ) -> Option<Self> {
+        let candidate = completion.candidates.get(selected)?.clone();
+        let replacement = candidate.replacement.unwrap_or(crate::model::Replacement {
+            start: completion.replace_start,
+            end: completion.replace_end,
+        });
+        Some(Self {
+            revision,
+            line: line.into(),
+            cursor,
+            candidate,
+            replacement,
+        })
+    }
+}
+
+#[cfg(test)]
+mod presented_tests {
+    use super::*;
+    #[test]
+    fn late_completion_preserves_displayed_candidate_and_replacement() {
+        let mut completion = Completion {
+            replace_start: 4,
+            replace_end: 6,
+            candidates: vec![Candidate {
+                label: "old".into(),
+                insert_text: "old-value".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let shown = PresentedCandidate::capture(7, "git ol", 6, &completion, 0).unwrap();
+        completion.candidates[0].insert_text = "new-value".into();
+        completion.replace_start = 0;
+        completion.candidates.clear();
+        assert_eq!(shown.candidate.insert_text, "old-value");
+        assert_eq!(
+            shown.replacement,
+            crate::model::Replacement { start: 4, end: 6 }
+        );
+        assert_eq!(
+            (shown.revision, shown.line.as_str(), shown.cursor),
+            (7, "git ol", 6)
+        );
+        assert!(PresentedCandidate::capture(7, "git ol", 6, &completion, 0).is_none());
+    }
+}
+
 struct State {
     pipe: Option<crate::pipe::PipeServer>,
     parser: vt100::Parser,
@@ -874,7 +979,7 @@ struct State {
     shell_environment: Arc<BTreeMap<String, String>>,
     learning: Arc<Learning>,
     pending_accept: Option<(u64, String, PathBuf)>,
-    presented_identity: Option<String>,
+    presented_candidate: Option<PresentedCandidate>,
     native_request: Option<u64>,
     native_ready: bool,
     metadata_ready: bool,
@@ -1059,6 +1164,8 @@ impl State {
         }
     }
     fn invalidate(&mut self) {
+        self.trace
+            .event("nested_invalidate", Some(self.revision), None, None);
         self.revision += 1;
         self.completion = Completion::default();
         self.selected = 0;
@@ -1104,6 +1211,20 @@ impl State {
         }
     }
     fn message(&mut self, value: Value, _writer: &mut impl Write, worker: &Worker) -> Result<()> {
+        self.trace.event(
+            "nested_message",
+            Some(self.revision),
+            None,
+            Some(match value["event"].as_str() {
+                Some("buffer") => 1,
+                Some("commands") => 2,
+                Some("prompt_start") => 3,
+                Some("prompt_end") => 4,
+                Some("edit_result") => 5,
+                Some("command_metadata") => 6,
+                _ => 0,
+            }),
+        );
         match value["event"].as_str().unwrap_or("") {
             "capabilities" => {
                 self.status_writer.update(value.clone());
@@ -1618,18 +1739,17 @@ impl State {
     }
 
     fn accept(&mut self, writer: &mut impl Write) -> Result<()> {
-        let Some(candidate) = self.completion.candidates.get(self.selected) else {
+        let Some(presented) = self.presented_candidate.as_ref().filter(|shown| {
+            shown.revision == self.revision
+                && shown.line == self.line
+                && shown.cursor == self.cursor
+        }) else {
             return Ok(());
         };
-        if self.presented_identity.as_deref() != Some(candidate.identity()) {
-            return Ok(());
-        }
+        let candidate = &presented.candidate;
         self.searching = false;
         self.interaction_mode = InteractionMode::Completion;
-        let replacement = candidate.replacement.unwrap_or(crate::model::Replacement {
-            start: self.completion.replace_start,
-            end: self.completion.replace_end,
-        });
+        let replacement = presented.replacement;
         let start = protocol::byte_to_utf16(&self.line, replacement.start);
         let end = protocol::byte_to_utf16(&self.line, replacement.end);
         let cursor = protocol::byte_to_utf16(&self.line, self.cursor);
@@ -1684,14 +1804,18 @@ impl State {
                 Event::Resize(cols, rows) => {
                     #[cfg(windows)]
                     let (cols, rows) = terminal::size().unwrap_or((cols, rows));
-                    if rows > 0 && cols > 0 && self.parser.screen().size() != (rows, cols) {
-                        master.resize(portable_pty::PtySize {
-                            rows,
-                            cols,
-                            pixel_width: 0,
-                            pixel_height: 0,
-                        })?;
-                        self.parser.screen_mut().set_size(rows, cols);
+                    if rows > 0 && cols > 0 {
+                        if self.parser.screen().size() != (rows, cols) {
+                            master.resize(portable_pty::PtySize {
+                                rows,
+                                cols,
+                                pixel_width: 0,
+                                pixel_height: 0,
+                            })?;
+                            self.parser.screen_mut().set_size(rows, cols);
+                        }
+                        // Coalesced resizes can return to the original size
+                        // after the outer terminal has reflowed menu cells.
                         self.overlay = Overlay::default();
                         self.repaint = true;
                     }
@@ -1818,11 +1942,21 @@ impl State {
                                     argument_hint: String::new(),
                                 };
                                 self.selected = 0;
-                                self.presented_identity = Some("hub:resolved-template".into());
+                                self.presented_candidate = PresentedCandidate::capture(
+                                    self.revision,
+                                    &self.line,
+                                    self.cursor,
+                                    &self.completion,
+                                    self.selected,
+                                );
                                 return self.accept(writer);
                             }
                             if let Some(candidate) = self.completion.candidates.get(self.selected) {
-                                if self.presented_identity.as_deref() != Some(candidate.identity())
+                                if self
+                                    .presented_candidate
+                                    .as_ref()
+                                    .map(|shown| shown.candidate.identity())
+                                    != Some(candidate.identity())
                                 {
                                     return Ok(());
                                 }
@@ -2131,6 +2265,13 @@ impl State {
             return Ok(());
         };
         let visible = !self.completion.candidates.is_empty() && !self.dismissed && self.prompt;
+        let accepts_presented = !self.dismissed
+            && self.prompt
+            && self.presented_candidate.as_ref().is_some_and(|shown| {
+                shown.revision == self.revision
+                    && shown.line == self.line
+                    && shown.cursor == self.cursor
+            });
         let starts_history_navigation = !visible
             && self.config.completion.up_arrow_history
             && matches!(&input, Input::Previous | Input::Next);
@@ -2144,23 +2285,34 @@ impl State {
             Input::Resize(cols, rows) => {
                 #[cfg(windows)]
                 let (cols, rows) = terminal::size().unwrap_or((cols, rows));
-                if rows > 0 && cols > 0 && self.parser.screen().size() != (rows, cols) {
-                    master.resize(portable_pty::PtySize {
-                        rows,
-                        cols,
-                        pixel_width: 0,
-                        pixel_height: 0,
-                    })?;
-                    self.parser.screen_mut().set_size(rows, cols);
+                if rows > 0 && cols > 0 {
+                    if self.parser.screen().size() != (rows, cols) {
+                        master.resize(portable_pty::PtySize {
+                            rows,
+                            cols,
+                            pixel_width: 0,
+                            pixel_height: 0,
+                        })?;
+                        self.parser.screen_mut().set_size(rows, cols);
+                    }
                     // The outer terminal can reflow old overlay cells during a
                     // resize. Repaint the shell model instead of erasing only
-                    // the overlay's obsolete row coordinates.
+                    // the overlay's obsolete row coordinates. This is also
+                    // required when coalesced events return to the old size.
                     self.overlay = Overlay::default();
                     self.repaint = true;
                 }
                 return Ok(());
             }
-            Input::Tab if visible => return self.accept(writer),
+            Input::Tab if accepts_presented => {
+                #[cfg(debug_assertions)]
+                if std::env::var_os("BLUEBERRY_TEST_UNPAINTED_COMPLETION").is_some() {
+                    // Deterministically place a late empty worker reply between
+                    // the displayed frame and its acceptance in the PTY test.
+                    self.completion = Completion::default();
+                }
+                return self.accept(writer);
+            }
             Input::Previous if visible => {
                 self.selection_touched = true;
                 self.detail_page = 0;
@@ -2598,7 +2750,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         shell_environment: Arc::new(std::env::vars().collect()),
         learning,
         pending_accept: None,
-        presented_identity: None,
+        presented_candidate: None,
         native_request: None,
         native_ready: false,
         metadata_ready: false,
@@ -2736,6 +2888,29 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     // protocol replies are handled before a new request.
                     let mut input_frame = Vec::with_capacity(inputs.len() * 8);
                     for input in inputs {
+                        #[cfg(debug_assertions)]
+                        if matches!(&input, Event::Key(key) if key.code == crossterm::event::KeyCode::Tab && key.kind != crossterm::event::KeyEventKind::Release)
+                            && let Some(token) = &probe_token
+                        {
+                            let shown = state.presented_candidate.as_ref();
+                            let value = json!({"event":"accept_state","revision":state.revision,
+                                "presented_revision":shown.map(|p|p.revision),
+                                "line_matches":shown.is_some_and(|p|p.line==state.line),
+                                "cursor_matches":shown.is_some_and(|p|p.cursor==state.cursor),
+                                "prompt":state.prompt,"dismissed":state.dismissed,
+                                "pending_query":state.pending_query,"commands_inflight":state.commands_inflight,
+                                "candidates":state.completion.candidates.len()});
+                            frame.extend_from_slice(
+                                format!("\x1b]7776;{token};{value}\x07").as_bytes(),
+                            );
+                            state.trace.event(
+                                "nested_accept_revision",
+                                Some(state.revision),
+                                None,
+                                shown.map(|p| p.revision as usize),
+                            );
+                            state.trace.flush();
+                        }
                         ui_dirty |= matches!(&input, Event::Resize(..) | Event::Paste(_))
                             || matches!(&input, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release);
                         // Restore the old coordinates before changing the model size.
@@ -2961,17 +3136,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }),
                 },
             )?;
-            state.presented_identity = if state.completion.candidates.is_empty() {
-                None
-            } else {
-                state
-                    .completion
-                    .candidates
-                    .get(state.selected)
-                    .map(|candidate| candidate.identity().to_owned())
-            };
+            state.presented_candidate = PresentedCandidate::capture(
+                state.revision,
+                &state.line,
+                state.cursor,
+                &state.completion,
+                state.selected,
+            );
         } else if ui_dirty {
             state.overlay.erase(state.parser.screen(), &mut frame)?;
+            state.presented_candidate = None;
         }
         if frame.len() > bytes_before {
             trace.event(
@@ -3056,6 +3230,33 @@ fn decode_context(line: &str, value: &Value) -> Option<InputContext> {
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
+    #[test]
+    fn default_host_and_explicit_compatibility_transport() {
+        let (mode, transport) = resolve_host(None, None).unwrap();
+        assert_eq!(
+            mode,
+            if cfg!(windows) {
+                HostMode::Direct
+            } else {
+                HostMode::Nested
+            }
+        );
+        assert!(matches!(
+            (mode, transport),
+            (HostMode::Direct, Transport::Pipe) | (HostMode::Nested, Transport::Osc)
+        ));
+        assert_eq!(
+            resolve_host(None, Some(Transport::Osc)).unwrap().0,
+            HostMode::Nested
+        );
+        assert_eq!(
+            resolve_host(Some(HostMode::Nested), Some(Transport::Pipe))
+                .unwrap()
+                .0,
+            HostMode::Nested
+        );
+        assert!(resolve_host(Some(HostMode::Direct), Some(Transport::Osc)).is_err());
+    }
     #[test]
     fn batches_keep_previous_commands_until_complete_and_do_not_truncate() {
         let mut snapshot = CommandSnapshot::default();

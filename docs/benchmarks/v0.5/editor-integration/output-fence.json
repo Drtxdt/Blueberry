@@ -1,0 +1,812 @@
+[
+  {
+    "arrival_qpc": 201309603700,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 0,
+    "start_qpc": 201309467967,
+    "write_to_arrival_ms": 13.4878,
+    "written_qpc": 201309468822
+  },
+  {
+    "arrival_qpc": 201309687654,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 1,
+    "start_qpc": 201309618823,
+    "write_to_arrival_ms": 6.6977,
+    "written_qpc": 201309620677
+  },
+  {
+    "arrival_qpc": 201309854561,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 2,
+    "start_qpc": 201309774910,
+    "write_to_arrival_ms": 7.8108,
+    "written_qpc": 201309776453
+  },
+  {
+    "arrival_qpc": 201310020268,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 3,
+    "start_qpc": 201309938070,
+    "write_to_arrival_ms": 8.0308,
+    "written_qpc": 201309939960
+  },
+  {
+    "arrival_qpc": 201310186884,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 4,
+    "start_qpc": 201310094909,
+    "write_to_arrival_ms": 8.9805,
+    "written_qpc": 201310097079
+  },
+  {
+    "arrival_qpc": 201310271007,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 5,
+    "start_qpc": 201310223423,
+    "write_to_arrival_ms": 4.598,
+    "written_qpc": 201310225027
+  },
+  {
+    "arrival_qpc": 201310521016,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 6,
+    "start_qpc": 201310363612,
+    "write_to_arrival_ms": 15.5478,
+    "written_qpc": 201310365538
+  },
+  {
+    "arrival_qpc": 201310603805,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 7,
+    "start_qpc": 201310532687,
+    "write_to_arrival_ms": 6.9269,
+    "written_qpc": 201310534536
+  },
+  {
+    "arrival_qpc": 201310853962,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 8,
+    "start_qpc": 201310712287,
+    "write_to_arrival_ms": 13.9549,
+    "written_qpc": 201310714413
+  },
+  {
+    "arrival_qpc": 201310937879,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 9,
+    "start_qpc": 201310872261,
+    "write_to_arrival_ms": 6.3276,
+    "written_qpc": 201310874603
+  },
+  {
+    "arrival_qpc": 201311144851,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 10,
+    "start_qpc": 201311050204,
+    "write_to_arrival_ms": 9.253,
+    "written_qpc": 201311052321
+  },
+  {
+    "arrival_qpc": 201311228371,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 11,
+    "start_qpc": 201311173076,
+    "write_to_arrival_ms": 5.3605,
+    "written_qpc": 201311174766
+  },
+  {
+    "arrival_qpc": 201311533304,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 12,
+    "start_qpc": 201311367539,
+    "write_to_arrival_ms": 16.3582,
+    "written_qpc": 201311369722
+  },
+  {
+    "arrival_qpc": 201311645816,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 13,
+    "start_qpc": 201311545389,
+    "write_to_arrival_ms": 9.8063,
+    "written_qpc": 201311547753
+  },
+  {
+    "arrival_qpc": 201311844393,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 14,
+    "start_qpc": 201311734232,
+    "write_to_arrival_ms": 10.849,
+    "written_qpc": 201311735903
+  },
+  {
+    "arrival_qpc": 201311937360,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 15,
+    "start_qpc": 201311865252,
+    "write_to_arrival_ms": 6.8287,
+    "written_qpc": 201311869073
+  },
+  {
+    "arrival_qpc": 201312019993,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 16,
+    "start_qpc": 201312005361,
+    "write_to_arrival_ms": 1.1897,
+    "written_qpc": 201312008096
+  },
+  {
+    "arrival_qpc": 201312177730,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 17,
+    "start_qpc": 201312134520,
+    "write_to_arrival_ms": 4.1463,
+    "written_qpc": 201312136267
+  },
+  {
+    "arrival_qpc": 201312520452,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 18,
+    "start_qpc": 201312296791,
+    "write_to_arrival_ms": 22.2276,
+    "written_qpc": 201312298176
+  },
+  {
+    "arrival_qpc": 201312603721,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 19,
+    "start_qpc": 201312527205,
+    "write_to_arrival_ms": 7.5582,
+    "written_qpc": 201312528139
+  },
+  {
+    "arrival_qpc": 201312686484,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 20,
+    "start_qpc": 201312655990,
+    "write_to_arrival_ms": 2.9719,
+    "written_qpc": 201312656765
+  },
+  {
+    "arrival_qpc": 201312814807,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 21,
+    "start_qpc": 201312726967,
+    "write_to_arrival_ms": 8.7054,
+    "written_qpc": 201312727753
+  },
+  {
+    "arrival_qpc": 201312895750,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 22,
+    "start_qpc": 201312838090,
+    "write_to_arrival_ms": 5.7068,
+    "written_qpc": 201312838682
+  },
+  {
+    "arrival_qpc": 201312978881,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 23,
+    "start_qpc": 201312940458,
+    "write_to_arrival_ms": 3.7833,
+    "written_qpc": 201312941048
+  },
+  {
+    "arrival_qpc": 201313145864,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 24,
+    "start_qpc": 201313038012,
+    "write_to_arrival_ms": 10.7237,
+    "written_qpc": 201313038627
+  },
+  {
+    "arrival_qpc": 201313228411,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 25,
+    "start_qpc": 201313158684,
+    "write_to_arrival_ms": 6.8639,
+    "written_qpc": 201313159772
+  },
+  {
+    "arrival_qpc": 201313312233,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 26,
+    "start_qpc": 201313280561,
+    "write_to_arrival_ms": 2.862,
+    "written_qpc": 201313283613
+  },
+  {
+    "arrival_qpc": 201313521383,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 27,
+    "start_qpc": 201313420872,
+    "write_to_arrival_ms": 9.7733,
+    "written_qpc": 201313423650
+  },
+  {
+    "arrival_qpc": 201313602492,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 28,
+    "start_qpc": 201313601529,
+    "write_to_arrival_ms": 0.0295,
+    "written_qpc": 201313602197
+  },
+  {
+    "arrival_qpc": 201313828836,
+    "frequency": 10000000,
+    "mode": 0,
+    "sample": 29,
+    "start_qpc": 201313717192,
+    "write_to_arrival_ms": 11.0356,
+    "written_qpc": 201313718480
+  },
+  {
+    "arrival_qpc": 201326015284,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 0,
+    "start_qpc": 201326014019,
+    "write_to_arrival_ms": 0.0118,
+    "written_qpc": 201326015166
+  },
+  {
+    "arrival_qpc": 201326174929,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 1,
+    "start_qpc": 201326173662,
+    "write_to_arrival_ms": 0.0073,
+    "written_qpc": 201326174856
+  },
+  {
+    "arrival_qpc": 201326352262,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 2,
+    "start_qpc": 201326333770,
+    "write_to_arrival_ms": 1.7521,
+    "written_qpc": 201326334741
+  },
+  {
+    "arrival_qpc": 201326505378,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 3,
+    "start_qpc": 201326503277,
+    "write_to_arrival_ms": 0.0551,
+    "written_qpc": 201326504827
+  },
+  {
+    "arrival_qpc": 201326651772,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 4,
+    "start_qpc": 201326650482,
+    "write_to_arrival_ms": 0.0069,
+    "written_qpc": 201326651703
+  },
+  {
+    "arrival_qpc": 201326926137,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 5,
+    "start_qpc": 201326791897,
+    "write_to_arrival_ms": 13.2881,
+    "written_qpc": 201326793256
+  },
+  {
+    "arrival_qpc": 201327018754,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 6,
+    "start_qpc": 201326981169,
+    "write_to_arrival_ms": 3.6628,
+    "written_qpc": 201326982126
+  },
+  {
+    "arrival_qpc": 201327152271,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 7,
+    "start_qpc": 201327150595,
+    "write_to_arrival_ms": 0.007,
+    "written_qpc": 201327152201
+  },
+  {
+    "arrival_qpc": 201327352310,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 8,
+    "start_qpc": 201327293606,
+    "write_to_arrival_ms": 5.7506,
+    "written_qpc": 201327294804
+  },
+  {
+    "arrival_qpc": 201327461601,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 9,
+    "start_qpc": 201327460300,
+    "write_to_arrival_ms": 0.0168,
+    "written_qpc": 201327461433
+  },
+  {
+    "arrival_qpc": 201327684981,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 10,
+    "start_qpc": 201327619015,
+    "write_to_arrival_ms": 6.4823,
+    "written_qpc": 201327620158
+  },
+  {
+    "arrival_qpc": 201327819009,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 11,
+    "start_qpc": 201327816707,
+    "write_to_arrival_ms": 0.0356,
+    "written_qpc": 201327818653
+  },
+  {
+    "arrival_qpc": 201327992892,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 12,
+    "start_qpc": 201327991156,
+    "write_to_arrival_ms": 0.0182,
+    "written_qpc": 201327992710
+  },
+  {
+    "arrival_qpc": 201328101720,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 13,
+    "start_qpc": 201328009296,
+    "write_to_arrival_ms": 9.153,
+    "written_qpc": 201328010190
+  },
+  {
+    "arrival_qpc": 201328289566,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 14,
+    "start_qpc": 201328287297,
+    "write_to_arrival_ms": 0.0279,
+    "written_qpc": 201328289287
+  },
+  {
+    "arrival_qpc": 201328393025,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 15,
+    "start_qpc": 201328304096,
+    "write_to_arrival_ms": 8.7828,
+    "written_qpc": 201328305197
+  },
+  {
+    "arrival_qpc": 201328591321,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 16,
+    "start_qpc": 201328562125,
+    "write_to_arrival_ms": 2.8055,
+    "written_qpc": 201328563266
+  },
+  {
+    "arrival_qpc": 201328685526,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 17,
+    "start_qpc": 201328640516,
+    "write_to_arrival_ms": 4.4007,
+    "written_qpc": 201328641519
+  },
+  {
+    "arrival_qpc": 201328771499,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 18,
+    "start_qpc": 201328770201,
+    "write_to_arrival_ms": 0.0266,
+    "written_qpc": 201328771233
+  },
+  {
+    "arrival_qpc": 201328956833,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 19,
+    "start_qpc": 201328931581,
+    "write_to_arrival_ms": 2.4206,
+    "written_qpc": 201328932627
+  },
+  {
+    "arrival_qpc": 201329081418,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 20,
+    "start_qpc": 201329079868,
+    "write_to_arrival_ms": 0.0267,
+    "written_qpc": 201329081151
+  },
+  {
+    "arrival_qpc": 201329226679,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 21,
+    "start_qpc": 201329211087,
+    "write_to_arrival_ms": 1.4878,
+    "written_qpc": 201329211801
+  },
+  {
+    "arrival_qpc": 201329365495,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 22,
+    "start_qpc": 201329364265,
+    "write_to_arrival_ms": 0.0148,
+    "written_qpc": 201329365347
+  },
+  {
+    "arrival_qpc": 201329601939,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 23,
+    "start_qpc": 201329483392,
+    "write_to_arrival_ms": 11.7745,
+    "written_qpc": 201329484194
+  },
+  {
+    "arrival_qpc": 201329685424,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 24,
+    "start_qpc": 201329655078,
+    "write_to_arrival_ms": 2.9432,
+    "written_qpc": 201329655992
+  },
+  {
+    "arrival_qpc": 201329826376,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 25,
+    "start_qpc": 201329824603,
+    "write_to_arrival_ms": 0.0313,
+    "written_qpc": 201329826063
+  },
+  {
+    "arrival_qpc": 201329998288,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 26,
+    "start_qpc": 201329992247,
+    "write_to_arrival_ms": 0.4874,
+    "written_qpc": 201329993414
+  },
+  {
+    "arrival_qpc": 201330227427,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 27,
+    "start_qpc": 201330116314,
+    "write_to_arrival_ms": 11.0669,
+    "written_qpc": 201330116758
+  },
+  {
+    "arrival_qpc": 201330310031,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 28,
+    "start_qpc": 201330296695,
+    "write_to_arrival_ms": 1.259,
+    "written_qpc": 201330297441
+  },
+  {
+    "arrival_qpc": 201330451182,
+    "frequency": 10000000,
+    "mode": 1,
+    "sample": 29,
+    "start_qpc": 201330449737,
+    "write_to_arrival_ms": 0.022,
+    "written_qpc": 201330450962
+  },
+  {
+    "arrival_qpc": 201342379231,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 0,
+    "start_qpc": 201342377760,
+    "write_to_arrival_ms": 0.0283,
+    "written_qpc": 201342378948
+  },
+  {
+    "arrival_qpc": 201342395296,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 1,
+    "start_qpc": 201342394556,
+    "write_to_arrival_ms": 0.0058,
+    "written_qpc": 201342395238
+  },
+  {
+    "arrival_qpc": 201342601096,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 2,
+    "start_qpc": 201342599611,
+    "write_to_arrival_ms": 0.0005,
+    "written_qpc": 201342601091
+  },
+  {
+    "arrival_qpc": 201342739232,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 3,
+    "start_qpc": 201342737365,
+    "write_to_arrival_ms": 0.0243,
+    "written_qpc": 201342738989
+  },
+  {
+    "arrival_qpc": 201342908227,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 4,
+    "start_qpc": 201342906675,
+    "write_to_arrival_ms": 0.0031,
+    "written_qpc": 201342908196
+  },
+  {
+    "arrival_qpc": 201342927947,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 5,
+    "start_qpc": 201342926213,
+    "write_to_arrival_ms": 0.0114,
+    "written_qpc": 201342927833
+  },
+  {
+    "arrival_qpc": 201343246976,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 6,
+    "start_qpc": 201343245204,
+    "write_to_arrival_ms": -0.0094,
+    "written_qpc": 201343247070
+  },
+  {
+    "arrival_qpc": 201343275611,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 7,
+    "start_qpc": 201343274492,
+    "write_to_arrival_ms": 0.0087,
+    "written_qpc": 201343275524
+  },
+  {
+    "arrival_qpc": 201343481365,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 8,
+    "start_qpc": 201343479111,
+    "write_to_arrival_ms": -0.0046,
+    "written_qpc": 201343481411
+  },
+  {
+    "arrival_qpc": 201343647185,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 9,
+    "start_qpc": 201343645607,
+    "write_to_arrival_ms": -0.153,
+    "written_qpc": 201343648715
+  },
+  {
+    "arrival_qpc": 201343793065,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 10,
+    "start_qpc": 201343791374,
+    "write_to_arrival_ms": -0.0115,
+    "written_qpc": 201343793180
+  },
+  {
+    "arrival_qpc": 201343961092,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 11,
+    "start_qpc": 201343959082,
+    "write_to_arrival_ms": 0.0119,
+    "written_qpc": 201343960973
+  },
+  {
+    "arrival_qpc": 201344150026,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 12,
+    "start_qpc": 201344148533,
+    "write_to_arrival_ms": -0.0018,
+    "written_qpc": 201344150044
+  },
+  {
+    "arrival_qpc": 201344307823,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 13,
+    "start_qpc": 201344306216,
+    "write_to_arrival_ms": 0.0174,
+    "written_qpc": 201344307649
+  },
+  {
+    "arrival_qpc": 201344461367,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 14,
+    "start_qpc": 201344459571,
+    "write_to_arrival_ms": -0.0189,
+    "written_qpc": 201344461556
+  },
+  {
+    "arrival_qpc": 201344612715,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 15,
+    "start_qpc": 201344610272,
+    "write_to_arrival_ms": 0.054,
+    "written_qpc": 201344612175
+  },
+  {
+    "arrival_qpc": 201344782885,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 16,
+    "start_qpc": 201344781358,
+    "write_to_arrival_ms": -0.0205,
+    "written_qpc": 201344783090
+  },
+  {
+    "arrival_qpc": 201344806260,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 17,
+    "start_qpc": 201344804989,
+    "write_to_arrival_ms": -0.009,
+    "written_qpc": 201344806350
+  },
+  {
+    "arrival_qpc": 201345120502,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 18,
+    "start_qpc": 201345118861,
+    "write_to_arrival_ms": 0.0121,
+    "written_qpc": 201345120381
+  },
+  {
+    "arrival_qpc": 201345283588,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 19,
+    "start_qpc": 201345281580,
+    "write_to_arrival_ms": 0.0166,
+    "written_qpc": 201345283422
+  },
+  {
+    "arrival_qpc": 201345300480,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 20,
+    "start_qpc": 201345298999,
+    "write_to_arrival_ms": 0.01,
+    "written_qpc": 201345300380
+  },
+  {
+    "arrival_qpc": 201345600660,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 21,
+    "start_qpc": 201345598868,
+    "write_to_arrival_ms": -0.001,
+    "written_qpc": 201345600670
+  },
+  {
+    "arrival_qpc": 201345781867,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 22,
+    "start_qpc": 201345780145,
+    "write_to_arrival_ms": -0.0218,
+    "written_qpc": 201345782085
+  },
+  {
+    "arrival_qpc": 201345940517,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 23,
+    "start_qpc": 201345938790,
+    "write_to_arrival_ms": 0.0049,
+    "written_qpc": 201345940468
+  },
+  {
+    "arrival_qpc": 201346100988,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 24,
+    "start_qpc": 201346100262,
+    "write_to_arrival_ms": -0.0046,
+    "written_qpc": 201346101034
+  },
+  {
+    "arrival_qpc": 201346237946,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 25,
+    "start_qpc": 201346237324,
+    "write_to_arrival_ms": 0.0018,
+    "written_qpc": 201346237928
+  },
+  {
+    "arrival_qpc": 201346412004,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 26,
+    "start_qpc": 201346409944,
+    "write_to_arrival_ms": -0.005,
+    "written_qpc": 201346412054
+  },
+  {
+    "arrival_qpc": 201346571961,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 27,
+    "start_qpc": 201346570447,
+    "write_to_arrival_ms": 0.0085,
+    "written_qpc": 201346571876
+  },
+  {
+    "arrival_qpc": 201346740640,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 28,
+    "start_qpc": 201346738994,
+    "write_to_arrival_ms": 0.04,
+    "written_qpc": 201346740240
+  },
+  {
+    "arrival_qpc": 201346751204,
+    "frequency": 10000000,
+    "mode": 2,
+    "sample": 29,
+    "start_qpc": 201346750284,
+    "write_to_arrival_ms": 0.0107,
+    "written_qpc": 201346751097
+  }
+]

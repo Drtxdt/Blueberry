@@ -1,0 +1,102 @@
+   Compiling blueberry v0.5.0-beta.7 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.15s
+     Running unittests src\lib.rs (target\debug\deps\blueberry-7dc04c0ceba81e3b.exe)
+
+running 92 tests
+test cache_writer::tests::incomplete_snapshot_is_skipped ... ok
+test cache_writer::tests::latest_complete_snapshot_wins_without_sleeping ... ok
+test completion::tests::directory_parameters_filter_real_filesystem_results ... ok
+test completion::tests::manifest_values_flow_through_real_context_and_replacement_rules ... ok
+test completion::tests::middle_insert_keeps_suffix_without_duplication ... ok
+test config::tests::colors_accept_default_and_hex_only ... ok
+test config::tests::defaults_are_valid_and_example_round_trips ... ok
+test config::tests::description_overrides_are_optional_validated_and_reloaded ... ok
+test config::tests::explicit_missing_path_is_actionable ... ok
+test config::tests::load_validates_bounds_and_colors ... ok
+test config::tests::unknown_fields_are_rejected_with_their_name ... ok
+test editor::tests::manifest_version_is_literal_and_handles_old_version ... ok
+test host::direct::tests::accept_requires_visible_identity_revision_and_utf16_buffer ... ok
+test host::direct::tests::stale_queries_and_surrogate_middle_are_rejected ... ok
+test host::snapshot_tests::batches_keep_previous_commands_until_complete_and_do_not_truncate ... ok
+test hub::history_tests::tail_budget_discards_an_incomplete_multiline_record ... ok
+test hub::store_tests::concurrent_writers_keep_every_favorite ... ok
+test hub::store_tests::denied_replacement_preserves_original ... ok
+test hub::store_tests::edits_preserve_templates_comments_and_unknown_fields ... ok
+test hub::store_tests::external_edit_between_read_and_replace_aborts_without_overwrite ... ok
+test hub::store_tests::interrupted_writer_child ... ok
+test hub::store_tests::killed_process_after_sync_keeps_original_and_releases_lock ... 
+running 1 test
+ok
+test hub::store_tests::malformed_or_future_commands_are_never_replaced ... ok
+test hub::template_tests::guided_form_preserves_existing_text_and_suffix ... ok
+test hub::template_tests::legacy_command_form_keeps_placeholder_behavior ... ok
+test hub::template_tests::structured_form_applies_defaults_optional_fields_and_enum_rules ... ok
+test input::tests::mouse_modes_preserve_sgr_coordinates_and_release ... ok
+test input::tests::unicode_and_ctrl_c_are_forwarded ... ok
+test knowledge::tests::clap_options_values_and_commands ... ok
+test knowledge::tests::prose_is_not_a_command ... ok
+test knowledge::tests::tooltip_survives_and_paths_do_not ... ok
+test menu::tests::chinese_description_truncates_by_terminal_cells_and_can_be_hidden ... ok
+test menu::tests::details_and_loading_fit_small_viewports ... ok
+test menu::tests::invalid_manual_color_does_not_become_terminal_control_data ... ok
+test menu::tests::labels_and_descriptions_cannot_inject_escapes ... ok
+test menu::tests::narrow_terminals_hide_descriptions_without_panicking ... ok
+test menu::tests::selected_page_follows_selection_and_matches_are_styled ... ok
+test menu::tests::unicode_rows_are_bounded_and_have_the_declared_width ... ok
+test metrics::statistics_tests::even_samples_use_average_median_and_nearest_rank_p95 ... ok
+test overlay::tests::erasing_overlay_restores_terminal_contents_cursor_and_colors ... ok
+test overlay::tests::unchanged_menu_writes_nothing_but_selection_and_position_redraw ... ok
+test packs::tests::approval_is_bound_to_exact_repository_contents ... ok
+test packs::tests::scripts_and_shell_operators_are_rejected ... ok
+test paths::tests::braced_environment_names_and_paths_are_valid_power_shell_text ... ok
+test paths::tests::directories_environment_and_invalidation ... ok
+test paths::tests::environment_path_suffix_does_not_duplicate_existing_quote ... ok
+test paths::tests::environment_paths_keep_expression_and_quote_spaces_with_double_quotes ... ok
+test paths::tests::files_close_open_quotes_while_directories_stay_open ... ok
+test paths::tests::single_quoted_environment_path_is_literal_and_not_expanded ... ok
+test paths::tests::tilde_is_kept_for_power_shell_paths_but_expanded_for_native_commands ... ok
+test pipe::windows_pipe::tests::a_disconnected_client_is_reported_without_waiting ... ok
+test pipe::windows_pipe::tests::direct_child_exit_cancels_pending_connection ... ok
+test pipe::windows_pipe::tests::direct_connection_waits_for_slow_profile_without_polling ... ok
+test pipe::windows_pipe::tests::direct_disconnect_releases_pending_read ... ok
+test pipe::windows_pipe::tests::direct_pending_read_does_not_block_duplex_writes ... ok
+test pipe::windows_pipe::tests::oversized_frame_is_rejected_before_the_write ... ok
+test pipe::windows_pipe::tests::preserves_message_order_and_unicode ... ok
+test pipe::windows_pipe::tests::rejects_a_client_with_the_wrong_process_identity ... ok
+test product_probe::tests::metadata_rejects_echo_fragments_and_incomplete_output ... ok
+test protocol::tests::ascii_escaped_unicode_paste_survives_the_pipe_fallback_frame_size ... ok
+test protocol::tests::cursor_queries_are_handled_at_every_split_without_swallowing_styling ... ok
+test protocol::tests::offset_units_are_not_interchangeable ... ok
+test protocol::tests::osc_survives_every_chunk_boundary_and_semicolon_in_json ... ok
+test protocol::tests::unrelated_osc_is_unchanged ... ok
+test pty::tests::extracted_adapter_embeds_compiled_legacy_json ... ok
+test pty::tests::initial_public_key_snapshot_contains_every_adapter_chord ... ok
+test ranking::tests::acknowledged_selections_flush_on_exit_and_clear_is_durable ... ok
+test ranking::tests::an_existing_session_observes_an_external_clear_at_the_next_prompt ... ok
+test ranking::tests::clearing_reports_an_unwritable_statistics_location ... ok
+test ranking::tests::external_clear_does_not_resurrect_an_unflushed_selection ... ok
+test ranking::tests::match_quality_dominates_frequency_and_typos_are_explicit_candidates ... ok
+test ranking::tests::persisted_statistics_contain_only_hashes_counts_and_times ... ok
+test reload::tests::missing_config_parent_is_followed_by_real_notify_events ... ok
+test reload::tests::missing_nested_specs_directory_is_followed_by_real_notify_events ... ok
+test sources::tests::edit_revisions_keep_the_same_watch_registrations ... ok
+test sources::tests::latest_request_gets_complete_directory_snapshot_and_cancel_stops_followups ... ok
+test sources::tests::recursive_provider_watch_invalidates_nested_files_and_prunes_old_roots ... ok
+test trace::tests::disabled_trace_has_no_file_and_enabled_events_are_numeric ... ok
+test vt_input::tests::legacy_modified_and_unicode_keys_are_preserved ... ok
+test vt_input::tests::malformed_legacy_mouse_coordinates_return_an_error_without_panicking ... ok
+test vt_input::tests::native_console_records_keep_zero_unicode_and_key_state ... ok
+test vt_input::tests::split_prefixes_and_paste_are_not_prematurely_returned ... ok
+test vt_input::tests::unknown_control_sequences_keep_parameters_until_the_final_byte ... ok
+test windows_input::tests::decoded_multiline_batch_coalesces_but_trailing_enter_executes ... ok
+test windows_input::tests::direct_records_decode_sequences_and_adjacent_escape ... ok
+test windows_input::tests::malformed_and_oversized_sequences_recover_before_next_key ... ok
+test windows_input::tests::native_key_semantics_preserve_shortcuts_and_altgr ... ok
+test windows_input::tests::paste_handles_native_ascii_crlf_and_alt_code_emoji_records ... ok
+test windows_input::tests::unmarked_clipboard_transaction_survives_reader_batches ... ok
+test windows_input::tests::unmarked_multiline_injection_is_coalesced_without_timing ... ok
+test windows_input::tests::unmarked_win32_envelope_batch_decodes_before_coalescing ... ok
+test windows_input::tests::win32_envelopes_decode_nested_vt_and_surrogates ... ok
+
+test result: ok. 92 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.20s
+

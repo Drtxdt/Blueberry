@@ -59,6 +59,18 @@ impl Trace {
             let _ = writer.flush();
         }
     }
+    /// A cross-process timestamp in the Windows QPC clock domain. Only
+    /// numeric identities enter this API, never input or rendered contents.
+    pub fn point(&self, event: &'static str, revision: Option<u64>, frame: Option<u64>, qpc: i64) {
+        let Some(inner) = &self.0 else {
+            return;
+        };
+        let data = json!({"event":event,"revision":revision,"frame_id":frame,"qpc":qpc,
+            "elapsed_ms":inner.start.elapsed().as_secs_f64()*1000.0});
+        if let Ok(mut writer) = inner.writer.lock() {
+            let _ = writeln!(writer, "{data}");
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,0 +1,400 @@
+{
+  "actual_automatic_menu": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "actual_host_modes": [
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct"
+  ],
+  "actual_transports": [
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe"
+  ],
+  "adapter_source": "embedded",
+  "arch": "x86_64",
+  "build": "release",
+  "candidate_first_input": {
+    "median": 403.5408,
+    "p95": 605.2138,
+    "samples": [
+      605.2138,
+      399.0136,
+      426.1818,
+      391.622,
+      408.068,
+      374.8497,
+      422.7345,
+      389.7681,
+      429.44919999999996,
+      382.8229
+    ],
+    "unit": "ms"
+  },
+  "editor_eligible": true,
+  "editors": [
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    }
+  ],
+  "executable_sha256": "1174636DB4EAAB8ABCFB384B3A4900852D8C4922C211E948A848B965DA4EA9F5",
+  "first_dynamic_candidate": {
+    "median": 5.8512,
+    "p95": 8.5187,
+    "samples": [
+      5.894500000000001,
+      5.8826,
+      5.6053,
+      5.271299999999999,
+      6.6654,
+      5.557,
+      5.4467,
+      5.8198,
+      8.5187,
+      6.6496
+    ],
+    "unit": "ms"
+  },
+  "first_key_echo": {
+    "median": 32.1482,
+    "p95": 38.486,
+    "samples": [
+      38.462900000000005,
+      26.9691,
+      37.820899999999995,
+      21.9678,
+      37.3273,
+      23.8637,
+      38.4703,
+      24.430799999999998,
+      38.486,
+      21.8448
+    ],
+    "unit": "ms"
+  },
+  "first_static_candidate": {
+    "median": 32.1482,
+    "p95": 38.486,
+    "samples": [
+      38.462900000000005,
+      26.9691,
+      37.820899999999995,
+      21.9678,
+      37.3273,
+      23.8637,
+      38.4703,
+      24.430799999999998,
+      38.486,
+      21.8448
+    ],
+    "unit": "ms"
+  },
+  "host_mode": "direct",
+  "index_cache": "new directory per pair",
+  "iterations": 10,
+  "machine_id": "LIUHETONG",
+  "measurement": "complete_product",
+  "no_profile": false,
+  "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+  "os_cache_cleared": false,
+  "paired_first_input_delta": {
+    "median": 73.74205,
+    "p95": 250.8401,
+    "samples": [
+      250.8401,
+      56.9828,
+      116.5779,
+      53.419100000000014,
+      90.50130000000001,
+      28.647099999999966,
+      120.57960000000003,
+      45.55160000000001,
+      115.56719999999996,
+      36.76310000000001
+    ],
+    "unit": "ms"
+  },
+  "plain_first_input": {
+    "median": 340.11685,
+    "p95": 354.3737,
+    "samples": [
+      354.3737,
+      342.0308,
+      309.6039,
+      338.2029,
+      317.56669999999997,
+      346.2026,
+      302.1549,
+      344.2165,
+      313.882,
+      346.0598
+    ],
+    "unit": "ms"
+  },
+  "platform": "windows",
+  "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+  "power_policy_label": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+  "private_editors": {
+    "files": [
+      {
+        "path": "License.txt",
+        "sha256": "2c679724a13cec8a7589034b5725c749a304cef4a8ce4dc474f508095e627f4b",
+        "version": "2.0.0"
+      },
+      {
+        "path": "Microsoft.PowerShell.PSReadLine2.dll",
+        "sha256": "d9ea5e68411518e72ea20c863a419a9f84a39c7546342574cab7c9f1120c3d17",
+        "version": "2.0.0"
+      },
+      {
+        "path": "PSReadLine.format.ps1xml",
+        "sha256": "da79d15c91edd0559d70dbcda76f9b41ef1b17a141d137a485027971a08df1bb",
+        "version": "2.0.0"
+      },
+      {
+        "path": "PSReadLine.psd1",
+        "sha256": "8da4596d105078a4d6d5ae64ddf433fd7a538acea8c253df2945612bc0c98dd7",
+        "version": "2.0.0"
+      },
+      {
+        "path": "PSReadLine.psm1",
+        "sha256": "98c2733e43ffe148378f645b5626e585578fcfd04fcc2fcb443ba61d54430912",
+        "version": "2.0.0"
+      },
+      {
+        "path": "System.Runtime.InteropServices.RuntimeInformation.dll",
+        "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8",
+        "version": "2.0.0"
+      },
+      {
+        "path": "License.txt",
+        "sha256": "577273b040bdddb01b02768d9ad07fcb40415479fc2e65c8287294c6abf56de6",
+        "version": "2.4.5"
+      },
+      {
+        "path": "Microsoft.PowerShell.Pager.dll",
+        "sha256": "451994c3d3e38d939b4fa5f8594d0207840f45e7a210aa75f81aef85aa17c592",
+        "version": "2.4.5"
+      },
+      {
+        "path": "Microsoft.PowerShell.PSReadLine.dll",
+        "sha256": "bbcc93e60008a3e42bdcd794faa3e75f823a3303c5ed6b7e876a231b17a2cb8d",
+        "version": "2.4.5"
+      },
+      {
+        "path": "net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+        "sha256": "aee577fbaa045439126fbf8af2724c266a3a4483bc4658091e17685ee240c057",
+        "version": "2.4.5"
+      },
+      {
+        "path": "netstd/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+        "sha256": "3a0068c52019d4bd275f2191ab61c35a36a72d271c3f73e1c96f543df37011fb",
+        "version": "2.4.5"
+      },
+      {
+        "path": "PSReadLine.format.ps1xml",
+        "sha256": "9676711e5883b8aeea5affae7868c6b651e5250a132691ec26a6e94c79702e22",
+        "version": "2.4.5"
+      },
+      {
+        "path": "PSReadLine.psd1",
+        "sha256": "243b46505e5e0ed7d313d340d9c717b2a7bdd1a9e184b99d36d921e9d48cee02",
+        "version": "2.4.5"
+      },
+      {
+        "path": "PSReadLine.psm1",
+        "sha256": "ea065fe561207681b987eee788ac24e7d58c45daca310ff53ceeff01ceb86edd",
+        "version": "2.4.5"
+      }
+    ],
+    "patch": "blueberry-editor-v1",
+    "repository": "https://github.com/PowerShell/PSReadLine",
+    "versions": {
+      "2.0.0": {
+        "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c",
+        "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6"
+      },
+      "2.4.5": {
+        "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0",
+        "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f"
+      }
+    }
+  },
+  "profile_autostart": "suppressed identically with BLUEBERRY_ACTIVE=1",
+  "profile_inventory": [
+    {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Users\\dell\\Documents\\WindowsPowerShell\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Users\\dell\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1",
+      "sha256": "C89A47F14D800D25777F726FC8CF782B243E87D6BCD18EC71C86C2F14E8372B4"
+    }
+  ],
+  "profile_mode": "with_profile",
+  "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+  "psreadline_versions": [
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0"
+  ],
+  "schema": 3,
+  "scratch_directory": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-product-probe-14eb799a-a660-4c01-a89d-3b21ee15faf2",
+  "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "shell_versions": [
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444"
+  ],
+  "source_commit": "e394f24a008a3b92e59dc05fa3148f757830c1c5",
+  "source_dirty": true,
+  "startup_orders": [
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ]
+  ],
+  "terminal_columns": 120,
+  "terminal_rows": 30,
+  "trace": "disabled",
+  "trace_directory": null
+}

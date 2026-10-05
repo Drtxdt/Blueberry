@@ -243,6 +243,17 @@ function Disable-BlueberryPipe {
     }
 }
 
+function Write-BlueberryPipeDiagnostic {
+    param([string]$Phase, [int]$ErrorCode = 0)
+    $path = [Environment]::GetEnvironmentVariable('BLUEBERRY_PIPE_DIAGNOSTIC', 'Process')
+    if ([string]::IsNullOrEmpty($path)) { return }
+    try {
+        # Failure-only diagnostics never enter the transport being diagnosed.
+        # No command text or payload is recorded.
+        [IO.File]::AppendAllText($path, ('{0},{1},{2}{3}' -f [Diagnostics.Stopwatch]::GetTimestamp(), $Phase, $ErrorCode, [Environment]::NewLine))
+    } catch { }
+}
+
 function Initialize-BlueberryPipe {
     [CmdletBinding()]
     param()
@@ -320,6 +331,11 @@ function Send-BlueberryPipeEvent {
     if (-not $script:BLUEBERRY_PIPE_ENABLED -or $null -eq $script:BLUEBERRY_PIPE_STREAM) {
         return $false
     }
+    # Serializing either the envelope or its OSC barrier must not emit a
+    # nested trace event. That would put a second pipe message ahead of the
+    # first barrier and make the reader reject both sequence identities.
+    $traceEmitting = $script:BLUEBERRY_TRACE_EMITTING
+    $script:BLUEBERRY_TRACE_EMITTING = $true
     try {
         $sequence = [int64]$script:BLUEBERRY_PIPE_SEQUENCE + 1
         $script:BLUEBERRY_PIPE_SEQUENCE = $sequence
@@ -341,10 +357,14 @@ function Send-BlueberryPipeEvent {
         # One WriteAsync call is intentional: message-mode named pipes
         # preserve that call as one message. Cancellation bounds a full or
         # disconnected endpoint without blocking PSReadLine's UI thread.
-        $cts = [Threading.CancellationTokenSource]::new(50)
+        # Start the wait after method binding / invocation. A timer created
+        # here can expire during cold JIT or scheduling before I/O begins.
+        # Wait(50) below remains the bound and explicitly cancels pending I/O.
+        $cts = [Threading.CancellationTokenSource]::new()
         try {
             $writeTask = $stream.WriteAsync($bytes, 0, $bytes.Length, $cts.Token)
             if (-not $writeTask.Wait(50)) {
+                Write-BlueberryPipeDiagnostic 'write_timeout'
                 $cts.Cancel()
                 try {
                     $writeTask.Wait(50) | Out-Null
@@ -376,8 +396,11 @@ function Send-BlueberryPipeEvent {
         }
         return $true
     } catch {
+        Write-BlueberryPipeDiagnostic 'write_failed' $_.Exception.HResult
         Disable-BlueberryPipe
         return $false
+    } finally {
+        $script:BLUEBERRY_TRACE_EMITTING = $traceEmitting
     }
 }
 
@@ -408,10 +431,11 @@ function Read-BlueberryPipeJson {
                 Disable-BlueberryPipe
                 return $null
             }
-            $cts = [Threading.CancellationTokenSource]::new(50)
+            $cts = [Threading.CancellationTokenSource]::new()
             try {
                 $readTask = $stream.ReadAsync($bytes, $offset, $remaining, $cts.Token)
                 if (-not $readTask.Wait(50)) {
+                    Write-BlueberryPipeDiagnostic 'read_timeout'
                     $cts.Cancel()
                     try {
                         $readTask.Wait(50) | Out-Null
@@ -438,6 +462,7 @@ function Read-BlueberryPipeJson {
             [object],
             (Get-BlueberryJsonOptions))
     } catch {
+        Write-BlueberryPipeDiagnostic 'read_failed' $_.Exception.HResult
         Disable-BlueberryPipe
         return $null
     }

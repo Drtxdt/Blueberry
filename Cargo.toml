@@ -1,6 +1,6 @@
 [package]
 name = "blueberry"
-version = "0.5.0-beta.7"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.94"
 description = "A native, low-latency completion host for PowerShell"
@@ -27,10 +27,12 @@ tempfile = "3"
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
 toml = "0.9"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_Security", "Win32_System_ProcessStatus", "Win32_System_Console", "Win32_System_Pipes", "Win32_System_Power", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_IO", "Win32_System_JobObjects", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_Security", "Win32_System_ProcessStatus", "Win32_System_Console", "Win32_System_Pipes", "Win32_System_Power", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole"] }
 
 [profile.release]
 lto = "thin"

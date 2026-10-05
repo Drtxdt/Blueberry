@@ -57,13 +57,21 @@ pub(crate) fn parse_event(buffer: &[u8], input_available: bool) -> io::Result<Op
     if buffer.starts_with(b"\x1b[") && buffer.ends_with(b"_") {
         let text = std::str::from_utf8(&buffer[2..buffer.len() - 1])
             .map_err(|_| could_not_parse_event_error())?;
-        let values: Vec<u32> = text
-            .split(';')
-            .map(str::parse)
-            .collect::<Result<_, _>>()
-            .map_err(|_| could_not_parse_event_error())?;
-        if values.len() != 6
-            || values[0] > u16::MAX as u32
+        // Win32 input mode permits omitted fields, including trailing ones.
+        // Only RepeatCount defaults to one; every other field defaults to zero.
+        let mut values = [0u32, 0, 0, 0, 0, 1];
+        for (index, field) in text.split(';').enumerate() {
+            let value = values
+                .get_mut(index)
+                .ok_or_else(could_not_parse_event_error)?;
+            if !field.is_empty() {
+                if !field.bytes().all(|byte| byte.is_ascii_digit()) {
+                    return Err(could_not_parse_event_error());
+                }
+                *value = field.parse().map_err(|_| could_not_parse_event_error())?;
+            }
+        }
+        if values[0] > u16::MAX as u32
             || values[1] > u16::MAX as u32
             || values[2] > u16::MAX as u32
             || values[3] > 1
@@ -1041,6 +1049,44 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn win32_optional_fields_and_invalid_records() {
+        for bytes in [b"\x1b[13;28;13;1_".as_slice(), b"\x1b[13;28;13;1;;_"] {
+            assert_eq!(
+                parse_event(bytes, false).unwrap(),
+                Some(Parsed::WindowsKey {
+                    virtual_key: 13,
+                    scan: 28,
+                    unicode: 13,
+                    down: true,
+                    control: 0,
+                    repeat: 1,
+                })
+            );
+        }
+        assert_eq!(
+            parse_event(b"\x1b[_", false).unwrap(),
+            Some(Parsed::WindowsKey {
+                virtual_key: 0,
+                scan: 0,
+                unicode: 0,
+                down: false,
+                control: 0,
+                repeat: 1,
+            })
+        );
+        for bytes in [
+            b"\x1b[;;;;;;_".as_slice(),
+            b"\x1b[65536_",
+            b"\x1b[+13_",
+            b"\x1b[;;;2_",
+            b"\x1b[;;;;4294967296_",
+            b"\x1b[;;;;;65536_",
+        ] {
+            assert!(parse_event(bytes, false).is_err(), "{bytes:?}");
+        }
+    }
+
     #[test]
     fn native_console_records_keep_zero_unicode_and_key_state() {
         assert_eq!(

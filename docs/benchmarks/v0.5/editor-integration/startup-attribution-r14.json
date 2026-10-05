@@ -1,0 +1,183 @@
+{
+  "diagnostic_only": true,
+  "qpc_frequency": 10000000,
+  "unresolved": "spawn_return to script_enter includes shell/module/profile; observer and process creation outside Rust trace are not separately attributed",
+  "samples": [
+    {
+      "sample": 0,
+      "order": [
+        "plain",
+        "candidate"
+      ],
+      "plain_first_input_ms": 315.0804,
+      "candidate_first_input_ms": 490.88530000000003,
+      "delta_ms": 175.80490000000003,
+      "first_key_ms": 19.978099999999998,
+      "stages_qpc": {
+        "direct_start": 30374250664,
+        "direct_resources_ready": 30374292159,
+        "direct_spawn_begin": 30374307513,
+        "direct_spawn_return": 30374565863,
+        "direct_script_enter": 30378063999,
+        "direct_module_loaded": 30378075598,
+        "direct_assembly_loaded": 30378136750,
+        "direct_hello": 30378247663,
+        "editor_loop_enter": 30378503987,
+        "editor_begin_complete": 30378509848,
+        "editor_key_received": 30378537517,
+        "editor_native_dispatch": 30378560272,
+        "editor_native_complete": 30378595528,
+        "editor_confirmed": 30378596195,
+        "editor_menu_written": 30378644157
+      },
+      "spans_ms": {
+        "direct_start__direct_resources_ready": 4.1495,
+        "direct_resources_ready__direct_spawn_begin": 1.5354,
+        "direct_spawn_begin__direct_spawn_return": 25.835,
+        "direct_spawn_return__direct_script_enter": 349.8136,
+        "direct_script_enter__direct_module_loaded": 1.1599,
+        "direct_module_loaded__direct_assembly_loaded": 6.1152,
+        "direct_assembly_loaded__direct_hello": 11.0913,
+        "direct_hello__editor_loop_enter": 25.6324,
+        "editor_loop_enter__editor_begin_complete": 0.5861,
+        "editor_begin_complete__editor_key_received": 2.7669,
+        "editor_key_received__editor_native_dispatch": 2.2755,
+        "editor_native_dispatch__editor_native_complete": 3.5256,
+        "editor_native_complete__editor_confirmed": 0.0667,
+        "editor_confirmed__editor_menu_written": 4.7962
+      }
+    },
+    {
+      "sample": 1,
+      "order": [
+        "candidate",
+        "plain"
+      ],
+      "plain_first_input_ms": 346.3712,
+      "candidate_first_input_ms": 363.3141,
+      "delta_ms": 16.94290000000001,
+      "first_key_ms": 18.3975,
+      "stages_qpc": {
+        "direct_start": 30382590006,
+        "direct_resources_ready": 30382603977,
+        "direct_spawn_begin": 30382617140,
+        "direct_spawn_return": 30382865051,
+        "direct_script_enter": 30385370399,
+        "direct_module_loaded": 30385381530,
+        "direct_assembly_loaded": 30385416633,
+        "direct_hello": 30385518387,
+        "editor_loop_enter": 30385798239,
+        "editor_begin_complete": 30385804572,
+        "editor_key_received": 30385835763,
+        "editor_native_dispatch": 30385838853,
+        "editor_native_complete": 30385842673,
+        "editor_confirmed": 30385842695,
+        "editor_menu_written": 30385878513
+      },
+      "spans_ms": {
+        "direct_start__direct_resources_ready": 1.3971,
+        "direct_resources_ready__direct_spawn_begin": 1.3163,
+        "direct_spawn_begin__direct_spawn_return": 24.7911,
+        "direct_spawn_return__direct_script_enter": 250.5348,
+        "direct_script_enter__direct_module_loaded": 1.1131,
+        "direct_module_loaded__direct_assembly_loaded": 3.5103,
+        "direct_assembly_loaded__direct_hello": 10.1754,
+        "direct_hello__editor_loop_enter": 27.9852,
+        "editor_loop_enter__editor_begin_complete": 0.6333,
+        "editor_begin_complete__editor_key_received": 3.1191,
+        "editor_key_received__editor_native_dispatch": 0.309,
+        "editor_native_dispatch__editor_native_complete": 0.382,
+        "editor_native_complete__editor_confirmed": 0.0022,
+        "editor_confirmed__editor_menu_written": 3.5818
+      }
+    },
+    {
+      "sample": 2,
+      "order": [
+        "plain",
+        "candidate"
+      ],
+      "plain_first_input_ms": 307.2454,
+      "candidate_first_input_ms": 399.8763,
+      "delta_ms": 92.6309,
+      "first_key_ms": 23.274199999999997,
+      "stages_qpc": {
+        "direct_start": 30404927305,
+        "direct_resources_ready": 30404942370,
+        "direct_spawn_begin": 30404953939,
+        "direct_spawn_return": 30405216461,
+        "direct_script_enter": 30407897669,
+        "direct_module_loaded": 30407908468,
+        "direct_assembly_loaded": 30407933258,
+        "direct_hello": 30408030021,
+        "editor_loop_enter": 30408304013,
+        "editor_begin_complete": 30408310028,
+        "editor_key_received": 30408336660,
+        "editor_native_dispatch": 30408360325,
+        "editor_native_complete": 30408390352,
+        "editor_confirmed": 30408391048,
+        "editor_menu_written": 30408438209
+      },
+      "spans_ms": {
+        "direct_start__direct_resources_ready": 1.5065,
+        "direct_resources_ready__direct_spawn_begin": 1.1569,
+        "direct_spawn_begin__direct_spawn_return": 26.2522,
+        "direct_spawn_return__direct_script_enter": 268.1208,
+        "direct_script_enter__direct_module_loaded": 1.0799,
+        "direct_module_loaded__direct_assembly_loaded": 2.479,
+        "direct_assembly_loaded__direct_hello": 9.6763,
+        "direct_hello__editor_loop_enter": 27.3992,
+        "editor_loop_enter__editor_begin_complete": 0.6015,
+        "editor_begin_complete__editor_key_received": 2.6632,
+        "editor_key_received__editor_native_dispatch": 2.3665,
+        "editor_native_dispatch__editor_native_complete": 3.0027,
+        "editor_native_complete__editor_confirmed": 0.0696,
+        "editor_confirmed__editor_menu_written": 4.7161
+      }
+    },
+    {
+      "sample": 3,
+      "order": [
+        "candidate",
+        "plain"
+      ],
+      "plain_first_input_ms": 334.6554,
+      "candidate_first_input_ms": 387.8611,
+      "delta_ms": 53.205700000000036,
+      "first_key_ms": 17.318,
+      "stages_qpc": {
+        "direct_start": 30412708126,
+        "direct_resources_ready": 30412719247,
+        "direct_spawn_begin": 30412726160,
+        "direct_spawn_return": 30412968674,
+        "direct_script_enter": 30415591256,
+        "direct_module_loaded": 30415602354,
+        "direct_assembly_loaded": 30415630417,
+        "direct_hello": 30415740139,
+        "editor_loop_enter": 30416101573,
+        "editor_begin_complete": 30416108334,
+        "editor_key_received": 30416119183,
+        "editor_native_dispatch": 30416119340,
+        "editor_native_complete": 30416122119,
+        "editor_confirmed": 30416122145,
+        "editor_menu_written": 30416158930
+      },
+      "spans_ms": {
+        "direct_start__direct_resources_ready": 1.1121,
+        "direct_resources_ready__direct_spawn_begin": 0.6913,
+        "direct_spawn_begin__direct_spawn_return": 24.2514,
+        "direct_spawn_return__direct_script_enter": 262.2582,
+        "direct_script_enter__direct_module_loaded": 1.1098,
+        "direct_module_loaded__direct_assembly_loaded": 2.8063,
+        "direct_assembly_loaded__direct_hello": 10.9722,
+        "direct_hello__editor_loop_enter": 36.1434,
+        "editor_loop_enter__editor_begin_complete": 0.6761,
+        "editor_begin_complete__editor_key_received": 1.0849,
+        "editor_key_received__editor_native_dispatch": 0.0157,
+        "editor_native_dispatch__editor_native_complete": 0.2779,
+        "editor_native_complete__editor_confirmed": 0.0026,
+        "editor_confirmed__editor_menu_written": 3.6785
+      }
+    }
+  ]
+}

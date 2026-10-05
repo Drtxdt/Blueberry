@@ -1,0 +1,14 @@
+{
+  "patch": "blueberry-editor-v1",
+  "repository": "https://github.com/PowerShell/PSReadLine",
+  "versions": {
+    "2.0.0": {
+      "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6",
+      "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c"
+    },
+    "2.4.5": {
+      "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f",
+      "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0"
+    }
+  }
+}

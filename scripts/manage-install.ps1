@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('Install', 'Upgrade', 'Uninstall', 'Rollback', 'PreviewSettings', 'ApplySettings')]
+    [ValidateSet('Install', 'Upgrade', 'Uninstall', 'Rollback', 'Recover', 'PreviewSettings', 'ApplySettings')]
     [string]$Action,
 
     [string]$PackagePath,
@@ -12,7 +12,10 @@ param(
 
     [string]$ProfileName = 'Blueberry',
 
-    [string]$ExePath
+    [string]$ExePath,
+    [switch]$FunctionsOnly,
+    [string]$ExpectedManifestSha256,
+    [string]$TransactionDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -444,6 +447,7 @@ function Assert-ExternalPackageHash {
 function Read-Package {
     param([Parameter(Mandatory = $true)][string]$Path)
 
+    if ($PSVersionTable.PSVersion.Major -le 5) { Add-Type -AssemblyName System.IO.Compression.FileSystem }
     $packagePath = Resolve-ExistingFile -Path $Path -Label '本地发布包'
     if ([IO.Path]::GetExtension($packagePath) -ine '.zip') {
         throw "-PackagePath 必须是本地 .zip 文件: $packagePath"
@@ -564,6 +568,77 @@ function Add-TransactionTouched {
         [Parameter(Mandatory = $true)][string]$RelativePath
     )
     [void]$Transaction.touched.Add((Assert-SafeRelativePath $RelativePath))
+    if ($Transaction.PSObject.Properties['journal'] -and $Transaction.journal) { Save-TransactionJournal $Transaction }
+}
+
+function Save-TransactionJournal {
+    param($Transaction)
+    if (-not $Transaction.journal) { return }
+    Write-Utf8JsonAtomic -Path $Transaction.journal -Value ([ordered]@{
+        schema=1; root=$Transaction.root; records=@($Transaction.records); touched=@($Transaction.touched)
+        manifest_sha256=(Get-Sha256 $Transaction.manifest); outcome=$Transaction.outcome
+        intended_manifest_sha256=$Transaction.intended_manifest_sha256
+        committed_manifest_sha256=if ($Transaction.outcome -eq 'committed') { Get-Sha256 (Join-Path $Transaction.root 'install.json') } else { $null }
+    })
+}
+
+function Complete-Transaction {
+    param($Transaction, [string]$Outcome)
+    $Transaction.outcome = $Outcome
+    Save-TransactionJournal $Transaction
+}
+
+function Commit-TransactionManifest {
+    param($Transaction, $Manifest)
+    $destination = Get-ManagedPath -Root $Transaction.root -RelativePath $script:ManifestFileName
+    if (-not $Transaction.journal) { Write-Utf8JsonAtomic -Path $destination -Value $Manifest; return }
+    $intent = Join-Path $Transaction.directory 'intended-install.json'
+    Write-Utf8JsonAtomic -Path $intent -Value $Manifest
+    $Transaction.intended_manifest_sha256 = Get-Sha256 $intent
+    Save-TransactionJournal $Transaction
+    Copy-BytesAtomic -Bytes ([IO.File]::ReadAllBytes($intent)) -Destination $destination -RelativePath $script:ManifestFileName
+}
+
+function Recover-Transaction {
+    param([string]$Root, [string]$Directory, [string]$ExpectedHash)
+    if (-not $Directory -or -not $ExpectedHash) { throw 'Recovery requires a pinned transaction and manifest identity' }
+    Assert-NoReparseComponents $Directory
+    $journal = Join-Path $Directory 'transaction.json'
+    if (-not [IO.File]::Exists($journal)) {
+        # Payload mutation is forbidden until the initial journal is durable.
+        if ((Get-Sha256 (Join-Path $Root 'install.json')) -ine $ExpectedHash) { throw 'Unjournaled installation identity changed' }
+        Assert-InstalledState -Root $Root -State (Read-InstallManifest -Root $Root -Required)
+        return 'rolled_back'
+    }
+    $data = Read-JsonHashtable $journal
+    if ($data.metadata_sha256 -ine (Get-ManifestIntegrityHash $data)) { throw 'Transaction journal checksum mismatch' }
+    if ($data.schema -ne 1 -or -not (Test-SamePath $Root $data.root)) { throw 'Transaction journal identity mismatch' }
+    $manifest = Join-Path $Directory 'install.json'
+    if ((Get-Sha256 $manifest) -ine $ExpectedHash -or $data.manifest_sha256 -ine $ExpectedHash) { throw 'Recovery manifest identity mismatch' }
+    $records = @($data.records | ForEach-Object {
+        $relative = Assert-SafeRelativePath $_.path
+        $source = Get-ManagedPath -Root (Join-Path $Directory 'files') -RelativePath $relative
+        $expected = Assert-Sha256 $_.sha256 'Recovery file'
+        if ((Get-Sha256 $source) -ine $expected) { throw "Recovery backup changed: $relative" }
+        [pscustomobject]@{path=$relative;source=$source;sha256=$expected;bytes=$_.bytes}
+    })
+    $touched = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($relative in $data.touched) { [void]$touched.Add((Assert-SafeRelativePath $relative)) }
+    $transaction = [pscustomobject]@{root=$Root;directory=$Directory;manifest=$manifest;records=$records;touched=$touched;journal=$journal;outcome=$data.outcome;intended_manifest_sha256=$data.intended_manifest_sha256}
+    $currentHash = Get-Sha256 (Join-Path $Root 'install.json')
+    if ($data.outcome -eq 'committed' -or ($data.intended_manifest_sha256 -and $currentHash -ieq $data.intended_manifest_sha256)) {
+        if ($data.outcome -eq 'committed' -and $currentHash -ine $data.committed_manifest_sha256) { throw 'A different installation replaced the committed transaction; recovery stopped' }
+        Assert-InstalledState -Root $Root -State (Read-InstallManifest -Root $Root -Required)
+        Complete-Transaction $transaction 'committed'
+        Write-Host '上次维护已完整提交；已核验安装文件。'
+        return 'committed'
+    }
+    if ((Get-Sha256 (Join-Path $Root 'install.json')) -ine $ExpectedHash) { throw 'Installation metadata changed after the interrupted transaction; recovery stopped without overwriting it' }
+    Restore-Transaction $transaction
+    Assert-InstalledState -Root $Root -State (Read-InstallManifest -Root $Root -Required)
+    Complete-Transaction $transaction 'rolled_back'
+    Write-Host '已从持久事务备份恢复中断前的安装；可重新提交维护操作。'
+    return 'rolled_back'
 }
 
 function Copy-FileAtomic {
@@ -838,7 +913,9 @@ function Assert-InstalledState {
 
 function New-Transaction {
     param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)]$State)
-    $transactionRoot = Join-Path ([IO.Path]::GetTempPath()) "blueberry-transaction-$([Guid]::NewGuid().ToString('N'))"
+    $transactionRoot = if ($TransactionDirectory) { [IO.Path]::GetFullPath($TransactionDirectory) } else { Join-Path ([IO.Path]::GetTempPath()) "blueberry-transaction-$([Guid]::NewGuid().ToString('N'))" }
+    Assert-NoReparseComponents $transactionRoot
+    if (Test-Path -LiteralPath $transactionRoot) { throw '事务目录已存在，必须先恢复或检查此前的操作' }
     $backupRoot = Join-Path $transactionRoot 'files'
     [IO.Directory]::CreateDirectory($backupRoot) | Out-Null
     $records = [Collections.Generic.List[object]]::new()
@@ -857,10 +934,15 @@ function New-Transaction {
         }
         $manifestBackup = Join-Path $transactionRoot 'install.json'
         Copy-Item -LiteralPath $State.path -Destination $manifestBackup -Force
-        return [pscustomobject]@{
+        $transaction = [pscustomobject]@{
             root = $Root; directory = $transactionRoot; backup_root = $backupRoot; manifest = $manifestBackup
             records = $records; touched = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            journal = if ($TransactionDirectory) { Join-Path $transactionRoot 'transaction.json' } else { $null }
+            outcome = 'prepared'
+            intended_manifest_sha256 = $null
         }
+        Save-TransactionJournal $transaction
+        return $transaction
     }
     catch {
         if (Test-Path -LiteralPath $transactionRoot) { Remove-Item -LiteralPath $transactionRoot -Recurse -Force -ErrorAction SilentlyContinue }
@@ -1150,19 +1232,20 @@ function Invoke-Upgrade {
         Add-PackageToManagedHashMap -Map $managedHashes -Package $Package
         $manifest = New-ManifestForPayload -Root $Root -Version ([string]$Package.manifest.version) -Previous $previous `
             -ManagedHashes $managedHashes -InstalledUtc ([string]$State.manifest.installed_utc)
-        Write-Utf8JsonAtomic -Path (Get-ManagedPath -Root $Root -RelativePath $script:ManifestFileName) -Value $manifest
+        Commit-TransactionManifest -Transaction $transaction -Manifest $manifest
         $newState = Read-InstallManifest -Root $Root -Required
         Assert-InstalledState -Root $Root -State $newState
+        Complete-Transaction $transaction 'committed'
         Write-Host "已从本地包升级 Blueberry $($Package.manifest.version)（unsigned）；上一版完整快照保存在 $($snapshot.snapshot_root)"
     }
     catch {
         $failure = $_.Exception
-        try { Restore-Transaction -Transaction $transaction; Write-Warning '升级失败；已恢复升级前的全部受管文件和 install.json 元数据。' }
+        try { Restore-Transaction -Transaction $transaction; Complete-Transaction $transaction 'rolled_back'; Write-Warning '升级失败；已恢复升级前的全部受管文件和 install.json 元数据。' }
         catch { throw "升级失败且自动恢复不完整：$($failure.Message)；$($_.Exception.Message)" }
         throw $failure
     }
     finally {
-        if (Test-Path -LiteralPath $transaction.directory) { Remove-Item -LiteralPath $transaction.directory -Recurse -Force -ErrorAction SilentlyContinue }
+        if (-not $transaction.journal -and $transaction.outcome -ne 'prepared' -and (Test-Path -LiteralPath $transaction.directory)) { Remove-Item -LiteralPath $transaction.directory -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -1219,19 +1302,20 @@ function Invoke-Rollback {
         foreach ($record in $selected.files) { $managedHashes[$record.path] = $record.sha256 }
         $manifest = New-ManifestForPayload -Root $Root -Version $selected.version -Previous $previous `
             -ManagedHashes $managedHashes -InstalledUtc ([string]$State.manifest.installed_utc)
-        Write-Utf8JsonAtomic -Path (Get-ManagedPath -Root $Root -RelativePath $script:ManifestFileName) -Value $manifest
+        Commit-TransactionManifest -Transaction $transaction -Manifest $manifest
         $newState = Read-InstallManifest -Root $Root -Required
         Assert-InstalledState -Root $Root -State $newState
         Write-Host "已回滚到 Blueberry $($selected.version)（unsigned）；回滚前的完整受管文件和元数据保存在 $($snapshot.snapshot_root)"
+        Complete-Transaction $transaction 'committed'
     }
     catch {
         $failure = $_.Exception
-        try { Restore-Transaction -Transaction $transaction; Write-Warning '回滚失败；已恢复回滚前的全部受管文件和 install.json 元数据。' }
+        try { Restore-Transaction -Transaction $transaction; Complete-Transaction $transaction 'rolled_back'; Write-Warning '回滚失败；已恢复回滚前的全部受管文件和 install.json 元数据。' }
         catch { throw "回滚失败且自动恢复不完整：$($failure.Message)；$($_.Exception.Message)" }
         throw $failure
     }
     finally {
-        if (Test-Path -LiteralPath $transaction.directory) { Remove-Item -LiteralPath $transaction.directory -Recurse -Force -ErrorAction SilentlyContinue }
+        if (-not $transaction.journal -and $transaction.outcome -ne 'prepared' -and (Test-Path -LiteralPath $transaction.directory)) { Remove-Item -LiteralPath $transaction.directory -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -1502,11 +1586,23 @@ function Invoke-ApplySettings {
     }
 }
 
+if ($FunctionsOnly) { return }
 if ([string]::IsNullOrWhiteSpace($InstallRoot)) { $InstallRoot = Get-DefaultInstallRoot }
 $root = Assert-SafeInstallRoot -Path $InstallRoot -Create:($Action -eq 'Install')
+$lockHash = Get-ByteSha256 ([Text.Encoding]::UTF8.GetBytes($root.TrimEnd('\').ToUpperInvariant()))
+$installMutex = [Threading.Mutex]::new($false, ('Local\Blueberry.Install.' + $lockHash))
+$ownsInstallMutex = $false
 $package = $null
 try {
+    try { $ownsInstallMutex = $installMutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $ownsInstallMutex = $true }
+    if (-not $ownsInstallMutex) { throw '另一个安装事务正在操作此目录；请稍后重试' }
+    if ($Action -ne 'Recover' -and $ExpectedManifestSha256 -and (Get-Sha256 (Join-Path $root 'install.json')) -ine $ExpectedManifestSha256) {
+        throw '排队后安装身份已变化；未提交维护操作，请重新运行命令'
+    }
     switch ($Action) {
+        'Recover' {
+            Recover-Transaction -Root $root -Directory $TransactionDirectory -ExpectedHash $ExpectedManifestSha256
+        }
         'Install' {
             if ([string]::IsNullOrWhiteSpace($PackagePath)) { throw 'Install 需要 -PackagePath 指向本地 ZIP' }
             $package = Read-Package -Path $PackagePath
@@ -1540,4 +1636,6 @@ try {
 }
 finally {
     if ($null -ne $package -and (Test-Path -LiteralPath $package.root)) { Remove-Item -LiteralPath $package.root -Recurse -Force -ErrorAction SilentlyContinue }
+    if ($ownsInstallMutex) { $installMutex.ReleaseMutex() }
+    $installMutex.Dispose()
 }

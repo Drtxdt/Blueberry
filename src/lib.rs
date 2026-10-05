@@ -2,10 +2,13 @@ pub mod beta_metrics;
 pub mod cache_writer;
 pub mod completion;
 pub mod config;
+#[cfg(windows)]
+pub mod editor;
 pub mod engine;
 pub mod host;
 pub mod hub;
 pub mod input;
+pub mod maintenance;
 pub mod menu;
 pub mod metrics;
 pub mod model;
@@ -43,4 +46,5 @@ pub mod knowledge;
 #[cfg(windows)]
 pub mod latency_layers;
 
+pub mod process_metrics;
 pub mod startup;

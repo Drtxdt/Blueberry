@@ -662,7 +662,9 @@ fn edit_commands(path: &Path, edit: impl FnOnce(&mut DocumentMut) -> Result<bool
         .with_context(|| format!("无法打开锁文件 {}", lock_path.display()))?;
     lock.lock()
         .with_context(|| format!("无法锁定 {}", lock_path.display()))?;
+    store_trace("locked", None);
     let original = read_commands_text(path)?;
+    store_trace("read", original.as_deref());
     let mut document: DocumentMut = if let Some(text) = original.as_deref() {
         parse_commands(path, text)?;
         text.parse()
@@ -692,19 +694,39 @@ fn edit_commands(path: &Path, edit: impl FnOnce(&mut DocumentMut) -> Result<bool
             }
         }
         // An editor that does not take our lock may have changed the file.
-        if read_commands_text(path)? != original {
+        let current = read_commands_text(path)?;
+        store_trace("validate", current.as_deref());
+        if current != original {
             bail!("{} 在保存期间被外部修改；未覆盖原文件", path.display());
         }
         crate::engine::replace_file(&temporary, path)
             .with_context(|| format!("无法替换 {}", path.display()))?;
+        store_trace("replaced", std::str::from_utf8(&bytes).ok());
         Ok(())
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
     result?;
+    store_trace("unlock", None);
+    drop(lock);
     refresh_commands_cache();
     Ok(true)
+}
+
+fn store_trace(_stage: &str, _contents: Option<&str>) {
+    #[cfg(debug_assertions)]
+    if std::env::var_os("BLUEBERRY_TEST_STORE_TRACE").is_some() {
+        use sha2::{Digest, Sha256};
+        eprintln!(
+            "store_trace {}",
+            serde_json::json!({
+                "pid":std::process::id(), "stage":_stage,
+                "at_ns":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos(),
+                "sha256":_contents.map(|text|format!("{:x}",Sha256::digest(text.as_bytes())))
+            })
+        );
+    }
 }
 
 fn favorites_table(document: &mut DocumentMut) -> Result<&mut ArrayOfTables> {

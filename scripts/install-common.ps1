@@ -44,24 +44,40 @@ function ConvertTo-BlueberryCanonicalJson {
         return '"' + $escaped + '"'
     }
     if ($Value -is [bool]) { return ([string]$Value).ToLowerInvariant() }
+    if ($Value -is [Collections.IDictionary]) {
+        $keys = [string[]]@($Value.Keys); [Array]::Sort($keys, [StringComparer]::Ordinal)
+        $pairs = @(foreach ($key in $keys) { (ConvertTo-BlueberryCanonicalJson $key) + ':' + (ConvertTo-BlueberryCanonicalJson $Value[$key]) })
+        return '{' + ($pairs -join ',') + '}'
+    }
+    if ($Value -is [Collections.IEnumerable]) {
+        $items = @(foreach ($item in $Value) { ConvertTo-BlueberryCanonicalJson $item })
+        return '[' + ($items -join ',') + ']'
+    }
     if ($Value -is [pscustomobject]) {
         $properties = @{}
         foreach ($property in $Value.PSObject.Properties) { $properties[$property.Name] = $property.Value }
         return ConvertTo-BlueberryCanonicalJson $properties
     }
-    if ($Value -is [Collections.IDictionary]) {
-        $keys = [string[]]@($Value.Keys); [Array]::Sort($keys, [StringComparer]::Ordinal)
-        $pairs = @($keys | ForEach-Object { (ConvertTo-BlueberryCanonicalJson ([string]$_)) + ':' + (ConvertTo-BlueberryCanonicalJson $Value[$_]) })
-        return '{' + ($pairs -join ',') + '}'
-    }
-    if ($Value -is [Collections.IEnumerable]) {
-        $items = @($Value | ForEach-Object { ConvertTo-BlueberryCanonicalJson $_ })
-        return '[' + ($items -join ',') + ']'
-    }
     if ($Value -is [IFormattable]) {
         try { return $Value.ToString($null, [Globalization.CultureInfo]::InvariantCulture) } catch { throw ('Cannot serialize metadata type ' + $Value.GetType().FullName + ': ' + $Value) }
     }
     throw 'Unsupported installation metadata type'
+}
+function Read-BlueberrySharedText {
+    param([string]$Path)
+    # Readers must allow atomic replacement while holding the old file handle.
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            $stream = [IO.File]::Open($Path, 'Open', 'Read', ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+            try {
+                $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8, $true)
+                try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
+            } finally { $stream.Dispose() }
+        } catch [IO.IOException] {
+            if ($attempt -ge 19 -or ($_.Exception.HResult -band 0xffff) -notin @(32,33,303)) { throw }
+            Start-Sleep -Milliseconds 10
+        }
+    }
 }
 function Move-BlueberryFile {
     param([string]$Source, [string]$Destination)

@@ -34,16 +34,17 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.beta6_package = self.root / "blueberry-v0.5.0-beta.6-windows-x64.zip"
         with zipfile.ZipFile(self.beta6_package, "w") as archive:
             archive.writestr("blueberry.exe", self.beta6_exe)
-        self.package = self.root / "blueberry-v0.5.0-beta.7-windows-x64.zip"
+        self.package = self.root / f"blueberry-v{validator.VERSION}-windows-x64.zip"
         manifest = {
             "version": validator.VERSION,
             "platform": "windows-x64",
+            "build": {"default_host_mode": "direct"},
             "files": [{"path": "blueberry.exe", "sha256": self.exe_hash}],
         }
         with zipfile.ZipFile(self.package, "w") as archive:
             archive.writestr("blueberry.exe", self.exe)
             archive.writestr("release.json", json.dumps(manifest))
-        self.external_manifest = self.root / "blueberry-v0.5.0-beta.7-release.json"
+        self.external_manifest = self.root / f"blueberry-v{validator.VERSION}-release.json"
         self.external_manifest.write_text(json.dumps(manifest), encoding="utf-8")
         self.evidence = {
             "schema": 2,
@@ -438,6 +439,38 @@ class ReleaseEvidenceTests(unittest.TestCase):
         comparison["modes"]["candidate"]["transport_degraded"] = True
         comparison_path.write_text(json.dumps(comparison), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "transport degraded"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_comparator_without_candidates_retains_timeouts_not_fake_latencies(self):
+        path = self.root / self.evidence["comparison_reports"]["ps7-2.4.5"]
+        comparison = json.loads(path.read_text(encoding="utf-8"))
+        comparison["schema"] = 3
+        comparison.update(formal=True, passed=True)
+        measurement = comparison["modes"]["inshellisense"]["hot"]["root"]["cache_miss"]
+        measurement.update(menu=None, cache_capability="not_applicable", menu_status="not_observed_in_capability_probe", capability_probes=[])
+        for index in range(3):
+            line = f"ssbeta-root-{index}"
+            raw = {"passed": False, "program_sha256": "B" * 64,
+                   "actual_shell": {"shell": "7.6.0", "psreadline": "2.4.5"},
+                   "queries": [{"line": line, "expected": line, "failed": True, "menu": None,
+                                "elapsed_ms": 20001, "input_echo": 12.0, "observations": [{"ms": 12.0, "screen": line}]}]}
+            raw_path = self.root / f"capability-{index}.json"
+            raw_path.write_text(json.dumps(raw), encoding="utf-8")
+            measurement["capability_probes"].append({"report": raw_path.name, "sha256": validator.sha256_file(raw_path), "line": line, "expected": line})
+        path.write_text(json.dumps(comparison), encoding="utf-8")
+        validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        bundled = self.root / 'capability-evidence.zip'
+        validator.bundle(self.evidence_path, bundled)
+        with zipfile.ZipFile(bundled) as archive:
+            self.assertTrue(all(f'capability-{index}.json' in archive.namelist() for index in range(3)))
+        comparison["modes"]["candidate"]["hot"]["root"]["cache_miss"] = measurement
+        path.write_text(json.dumps(comparison), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "product menu samples cannot be waived"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        comparison["modes"]["candidate"]["hot"]["root"]["cache_miss"] = {"input_echo": statistics(10.0, 300), "menu": statistics(10.0, 300), "cache_capability": "supported"}
+        path.write_text(json.dumps(comparison), encoding="utf-8")
+        raw_path.write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "capability evidence hash mismatch"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
 

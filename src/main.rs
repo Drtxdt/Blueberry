@@ -32,6 +32,18 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Upgrade a managed installation (waits for active sessions to exit).
+    #[command(alias = "update")]
+    Upgrade(blueberry::maintenance::Upgrade),
+    /// Restore the previous complete managed installation.
+    Rollback,
+    /// Remove the managed installation while preserving user data.
+    Uninstall,
+    /// Inspect or cancel a queued installation operation.
+    Maintenance {
+        #[command(subcommand)]
+        command: blueberry::maintenance::Maintenance,
+    },
     /// Paired plain PowerShell vs complete product startup, with the same profiles.
     #[cfg(windows)]
     ProductProbe {
@@ -112,6 +124,9 @@ enum Command {
         /// Direct is experimental until its correctness and latency gates pass.
         #[arg(long, value_enum)]
         host_mode: Option<host::HostMode>,
+        /// Select a session-private PSReadLine baseline (direct host only).
+        #[arg(long, value_enum)]
+        psreadline_version: Option<host::PsReadLineVersion>,
     },
     /// Complete an input line without starting PowerShell (cursor is a UTF-8 byte offset).
     Complete {
@@ -762,8 +777,15 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
     let build = serde_json::json!({
         "commit":env!("BLUEBERRY_BUILD_COMMIT"),
         "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0),
-        "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true"
+        "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true",
+        "default_host_mode": if cfg!(windows) { "direct" } else { "nested" }
     });
+    #[cfg(windows)]
+    let build = {
+        let mut build = build;
+        build["private_editors"] = blueberry::editor::build_identity();
+        build
+    };
     if json {
         let path = config_path
             .map(Path::to_path_buf)
@@ -788,6 +810,10 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             .and_then(|status| status["psreadline_version"].as_str())
             .map(|version| serde_json::json!({"version":version}))
             .unwrap_or(serde_json::Value::Null);
+        value["editor"] = adapter.as_ref().map(|status| serde_json::json!({
+            "mode":status["editor_mode"], "patch":status["editor_patch"],
+            "dll_sha256":status["editor_dll_sha256"], "fallback_reason":status["editor_fallback_reason"]
+        })).unwrap_or(serde_json::Value::Null);
         value["transport"] = adapter
             .as_ref()
             .and_then(|status| status["transport"].as_str())
@@ -973,7 +999,18 @@ fn execute() -> Result<u32> {
         trace: None,
         transport: None,
         host_mode: None,
+        psreadline_version: None,
     }) {
+        Command::Upgrade(options) => blueberry::maintenance::run("Upgrade", Some(options)),
+        Command::Rollback => blueberry::maintenance::run("Rollback", None),
+        Command::Uninstall => blueberry::maintenance::run("Uninstall", None),
+        Command::Maintenance { command } => blueberry::maintenance::run(
+            match command {
+                blueberry::maintenance::Maintenance::Status => "Status",
+                blueberry::maintenance::Maintenance::Cancel => "Cancel",
+            },
+            None,
+        ),
         #[cfg(windows)]
         Command::ProductProbe {
             shell,
@@ -1007,13 +1044,19 @@ fn execute() -> Result<u32> {
             trace,
             transport,
             host_mode,
+            psreadline_version,
         } => {
+            blueberry::maintenance::resume_before_run()?;
             if !no_profile && blueberry::setup::take_first_hint() {
                 println!(
                     "Blueberry 提示：首次使用可运行 `blueberry setup`，两分钟了解补全、图标和自动启动设置。"
                 );
             }
             let (mode, transport) = host::resolve_host(host_mode, transport)?;
+            anyhow::ensure!(
+                psreadline_version.is_none() || mode == host::HostMode::Direct,
+                "--psreadline-version requires --host-mode direct"
+            );
             let options = host::RunOptions {
                 shell,
                 no_profile,
@@ -1021,6 +1064,7 @@ fn execute() -> Result<u32> {
                 data_dir: data_dir.unwrap_or_else(config::cache_dir),
                 trace_path: trace,
                 transport,
+                psreadline_version: psreadline_version.unwrap_or_default(),
             };
             match mode {
                 host::HostMode::Nested => host::run(options),

@@ -14,6 +14,37 @@ pub struct Session {
     pub child: Box<dyn Child + Send + Sync>,
 }
 
+/// PowerShell 7 sanitizes PSModulePath when it launches powershell.exe
+/// directly; native intermediate launchers must do the same themselves.
+pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
+    let legacy = shell
+        .file_name()
+        .is_some_and(|name| name.eq_ignore_ascii_case("powershell.exe"));
+    let inherited = if legacy {
+        std::env::var_os("WinPSModulePath").filter(|p| !p.is_empty())
+    } else {
+        None
+    }
+    .or_else(|| std::env::var_os("PSModulePath"));
+    let mut paths = inherited
+        .map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if legacy {
+        paths.retain(|path| {
+            let normalized = path
+                .to_string_lossy()
+                .replace('/', "\\")
+                .trim_end_matches('\\')
+                .to_ascii_lowercase();
+            !normalized.ends_with("\\powershell\\modules")
+                && !path
+                    .parent()
+                    .is_some_and(|parent| parent.join("pwsh.exe").is_file())
+        });
+    }
+    paths
+}
+
 /// Keep startup key configuration identical for the host and paired probe.
 /// JSON remains available for older adapters; the five checked strings avoid
 /// cold JSON parsing solely for initial key arbitration in current adapters.
@@ -83,9 +114,8 @@ pub fn spawn(
             } else {
                 base
             };
-            let inherited = std::env::var_os("PSModulePath").unwrap_or_default();
             let mut paths = vec![root.to_owned()];
-            paths.extend(std::env::split_paths(&inherited));
+            paths.extend(module_search_paths(program));
             command.env("PSModulePath", std::env::join_paths(paths)?);
         }
     }
@@ -135,38 +165,78 @@ pub fn ensure_integration(directory: &Path) -> Result<std::path::PathBuf> {
 }
 
 pub fn shell_args(integration: &Path, no_profile: bool) -> Vec<String> {
+    shell_args_with_editor(integration, no_profile, None)
+}
+
+pub fn shell_args_with_editor(
+    integration: &Path,
+    no_profile: bool,
+    editor: Option<&Path>,
+) -> Vec<String> {
     let mut args = vec!["-NoLogo".into(), "-NoExit".into()];
     if no_profile {
         args.push("-NoProfile".into());
     }
     let isolated = std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1");
-    let module = if isolated {
+    let module = if let Some(editor) = editor {
+        Some(editor.to_string_lossy().into_owned())
+    } else if isolated {
         std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE")
             .ok()
             .filter(|s| !s.is_empty())
     } else {
         None
     };
+    let imports_module = module.is_some();
     let mut module_import = module
         .map(|path| {
             let path = path.replace('\'', "''");
-            format!("if (-not (Get-Module PSReadLine)) {{ Import-Module '{path}' -ErrorAction Stop }}; if ((Get-Module PSReadLine).ModuleBase -ine (Split-Path -LiteralPath '{path}')) {{ throw 'Unexpected PSReadLine version loaded' }}; ")
+            if editor.is_some() {
+                // A profile may deliberately load another module. Keep that
+                // assembly; the bridge verifies identity and reports fallback.
+                format!("$blueberryDirectModule = Get-Module PSReadLine; if (-not $blueberryDirectModule) {{ try {{ Import-Module '{path}' -ErrorAction Stop }} catch {{ Import-Module PSReadLine -ErrorAction Stop }}; $blueberryDirectModule = Get-Module PSReadLine }}; ")
+            } else {
+                format!("if (-not (Get-Module PSReadLine)) {{ Import-Module '{path}' -ErrorAction Stop }}; if ((Get-Module PSReadLine).ModuleBase -ine (Split-Path -LiteralPath '{path}')) {{ throw 'Unexpected PSReadLine version loaded' }}; ")
+            }
         })
         .unwrap_or_default();
     if isolated {
         // Keep a malformed development adapter from falling through to a
         // shell that writes a real user's history during isolated tests.
-        module_import.push_str(
-            "Import-Module PSReadLine; Set-PSReadLineOption -HistorySaveStyle SaveNothing; ",
-        );
+        if !imports_module {
+            module_import.push_str("Import-Module PSReadLine; ");
+        }
+        module_import.push_str("Set-PSReadLineOption -HistorySaveStyle SaveNothing; ");
     }
     args.extend([
         "-Command".into(),
         format!(
-            "{module_import}$blueberrySourceTimer = $null; if ($env:BLUEBERRY_TRACE -eq '1') {{ $blueberrySourceTimer = [Diagnostics.Stopwatch]::StartNew() }}; . '{}'; if ($null -ne $blueberrySourceTimer) {{ Send-BlueberryTrace -Stage 'script_source' -DurationMs $blueberrySourceTimer.Elapsed.TotalMilliseconds }}",
+            "if ($env:BLUEBERRY_DIRECT_TRACE -eq '1') {{ $blueberryDirectCommandEnter = [Diagnostics.Stopwatch]::GetTimestamp() }}; {module_import}if ($env:BLUEBERRY_DIRECT_TRACE -eq '1') {{ $blueberryDirectExplicitModuleReady = [Diagnostics.Stopwatch]::GetTimestamp() }}; $blueberrySourceTimer = $null; if ($env:BLUEBERRY_TRACE -eq '1') {{ $blueberrySourceTimer = [Diagnostics.Stopwatch]::StartNew() }}; . '{}'; if ($null -ne $blueberrySourceTimer) {{ Send-BlueberryTrace -Stage 'script_source' -DurationMs $blueberrySourceTimer.Elapsed.TotalMilliseconds }}",
             integration.to_string_lossy().replace('\'', "''")
         ),
     ]);
+    args
+}
+
+// Let ConsoleHost run the bootstrap directly after its normal profile phase.
+// A -Command wrapper plus dot-sourcing adds a second script invocation; putting
+// the whole bootstrap into -Command also lengthens process creation measurably.
+pub fn direct_shell_args(
+    integration: &Path,
+    no_profile: bool,
+    editor: Option<&Path>,
+) -> Vec<String> {
+    let mut args = vec!["-NoLogo".into(), "-NoExit".into()];
+    if no_profile {
+        args.push("-NoProfile".into());
+    }
+    args.extend(["-File".into(), integration.to_string_lossy().into_owned()]);
+    if let Some(editor) = editor {
+        args.extend([
+            "-EditorManifest".into(),
+            editor.to_string_lossy().into_owned(),
+        ]);
+    }
     args
 }
 

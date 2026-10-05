@@ -684,7 +684,7 @@ impl Reader {
     }
 
     fn feed_wire_parser(&mut self, input_available: bool) -> io::Result<()> {
-        if self.transport == InputTransport::Unknown && self.wire_buffer == PASTE_START {
+        if self.wire_buffer == PASTE_START {
             self.wire_buffer.clear();
             self.transport = InputTransport::Direct;
             self.paste = Some(PasteState::new());
@@ -704,9 +704,7 @@ impl Reader {
         match parsed {
             Some(crate::vt_input::Parsed::Event(event)) => {
                 self.wire_buffer.clear();
-                if self.transport == InputTransport::Unknown {
-                    self.transport = InputTransport::Direct;
-                }
+                self.transport = InputTransport::Direct;
                 self.events.push_back(event);
             }
             Some(crate::vt_input::Parsed::Ignored) => {
@@ -776,6 +774,11 @@ impl Reader {
                 repeat,
             }) => {
                 self.payload_buffer.clear();
+                // This record can be the first Win32 envelope after raw VT
+                // input. Keep subsequent envelopes at the wire layer: routing
+                // their ESC bytes through the payload parser would interrupt
+                // a decoded paste marker, or insert envelope text into paste.
+                self.transport = InputTransport::Win32Envelope;
                 let key = KeyRecord {
                     down,
                     repeat,
@@ -1646,6 +1649,52 @@ mod tests {
                 Event::Key(KeyCode::Char('b').into()),
             ]
         );
+    }
+
+    #[test]
+    fn win32_mode_after_direct_input_keeps_paste_and_enter_separate() {
+        let mut reader = test_reader();
+        // A terminal can change input protocol after ordinary input (for
+        // example when a child switches console modes). The first decoded
+        // Win32 record must select the outer envelope parser before paste.
+        feed_bytes(&mut reader, b"x");
+        assert_eq!(
+            drain(&mut reader),
+            vec![Event::Key(KeyCode::Char('x').into())]
+        );
+        let command = "echo -n '24e25ad07ecdde7e5ed2ed2bb9a44578187ee59fec6b209dbd34f725350b3c55' | ssh-keygen -Y sign -n gitea -f /path_to_your_privkey";
+        // Protocol-looking text inside a paste is still literal user data.
+        let text = format!("{command} literal:\x1b[13;28;13;1;0;1_");
+        for unit in format!("\x1b[200~{text}\x1b[201~").encode_utf16() {
+            feed_envelope(&mut reader, native_key(true, 0, 0, unit, 0));
+        }
+        for _ in 0..2 {
+            feed_bytes(&mut reader, b"\x1b[13;28;13;1;0;1_\x1b[13;28;13;0;0;1_");
+        }
+        let events = drain(&mut reader);
+        assert_eq!(events.first(), Some(&Event::Paste(text)));
+        assert_eq!(events.len(), 5);
+        for (index, event) in events[1..].iter().enumerate() {
+            let Event::Key(key) = event else {
+                panic!("expected Enter: {event:?}")
+            };
+            assert_eq!(key.code, KeyCode::Enter);
+            assert_eq!(
+                key.kind,
+                if index % 2 == 0 {
+                    KeyEventKind::Press
+                } else {
+                    KeyEventKind::Release
+                }
+            );
+        }
+        assert!(reader.paste.is_none());
+        assert!(reader.wire_buffer.is_empty());
+        assert!(reader.payload_buffer.is_empty());
+        // Switching back to raw VT must also preserve paste as one edit;
+        // embedded line breaks must not become command submissions.
+        feed_bytes(&mut reader, b"\x1b[200~one\r\ntwo\x1b[201~");
+        assert_eq!(drain(&mut reader), vec![Event::Paste("one\r\ntwo".into())]);
     }
 
     #[test]

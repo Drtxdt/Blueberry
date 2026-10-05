@@ -101,6 +101,8 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
         "run".to_owned(),
+        "--host-mode".to_owned(),
+        "nested".to_owned(),
         "--no-profile".to_owned(),
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),

@@ -476,6 +476,8 @@ try {
         if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint -or $file.Length -le 0) { throw "发布资产必须是非空普通文件: $relative" }
         $manifestFiles.Add([ordered]@{ path = $relative; sha256 = Get-Sha256 $file.FullName; bytes = $file.Length })
     }
+    $buildIdentity = (& (Join-Path $stagePayload 'blueberry.exe') doctor --json | ConvertFrom-Json).build
+    if ($LASTEXITCODE -ne 0 -or -not $buildIdentity.private_editors) { throw 'Executable has no private editor build identity' }
     $manifest = [ordered]@{
         schema_version = 1; product = 'Blueberry'; name = 'Blueberry'; version = $Version
         platform = 'windows-x64'; architecture = 'x64'; executable = 'blueberry.exe'
@@ -483,6 +485,7 @@ try {
         license_notices = 'THIRD-PARTY-NOTICES.txt'; license_source = 'provided'
         performance_artifacts = @($performanceArtifactFiles | ForEach-Object { $_.RelativePath })
         files = @($manifestFiles.ToArray())
+        build = $buildIdentity
     }
     $manifestJson = $manifest | ConvertTo-Json -Depth 20
     Write-Utf8NoBom -Path (Join-Path $stagePayload 'release.json') -Content ($manifestJson + "`n")
