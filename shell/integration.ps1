@@ -320,6 +320,11 @@ function Send-BlueberryPipeEvent {
     if (-not $script:BLUEBERRY_PIPE_ENABLED -or $null -eq $script:BLUEBERRY_PIPE_STREAM) {
         return $false
     }
+    # Serializing either the envelope or its OSC barrier must not emit a
+    # nested trace event. That would put a second pipe message ahead of the
+    # first barrier and make the reader reject both sequence identities.
+    $traceEmitting = $script:BLUEBERRY_TRACE_EMITTING
+    $script:BLUEBERRY_TRACE_EMITTING = $true
     try {
         $sequence = [int64]$script:BLUEBERRY_PIPE_SEQUENCE + 1
         $script:BLUEBERRY_PIPE_SEQUENCE = $sequence
@@ -378,6 +383,8 @@ function Send-BlueberryPipeEvent {
     } catch {
         Disable-BlueberryPipe
         return $false
+    } finally {
+        $script:BLUEBERRY_TRACE_EMITTING = $traceEmitting
     }
 }
 

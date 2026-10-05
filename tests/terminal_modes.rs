@@ -265,6 +265,85 @@ struct RunningHost {
     shell: PathBuf,
 }
 
+#[test]
+#[ignore = "read-only console snapshot helper invoked by resize regressions"]
+fn console_snapshot_helper() -> Result<()> {
+    use windows_sys::Win32::System::Console::{
+        AttachConsole, CONSOLE_SCREEN_BUFFER_INFO, COORD, FreeConsole, GetConsoleScreenBufferInfo,
+        ReadConsoleOutputCharacterW,
+    };
+    let pid = std::env::var("BLUEBERRY_SNAPSHOT_PID")?.parse()?;
+    let path = std::env::var("BLUEBERRY_SNAPSHOT_PATH")?;
+    unsafe { FreeConsole() };
+    ensure!(
+        unsafe { AttachConsole(pid) } != 0,
+        "attach snapshot console"
+    );
+    let output = open_console("CONOUT$")?;
+    let mut info: CONSOLE_SCREEN_BUFFER_INFO = unsafe { std::mem::zeroed() };
+    ensure!(
+        unsafe { GetConsoleScreenBufferInfo(output, &mut info) } != 0,
+        "read console size"
+    );
+    let mut lines = Vec::new();
+    for y in info.srWindow.Top..=info.srWindow.Bottom {
+        let mut row = vec![0u16; (info.srWindow.Right - info.srWindow.Left + 1) as usize];
+        let mut read = 0;
+        ensure!(
+            unsafe {
+                ReadConsoleOutputCharacterW(
+                    output,
+                    row.as_mut_ptr(),
+                    row.len() as u32,
+                    COORD {
+                        X: info.srWindow.Left,
+                        Y: y,
+                    },
+                    &mut read,
+                )
+            } != 0,
+            "read console row"
+        );
+        lines.push(String::from_utf16_lossy(&row[..read as usize]));
+    }
+    unsafe {
+        CloseHandle(output);
+        FreeConsole();
+    }
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "width": info.dwSize.X, "height": info.dwSize.Y,
+            "cursor": [info.dwCursorPosition.X, info.dwCursorPosition.Y],
+            "screen": lines.join("\n"),
+        }))?,
+    )?;
+    Ok(())
+}
+
+fn snapshot_console(harness: &Harness, path: &Path) -> Result<()> {
+    use std::os::windows::process::CommandExt;
+    let result = std::process::Command::new(std::env::current_exe()?)
+        .args(["console_snapshot_helper", "--exact", "--ignored"])
+        .env(
+            "BLUEBERRY_SNAPSHOT_PID",
+            harness
+                .process_id()
+                .context("missing host PID")?
+                .to_string(),
+        )
+        .env("BLUEBERRY_SNAPSHOT_PATH", path)
+        .creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW)
+        .output()?;
+    ensure!(
+        result.status.success(),
+        "console snapshot failed: {} {}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    Ok(())
+}
+
 fn selected_pwsh() -> PathBuf {
     std::env::var_os("BLUEBERRY_TEST_SHELL")
         .map(PathBuf::from)
@@ -273,12 +352,6 @@ fn selected_pwsh() -> PathBuf {
 
 fn ps_quote(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "''"))
-}
-
-fn startup_event(harness: &mut Harness, name: &str, phase: &str) -> Result<Value> {
-    harness
-        .event(name, PTY_TIMEOUT)
-        .with_context(|| format!("startup phase {phase}: waiting for {name} event"))
 }
 
 fn selected_transport() -> Result<String> {
@@ -347,31 +420,30 @@ fn start_host() -> Result<RunningHost> {
     harness
         .wait_text("PS ", PTY_TIMEOUT)
         .context("startup phase initial prompt: waiting for PowerShell prompt")?;
-    // The bootstrap path can publish an intentionally incomplete capability
-    // frame before ConsoleHost loads PSReadLine. The first prompt may publish
-    // a ready frame after registration. Explicitly consume capability frames
-    // until the test observes ready=true, then use phase-specific context for
-    // prompt and command waits. Harness::event consumes intervening messages;
-    // this keeps startup readiness an explicit test assertion and makes a
-    // missing frame report the phase that timed out. It does not infer the
-    // cause of any host-side event ordering.
-    let mut capabilities = startup_event(&mut harness, "capabilities", "capabilities")?;
-    while capabilities["ready"].as_bool() != Some(true) {
-        capabilities = startup_event(&mut harness, "capabilities", "ready capabilities")?;
+    // Prompt and lazy command-snapshot events can arrive in either order.
+    // Keep every readiness fact instead of discarding a snapshot while
+    // waiting for the prompt. Only ready=true capabilities qualify.
+    let mut capabilities = None;
+    let mut prompted = false;
+    let mut commands_complete = false;
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    while capabilities.is_none() || !prompted || !commands_complete {
+        let value = harness.event_any(
+            &["capabilities", "prompt_end", "commands"],
+            deadline.saturating_duration_since(Instant::now()),
+        ).with_context(|| format!("startup readiness: capabilities={}, prompt={prompted}, complete commands={commands_complete}", capabilities.is_some()))?;
+        match value["event"].as_str() {
+            Some("capabilities") if value["ready"] == true => capabilities = Some(value),
+            Some("prompt_end") => prompted = true,
+            Some("commands") => commands_complete |= value["complete"] == true,
+            _ => {}
+        }
     }
+    let capabilities = capabilities.context("missing ready capabilities")?;
     ensure!(
         capabilities["transport"].as_str() == Some(transport.as_str()),
         "requested transport was not active: requested={transport}, capabilities={capabilities}"
     );
-    startup_event(&mut harness, "prompt_end", "first prompt")?;
-    // Terminal-mode checks are interaction tests, rather than startup
-    // benchmarks. Let the lazy command snapshot finish before the first
-    // query, so a later partial page cannot change the row being navigated.
-    loop {
-        if startup_event(&mut harness, "commands", "command snapshot")?["complete"] == true {
-            break;
-        }
-    }
     Ok(RunningHost {
         harness,
         _data_dir: data_dir,
@@ -695,12 +767,20 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
     );
     select_candidate(&mut host.harness, "git")?;
     host.harness.send(b"\t")?;
-    wait_until(
+    let accepted = wait_until(
         &mut host.harness,
         "accepted post-output Git candidate",
         Duration::from_secs(5),
         |screen| !screen.contains("⌘ git "),
-    )?;
+    );
+    if let Err(error) = accepted {
+        let evidence =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("target/nested-terminal-evidence");
+        fs::create_dir_all(&evidence)?;
+        let path = evidence.join(format!("resize-{}.json", uuid::Uuid::new_v4()));
+        snapshot_console(&host.harness, &path)?;
+        return Err(error.context(format!("native console snapshot: {}", path.display())));
+    }
     let after_accept = request_real_buffer(&mut host.harness, "git")?;
     let accepted_line = after_accept["line"].as_str().unwrap_or_default();
     ensure!(
