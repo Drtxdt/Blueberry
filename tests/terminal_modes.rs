@@ -265,6 +265,12 @@ struct RunningHost {
     shell: PathBuf,
 }
 
+impl Drop for RunningHost {
+    fn drop(&mut self) {
+        let _ = self.harness.save_evidence(self._data_dir.path());
+    }
+}
+
 #[test]
 #[ignore = "read-only console snapshot helper invoked by resize regressions"]
 fn console_snapshot_helper() -> Result<()> {
@@ -614,35 +620,6 @@ fn select_native_candidate(host: &mut RunningHost, label: &str) -> Result<()> {
     bail!("native candidate {label} was not selected after 128 observations")
 }
 
-fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
-    wait_until(
-        harness,
-        &format!("candidate {label}"),
-        PTY_TIMEOUT,
-        |screen| selected_row(screen).is_some(),
-    )?;
-    let deadline = Instant::now() + PTY_TIMEOUT;
-    for _ in 0..1024 {
-        let screen = harness.viewport_contents();
-        if selected_row_matches(&screen, label) {
-            return Ok(());
-        }
-        let before = selected_row(&screen).unwrap_or_default();
-        harness.send(b"\x1b[B")?;
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
-        wait_until(harness, "menu navigation repaint", remaining, |screen| {
-            selected_row(screen).is_some_and(|line| line != before)
-        })?;
-    }
-    bail!(
-        "candidate {label} was never selected; screen:\n{}",
-        harness.viewport_contents()
-    )
-}
-
 fn alternate_screen_fixture() -> &'static str {
     r#"param(
     [Parameter(Mandatory = $true)][string]$LogPath
@@ -746,14 +723,31 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
     host.harness
         .wait_text("⌘ git ", PTY_TIMEOUT)
         .context("wait for Git menu after alternate-screen exit")?;
-    select_candidate(&mut host.harness, "git")?;
+    // Rapid alternate-screen resizes can reflow the observer's selected row
+    // without acknowledging Down. Use native candidate identity, as in the
+    // repeated-resize test, before sending another navigation key.
+    select_native_candidate(&mut host, "git")?;
+    snapshot_console(
+        &host.harness,
+        &host._data_dir.path().join("alternate-before-tab.json"),
+    )?;
     host.harness.send(b"\t")?;
+    let acceptance = host.harness.event("accept_state", PTY_TIMEOUT)?;
+    fs::write(
+        host._data_dir.path().join("alternate-accept-state.json"),
+        serde_json::to_vec_pretty(&acceptance)?,
+    )?;
+    ensure!(
+        acceptance["presented_label"] == "git",
+        "observer selected a different candidate than the host: {acceptance}"
+    );
     wait_until(
         &mut host.harness,
         "dismissed menu after alternate-screen exit",
         Duration::from_secs(5),
         |screen| !screen.contains("⌘ git "),
     )?;
+    request_real_buffer(&mut host.harness, "git")?;
     host.harness.send(b"\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness

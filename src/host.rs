@@ -2895,6 +2895,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             let shown = state.presented_candidate.as_ref();
                             let value = json!({"event":"accept_state","revision":state.revision,
                                 "presented_revision":shown.map(|p|p.revision),
+                                "presented_label":shown.map(|p|p.candidate.label.as_str()),
+                                "presented_id":shown.map(|p|p.candidate.id.as_str()),
                                 "line_matches":shown.is_some_and(|p|p.line==state.line),
                                 "cursor_matches":shown.is_some_and(|p|p.cursor==state.cursor),
                                 "prompt":state.prompt,"dismissed":state.dismissed,
