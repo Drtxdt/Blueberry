@@ -357,7 +357,10 @@ function Send-BlueberryPipeEvent {
         # One WriteAsync call is intentional: message-mode named pipes
         # preserve that call as one message. Cancellation bounds a full or
         # disconnected endpoint without blocking PSReadLine's UI thread.
-        $cts = [Threading.CancellationTokenSource]::new(50)
+        # Start the wait after method binding / invocation. A timer created
+        # here can expire during cold JIT or scheduling before I/O begins.
+        # Wait(50) below remains the bound and explicitly cancels pending I/O.
+        $cts = [Threading.CancellationTokenSource]::new()
         try {
             $writeTask = $stream.WriteAsync($bytes, 0, $bytes.Length, $cts.Token)
             if (-not $writeTask.Wait(50)) {
@@ -428,7 +431,7 @@ function Read-BlueberryPipeJson {
                 Disable-BlueberryPipe
                 return $null
             }
-            $cts = [Threading.CancellationTokenSource]::new(50)
+            $cts = [Threading.CancellationTokenSource]::new()
             try {
                 $readTask = $stream.ReadAsync($bytes, $offset, $remaining, $cts.Token)
                 if (-not $readTask.Wait(50)) {

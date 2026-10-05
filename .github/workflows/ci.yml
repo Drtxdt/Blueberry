@@ -119,6 +119,8 @@ jobs:
       - name: Adapter regressions
         shell: pwsh
         run: |
+          & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/pipe_deadline.tests.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'pipe deadline regressions failed' }
           & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/adapter.tests.ps1
           if ($LASTEXITCODE -ne 0) { throw 'adapter regressions failed' }
       - name: Startup regressions
@@ -206,6 +208,8 @@ jobs:
       - name: Adapter and startup regressions
         shell: pwsh
         run: |
+          & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/pipe_deadline.tests.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'pipe deadline regressions failed' }
           & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/adapter.tests.ps1
           if ($LASTEXITCODE -ne 0) { throw 'adapter regressions failed' }
           & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/startup.tests.ps1

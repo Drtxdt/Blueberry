@@ -579,6 +579,41 @@ fn selected_row_matches(screen: &str, label: &str) -> bool {
     })
 }
 
+fn select_native_candidate(host: &mut RunningHost, label: &str) -> Result<()> {
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    let mut awaiting_change = None;
+    for sample in 0..128 {
+        let path = host
+            ._data_dir
+            .path()
+            .join(format!("selection-{sample}.json"));
+        snapshot_console(&host.harness, &path)?;
+        let actual: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        let screen = actual["screen"].as_str().context("native screen")?;
+        if selected_row_matches(screen, label) {
+            return Ok(());
+        }
+        // Compare candidate identity, not padding/row position that a resize
+        // or a capture repaint can change before the key is handled.
+        let selected = selected_row(screen).and_then(|row| {
+            row.split_once("› ")
+                .and_then(|(_, candidate)| candidate.split_whitespace().nth(1))
+                .map(str::to_owned)
+        });
+        if selected.is_some() && selected != awaiting_change {
+            host.harness.send(b"\x1b[B")?;
+            awaiting_change = selected;
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "native candidate {label} was not selected"
+        );
+        host.harness
+            .pump(deadline.saturating_duration_since(Instant::now()))?;
+    }
+    bail!("native candidate {label} was not selected after 128 observations")
+}
+
 fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
     wait_until(
         harness,
@@ -769,9 +804,37 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
         (10, 50, "second small resize"),
         (30, 120, "final large resize"),
     ] {
+        let requested = Instant::now();
         host.harness
             .resize(rows, cols)
             .with_context(|| format!("resize {label}"))?;
+        // A menu left in the observer from the previous size is not a resize
+        // acknowledgement. ConPTY applies resize requests asynchronously.
+        // Observe fresh output and the actual console before the next request.
+        let deadline = requested + Duration::from_secs(5);
+        loop {
+            host.harness
+                .pump(deadline.saturating_duration_since(Instant::now()))?;
+            if host
+                .harness
+                .last_output_arrival()
+                .is_some_and(|at| at >= requested)
+            {
+                let path = host
+                    ._data_dir
+                    .path()
+                    .join(format!("resize-{rows}-{cols}.json"));
+                snapshot_console(&host.harness, &path)?;
+                let actual: Value = serde_json::from_slice(&fs::read(&path)?)?;
+                if actual["width"] == cols && actual["height"] == rows {
+                    break;
+                }
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "native console did not acknowledge {label}"
+            );
+        }
         wait_until(
             &mut host.harness,
             &format!("Git menu after {label}"),
@@ -785,7 +848,7 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
         before_accept["line"] == "gi" && before_accept["cursor"] == 2,
         "resize damaged the real PSReadLine buffer: {before_accept}"
     );
-    select_candidate(&mut host.harness, "git")?;
+    select_native_candidate(&mut host, "git")?;
     host.harness.send(b"\t")?;
     let accepted = wait_until(
         &mut host.harness,
