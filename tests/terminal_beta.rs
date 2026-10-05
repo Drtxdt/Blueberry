@@ -277,9 +277,25 @@ fn start_host() -> Result<RunningHost> {
         .context("wait for the initial PowerShell prompt")?;
     // Do not let bootstrap messages from the first prompt satisfy a later
     // lifecycle assertion.
-    let capabilities = harness
-        .event("capabilities", PTY_TIMEOUT)
-        .context("initial adapter capabilities")?;
+    let mut capabilities = None;
+    let mut prompted = false;
+    let mut commands_complete = false;
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    while capabilities.is_none() || !prompted || !commands_complete {
+        let event = harness
+            .event_any(
+                &["capabilities", "prompt_end", "commands"],
+                deadline.saturating_duration_since(Instant::now()),
+            )
+            .context("initial capabilities, prompt and complete command snapshot")?;
+        match event["event"].as_str() {
+            Some("capabilities") => capabilities = Some(event),
+            Some("prompt_end") => prompted = true,
+            Some("commands") => commands_complete |= event["complete"] == true,
+            _ => unreachable!(),
+        }
+    }
+    let capabilities = capabilities.context("missing initial capabilities")?;
     ensure!(
         capabilities["capabilities"]["command_metadata"] == true,
         "missing metadata capability: {capabilities}"
@@ -288,18 +304,6 @@ fn start_host() -> Result<RunningHost> {
         capabilities["transport"] == transport,
         "requested transport was not active: {capabilities}"
     );
-    harness
-        .event("prompt_end", PTY_TIMEOUT)
-        .context("initial confirmed prompt")?;
-    loop {
-        if harness
-            .event("commands", PTY_TIMEOUT)
-            .context("initial complete Shell command snapshot")?["complete"]
-            == true
-        {
-            break;
-        }
-    }
 
     let session_dir = fs::read_dir(data_dir.path())?
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))

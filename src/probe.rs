@@ -140,18 +140,24 @@ impl Harness {
         Ok(())
     }
     pub fn event(&mut self, name: &str, timeout: Duration) -> Result<Value> {
+        self.event_any(&[name], timeout)
+    }
+    /// Observe independently delivered startup events without imposing an order
+    /// that discards a command snapshot while waiting for the first prompt.
+    pub fn event_any(&mut self, names: &[&str], timeout: Duration) -> Result<Value> {
         let until = Instant::now() + timeout;
         loop {
             while let Some(value) = self.messages.pop_front() {
-                if value["event"] == "error" && name != "error" {
+                let name = value["event"].as_str().unwrap_or_default();
+                if name == "error" && !names.contains(&"error") {
                     bail!("Adapter: {value}");
                 }
-                if value["event"] == name {
+                if names.contains(&name) {
                     return Ok(value);
                 }
             }
             self.pump(until.saturating_duration_since(Instant::now()))
-                .with_context(|| format!("waiting for adapter event {name}"))?;
+                .with_context(|| format!("waiting for adapter events {names:?}"))?;
         }
     }
     pub fn wait_text(&mut self, text: &str, timeout: Duration) -> Result<()> {
