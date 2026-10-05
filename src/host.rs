@@ -851,6 +851,72 @@ enum InteractionMode {
     History,
 }
 
+// A completion reply and a Tab can share an event batch. Keep the actual
+// displayed edit, including its replacement range, until the next repaint;
+// an unseen reply must neither replace it nor silently consume the Tab.
+struct PresentedCandidate {
+    revision: u64,
+    line: String,
+    cursor: usize,
+    candidate: Candidate,
+    replacement: crate::model::Replacement,
+}
+
+impl PresentedCandidate {
+    fn capture(
+        revision: u64,
+        line: &str,
+        cursor: usize,
+        completion: &Completion,
+        selected: usize,
+    ) -> Option<Self> {
+        let candidate = completion.candidates.get(selected)?.clone();
+        let replacement = candidate.replacement.unwrap_or(crate::model::Replacement {
+            start: completion.replace_start,
+            end: completion.replace_end,
+        });
+        Some(Self {
+            revision,
+            line: line.into(),
+            cursor,
+            candidate,
+            replacement,
+        })
+    }
+}
+
+#[cfg(test)]
+mod presented_tests {
+    use super::*;
+    #[test]
+    fn late_completion_preserves_displayed_candidate_and_replacement() {
+        let mut completion = Completion {
+            replace_start: 4,
+            replace_end: 6,
+            candidates: vec![Candidate {
+                label: "old".into(),
+                insert_text: "old-value".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let shown = PresentedCandidate::capture(7, "git ol", 6, &completion, 0).unwrap();
+        completion.candidates[0].insert_text = "new-value".into();
+        completion.replace_start = 0;
+        completion.candidates.clear();
+        assert_eq!(shown.candidate.insert_text, "old-value");
+        assert_eq!(
+            shown.replacement,
+            crate::model::Replacement { start: 4, end: 6 }
+        );
+        assert_eq!(
+            (shown.revision, shown.line.as_str(), shown.cursor),
+            (7, "git ol", 6)
+        );
+        assert!(PresentedCandidate::capture(7, "git ol", 6, &completion, 0).is_none());
+    }
+}
+
 struct State {
     pipe: Option<crate::pipe::PipeServer>,
     parser: vt100::Parser,
@@ -892,7 +958,7 @@ struct State {
     shell_environment: Arc<BTreeMap<String, String>>,
     learning: Arc<Learning>,
     pending_accept: Option<(u64, String, PathBuf)>,
-    presented_identity: Option<String>,
+    presented_candidate: Option<PresentedCandidate>,
     native_request: Option<u64>,
     native_ready: bool,
     metadata_ready: bool,
@@ -1636,18 +1702,17 @@ impl State {
     }
 
     fn accept(&mut self, writer: &mut impl Write) -> Result<()> {
-        let Some(candidate) = self.completion.candidates.get(self.selected) else {
+        let Some(presented) = self.presented_candidate.as_ref().filter(|shown| {
+            shown.revision == self.revision
+                && shown.line == self.line
+                && shown.cursor == self.cursor
+        }) else {
             return Ok(());
         };
-        if self.presented_identity.as_deref() != Some(candidate.identity()) {
-            return Ok(());
-        }
+        let candidate = &presented.candidate;
         self.searching = false;
         self.interaction_mode = InteractionMode::Completion;
-        let replacement = candidate.replacement.unwrap_or(crate::model::Replacement {
-            start: self.completion.replace_start,
-            end: self.completion.replace_end,
-        });
+        let replacement = presented.replacement;
         let start = protocol::byte_to_utf16(&self.line, replacement.start);
         let end = protocol::byte_to_utf16(&self.line, replacement.end);
         let cursor = protocol::byte_to_utf16(&self.line, self.cursor);
@@ -1840,11 +1905,21 @@ impl State {
                                     argument_hint: String::new(),
                                 };
                                 self.selected = 0;
-                                self.presented_identity = Some("hub:resolved-template".into());
+                                self.presented_candidate = PresentedCandidate::capture(
+                                    self.revision,
+                                    &self.line,
+                                    self.cursor,
+                                    &self.completion,
+                                    self.selected,
+                                );
                                 return self.accept(writer);
                             }
                             if let Some(candidate) = self.completion.candidates.get(self.selected) {
-                                if self.presented_identity.as_deref() != Some(candidate.identity())
+                                if self
+                                    .presented_candidate
+                                    .as_ref()
+                                    .map(|shown| shown.candidate.identity())
+                                    != Some(candidate.identity())
                                 {
                                     return Ok(());
                                 }
@@ -2153,6 +2228,13 @@ impl State {
             return Ok(());
         };
         let visible = !self.completion.candidates.is_empty() && !self.dismissed && self.prompt;
+        let accepts_presented = !self.dismissed
+            && self.prompt
+            && self.presented_candidate.as_ref().is_some_and(|shown| {
+                shown.revision == self.revision
+                    && shown.line == self.line
+                    && shown.cursor == self.cursor
+            });
         let starts_history_navigation = !visible
             && self.config.completion.up_arrow_history
             && matches!(&input, Input::Previous | Input::Next);
@@ -2185,7 +2267,15 @@ impl State {
                 }
                 return Ok(());
             }
-            Input::Tab if visible => return self.accept(writer),
+            Input::Tab if accepts_presented => {
+                #[cfg(debug_assertions)]
+                if std::env::var_os("BLUEBERRY_TEST_UNPAINTED_COMPLETION").is_some() {
+                    // Deterministically place a late empty worker reply between
+                    // the displayed frame and its acceptance in the PTY test.
+                    self.completion = Completion::default();
+                }
+                return self.accept(writer);
+            }
             Input::Previous if visible => {
                 self.selection_touched = true;
                 self.detail_page = 0;
@@ -2623,7 +2713,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         shell_environment: Arc::new(std::env::vars().collect()),
         learning,
         pending_accept: None,
-        presented_identity: None,
+        presented_candidate: None,
         native_request: None,
         native_ready: false,
         metadata_ready: false,
@@ -2986,17 +3076,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }),
                 },
             )?;
-            state.presented_identity = if state.completion.candidates.is_empty() {
-                None
-            } else {
-                state
-                    .completion
-                    .candidates
-                    .get(state.selected)
-                    .map(|candidate| candidate.identity().to_owned())
-            };
+            state.presented_candidate = PresentedCandidate::capture(
+                state.revision,
+                &state.line,
+                state.cursor,
+                &state.completion,
+                state.selected,
+            );
         } else if ui_dirty {
             state.overlay.erase(state.parser.screen(), &mut frame)?;
+            state.presented_candidate = None;
         }
         if frame.len() > bytes_before {
             trace.event(

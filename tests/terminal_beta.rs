@@ -206,6 +206,10 @@ fn ps_quote(value: &Path) -> String {
 }
 
 fn start_host() -> Result<RunningHost> {
+    start_host_with_unpainted_reply(false)
+}
+
+fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
     let cwd = tempdir().context("create terminal test cwd")?;
     fs::write(
         cwd.path().join("git.cmd"),
@@ -230,7 +234,7 @@ fn start_host() -> Result<RunningHost> {
     let native_marker = cwd.path().join("native-called.txt");
     let input_trace = cwd.path().join("input-trace.txt");
     let clipboard_fixture = cwd.path().join("clipboard-fixture.txt");
-    let env = BTreeMap::from([
+    let mut env = BTreeMap::from([
         (
             "APPDATA".to_owned(),
             data_dir.path().to_string_lossy().into_owned(),
@@ -256,6 +260,9 @@ fn start_host() -> Result<RunningHost> {
             input_trace.to_string_lossy().into_owned(),
         ),
     ]);
+    if inject_reply {
+        env.insert("BLUEBERRY_TEST_UNPAINTED_COMPLETION".into(), "1".into());
+    }
     let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
     let args = vec![
         "--config".to_owned(),
@@ -712,7 +719,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
         .send("Get-ChildItem -Name '中文😀".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "Get-ChildItem -Name '中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    host.harness.send(b"\t")?;
+    let _ = accept_selected(&mut host.harness)?;
     wait_until(
         &mut host.harness,
         "single quote and Unicode acceptance",
@@ -733,7 +740,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
         .send("Get-ChildItem -Name \"中文😀".as_bytes())?;
     let _ = request_buffer(&mut host.harness, "中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
-    host.harness.send(b"\t")?;
+    let _ = accept_selected(&mut host.harness)?;
     wait_until(
         &mut host.harness,
         "double quote and Unicode acceptance",
@@ -746,6 +753,29 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     )?;
 
     host.harness.stop()?;
+    Ok(())
+}
+
+#[test]
+fn terminal_tab_accepts_displayed_candidate_after_unpainted_worker_reply() -> Result<()> {
+    let mut host = start_host_with_unpainted_reply(true)?;
+    clear_line(&mut host.harness)?;
+    host.harness.send(b"giXYZ")?;
+    host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
+    let _ = request_buffer(&mut host.harness, "giXYZ")?;
+    select_candidate(&mut host.harness, "git")?;
+    accept_selected(&mut host.harness)?;
+    let actual = read_real_buffer(
+        &mut host.harness,
+        "displayed candidate after late reply",
+        "gitXYZ",
+        None,
+    )?;
+    ensure!(
+        actual["line"] == "gitXYZ",
+        "unseen reply changed the accepted edit: {actual}"
+    );
+    host.harness.finish(PTY_TIMEOUT)?;
     Ok(())
 }
 

@@ -128,7 +128,7 @@ jobs:
       - name: Direct inherited-console regressions
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal --test input_protocol -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
       - name: Preserve input protocol evidence
         if: always()
@@ -195,7 +195,7 @@ jobs:
         if: matrix.transport == 'pipe'
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal --test input_protocol -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
       - name: Preserve input protocol evidence
         if: always() && matrix.transport == 'pipe'
@@ -236,6 +236,29 @@ jobs:
             cargo test --locked --test terminal_modes conpty_native_mouse_passthrough_for_external_program -- --exact --ignored --nocapture
             if ($LASTEXITCODE -ne 0) { throw "$transport native mouse regression failed" }
           }
+      # Server 2022's inbox ConPTY corrupts long Win32 input streams even in
+      # plain PowerShell (microsoft/terminal#16466). Keep its editor coverage
+      # above; run the actual wire-protocol matrix on the fixed ConPTY here.
+      - name: Win32 input protocol / all supported editor combinations
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'protocol-modules'
+          foreach ($version in @('2.0.0', '2.4.5')) {
+            Save-Module PSReadLine -RequiredVersion $version -Path $root -Repository PSGallery -Force
+          }
+          foreach ($combination in @(@('powershell.exe','2.0.0'), @('powershell.exe','2.4.5'), @('pwsh.exe','2.4.5'))) {
+            $env:BLUEBERRY_TEST_SHELL = (Get-Command $combination[0]).Source
+            $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $root "PSReadLine/$($combination[1])/PSReadLine.psd1"
+            cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+            if ($LASTEXITCODE -ne 0) { throw "$combination input protocol regression failed" }
+          }
+      - name: Preserve full protocol evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: input-protocol-fixed-conpty
+          path: target/input-protocol-evidence
+          if-no-files-found: ignore
   package:
     needs: [format, core, powershell-51, powershell-7, native-mouse]
     runs-on: windows-2022
