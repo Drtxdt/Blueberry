@@ -631,6 +631,43 @@ fn usage_snapshot(host: &mut RunningHost) -> Result<Value> {
 }
 
 #[test]
+fn terminal_beta_cancel_during_buffer_callback_is_delivered_to_editor() -> Result<()> {
+    let mut host = start_host()?;
+    let mode_file = host.data_dir.path().join("buffer-control-c-mode.txt");
+    // Extend the real interval between emitting a buffer reply and returning
+    // from its PSReadLine handler. A reply does not mean the handler returned.
+    send_command(
+        &mut host.harness,
+        &format!(
+            "$global:BlueberryOriginalBuffer = ${{function:Send-BlueberryBuffer}}; function global:Send-BlueberryBuffer {{ [IO.File]::WriteAllText({}, [Console]::TreatControlCAsInput.ToString()); & $global:BlueberryOriginalBuffer; [Threading.Thread]::Sleep(250) }}; Write-Output BB_DELAY_READY",
+            ps_quote(&mode_file)
+        ),
+        "BB_DELAY_READY",
+    )?;
+    clear_line(&mut host.harness)?;
+    host.harness.send_text("Write-Output '\r")?;
+    let editing = host.harness.event("editing", PTY_TIMEOUT)?;
+    ensure!(
+        editing["state"] == "continuation",
+        "expected continuation: {editing}"
+    );
+    host.harness.send_text("gi")?;
+    request_buffer(&mut host.harness, "gi")?;
+    cancel_to_prompt(&mut host.harness)?;
+    ensure!(
+        fs::read_to_string(mode_file)? == "True",
+        "buffer callback changed the editor's Ctrl+C input mode"
+    );
+    send_command(
+        &mut host.harness,
+        "Write-Output BB_CANCEL_RECOVERED",
+        "BB_CANCEL_RECOVERED",
+    )?;
+    host.harness.finish(PTY_TIMEOUT)?;
+    Ok(())
+}
+
+#[test]
 fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknown_text()
 -> Result<()> {
     let mut host = start_host()?;

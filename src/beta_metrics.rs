@@ -675,6 +675,9 @@ fn measure_cache_modes(
         let miss_transport = miss.actual_transport.clone();
         let cache_complete = verify_complete_cache(&pair_dir)?;
         let cache_path = pair_dir.join("commands.json");
+        // Preserve both identities even if a real PATH directory change
+        // invalidates the hit. Never relabel that discovery as a cache hit.
+        fs::copy(&cache_path, pair_dir.join("commands-before-hit.json"))?;
         let before = fs::metadata(&cache_path)
             .with_context(|| format!("无法读取 miss 缓存时间 {}", cache_path.display()))?
             .modified()
@@ -694,6 +697,7 @@ fn measure_cache_modes(
             "hit",
         )?;
         let hit_transport = hit.actual_transport.clone();
+        fs::copy(&cache_path, pair_dir.join("commands-after-hit.json"))?;
         let after = fs::metadata(&cache_path)
             .with_context(|| format!("无法读取 hit 缓存时间 {}", cache_path.display()))?
             .modified()

@@ -3028,11 +3028,25 @@ function Register-BlueberryKeyHandler {
     }
 
     try {
-        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
-            [string[]]@($Chord),
-            $ScriptBlock,
-            ('Blueberry ' + $Name),
-            ('Report blueberry ' + $Name + ' state.'))
+        if ($Name -eq 'buffer') {
+            # This callback only reads the editor and emits a protocol reply;
+            # it cannot run an external program. The ScriptBlock overload
+            # temporarily enables processed input, so Ctrl+C arriving after
+            # that reply can interrupt the callback instead of CancelLine.
+            # Keep the editor's native input mode until this handler returns.
+            $action = [Action[Nullable[ConsoleKeyInfo], object]]$ScriptBlock
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+                [string[]]@($Chord), $action,
+                ('Blueberry ' + $Name), ('Report blueberry ' + $Name + ' state.'))
+        } else {
+            # Native completion and user handlers can invoke external tools;
+            # preserve PSReadLine's normal console-mode management for them.
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+                [string[]]@($Chord),
+                $ScriptBlock,
+                ('Blueberry ' + $Name),
+                ('Report blueberry ' + $Name + ' state.'))
+        }
         return $true
     } catch {
         Send-BlueberryEvent -Event 'error' -Data ([ordered]@{
