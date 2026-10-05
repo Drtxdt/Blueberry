@@ -218,6 +218,7 @@ impl Worker {
             let mut shell_commands = Vec::new();
             let mut latest_query: Option<Query> = None;
             let mut prepared: Option<(u64, Completion, crate::sources::SourceRequest)> = None;
+            let mut published = crate::completion::PublishedCompletion::default();
             loop {
                 let (lock, condition) = &*thread_shared;
                 let mut work = lock.lock().unwrap();
@@ -266,6 +267,7 @@ impl Worker {
                 }
                 drop(work);
                 if cancel {
+                    published.clear();
                     learner.cancel();
                     prepared = None;
                     latest_query = None;
@@ -570,6 +572,18 @@ impl Worker {
                     };
                     let force = invalidate_sources || refresh || reload_catalog.is_some();
                     if request.as_ref() != Some(&next) || force {
+                        trace.event(
+                            "source_submit",
+                            Some(q.revision),
+                            None,
+                            Some(
+                                usize::from(next.paths)
+                                    | (usize::from(next.project) << 1)
+                                    | (usize::from(force) << 2)
+                                    | (usize::from(help_changed) << 3)
+                                    | (usize::from(entry_changed) << 4),
+                            ),
+                        );
                         parts = [None, None];
                         sources.submit(next.clone(), force);
                         request = Some(next);
@@ -633,11 +647,18 @@ impl Worker {
                         q.limit,
                         &q.descriptions,
                     );
+                    let result = published.update(request.as_ref().unwrap(), result);
                     trace.event(
                         "completion_merge",
                         Some(q.revision),
                         Some(merging.elapsed()),
                         Some(result.candidates.len()),
+                    );
+                    trace.event(
+                        "completion_incomplete",
+                        Some(q.revision),
+                        None,
+                        Some(usize::from(result.incomplete)),
                     );
                     trace.event(
                         "completion",
@@ -1143,6 +1164,8 @@ impl State {
         }
     }
     fn invalidate(&mut self) {
+        self.trace
+            .event("nested_invalidate", Some(self.revision), None, None);
         self.revision += 1;
         self.completion = Completion::default();
         self.selected = 0;
@@ -1188,6 +1211,20 @@ impl State {
         }
     }
     fn message(&mut self, value: Value, _writer: &mut impl Write, worker: &Worker) -> Result<()> {
+        self.trace.event(
+            "nested_message",
+            Some(self.revision),
+            None,
+            Some(match value["event"].as_str() {
+                Some("buffer") => 1,
+                Some("commands") => 2,
+                Some("prompt_start") => 3,
+                Some("prompt_end") => 4,
+                Some("edit_result") => 5,
+                Some("command_metadata") => 6,
+                _ => 0,
+            }),
+        );
         match value["event"].as_str().unwrap_or("") {
             "capabilities" => {
                 self.status_writer.update(value.clone());
@@ -2851,6 +2888,29 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     // protocol replies are handled before a new request.
                     let mut input_frame = Vec::with_capacity(inputs.len() * 8);
                     for input in inputs {
+                        #[cfg(debug_assertions)]
+                        if matches!(&input, Event::Key(key) if key.code == crossterm::event::KeyCode::Tab && key.kind != crossterm::event::KeyEventKind::Release)
+                            && let Some(token) = &probe_token
+                        {
+                            let shown = state.presented_candidate.as_ref();
+                            let value = json!({"event":"accept_state","revision":state.revision,
+                                "presented_revision":shown.map(|p|p.revision),
+                                "line_matches":shown.is_some_and(|p|p.line==state.line),
+                                "cursor_matches":shown.is_some_and(|p|p.cursor==state.cursor),
+                                "prompt":state.prompt,"dismissed":state.dismissed,
+                                "pending_query":state.pending_query,"commands_inflight":state.commands_inflight,
+                                "candidates":state.completion.candidates.len()});
+                            frame.extend_from_slice(
+                                format!("\x1b]7776;{token};{value}\x07").as_bytes(),
+                            );
+                            state.trace.event(
+                                "nested_accept_revision",
+                                Some(state.revision),
+                                None,
+                                shown.map(|p| p.revision as usize),
+                            );
+                            state.trace.flush();
+                        }
                         ui_dirty |= matches!(&input, Event::Resize(..) | Event::Paste(_))
                             || matches!(&input, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release);
                         // Restore the old coordinates before changing the model size.

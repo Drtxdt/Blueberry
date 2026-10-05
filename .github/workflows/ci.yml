@@ -130,12 +130,12 @@ jobs:
         run: |
           cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
-      - name: Preserve input protocol evidence
+      - name: Preserve nested terminal evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: input-protocol-ps51-${{ matrix.psreadline }}
-          path: target/input-protocol-evidence
+          name: nested-terminal-ps51-${{ matrix.psreadline }}
+          path: target/nested-terminal-evidence
           if-no-files-found: ignore
   powershell-7:
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
@@ -197,12 +197,12 @@ jobs:
         run: |
           cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
-      - name: Preserve input protocol evidence
-        if: always() && matrix.transport == 'pipe'
+      - name: Preserve nested terminal evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: input-protocol-ps7
-          path: target/input-protocol-evidence
+          name: nested-terminal-ps7-${{ matrix.transport }}
+          path: target/nested-terminal-evidence
           if-no-files-found: ignore
   native-mouse:
     name: Native ConPTY mouse / windows-2025

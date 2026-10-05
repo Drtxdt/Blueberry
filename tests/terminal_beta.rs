@@ -210,6 +210,8 @@ fn start_host() -> Result<RunningHost> {
 }
 
 fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/nested-terminal-evidence");
+    fs::create_dir_all(&evidence)?;
     let cwd = tempdir().context("create terminal test cwd")?;
     fs::write(
         cwd.path().join("git.cmd"),
@@ -222,7 +224,10 @@ fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
     )
     .context("create Unicode path fixture")?;
 
-    let data_dir = tempdir().context("create terminal test data directory")?;
+    let mut data_dir = tempfile::Builder::new()
+        .prefix("data-")
+        .tempdir_in(&evidence)?;
+    data_dir.disable_cleanup(true);
     let config_path = data_dir.path().join("config.toml");
     fs::write(&config_path, config::example()).context("write temporary config")?;
 
@@ -275,6 +280,12 @@ fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
         "--no-profile".to_owned(),
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),
+        "--trace".into(),
+        data_dir
+            .path()
+            .join("trace.jsonl")
+            .to_string_lossy()
+            .into_owned(),
     ];
     let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let mut harness = Harness::start(&program, &args, cwd.path(), &env, token)
@@ -294,7 +305,7 @@ fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
                 &["capabilities", "prompt_end", "commands"],
                 deadline.saturating_duration_since(Instant::now()),
             )
-            .context("initial capabilities, prompt and complete command snapshot")?;
+            .with_context(|| format!("initial events: capabilities={}, prompt={prompted}, complete commands={commands_complete}; evidence={}", capabilities.is_some(), data_dir.path().display()))?;
         match event["event"].as_str() {
             Some("capabilities") => capabilities = Some(event),
             Some("prompt_end") => prompted = true,
@@ -566,6 +577,15 @@ fn loading_notice_is_not_a_selectable_candidate() {
 
 fn accept_selected(harness: &mut Harness) -> Result<Value> {
     harness.send(b"\t")?;
+    let state = harness.event("accept_state", PTY_TIMEOUT)?;
+    ensure!(
+        state["revision"] == state["presented_revision"]
+            && state["line_matches"] == true
+            && state["cursor_matches"] == true
+            && state["prompt"] == true
+            && state["dismissed"] == false,
+        "displayed candidate could not be accepted: {state}"
+    );
     let result = harness.event("edit_result", PTY_TIMEOUT)?;
     ensure!(
         result["applied"] == true,

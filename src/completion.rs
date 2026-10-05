@@ -204,9 +204,91 @@ pub fn catalog_path(config: &Config, config_path: Option<&Path>) -> std::path::P
     crate::config::specs_dir(config, config_path)
 }
 
+/// Keep an already published edit usable during a refresh of the exact same
+/// request. A temporary empty provider frame is not a final empty result.
+#[derive(Default)]
+pub(crate) struct PublishedCompletion {
+    previous: Option<(SourceRequest, Completion)>,
+}
+
+impl PublishedCompletion {
+    pub(crate) fn clear(&mut self) {
+        self.previous = None;
+    }
+    pub(crate) fn update(
+        &mut self,
+        request: &SourceRequest,
+        mut current: Completion,
+    ) -> Completion {
+        if current.incomplete
+            && current.candidates.is_empty()
+            && let Some((old_request, old)) = self.previous.as_ref()
+            && old_request == request
+            && old.replace_start == current.replace_start
+            && old.replace_end == current.replace_end
+        {
+            current.candidates.clone_from(&old.candidates);
+        }
+        self.previous = Some((request.clone(), current.clone()));
+        current
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn refresh_keeps_visible_candidate_but_final_empty_and_new_revision_do_not() {
+        let index = CommandIndex::default();
+        let (_, mut request) = plan(
+            &index,
+            Catalog::builtin(),
+            "cd sa",
+            5,
+            Path::new("."),
+            None,
+            1,
+            Arc::new(BTreeMap::new()),
+            true,
+            true,
+            &BTreeMap::new(),
+        );
+        let complete = Completion {
+            replace_start: 3,
+            replace_end: 5,
+            candidates: vec![Candidate {
+                label: "sample".into(),
+                insert_text: "sample".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let pending = Completion {
+            replace_start: 3,
+            replace_end: 5,
+            incomplete: true,
+            ..Default::default()
+        };
+        let mut published = PublishedCompletion::default();
+        published.update(&request, complete.clone());
+        let refreshed = published.update(&request, pending.clone());
+        assert!(refreshed.incomplete);
+        assert_eq!(refreshed.candidates, complete.candidates);
+        let mut empty = pending.clone();
+        empty.incomplete = false;
+        assert!(published.update(&request, empty).candidates.is_empty());
+        published.update(&request, complete.clone());
+        request.revision += 1;
+        assert!(
+            published
+                .update(&request, pending.clone())
+                .candidates
+                .is_empty()
+        );
+        published.update(&request, complete);
+        published.clear();
+        assert!(published.update(&request, pending).candidates.is_empty());
+    }
     #[test]
     fn directory_parameters_filter_real_filesystem_results() {
         let root = tempfile::tempdir().unwrap();
