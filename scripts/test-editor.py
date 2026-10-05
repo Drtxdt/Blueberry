@@ -41,6 +41,10 @@ def run(version, dotnet, require_coverage, original=None, layout="en-US"):
     ET.SubElement(ref, "Private").text = "true"
     if version == "2.0.0":
         ET.SubElement(refs, "PackageReference", Include="Microsoft.NET.Test.Sdk", Version="16.11.0")
+    # The net461 test SDK does not restore ObjectModel itself. Declare the
+    # collector's compile dependency explicitly, independently of cache history
+    # or whether the other upstream version has previously run on this machine.
+    ET.SubElement(refs, "PackageReference", Include="Microsoft.TestPlatform.ObjectModel", Version="17.10.0")
     tree.write(project, encoding="utf-8", xml_declaration=True)
     env = os.environ.copy()
     env.update(NUGET_PACKAGES=str(OUTPUT / "nuget"), DOTNET_CLI_HOME=str(OUTPUT / "dotnet-home"),
@@ -60,10 +64,11 @@ def run(version, dotnet, require_coverage, original=None, layout="en-US"):
         subprocess.run([str(compiler), "/nologo", "/target:exe", "/r:System.Windows.Forms.dll",
                         "/r:System.Drawing.dll", f"/out:{helper}",
                         str(ROOT / "scripts/editor-test-desktop.cs")], check=True)
-        models = sorted((OUTPUT / "nuget/microsoft.testplatform.objectmodel").glob(
-            "*/lib/net4*/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll"))
+        model = OUTPUT / "nuget/microsoft.testplatform.objectmodel/17.10.0/lib/net462/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll"
+        if not model.is_file():
+            raise RuntimeError("Pinned VSTest collector compile dependency was not restored")
         collector = test / "EditorTestLayout.dll"
-        subprocess.run([str(compiler), "/nologo", "/target:library", f"/r:{models[-1]}",
+        subprocess.run([str(compiler), "/nologo", "/target:library", f"/r:{model}",
                         f"/out:{collector}", str(ROOT / "scripts/editor-test-layout.cs")], check=True)
         settings = ET.Element("RunSettings")
         ET.SubElement(ET.SubElement(settings, "RunConfiguration"), "TestSessionTimeout").text = "120000"

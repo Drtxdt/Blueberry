@@ -24,24 +24,89 @@ fn wait_output_line(h: &mut Harness, expected: &str) -> Result<()> {
 }
 
 fn send_unicode_input(h: &mut Harness, input: &str) -> Result<()> {
-    // ConPTY's raw-text fallback synthesizes keys through the active output
-    // code page. Real win32-input-mode Unicode events carry UTF-16 explicitly
-    // and remain valid while PSReadLine temporarily restores that code page
-    // around a custom handler. Keep ASCII/VT editing sequences unchanged.
-    let mut encoded = String::new();
-    for ch in input.chars() {
-        if ch.is_ascii() {
-            encoded.push(ch);
-        } else {
-            for unit in ch.encode_utf16(&mut [0; 2]) {
-                // VK_PACKET identifies synthesized Unicode key input. VK=0,
-                // scan=0 identifies VT payload in ConPTY and is not a physical
-                // Unicode key on all supported console implementations.
-                encoded.push_str(&format!("\x1b[231;0;{unit};1;0;1_\x1b[231;0;{unit};0;0;1_"));
-            }
+    if input.is_ascii() {
+        return h.send(input.as_bytes());
+    }
+    // Compare exact UTF-16 native editor input. Old ConPTY clamps CSI values
+    // to 32767 (terminal#12977); raw UTF-8 synthesis instead depends on the
+    // code page temporarily restored by PSReadLine. Wire decoding retains its
+    // separate input_protocol and parser coverage; this tests editing semantics.
+    use std::os::windows::process::CommandExt;
+    let result = std::process::Command::new(std::env::current_exe()?)
+        .args(["native_unicode_input_helper", "--exact", "--ignored"])
+        .env(
+            "BLUEBERRY_UNICODE_CONSOLE_PID",
+            h.process_id().context("missing console owner")?.to_string(),
+        )
+        .env("BLUEBERRY_UNICODE_INPUT", input)
+        .creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW)
+        .output()?;
+    ensure!(
+        result.status.success(),
+        "native Unicode fixture failed: {} {}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "child helper invoked by native Unicode editing regressions"]
+fn native_unicode_input_helper() -> Result<()> {
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
+        Storage::FileSystem::{CreateFileW, OPEN_EXISTING},
+        System::Console::{
+            AttachConsole, FreeConsole, INPUT_RECORD, KEY_EVENT, WriteConsoleInputW,
+        },
+    };
+    let pid: u32 = std::env::var("BLUEBERRY_UNICODE_CONSOLE_PID")?.parse()?;
+    let text = std::env::var("BLUEBERRY_UNICODE_INPUT")?;
+    unsafe {
+        FreeConsole();
+    }
+    ensure!(
+        unsafe { AttachConsole(pid) } != 0,
+        "AttachConsole: {}",
+        std::io::Error::last_os_error()
+    );
+    let name: Vec<u16> = "CONIN$".encode_utf16().chain(Some(0)).collect();
+    let input = unsafe {
+        CreateFileW(
+            name.as_ptr(),
+            0xc0000000,
+            3,
+            std::ptr::null(),
+            OPEN_EXISTING,
+            0,
+            std::ptr::null_mut(),
+        )
+    };
+    ensure!(input != INVALID_HANDLE_VALUE, "open native input failed");
+    let mut records = Vec::new();
+    for unit in text.encode_utf16() {
+        for down in [1, 0] {
+            let mut record: INPUT_RECORD = unsafe { std::mem::zeroed() };
+            record.EventType = KEY_EVENT as u16;
+            record.Event.KeyEvent.bKeyDown = down;
+            record.Event.KeyEvent.wRepeatCount = 1;
+            record.Event.KeyEvent.wVirtualKeyCode = if unit == 13 { 13 } else { 0 };
+            record.Event.KeyEvent.uChar.UnicodeChar = unit;
+            records.push(record);
         }
     }
-    h.send(encoded.as_bytes())
+    let mut written = 0;
+    let success =
+        unsafe { WriteConsoleInputW(input, records.as_ptr(), records.len() as u32, &mut written) };
+    unsafe {
+        CloseHandle(input);
+        FreeConsole();
+    }
+    ensure!(
+        success != 0 && written as usize == records.len(),
+        "native input write incomplete"
+    );
+    Ok(())
 }
 
 #[test]

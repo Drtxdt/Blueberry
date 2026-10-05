@@ -1702,14 +1702,18 @@ impl State {
                 Event::Resize(cols, rows) => {
                     #[cfg(windows)]
                     let (cols, rows) = terminal::size().unwrap_or((cols, rows));
-                    if rows > 0 && cols > 0 && self.parser.screen().size() != (rows, cols) {
-                        master.resize(portable_pty::PtySize {
-                            rows,
-                            cols,
-                            pixel_width: 0,
-                            pixel_height: 0,
-                        })?;
-                        self.parser.screen_mut().set_size(rows, cols);
+                    if rows > 0 && cols > 0 {
+                        if self.parser.screen().size() != (rows, cols) {
+                            master.resize(portable_pty::PtySize {
+                                rows,
+                                cols,
+                                pixel_width: 0,
+                                pixel_height: 0,
+                            })?;
+                            self.parser.screen_mut().set_size(rows, cols);
+                        }
+                        // Coalesced resizes can return to the original size
+                        // after the outer terminal has reflowed menu cells.
                         self.overlay = Overlay::default();
                         self.repaint = true;
                     }
@@ -2162,17 +2166,20 @@ impl State {
             Input::Resize(cols, rows) => {
                 #[cfg(windows)]
                 let (cols, rows) = terminal::size().unwrap_or((cols, rows));
-                if rows > 0 && cols > 0 && self.parser.screen().size() != (rows, cols) {
-                    master.resize(portable_pty::PtySize {
-                        rows,
-                        cols,
-                        pixel_width: 0,
-                        pixel_height: 0,
-                    })?;
-                    self.parser.screen_mut().set_size(rows, cols);
+                if rows > 0 && cols > 0 {
+                    if self.parser.screen().size() != (rows, cols) {
+                        master.resize(portable_pty::PtySize {
+                            rows,
+                            cols,
+                            pixel_width: 0,
+                            pixel_height: 0,
+                        })?;
+                        self.parser.screen_mut().set_size(rows, cols);
+                    }
                     // The outer terminal can reflow old overlay cells during a
                     // resize. Repaint the shell model instead of erasing only
-                    // the overlay's obsolete row coordinates.
+                    // the overlay's obsolete row coordinates. This is also
+                    // required when coalesced events return to the old size.
                     self.overlay = Overlay::default();
                     self.repaint = true;
                 }
