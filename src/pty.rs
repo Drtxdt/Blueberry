@@ -218,6 +218,28 @@ pub fn shell_args_with_editor(
     args
 }
 
+// Let ConsoleHost run the bootstrap directly after its normal profile phase.
+// A -Command wrapper plus dot-sourcing adds a second script invocation; putting
+// the whole bootstrap into -Command also lengthens process creation measurably.
+pub fn direct_shell_args(
+    integration: &Path,
+    no_profile: bool,
+    editor: Option<&Path>,
+) -> Vec<String> {
+    let mut args = vec!["-NoLogo".into(), "-NoExit".into()];
+    if no_profile {
+        args.push("-NoProfile".into());
+    }
+    args.extend(["-File".into(), integration.to_string_lossy().into_owned()]);
+    if let Some(editor) = editor {
+        args.extend([
+            "-EditorManifest".into(),
+            editor.to_string_lossy().into_owned(),
+        ]);
+    }
+    args
+}
+
 /// Prefer PowerShell 7 and fall back to the Windows inbox shell.
 pub fn default_shell() -> PathBuf {
     if let Some(path) = std::env::var_os("BLUEBERRY_TEST_SHELL").filter(|path| !path.is_empty()) {

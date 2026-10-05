@@ -475,7 +475,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         );
     }
     let mut child = command
-        .args(pty::shell_args_with_editor(
+        .args(pty::direct_shell_args(
             &bootstrap,
             options.no_profile,
             editor.as_ref().map(|e| e.manifest.as_path()),
@@ -607,6 +607,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     "direct_explicit_module_ready"
                                 }
                                 Some("direct_module_loaded") => "direct_module_loaded",
+                                Some("direct_bridge_jit_started") => "direct_bridge_jit_started",
+                                Some("direct_bridge_jit_finished") => "direct_bridge_jit_finished",
+                                Some("direct_module_lookup") => "direct_module_lookup",
+                                Some("direct_module_imported") => "direct_module_imported",
+                                Some("direct_background_jit_started") => {
+                                    "direct_background_jit_started"
+                                }
+                                Some("direct_background_jit_finished") => {
+                                    "direct_background_jit_finished"
+                                }
                                 Some("direct_assembly_loaded") => "direct_assembly_loaded",
                                 Some("editor_loop_enter") => "editor_loop_enter",
                                 Some("editor_begin_complete") => "editor_begin_complete",
@@ -633,6 +643,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 }
                                 Some("direct_readline_begin") => "direct_readline_begin",
                                 Some("direct_background_jit") => "direct_background_jit",
+                                Some("direct_bridge_jit") => "direct_bridge_jit",
                                 Some("direct_background_jit_failed") => {
                                     "direct_background_jit_failed"
                                 }

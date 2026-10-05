@@ -19,6 +19,8 @@ namespace Blueberry.Direct {
         delegate void Register(string[] keys, Action<ConsoleKeyInfo?, object> handler, string brief, string description);
         delegate void ReplaceText(int start, int length, string text, Action<ConsoleKeyInfo?, object> instigator, object argument);
         static Type api;
+        static int startupPreparation, startupPreparationReported, startupPreparationCount;
+        static long startupPreparationStarted, startupPreparationFinished;
         static Version moduleVersion;
         static ICollection queuedInput;
         static BufferState buffer;
@@ -192,6 +194,7 @@ namespace Blueberry.Direct {
             long handshakeDeadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency*5;
             while(connected && !negotiated && Stopwatch.GetTimestamp()<handshakeDeadline) arrived.WaitOne(10);
             if(!negotiated) Disable("direct protocol capabilities were not acknowledged");
+            ReportStartupPreparation();
             TraceStage("direct_binding_snapshot",snapshotTicks,originals.Count);
             TraceStage("direct_binding_registration",registrationTicks,installed.Count);
             TraceStage("direct_bridge_initialization",Stopwatch.GetTimestamp()-initialization,installed.Count);
@@ -265,6 +268,36 @@ namespace Blueberry.Direct {
             Environment.SetEnvironmentVariable("BLUEBERRY_AUTOMATIC_MENU",AutomaticMenu ? "true" : "false");
             Environment.SetEnvironmentVariable("BLUEBERRY_AUTOMATIC_MENU_DISABLED_REASON",DisabledReason);
         }
+        public static void PrepareStartup() {
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_NO_HISTORY")=="1" && Environment.GetEnvironmentVariable("BLUEBERRY_TEST_DISABLE_PREJIT")=="1") return;
+            if(Interlocked.Exchange(ref startupPreparation,1)!=0) return;
+            // Bridge-only preparation can overlap module/options initialization.
+            // It has no reference to the editor type and cannot initialize that
+            // type on this worker. The ordinary editor pass starts in Initialize.
+            new Thread(delegate() {
+                startupPreparationStarted=Stopwatch.GetTimestamp(); int prepared=0;
+                foreach(string name in new string[]{"Initialize","Public","Send","ReadFrames"}) {
+                    try { RuntimeHelpers.PrepareMethod(typeof(Bridge).GetMethod(name,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static).MethodHandle); prepared++; } catch { }
+                }
+                foreach(string name in new string[]{"Encode","Parse"}) {
+                    try { RuntimeHelpers.PrepareMethod(typeof(Json).GetMethod(name).MethodHandle); prepared++; } catch { }
+                }
+                var parser=typeof(Json).GetNestedType("Parser",BindingFlags.NonPublic);
+                foreach(MethodInfo method in parser.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance|BindingFlags.DeclaredOnly)) {
+                    try { RuntimeHelpers.PrepareMethod(method.MethodHandle); prepared++; } catch { }
+                }
+                startupPreparationCount=prepared;
+                Volatile.Write(ref startupPreparationFinished,Stopwatch.GetTimestamp());
+                ReportStartupPreparation();
+            }) { IsBackground=true, Name="Blueberry bridge compilation" }.Start();
+        }
+        static void ReportStartupPreparation() {
+            long finished=Volatile.Read(ref startupPreparationFinished);
+            if(!diagnostic || !negotiated || finished==0 || Interlocked.Exchange(ref startupPreparationReported,1)!=0) return;
+            StartupPoint("direct_bridge_jit_started",startupPreparationStarted);
+            StartupPoint("direct_bridge_jit_finished",finished);
+            TraceStage("direct_bridge_jit",finished-startupPreparationStarted,startupPreparationCount);
+        }
         static void StartBackgroundJit() {
             if(Environment.GetEnvironmentVariable("BLUEBERRY_NO_HISTORY")=="1" && Environment.GetEnvironmentVariable("BLUEBERRY_TEST_DISABLE_PREJIT")=="1") return;
             // Compile only: never invoke editor methods, read the input buffer,
@@ -272,15 +305,29 @@ namespace Blueberry.Direct {
             // CLR compilation with the shell's remaining initialization.
             new Thread(delegate() {
                 long started=Stopwatch.GetTimestamp(); int prepared=0, failed=0;
-                var names=new HashSet<string>(new string[]{"Initialize","DelayedOneTimeInitialize","Render","ForceRender","ReallyRender","GenerateRender","Insert","SelfInsert","ReadKey","InputLoop","ProcessOneKey","ReadLineWithEditorIntegration","EditorProcessKey","EditorAfterKey"});
-                foreach(MethodInfo method in api.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static|BindingFlags.Instance|BindingFlags.DeclaredOnly)) {
-                    if(!names.Contains(method.Name) || method.ContainsGenericParameters || method.IsAbstract) continue;
-                    try { RuntimeHelpers.PrepareMethod(method.MethodHandle); prepared++; } catch { failed++; }
+                // Prepare the public ReadLine entry and native console setup
+                // before rendering helpers: both are reached before InputLoop.
+                // The editor type has already initialized on the shell thread.
+                var methods=api.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static|BindingFlags.Instance|BindingFlags.DeclaredOnly);
+                foreach(string name in new string[]{"ReadLine","Initialize","DelayedOneTimeInitialize","InputLoop","ReadKey","ReadLineWithEditorIntegration","Render","ForceRender","ReallyRender","GenerateRender","Insert","SelfInsert","ProcessOneKey","EditorProcessKey","EditorAfterKey"}) {
+                    foreach(MethodInfo method in methods) {
+                        if(method.Name!=name || method.ContainsGenericParameters || method.IsAbstract) continue;
+                        try { RuntimeHelpers.PrepareMethod(method.MethodHandle); prepared++; } catch { failed++; }
+                    }
+                }
+                var platform=api.Assembly.GetType("Microsoft.PowerShell.PlatformWindows");
+                if(platform!=null) {
+                    foreach(MethodInfo method in platform.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static)) {
+                        if(method.Name!="Init" || method.ContainsGenericParameters || method.IsAbstract) continue;
+                        try { RuntimeHelpers.PrepareMethod(method.MethodHandle); prepared++; } catch { failed++; }
+                    }
                 }
                 foreach(string name in new string[]{"Begin","Clear","EditorKey","Query","Refresh","Paint"}) {
                     try { RuntimeHelpers.PrepareMethod(typeof(Bridge).GetMethod(name,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static).MethodHandle); prepared++; } catch { failed++; }
                 }
                 TraceStage("direct_background_jit",Stopwatch.GetTimestamp()-started,prepared);
+                StartupPoint("direct_background_jit_started",started);
+                StartupPoint("direct_background_jit_finished",Stopwatch.GetTimestamp());
                 if(failed>0) TraceStage("direct_background_jit_failed",0,failed);
             }) { IsBackground=true, Name="Blueberry startup compilation" }.Start();
         }

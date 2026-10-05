@@ -592,6 +592,60 @@ fn direct_runtime_builtin_rebinding_takes_priority_over_menu_accept() -> Result<
 }
 
 #[test]
+fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let user = dir.path().join("user profile");
+    for edition in ["PowerShell", "WindowsPowerShell"] {
+        let documents = user.join("Documents").join(edition);
+        std::fs::create_dir_all(&documents)?;
+        std::fs::write(
+            documents.join("Microsoft.PowerShell_profile.ps1"),
+            r#"
+$global:BlueberryProfileCount++
+Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('PROFILE_BINDING') }
+$global:LASTEXITCODE = 37
+"#,
+        )?;
+    }
+    let data = dir.path().join("data");
+    std::fs::create_dir_all(&data)?;
+    let mut h = Harness::start(
+        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--data-dir".into(),
+            data.to_string_lossy().into_owned(),
+            "--trace".into(),
+            data.join("trace.jsonl").to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            ("USERPROFILE".into(), user.to_string_lossy().into_owned()),
+            (
+                "APPDATA".into(),
+                dir.path().join("roaming").to_string_lossy().into_owned(),
+            ),
+            ("TERM".into(), "xterm-256color".into()),
+        ]),
+        String::new(),
+    )?;
+    wait_editor_begin(&mut h, &data, 1)?;
+    h.send(b"[Console]::WriteLine(('PROFILE:{0}:{1}' -f $global:BlueberryProfileCount, $LASTEXITCODE))\r")?;
+    wait_output_line(&mut h, "PROFILE:1:37")?;
+    h.send(b"\x07")?;
+    h.wait_text("PROFILE_BINDING", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_preserves_command_status_across_prompt_lifecycle() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let mut h = start(dir.path())?;

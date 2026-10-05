@@ -25,7 +25,7 @@ assets are installed atomically in a content-addressed session resource cache.
 selects the private baseline. `auto` uses supported module discovery; a loaded
 assembly is never replaced. A different loaded module or missing interface
 uses the existing compatibility adapter and records the fallback reason.
-The default host remains `nested`.
+The Windows default host is `direct`; `--host-mode nested` remains available.
 
 The refresh signal is an AutoResetEvent owned for the PSReadLine singleton's
 lifetime. Only the outer input loop waits on it. Nested key reads (search,
@@ -34,10 +34,15 @@ The editor thread owns callbacks, buffer reads, replacement and console output.
 Callback exceptions unregister the integration. A read-line session ends before
 command execution; revisions reject results from preceding prompts.
 
-After assembly identity verification, a finite background pass asks the CLR to
+The file bootstrap first prepares only bridge/protocol methods while the shell
+loads module options. This pass never touches the editor type. After assembly
+identity verification and normal shell-thread type initialization, a finite
+background pass asks the CLR to
 prepare selected initialization, editing and painting methods. It invokes no
 editor methods and performs no console I/O; normal CLR compilation remains the
-fallback. This overlaps first-use JIT work with the remainder of shell startup.
+fallback. The public `ReadLine` entry and console initialization are prepared
+before rendering helpers. This overlaps first-use JIT work with the remainder
+of shell startup without moving editor initialization ahead of profiles.
 It is not an idle polling thread. Isolated probes can compare it with
 `BLUEBERRY_TEST_DISABLE_PREJIT=1`; formal matrices reject that override.
 

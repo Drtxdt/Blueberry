@@ -1,19 +1,31 @@
 # Single-layer bootstrap. The assembly is built with the EXE, never compiled
 # during product startup. The editing thread owns every console write.
+param([string]$EditorManifest)
 $blueberryDirectScriptEnter = if ($env:BLUEBERRY_DIRECT_TRACE -eq '1') { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
-if (-not $blueberryDirectModule) { $blueberryDirectModule = Get-Module PSReadLine }
-if (-not $blueberryDirectModule) {
-    Import-Module PSReadLine -ErrorAction Stop
-    $blueberryDirectModule = Get-Module PSReadLine
-}
-$blueberryDirectModuleLoaded = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
 $null = [Reflection.Assembly]::LoadFrom("$PSScriptRoot\direct-bridge.dll")
 $blueberryDirectAssemblyLoaded = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+[Blueberry.Direct.Bridge]::PrepareStartup()
+$blueberryDirectModule = Get-Module PSReadLine
+$blueberryDirectModuleLookup = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+if (-not $blueberryDirectModule) {
+    if ($EditorManifest) {
+        try { Import-Module -Name $EditorManifest -ErrorAction Stop }
+        catch { Import-Module PSReadLine -ErrorAction Stop }
+    } else {
+        Import-Module PSReadLine -ErrorAction Stop
+    }
+    $blueberryDirectModule = Get-Module PSReadLine
+}
+$blueberryDirectModuleImported = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
+if ($env:BLUEBERRY_NO_HISTORY -eq '1') { Set-PSReadLineOption -HistorySaveStyle SaveNothing }
+$blueberryDirectModuleLoaded = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
 [Blueberry.Direct.Bridge]::Initialize([Microsoft.PowerShell.PSConsoleReadLine], $env:BLUEBERRY_PIPE_NAME, $env:BLUEBERRY_TOKEN, $PSVersionTable.PSVersion.ToString(), $blueberryDirectModule.Version.ToString())
 if ($blueberryDirectScriptEnter) {
     if ($blueberryDirectCommandEnter) { [Blueberry.Direct.Bridge]::StartupPoint('direct_command_enter', $blueberryDirectCommandEnter) }
     if ($blueberryDirectExplicitModuleReady) { [Blueberry.Direct.Bridge]::StartupPoint('direct_explicit_module_ready', $blueberryDirectExplicitModuleReady) }
     [Blueberry.Direct.Bridge]::StartupPoint('direct_script_enter', $blueberryDirectScriptEnter)
+    [Blueberry.Direct.Bridge]::StartupPoint('direct_module_lookup', $blueberryDirectModuleLookup)
+    [Blueberry.Direct.Bridge]::StartupPoint('direct_module_imported', $blueberryDirectModuleImported)
     [Blueberry.Direct.Bridge]::StartupPoint('direct_module_loaded', $blueberryDirectModuleLoaded)
     [Blueberry.Direct.Bridge]::StartupPoint('direct_assembly_loaded', $blueberryDirectAssemblyLoaded)
 }
