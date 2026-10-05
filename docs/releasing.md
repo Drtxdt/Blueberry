@@ -17,6 +17,7 @@ GitHub 仓库存放源码；Release 存放用户下载的程序。CI 为已冻�
 ```powershell
 cargo update --offline --package blueberry
 python scripts/prepare-editor.py
+python scripts/prepare-conpty.py
 cargo build --release --locked
 ```
 
@@ -63,6 +64,7 @@ git push origin v0.5.0
 
 ```powershell
 python scripts/prepare-editor.py
+python scripts/prepare-conpty.py
 cargo build --release --locked
 .\scripts\licenses.ps1 -OutputPath .\THIRD-PARTY-NOTICES.txt
 .\scripts\release.ps1 -ExePath .\target\release\blueberry.exe -Version 0.5.0 -OutputDirectory .\dist\release
@@ -87,8 +89,9 @@ cargo build --release --locked
 ## 私有编辑器候选矩阵
 
 Windows 候选默认 direct，nested 通过 `--host-mode nested` 保留。最终默认配置必须重新验收，不能用此前探索结果代替发布门槛。
-Windows 构建先执行 `scripts/prepare-editor.py`；上游提交、补丁、许可证和每个 DLL 摘要
+Windows 构建先执行 `scripts/prepare-editor.py` 和 `scripts/prepare-conpty.py`；上游提交、补丁、许可证和每个 DLL 摘要
 由私有编辑器构建清单管理，`doctor --json` 的 `build.private_editors` 随发布清单一起封存。
+固定 ConPTY 的包与文件摘要由 `build.conpty` 封存，探针报告还须包含实际 `probe_conpty`；系统回退或运行时身份不一致不能通过。探针准备耗时单独报告，不计入某一侧启动；nested 产品内部的运行时准备仍计入产品耗时。
 
 `scripts/run-editor-matrix.ps1` 串行运行三个组合的启动与说明开／关热态矩阵；默认是
 10 对启动、每子组 30 个样本的探索。正式运行须指定 `-Formal -Samples 300 -StartupPairs 30`，
@@ -98,4 +101,4 @@ Windows 构建先执行 `scripts/prepare-editor.py`；上游提交、补丁、�
 诊断可用 `--diagnostic-trace-directory`，再由 `scripts/analyze-editor-trace.py` 关联 QPC 阶段，
 但启用 trace 的数据不能作为正式计时。
 
-自动矩阵不替代 Windows Terminal 的真实输入法、剪贴板、视觉、升级和回滚检查。
+自动矩阵不替代 Windows Terminal 的真实输入法、剪贴板、视觉、升级和回滚检查。最终包交付用户后按 [0.5.0 人工验收清单](v0.5.0-windows-terminal-acceptance.md) 留证；清单本身不表示已经通过。

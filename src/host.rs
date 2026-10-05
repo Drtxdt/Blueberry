@@ -741,14 +741,17 @@ impl RawMode {
                 if GetConsoleMode(handle, &mut original) == 0 {
                     return Err(std::io::Error::last_os_error());
                 }
+                // ReadConsoleInputW already preserves native key identities.
+                // VT input would re-encode Ctrl/Enter as CSI_ strings among
+                // raw paste characters, destroying the payload boundary.
                 let mode = (original
                     & !(ENABLE_LINE_INPUT
                         | ENABLE_ECHO_INPUT
                         | ENABLE_PROCESSED_INPUT
+                        | ENABLE_VIRTUAL_TERMINAL_INPUT
                         | ENABLE_QUICK_EDIT_MODE
                         | ENABLE_MOUSE_INPUT))
                     | ENABLE_WINDOW_INPUT
-                    | ENABLE_VIRTUAL_TERMINAL_INPUT
                     | ENABLE_EXTENDED_FLAGS;
                 if SetConsoleMode(handle, mode) == 0 {
                     return Err(std::io::Error::last_os_error());

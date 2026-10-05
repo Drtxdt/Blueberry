@@ -109,6 +109,15 @@ def check_identity(report, executable_hash, profile):
     return shell_major, psreadline
 
 
+def check_conpty(report, expected, label, product=True):
+    runtime = report.get("probe_conpty", {})
+    require(runtime.get("mode") == "pinned", f"{label}: verified probe ConPTY missing")
+    for key in ("package", "version", "sha256", "files"):
+        require(runtime.get(key) == expected.get(key), f"{label}: probe ConPTY identity mismatch ({key})")
+        if product:
+            require(report.get("product_conpty", {}).get(key) == expected.get(key), f"{label}: product ConPTY identity mismatch ({key})")
+
+
 def check_frozen_report(report, commit, environment, label):
     require(report.get("source_commit", "").lower() == commit.lower(), f"{label}: source commit mismatch")
     require(report.get("source_dirty") is False, f"{label}: unfrozen or unknown build state")
@@ -380,6 +389,9 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         manifest = json.loads(manifest_bytes)
         require(manifest.get("version") == VERSION and manifest.get("platform") == "windows-x64", "package manifest version/platform mismatch")
         require(manifest.get("build", {}).get("default_host_mode") == "direct", "final package does not default to direct")
+        conpty = manifest.get("build", {}).get("conpty", {})
+        pinned_conpty = read_json(Path(__file__).resolve().parents[1] / "vendor/conpty/upstream.json")
+        require(conpty == pinned_conpty, "package ConPTY identity does not match the frozen dependency")
         require(sha256_zip_member(archive, "blueberry.exe") == executable_hash, "packaged EXE SHA-256 mismatch")
         files = manifest.get("files", [])
         require(isinstance(files, list), "package manifest has no file list")
@@ -416,16 +428,20 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
                 and all(isinstance(environment.get(field), str) and environment[field].strip() for field in ("machine_id", "power_policy")), f"{profile}: frozen environment missing")
         check_frozen_report(read_json(report_path(root, startup[profile])), commit, environment, profile)
         check_startup(report_path(root, startup[profile]), executable_hash, profile)
+        check_conpty(read_json(report_path(root, startup[profile])), conpty, profile)
         require(isinstance(hot[profile], dict) and set(hot[profile]) == set(VARIANTS), f"{profile}: hot variants incomplete")
         for variant in VARIANTS:
             check_frozen_report(read_json(report_path(root, hot[profile][variant])), commit, environment, f"{profile}/{variant}")
             check_hot(report_path(root, hot[profile][variant]), executable_hash, profile, variant)
+            check_conpty(read_json(report_path(root, hot[profile][variant])), conpty, f"{profile}/{variant}")
         require(isinstance(nested[profile], dict) and set(nested[profile]) == set(NESTED_VARIANTS), f"{profile}: nested compatibility variants incomplete")
         for variant in NESTED_VARIANTS:
             path = report_path(root, nested[profile][variant])
             check_frozen_report(read_json(path), commit, environment, f"{profile}/{variant}")
             check_nested(path, executable_hash, profile, variant)
+            check_conpty(read_json(path), conpty, f"{profile}/{variant}")
         check_frozen_report(read_json(report_path(root, comparisons[profile])), commit, environment, f"{profile} comparison")
+        check_conpty(read_json(report_path(root, comparisons[profile])), conpty, f"{profile} comparison", product=False)
     check_manual_acceptance(evidence, executable_hash, commit)
     check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
     for profile in PROFILES:

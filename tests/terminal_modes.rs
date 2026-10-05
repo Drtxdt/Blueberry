@@ -271,83 +271,17 @@ impl Drop for RunningHost {
     }
 }
 
+#[path = "support/console_snapshot.rs"]
+mod console_snapshot;
+
 #[test]
 #[ignore = "read-only console snapshot helper invoked by resize regressions"]
 fn console_snapshot_helper() -> Result<()> {
-    use windows_sys::Win32::System::Console::{
-        AttachConsole, CONSOLE_SCREEN_BUFFER_INFO, COORD, FreeConsole, GetConsoleScreenBufferInfo,
-        ReadConsoleOutputCharacterW,
-    };
-    let pid = std::env::var("BLUEBERRY_SNAPSHOT_PID")?.parse()?;
-    let path = std::env::var("BLUEBERRY_SNAPSHOT_PATH")?;
-    unsafe { FreeConsole() };
-    ensure!(
-        unsafe { AttachConsole(pid) } != 0,
-        "attach snapshot console"
-    );
-    let output = open_console("CONOUT$")?;
-    let mut info: CONSOLE_SCREEN_BUFFER_INFO = unsafe { std::mem::zeroed() };
-    ensure!(
-        unsafe { GetConsoleScreenBufferInfo(output, &mut info) } != 0,
-        "read console size"
-    );
-    let mut lines = Vec::new();
-    for y in info.srWindow.Top..=info.srWindow.Bottom {
-        let mut row = vec![0u16; (info.srWindow.Right - info.srWindow.Left + 1) as usize];
-        let mut read = 0;
-        ensure!(
-            unsafe {
-                ReadConsoleOutputCharacterW(
-                    output,
-                    row.as_mut_ptr(),
-                    row.len() as u32,
-                    COORD {
-                        X: info.srWindow.Left,
-                        Y: y,
-                    },
-                    &mut read,
-                )
-            } != 0,
-            "read console row"
-        );
-        lines.push(String::from_utf16_lossy(&row[..read as usize]));
-    }
-    unsafe {
-        CloseHandle(output);
-        FreeConsole();
-    }
-    fs::write(
-        path,
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "width": info.dwSize.X, "height": info.dwSize.Y,
-            "cursor": [info.dwCursorPosition.X, info.dwCursorPosition.Y],
-            "screen": lines.join("\n"),
-        }))?,
-    )?;
-    Ok(())
+    console_snapshot::write_attached()
 }
 
 fn snapshot_console(harness: &Harness, path: &Path) -> Result<()> {
-    use std::os::windows::process::CommandExt;
-    let result = std::process::Command::new(std::env::current_exe()?)
-        .args(["console_snapshot_helper", "--exact", "--ignored"])
-        .env(
-            "BLUEBERRY_SNAPSHOT_PID",
-            harness
-                .process_id()
-                .context("missing host PID")?
-                .to_string(),
-        )
-        .env("BLUEBERRY_SNAPSHOT_PATH", path)
-        .creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW)
-        .output()?;
-    ensure!(
-        result.status.success(),
-        "console snapshot failed: {} {}",
-        String::from_utf8_lossy(&result.stdout),
-        String::from_utf8_lossy(&result.stderr)
-    );
-    Ok(())
+    console_snapshot::capture(harness, path)
 }
 
 fn selected_pwsh() -> PathBuf {
@@ -517,7 +451,7 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
 fn clear_line_and_send(harness: &mut Harness, bytes: &[u8], description: &str) -> Result<()> {
     clear_line(harness).with_context(|| format!("clear line before {description}"))?;
     harness
-        .send(bytes)
+        .send_text(std::str::from_utf8(bytes)?)
         .with_context(|| format!("send {description}"))
 }
 
@@ -533,7 +467,7 @@ fn run_and_wait_for_marker(
         buffer["line"].as_str() == Some(command),
         "incomplete command: {buffer}"
     );
-    harness.send(b"\r")?;
+    harness.send_text("\r")?;
     harness.event("execute", PTY_TIMEOUT)?;
     harness
         .wait_text(marker, PTY_TIMEOUT)
@@ -677,7 +611,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
         "external alternate-screen PowerShell",
     )?;
     request_real_buffer(&mut host.harness, &command)?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness
         .wait_text("SS_ALT_READY", PTY_TIMEOUT)
@@ -691,7 +625,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
     host.harness
         .resize(34, 140)
         .context("resize alternate screen large")?;
-    host.harness.send(b"q")?;
+    host.harness.send_text("q")?;
     host.harness
         .wait_text("SS_ALT_EXIT_MARKER", PTY_TIMEOUT)
         .context("wait for restored-screen marker")?;
@@ -719,7 +653,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
     // The same prompt must accept a real command candidate after the nested
     // full-screen process exits. This catches a stale `prompt=false` state as
     // well as an overlay left at the alternate screen's old coordinates.
-    host.harness.send(b"gi")?;
+    host.harness.send_text("gi")?;
     host.harness
         .wait_text("⌘ git ", PTY_TIMEOUT)
         .context("wait for Git menu after alternate-screen exit")?;
@@ -731,7 +665,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
         &host.harness,
         &host._data_dir.path().join("alternate-before-tab.json"),
     )?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     let acceptance = host.harness.event("accept_state", PTY_TIMEOUT)?;
     fs::write(
         host._data_dir.path().join("alternate-accept-state.json"),
@@ -748,7 +682,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
         |screen| !screen.contains("⌘ git "),
     )?;
     request_real_buffer(&mut host.harness, "git")?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness
         .wait_text("SS_RESIZE_GIT_OK", PTY_TIMEOUT)
@@ -843,7 +777,7 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
         "resize damaged the real PSReadLine buffer: {before_accept}"
     );
     select_native_candidate(&mut host, "git")?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     let accepted = wait_until(
         &mut host.harness,
         "accepted post-output Git candidate",
@@ -873,7 +807,7 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
     // Enter must continue to execute the current line even while the buffer
     // probe has refreshed a menu. Keeping Esc out of this sequence avoids the
     // Windows terminal decoding an adjacent Esc+Enter as an Alt chord.
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     host.harness
         .wait_text("SS_RESIZE_GIT_OK", PTY_TIMEOUT)
         .context("execute accepted Git after resize/output")?;
@@ -910,7 +844,7 @@ fn mouse_passthrough(native: bool) -> Result<()> {
         "external mouse helper",
     )?;
     request_real_buffer(&mut host.harness, &command)?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness
         .wait_text("SS_MOUSE_READY", PTY_TIMEOUT)

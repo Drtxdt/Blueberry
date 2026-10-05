@@ -42,6 +42,12 @@ impl StatusWriter {
         Self(shared, Some(thread))
     }
     pub fn update(&self, value: Value) {
+        #[cfg(windows)]
+        let value = {
+            let mut value = value;
+            value["conpty"] = crate::conpty::loaded_identity();
+            value
+        };
         self.0.0.lock().unwrap().value = Some(value);
         self.0.1.notify_one();
     }

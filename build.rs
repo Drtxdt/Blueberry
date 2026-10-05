@@ -789,7 +789,53 @@ fn embed_private_editor() {
     fs::write(output.join("private_editor.rs"), generated).expect("embed private editor");
 }
 
+#[cfg(windows)]
+fn embed_conpty() {
+    use sha2::{Digest, Sha256};
+    println!("cargo:rerun-if-changed=vendor/conpty/upstream.json");
+    println!("cargo:rerun-if-changed=scripts/prepare-conpty.py");
+    assert_eq!(
+        env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
+        "x86_64",
+        "The pinned ConPTY package currently supports Windows x64 only"
+    );
+    let spec: serde_json::Value =
+        serde_json::from_slice(&fs::read("vendor/conpty/upstream.json").expect("ConPTY manifest"))
+            .expect("valid ConPTY manifest");
+    let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap())
+        .join("target/conpty")
+        .join(spec["version"].as_str().unwrap());
+    let mut generated = String::from("const CONPTY_FILES: &[(&str, &[u8], &str)] = &[\n");
+    for entry in spec["files"].as_array().unwrap() {
+        let name = entry["path"].as_str().unwrap();
+        let hash = entry["sha256"].as_str().unwrap();
+        let path = root.join(name);
+        println!("cargo:rerun-if-changed={}", path.display());
+        let bytes =
+            fs::read(&path).expect("Prepare ConPTY first: python scripts/prepare-conpty.py");
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&bytes)),
+            hash,
+            "ConPTY payload digest mismatch"
+        );
+        writeln!(
+            generated,
+            "({name:?}, include_bytes!({:?}), {hash:?}),",
+            path.to_string_lossy()
+        )
+        .unwrap();
+    }
+    generated.push_str("];\n");
+    fs::write(
+        PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("conpty.rs"),
+        generated,
+    )
+    .unwrap();
+}
+
 fn main() {
+    #[cfg(windows)]
+    embed_conpty();
     #[cfg(windows)]
     embed_legacy_json();
     #[cfg(windows)]

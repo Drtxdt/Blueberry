@@ -85,17 +85,67 @@ pub fn configured(event: &Event, keys: &crate::config::KeyBindings) -> Option<In
 }
 
 pub fn protocol_chord(prefix: &str, suffix: char) -> Vec<u8> {
-    let number = match prefix {
-        "F5" => 15,
-        "F6" => 17,
-        "F7" => 18,
-        "F8" => 19,
-        "F9" => 20,
-        "F10" => 21,
-        "F11" => 23,
-        _ => 24,
-    };
-    format!("\x1b[{number}~{suffix}").into_bytes()
+    #[cfg(windows)]
+    {
+        let number = prefix
+            .strip_prefix('F')
+            .and_then(|value| value.parse::<u16>().ok())
+            .filter(|number| (5..=12).contains(number))
+            .unwrap_or(12);
+        let mut bytes = windows_key_record(0x6f + number, 0, 0);
+        bytes.extend(windows_text_records(&suffix.to_string()));
+        bytes
+    }
+    #[cfg(not(windows))]
+    {
+        let number = match prefix {
+            "F5" => 15,
+            "F6" => 17,
+            "F7" => 18,
+            "F8" => 19,
+            "F9" => 20,
+            "F10" => 21,
+            "F11" => 23,
+            _ => 24,
+        };
+        format!("\x1b[{number}~{suffix}").into_bytes()
+    }
+}
+
+#[cfg(windows)]
+fn windows_key_record(virtual_key: u16, unicode: u16, control: u32) -> Vec<u8> {
+    #[link(name = "user32")]
+    unsafe extern "system" {
+        fn MapVirtualKeyW(code: u32, kind: u32) -> u32;
+    }
+    let scan = unsafe { MapVirtualKeyW(u32::from(virtual_key), 0) };
+    format!("\x1b[{virtual_key};{scan};{unicode};1;{control};1_\x1b[{virtual_key};{scan};{unicode};0;{control};1_").into_bytes()
+}
+
+/// Actual text keystrokes, as a Win32-input-mode terminal sends them. Unlike
+/// injecting a dummy key to acknowledge this protocol, every record corresponds
+/// to real requested input. ConPTY uses seeing this protocol to disambiguate
+/// later cursor-position replies from modified F3 keys.
+#[cfg(windows)]
+pub fn windows_text_records(text: &str) -> Vec<u8> {
+    #[link(name = "user32")]
+    unsafe extern "system" {
+        fn VkKeyScanW(character: u16) -> i16;
+    }
+    let mut output = Vec::new();
+    for unicode in text.encode_utf16() {
+        let mapped = unsafe { VkKeyScanW(unicode) };
+        let (virtual_key, modifiers) = if mapped == -1 {
+            (0, 0)
+        } else {
+            ((mapped & 0xff) as u16, (mapped as u16 >> 8) & 7)
+        };
+        let control = (u32::from(modifiers & 1 != 0) * 16)
+            | (u32::from(modifiers & 2 != 0) * 8)
+            | (u32::from(modifiers & 4 != 0) * 2);
+        output.extend(windows_key_record(virtual_key, unicode, control));
+    }
+    output
 }
 
 pub fn mouse_bytes(event: crossterm::event::MouseEvent, screen: &vt100::Screen) -> Option<Vec<u8>> {

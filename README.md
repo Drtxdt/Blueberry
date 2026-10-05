@@ -186,6 +186,7 @@ blueberry run --shell pwsh.exe
 ```powershell
 # Windows 首次构建，以及 vendor/psreadline 或准备脚本变更后执行
 python scripts/prepare-editor.py
+python scripts/prepare-conpty.py
 cargo build --release --locked
 .\scripts\verify-local.ps1 -Shell pwsh.exe
 ```

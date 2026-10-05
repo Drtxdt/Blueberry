@@ -478,6 +478,8 @@ try {
     }
     $buildIdentity = (& (Join-Path $stagePayload 'blueberry.exe') doctor --json | ConvertFrom-Json).build
     if ($LASTEXITCODE -ne 0 -or -not $buildIdentity.private_editors) { throw 'Executable has no private editor build identity' }
+    $conpty = Get-Content -LiteralPath (Join-Path $repoRoot 'vendor/conpty/upstream.json') -Raw | ConvertFrom-Json
+    if (-not $buildIdentity.conpty -or $buildIdentity.conpty.sha256 -ne $conpty.sha256) { throw 'Executable has no matching pinned ConPTY identity' }
     $manifest = [ordered]@{
         schema_version = 1; product = 'Blueberry'; name = 'Blueberry'; version = $Version
         platform = 'windows-x64'; architecture = 'x64'; executable = 'blueberry.exe'

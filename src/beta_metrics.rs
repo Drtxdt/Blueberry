@@ -344,6 +344,12 @@ pub fn run_traced(
     trace_directory: Option<&Path>,
 ) -> Result<Value> {
     let identity = metrics::build_identity(executable)?;
+    #[cfg(windows)]
+    let probe_runtime_prepare_ms = {
+        let start = Instant::now();
+        crate::conpty::ensure_loaded()?;
+        start.elapsed().as_secs_f64() * 1000.0
+    };
     let hash_before = metrics::executable_sha256(executable)?;
     #[cfg(windows)]
     let frozen_environment = crate::product_probe::environment(shell)?;
@@ -577,6 +583,9 @@ pub fn run_traced(
     #[cfg(windows)]
     let report = {
         let mut report = report;
+        report["product_conpty"] = identity["conpty"].clone();
+        report["probe_conpty"] = crate::conpty::loaded_identity();
+        report["probe_runtime_prepare_ms"] = json!(probe_runtime_prepare_ms);
         ensure!(
             crate::product_probe::environment(shell)? == frozen_environment,
             "environment changed: whole hot batch invalidated"
@@ -944,7 +953,7 @@ fn observe_query(
     };
     #[cfg(not(windows))]
     let input_qpc = None;
-    harness.send(line.as_bytes())?;
+    harness.send_text(line)?;
     let deadline = started + WAIT_TIMEOUT;
     let mut input_echo = None;
     let mut first_menu = None;
@@ -1335,8 +1344,8 @@ fn measure_throughput(
         marker
     );
     let started = Instant::now();
-    harness.send(command.as_bytes())?;
-    harness.send(b"\r")?;
+    harness.send_text(&command)?;
+    harness.send_text("\r")?;
     wait_for_line(harness, &marker, WAIT_TIMEOUT)?;
     let elapsed = started.elapsed().as_secs_f64().max(f64::EPSILON);
     Ok(OUTPUT_BYTES as f64 / elapsed)
@@ -1385,7 +1394,7 @@ fn measure_pwsh_baseline(
     for index in 0..10 {
         let line = format!("SS_ECHO_CONTROL_{index}");
         let started = Instant::now();
-        harness.send(line.as_bytes())?;
+        harness.send_text(&line)?;
         let deadline = started + WAIT_TIMEOUT;
         loop {
             if has_input_echo(&harness.viewport_contents(), &line) {
@@ -1409,8 +1418,8 @@ fn measure_pwsh_baseline(
         marker
     );
     let started = Instant::now();
-    harness.send(command.as_bytes())?;
-    harness.send(b"\r")?;
+    harness.send_text(&command)?;
+    harness.send_text("\r")?;
     wait_for_line(&mut harness, &marker, WAIT_TIMEOUT)?;
     let elapsed = started.elapsed().as_secs_f64().max(f64::EPSILON);
     let throughput = OUTPUT_BYTES as f64 / elapsed;
@@ -1489,6 +1498,17 @@ fn wait_for_transport(
                     let Some(psreadline_version) = value["psreadline_version"].as_str() else {
                         continue;
                     };
+                    #[cfg(windows)]
+                    if value["host_mode"] == "nested" {
+                        let expected = crate::conpty::build_identity();
+                        ensure!(
+                            value["conpty"]["mode"] == "pinned"
+                                && value["conpty"]["sha256"] == expected["sha256"]
+                                && value["conpty"]["files"] == expected["files"],
+                            "Nested host loaded an unexpected ConPTY runtime: {}",
+                            value["conpty"]
+                        );
+                    }
                     return Ok((
                         actual.to_owned(),
                         shell_version.to_owned(),
@@ -1498,7 +1518,8 @@ fn wait_for_transport(
                             .as_bool()
                             .unwrap_or(value["capabilities"]["ready"] == true),
                         json!({"mode":value["editor_mode"],"patch":value["editor_patch"],
-                            "dll_sha256":value["editor_dll_sha256"],"fallback_reason":value["editor_fallback_reason"]}),
+                            "dll_sha256":value["editor_dll_sha256"],"fallback_reason":value["editor_fallback_reason"],
+                            "conpty":value["conpty"]}),
                     ));
                 }
             }

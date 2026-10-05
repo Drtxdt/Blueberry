@@ -1,0 +1,8 @@
+{
+  "archive": "conpty-native-input-integration.zip",
+  "sha256": "e3ba61bdb3942a7b32c4cc46c05349bfd9506644311f6d3f9e377151d3b3612f",
+  "bytes": 27141226,
+  "files": 3689,
+  "fixtures": 328,
+  "formal_acceptance": false
+}

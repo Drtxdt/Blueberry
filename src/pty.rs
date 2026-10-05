@@ -79,6 +79,8 @@ pub fn spawn(
     rows: u16,
     cols: u16,
 ) -> Result<Session> {
+    #[cfg(windows)]
+    crate::conpty::ensure_loaded()?;
     let pair = native_pty_system()
         .openpty(PtySize {
             rows,

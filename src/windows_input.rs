@@ -1,11 +1,10 @@
 //! Windows console input with bracketed-paste support.
 //!
-//! With `ENABLE_VIRTUAL_TERMINAL_INPUT` enabled, ConPTY exposes terminal
-//! bytes as `KEY_EVENT_RECORD`s with `wVirtualKeyCode == 0`. The regular
-//! crossterm Windows reader does not retain those bytes, so this module owns
-//! the native `CONIN$` queue and forwards the byte stream to the crate's
-//! incremental VT parser. Native key, mouse, resize and focus records keep
-//! their existing crossterm-compatible representation.
+//! Consume native INPUT_RECORDs without asking the console to re-encode them
+//! as VT/Win32 input text. ConPTY passes unknown VT controls (including paste
+//! markers) through as VK0 records even in native input mode. This reader keeps
+//! those markers and native payload records in one paste transaction. Legacy
+//! VT/enveloped records remain supported by the incremental transport parser.
 
 #![cfg(windows)]
 
@@ -82,7 +81,7 @@ const DOUBLE_CLICK: u32 = 0x0002;
 const MOUSE_WHEELED: u32 = 0x0004;
 const MOUSE_HWHEELED: u32 = 0x0008;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InputTransport {
     /// No input record has identified the terminal's wire format yet.
     /// Ordinary VT and Win32 CSI_ records share the ESC-prefixed start.
@@ -202,8 +201,9 @@ pub enum PasteRejection {
 /// A Windows console reader that emits crossterm events and coalesces
 /// bracketed paste into one `Event::Paste`.
 ///
-/// The process must enable `ENABLE_VIRTUAL_TERMINAL_INPUT` in its raw input
-/// mode before constructing this reader. `Reader` does not change or restore
+/// The process must disable `ENABLE_VIRTUAL_TERMINAL_INPUT` in its raw input
+/// mode: re-encoding native control keys can put CSI_ text inside a raw paste.
+/// `Reader` does not change or restore
 /// console mode; the host's existing raw-mode guard remains the owner of that
 /// lifecycle.
 pub struct Reader {
@@ -499,6 +499,20 @@ impl Reader {
     }
 
     fn consume_key(&mut self, key: KeyRecord) -> io::Result<()> {
+        #[cfg(debug_assertions)]
+        if std::env::var_os("BLUEBERRY_TEST_INPUT_RECORDS").is_some() {
+            input_probe_trace(format_args!(
+                "key vk={} scan={} uc={} down={} control={} repeat={} transport={:?} paste={}",
+                key.virtual_key,
+                key.scan,
+                key.unicode,
+                key.down,
+                key.control_state,
+                key.repeat,
+                self.transport,
+                self.paste.is_some()
+            ));
+        }
         // With VT input enabled, a physical Escape arrives as a raw ESC byte
         // followed by a native VK_ESCAPE key-up record. That release is the
         // console's unambiguous boundary for a lone physical Escape; use it
@@ -1587,6 +1601,45 @@ mod tests {
             key.repeat,
         );
         feed_bytes(reader, bytes.as_bytes());
+    }
+
+    #[test]
+    fn native_probe_keystrokes_preserve_text_escape_and_protocol_chords() {
+        let mut reader = test_reader();
+        feed_bytes(
+            &mut reader,
+            &crate::input::windows_text_records("aA_'中😀\t\r\x1b"),
+        );
+        let pressed: Vec<_> = drain(&mut reader)
+            .into_iter()
+            .filter_map(|event| match event {
+                Event::Key(key) if key.kind != KeyEventKind::Release => Some(key.code),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            pressed,
+            vec![
+                KeyCode::Char('a'),
+                KeyCode::Char('A'),
+                KeyCode::Char('_'),
+                KeyCode::Char('\''),
+                KeyCode::Char('中'),
+                KeyCode::Char('😀'),
+                KeyCode::Tab,
+                KeyCode::Enter,
+                KeyCode::Esc,
+            ]
+        );
+        feed_bytes(&mut reader, &crate::input::protocol_chord("F12", 'c'));
+        let pressed: Vec<_> = drain(&mut reader)
+            .into_iter()
+            .filter_map(|event| match event {
+                Event::Key(key) if key.kind != KeyEventKind::Release => Some(key.code),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(pressed, vec![KeyCode::F(12), KeyCode::Char('c')]);
     }
 
     fn drain(reader: &mut Reader) -> Vec<Event> {

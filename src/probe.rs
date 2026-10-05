@@ -101,6 +101,18 @@ impl Harness {
         self.session.writer.flush()?;
         Ok(())
     }
+    /// Type real text using native key identity on Windows. `send` remains the
+    /// raw wire API for control sequences, paste transactions and fault tests.
+    pub fn send_text(&mut self, text: &str) -> Result<()> {
+        #[cfg(windows)]
+        {
+            self.send(&crate::input::windows_text_records(text))
+        }
+        #[cfg(not(windows))]
+        {
+            self.send(text.as_bytes())
+        }
+    }
     pub fn pump(&mut self, timeout: Duration) -> Result<()> {
         let (bytes, arrived, qpc) = self.receive.recv_timeout(timeout).with_context(|| {
             format!(

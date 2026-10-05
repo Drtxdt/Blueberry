@@ -241,6 +241,12 @@ foreach ($dependency in @('PSReadLine 2.0.0 / 2.4.5 (session-private patches)', 
     $sections.Add('')
 }
 
+$conpty = Get-Content -LiteralPath (Join-Path $repoRoot 'vendor/conpty/upstream.json') -Raw | ConvertFrom-Json
+$sections.Add("[$($conpty.package) $($conpty.version)]")
+$sections.Add("source: $($conpty.url); SHA-256: $($conpty.sha256)")
+$sections.Add((Get-SafeText -Path (Join-Path $repoRoot 'vendor/conpty/LICENSE.txt')))
+$sections.Add('')
+
 $sections.Add('[System.Runtime.InteropServices.RuntimeInformation 4.3.0]')
 $sections.Add('source: NuGet System.Runtime.InteropServices.RuntimeInformation 4.3.0; upstream PSReadLine 2.0.0 runtime dependency')
 $sections.Add((Get-SafeText -Path (Join-Path $repoRoot 'vendor/psreadline/RUNTIME-LICENSE.txt')))

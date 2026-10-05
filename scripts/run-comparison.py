@@ -111,6 +111,10 @@ def run(options):
             process = subprocess.run([plan['probe'],'--session',str(folder/'session.json'),'--output',str(folder/'result.json')],
                 stdout=log,stderr=subprocess.STDOUT,timeout=120+25*len(queries))
         value = read(folder/'result.json')
+        runtime = value.get('probe_conpty', {})
+        assert runtime.get('mode') == 'pinned' and runtime.get('sha256') == build['conpty']['sha256'] and runtime.get('files') == build['conpty']['files'], f'{name}: ConPTY identity mismatch'
+        report.setdefault('probe_conpty', runtime)
+        assert report['probe_conpty'] == runtime, f'{name}: ConPTY changed within comparison'
         actual = value.get('actual_shell', {})
         assert actual.get('psreadline') == plan['psreadline_version'], f'{name}: editor mismatch {actual}'
         dll_name='Microsoft.PowerShell.PSReadLine2.dll' if plan['psreadline_version'] == '2.0.0' else 'Microsoft.PowerShell.PSReadLine.dll'

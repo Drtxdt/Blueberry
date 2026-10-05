@@ -124,7 +124,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         let before = h.viewport_contents();
         let prefix = before.lines().last().unwrap_or("").trim_end().to_owned();
         let key_start = Instant::now();
-        h.send(b"g")?;
+        h.send_text("g")?;
         wait(&mut h, |screen| {
             screen.lines().any(|row| {
                 row.trim_end()
@@ -147,7 +147,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 "[IO.File]::WriteAllText('{}',(@{{shell=$PSVersionTable.PSVersion.ToString();psreadline=(Get-Module PSReadLine).Version.ToString();dll=[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location;profiles=@($PROFILE.AllUsersAllHosts,$PROFILE.AllUsersCurrentHost,$PROFILE.CurrentUserAllHosts,$PROFILE.CurrentUserCurrentHost)}}|ConvertTo-Json -Compress)); Write-Output 'BB_COMPARATOR_META_DONE'\r",
                 path.to_string_lossy().replace('\'', "''")
             );
-            h.send(command.as_bytes())?;
+            h.send_text(&command)?;
             h.wait_line("BB_COMPARATOR_META_DONE", TIMEOUT)?;
             wait(&mut h, prompt)?;
             result["actual_shell"] = serde_json::from_slice(&fs::read(path)?)?;
@@ -219,7 +219,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 "stale input before query"
             );
             let start = Instant::now();
-            h.send(query.line.as_bytes())?;
+            h.send_text(&query.line)?;
             let mut echo = None;
             let mut observations = Vec::new();
             let mut last_observed = None;
@@ -267,7 +267,17 @@ fn main() -> Result<()> {
         Ok(format!("{:X}", Sha256::digest(fs::read(path)?)))
     };
     let mut result = json!({"schema":1,"session":options.session,"session_sha256":hash(&options.session)?,"program":session.program,"program_sha256":hash(&session.program)?,"probe_sha256":hash(&std::env::current_exe()?)?,"queries":[],"passed":false});
+    #[cfg(windows)]
+    {
+        let start = Instant::now();
+        blueberry::conpty::ensure_loaded()?;
+        result["probe_runtime_prepare_ms"] = json!(start.elapsed().as_secs_f64() * 1000.0);
+    }
     let outcome = run(&session, &mut result);
+    #[cfg(windows)]
+    {
+        result["probe_conpty"] = blueberry::conpty::loaded_identity();
+    }
     match &outcome {
         Ok(()) => result["passed"] = json!(true),
         Err(error) => result["error"] = json!(format!("{error:#}")),
