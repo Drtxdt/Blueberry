@@ -8,6 +8,7 @@ pub mod engine;
 pub mod host;
 pub mod hub;
 pub mod input;
+pub mod maintenance;
 pub mod menu;
 pub mod metrics;
 pub mod model;

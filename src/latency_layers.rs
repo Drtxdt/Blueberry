@@ -571,7 +571,10 @@ impl DirectChildJob {
             );
             let job = Self(handle);
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            // Only an explicitly detached maintenance worker leaves this job.
+            // Ordinary children still terminate with their Blueberry session.
+            info.BasicLimitInformation.LimitFlags =
+                JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_BREAKAWAY_OK;
             ensure!(
                 SetInformationJobObject(
                     handle,

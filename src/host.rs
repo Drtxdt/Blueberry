@@ -72,8 +72,15 @@ pub fn resolve_host(
     mode: Option<HostMode>,
     transport: Option<Transport>,
 ) -> Result<(HostMode, Transport)> {
-    // Keep the compatibility default until direct passes the release gates.
-    let mode = mode.unwrap_or(HostMode::Nested);
+    // An explicit legacy OSC transport still selects the compatible host.
+    // Windows sessions otherwise use the single-layer editor integration.
+    let mode = mode.unwrap_or(
+        if cfg!(windows) && !matches!(transport, Some(Transport::Osc)) {
+            HostMode::Direct
+        } else {
+            HostMode::Nested
+        },
+    );
     let transport = transport.unwrap_or(match mode {
         HostMode::Direct => Transport::Pipe,
         HostMode::Nested => Transport::Osc,
@@ -3067,6 +3074,33 @@ fn decode_context(line: &str, value: &Value) -> Option<InputContext> {
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
+    #[test]
+    fn default_host_and_explicit_compatibility_transport() {
+        let (mode, transport) = resolve_host(None, None).unwrap();
+        assert_eq!(
+            mode,
+            if cfg!(windows) {
+                HostMode::Direct
+            } else {
+                HostMode::Nested
+            }
+        );
+        assert!(matches!(
+            (mode, transport),
+            (HostMode::Direct, Transport::Pipe) | (HostMode::Nested, Transport::Osc)
+        ));
+        assert_eq!(
+            resolve_host(None, Some(Transport::Osc)).unwrap().0,
+            HostMode::Nested
+        );
+        assert_eq!(
+            resolve_host(Some(HostMode::Nested), Some(Transport::Pipe))
+                .unwrap()
+                .0,
+            HostMode::Nested
+        );
+        assert!(resolve_host(Some(HostMode::Direct), Some(Transport::Osc)).is_err());
+    }
     #[test]
     fn batches_keep_previous_commands_until_complete_and_do_not_truncate() {
         let mut snapshot = CommandSnapshot::default();

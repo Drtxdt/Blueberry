@@ -332,6 +332,8 @@ fn start_host() -> Result<RunningHost> {
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
         "run".to_owned(),
+        "--host-mode".to_owned(),
+        "nested".to_owned(),
         "--transport".to_owned(),
         transport.clone(),
         "--shell".to_owned(),

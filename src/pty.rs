@@ -211,7 +211,7 @@ pub fn shell_args_with_editor(
     args.extend([
         "-Command".into(),
         format!(
-            "{module_import}$blueberrySourceTimer = $null; if ($env:BLUEBERRY_TRACE -eq '1') {{ $blueberrySourceTimer = [Diagnostics.Stopwatch]::StartNew() }}; . '{}'; if ($null -ne $blueberrySourceTimer) {{ Send-BlueberryTrace -Stage 'script_source' -DurationMs $blueberrySourceTimer.Elapsed.TotalMilliseconds }}",
+            "if ($env:BLUEBERRY_DIRECT_TRACE -eq '1') {{ $blueberryDirectCommandEnter = [Diagnostics.Stopwatch]::GetTimestamp() }}; {module_import}if ($env:BLUEBERRY_DIRECT_TRACE -eq '1') {{ $blueberryDirectExplicitModuleReady = [Diagnostics.Stopwatch]::GetTimestamp() }}; $blueberrySourceTimer = $null; if ($env:BLUEBERRY_TRACE -eq '1') {{ $blueberrySourceTimer = [Diagnostics.Stopwatch]::StartNew() }}; . '{}'; if ($null -ne $blueberrySourceTimer) {{ Send-BlueberryTrace -Stage 'script_source' -DurationMs $blueberrySourceTimer.Elapsed.TotalMilliseconds }}",
             integration.to_string_lossy().replace('\'', "''")
         ),
     ]);

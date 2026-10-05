@@ -9,7 +9,7 @@ Blueberry 是一个使用rust主要构建的高性能终端IDE风格补全工具
 
 本项目的灵感来源来自：[microsoft/inshellisense: IDE style command line auto complete](https://github.com/microsoft/inshellisense)
 
-`0.5.0-beta.7` 仍在候选验收中。源码增加实验性单层宿主：`blueberry run --host-mode direct`，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。当前默认仍为 nested，显式 `--transport osc|pipe` 的旧调用保持嵌套路径。单层通过正确性和性能门槛后才切换默认，进度见 [验收记录](docs/beta-7-validation.md)。
+`0.5.0` 仍在候选验收中，尚未正式发布。Windows 源码候选默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。最终 CI 包须通过功能、性能和人工门槛，进度见 [验收记录](docs/v0.5.0-validation.md)。
 
 ## 安装
 

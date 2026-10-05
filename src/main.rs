@@ -32,6 +32,18 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Upgrade a managed installation (waits for active sessions to exit).
+    #[command(alias = "update")]
+    Upgrade(blueberry::maintenance::Upgrade),
+    /// Restore the previous complete managed installation.
+    Rollback,
+    /// Remove the managed installation while preserving user data.
+    Uninstall,
+    /// Inspect or cancel a queued installation operation.
+    Maintenance {
+        #[command(subcommand)]
+        command: blueberry::maintenance::Maintenance,
+    },
     /// Paired plain PowerShell vs complete product startup, with the same profiles.
     #[cfg(windows)]
     ProductProbe {
@@ -765,7 +777,8 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
     let build = serde_json::json!({
         "commit":env!("BLUEBERRY_BUILD_COMMIT"),
         "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0),
-        "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true"
+        "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true",
+        "default_host_mode": if cfg!(windows) { "direct" } else { "nested" }
     });
     #[cfg(windows)]
     let build = {
@@ -988,6 +1001,16 @@ fn execute() -> Result<u32> {
         host_mode: None,
         psreadline_version: None,
     }) {
+        Command::Upgrade(options) => blueberry::maintenance::run("Upgrade", Some(options)),
+        Command::Rollback => blueberry::maintenance::run("Rollback", None),
+        Command::Uninstall => blueberry::maintenance::run("Uninstall", None),
+        Command::Maintenance { command } => blueberry::maintenance::run(
+            match command {
+                blueberry::maintenance::Maintenance::Status => "Status",
+                blueberry::maintenance::Maintenance::Cancel => "Cancel",
+            },
+            None,
+        ),
         #[cfg(windows)]
         Command::ProductProbe {
             shell,
@@ -1023,6 +1046,7 @@ fn execute() -> Result<u32> {
             host_mode,
             psreadline_version,
         } => {
+            blueberry::maintenance::resume_before_run()?;
             if !no_profile && blueberry::setup::take_first_hint() {
                 println!(
                     "Blueberry 提示：首次使用可运行 `blueberry setup`，两分钟了解补全、图标和自动启动设置。"

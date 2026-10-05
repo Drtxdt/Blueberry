@@ -35,14 +35,26 @@ $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/insta
 
 ## 升级、回滚与卸载
 
-重新运行在线安装命令可升级，已有配置保留。关闭正在运行的 Blueberry 会话后，再升级或回滚。
+0.5.0 起，受管理安装直接使用以下命令。升级先下载并校验包，等待相关 Blueberry 会话自然退出后执行；不会强制关闭终端。
 
 ```powershell
-& "$env:LOCALAPPDATA\Blueberry\bin\manage-install.ps1" -Action Rollback
-& "$env:LOCALAPPDATA\Blueberry\bin\manage-install.ps1" -Action Uninstall
+blueberry upgrade --check
+blueberry upgrade
+blueberry upgrade --version 0.5.0
+blueberry upgrade --package C:\Downloads\blueberry-v0.5.0-windows-x64.zip
+blueberry rollback
+blueberry uninstall
+blueberry maintenance status
+blueberry maintenance cancel
 ```
 
 回滚恢复上一套受管文件。卸载移除受管文件、自身添加的 PATH 项及属于该安装的启动区块，保留用户配置和用户修改过的文件。
+
+`blueberry update` 是 `upgrade` 的别名；默认升级只选择正式版，指定版本可选择预发布版。`--package` 不能与 `--check` 或 `--version` 同时使用。排队成功不代表已经完成，使用 `maintenance status` 查看结果；提交开始后不能取消。命令会显示安装目录外的持久维护日志位置，卸载或回滚到不支持新命令的旧版本后仍可读取该日志。
+
+系统限制后台助手独立运行时，操作保持排队，并在后续启动时重试。升级或回滚中断后使用持久事务备份恢复；无法核验的现场保留并阻止继续启动，不覆盖身份已变化的安装。
+
+从 beta.6 等旧版本首次升级到 0.5.0，先关闭旧 Blueberry 会话并重新运行在线安装入口。便携 ZIP 副本需先通过安装入口纳入管理，才可使用这些维护命令。
 
 ## 随 PowerShell 启动
 

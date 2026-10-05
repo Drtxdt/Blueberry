@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed when beta.7 release measurements do not match the packaged EXE.
+"""Fail closed when release measurements do not match the packaged EXE.
 
 Usage: python scripts/verify-release-evidence.py EVIDENCE.json PACKAGE.zip --commit SHA --public-beta6-package BETA6.zip
 The evidence file and its raw reports are release assets. They are produced only
@@ -16,7 +16,10 @@ import sys
 import zipfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-VERSION = "0.5.0-beta.7"
+import tomllib
+
+VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
+USER_TRIAL_WAIVERS = {"0.5.0"}  # Explicit user authorization applies only to this release.
 PROFILES = {
     "ps51-2.0.0": ("powershell.exe", "5.", "2.0.0"),
     "ps51-2.4.5": ("powershell.exe", "5.", "2.4.5"),
@@ -31,7 +34,7 @@ SCENARIOS = {"root", "git", "cargo", "js", "path", "fuzzy"}
 COMPARISON_MODES = ("plain", "beta6", "candidate", "inshellisense")
 TERMINAL_TASKS = {"ime", "font_zoom", "selection", "paste", "nested_program"}
 USER_TASKS = {"install", "explain", "project_parameters", "template", "exit_restore"}
-INSTALL_TASKS = {"install", "upgrade", "rollback"}
+INSTALL_TASKS = {"install", "upgrade", "rollback", "uninstall", "queued_maintenance", "interrupted_maintenance"}
 HEX64 = re.compile(r"[0-9A-Fa-f]{64}\Z")
 HEX40 = re.compile(r"[0-9A-Fa-f]{40}\Z")
 
@@ -205,6 +208,7 @@ def check_manual_acceptance(evidence, executable_hash, commit):
     trials = manual.get("user_trials")
     waiver = manual.get("user_trial_waiver")
     if waiver is not None:
+        require(VERSION in USER_TRIAL_WAIVERS, "No user trial waiver is authorized for this release")
         require(isinstance(waiver, dict) and waiver.get("status") == "waived_by_user"
                 and waiver.get("version") == VERSION and waiver.get("executed") is False
                 and isinstance(waiver.get("reason"), str) and waiver["reason"].strip(),
@@ -334,6 +338,7 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         require(external_manifest.read_bytes() == manifest_bytes, "external and packaged manifests differ")
         manifest = json.loads(manifest_bytes)
         require(manifest.get("version") == VERSION and manifest.get("platform") == "windows-x64", "package manifest version/platform mismatch")
+        require(manifest.get("build", {}).get("default_host_mode") == "direct", "final package does not default to direct")
         require(sha256_zip_member(archive, "blueberry.exe") == executable_hash, "packaged EXE SHA-256 mismatch")
         files = manifest.get("files", [])
         require(isinstance(files, list), "package manifest has no file list")

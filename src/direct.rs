@@ -602,6 +602,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 Some("editor_menu_written") => "editor_menu_written",
                                 Some("editor_frame_received") => "editor_frame_received",
                                 Some("direct_script_enter") => "direct_script_enter",
+                                Some("direct_command_enter") => "direct_command_enter",
+                                Some("direct_explicit_module_ready") => {
+                                    "direct_explicit_module_ready"
+                                }
                                 Some("direct_module_loaded") => "direct_module_loaded",
                                 Some("direct_assembly_loaded") => "direct_assembly_loaded",
                                 Some("editor_loop_enter") => "editor_loop_enter",

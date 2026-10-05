@@ -37,11 +37,25 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         &hook[..start],
         &hook[end..]
     );
+    let trace = root.path().join("startup-trace.jsonl");
+    let hook = hook.replace(
+        " run --shell $blueberryAutoShell",
+        &format!(
+            " run --trace '{}' --data-dir '{}' --shell $blueberryAutoShell",
+            trace.display().to_string().replace('\'', "''"),
+            root.path()
+                .join("data")
+                .display()
+                .to_string()
+                .replace('\'', "''")
+        ),
+    );
     std::fs::write(&profile, hook)?;
     let quoted = profile.display().to_string().replace('\'', "''");
     let environment = BTreeMap::from([
         ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
         ("BLUEBERRY_ACTIVE".into(), "0".into()),
+        ("TERM".into(), "xterm-256color".into()),
         ("LOCALAPPDATA".into(), local.to_string_lossy().into_owned()),
         ("APPDATA".into(), roaming.to_string_lossy().into_owned()),
         ("BLUEBERRY_PROBE_TOKEN".into(), "startup-test".into()),
@@ -57,14 +71,19 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
     .map(String::from);
     let mut args = args.to_vec();
     args.push(format!(". '{quoted}'"));
-    let mut terminal = Harness::start(
-        &shell,
-        &args,
-        root.path(),
-        &environment,
-        "startup-test".into(),
-    )?;
-    terminal.event("prompt_end", Duration::from_secs(30))?;
+    let mut terminal = Harness::start(&shell, &args, root.path(), &environment, String::new())?;
+    // A real profile may replace the prompt (Starship, Oh My Posh, etc.).
+    // Observe editor entry rather than assuming the stock "PS " prompt.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !std::fs::read_to_string(&trace).is_ok_and(|text| text.contains("direct_readline_begin"))
+    {
+        ensure!(
+            Instant::now() < deadline,
+            "profile child did not enter the editor: {}",
+            terminal.contents()
+        );
+        let _ = terminal.pump(Duration::from_millis(20));
+    }
     send_editor_command(
         &mut terminal,
         "Write-Output ('BB_ACTIVE_' + $env:BLUEBERRY_ACTIVE); Write-Output ('BB_EDITION_' + $PSVersionTable.PSEdition)",
@@ -81,13 +100,11 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         "Core"
     };
     wait_line(&mut terminal, &format!("BB_EDITION_{edition}"))?;
-    terminal.event("prompt_end", Duration::from_secs(30))?;
     send_editor_command(
         &mut terminal,
         &format!(". '{quoted}'; Write-Output BB_NESTED_SKIPPED"),
     )?;
     wait_line(&mut terminal, "BB_NESTED_SKIPPED")?;
-    terminal.event("prompt_end", Duration::from_secs(30))?;
     terminal.send(b"exit\r")?;
     wait_line(&mut terminal, "BB_PARENT_RESUMED_0")?;
     terminal.send(b"Write-Output ('BB_OUTER_' + $env:BLUEBERRY_ACTIVE)\r")?;
@@ -121,19 +138,15 @@ fn no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path() -> Result<()> {
         &[],
         root.path(),
         &environment,
-        "fallback-test".into(),
+        String::new(),
     )?;
-    terminal.event("prompt_end", Duration::from_secs(30))?;
+    terminal.wait_text("PS ", Duration::from_secs(30))?;
     send_editor_command(
         &mut terminal,
         "Write-Output ('BB_FALLBACK_' + $PSVersionTable.PSEdition + '_' + $env:BLUEBERRY_ACTIVE)",
     )?;
     wait_line(&mut terminal, "BB_FALLBACK_Desktop_1").context("fallback Shell command output")?;
-    // Output can arrive before the next PSReadLine invocation. Confirm the
-    // prompt boundary instead of issuing cleanup edits into that transition.
-    terminal
-        .event("prompt_end", Duration::from_secs(30))
-        .context("fallback Shell next prompt")?;
+    // finish waits for the editor to settle before submitting exit.
     terminal
         .finish(Duration::from_secs(10))
         .context("fallback Shell normal exit")?;
@@ -142,15 +155,6 @@ fn no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path() -> Result<()> {
 
 fn send_editor_command(terminal: &mut Harness, command: &str) -> Result<()> {
     terminal.send(command.as_bytes())?;
-    terminal.send(b"\x1b[32;5u")?;
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        let buffer =
-            terminal.event("buffer", deadline.saturating_duration_since(Instant::now()))?;
-        if buffer["line"].as_str() == Some(command) {
-            break;
-        }
-    }
     terminal.send(b"\r")?;
     Ok(())
 }

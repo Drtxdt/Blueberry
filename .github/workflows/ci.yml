@@ -128,7 +128,7 @@ jobs:
       - name: Direct inherited-console regressions
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal --test input_protocol -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
   powershell-7:
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
@@ -188,7 +188,7 @@ jobs:
         if: matrix.transport == 'pipe'
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal --test input_protocol -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
   native-mouse:
     name: Native ConPTY mouse / windows-2025
@@ -255,6 +255,7 @@ jobs:
           ./scripts/test-release.ps1 -BlueberryExecutable ./target/release/blueberry.exe
           $package = (Get-ChildItem ./dist/ci/*.zip).FullName
           ./scripts/test-install-51.ps1 -PackagePath $package
+          ./scripts/test-maintenance.ps1 -Executable ./target/release/blueberry.exe -Package $package
           ./scripts/test-download.ps1 -PackagePath $package
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-download.ps1 -PackagePath $package
           if ($LASTEXITCODE -ne 0) { throw '5.1 download selection tests failed' }

@@ -11,6 +11,8 @@ $null = [Reflection.Assembly]::LoadFrom("$PSScriptRoot\direct-bridge.dll")
 $blueberryDirectAssemblyLoaded = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
 [Blueberry.Direct.Bridge]::Initialize([Microsoft.PowerShell.PSConsoleReadLine], $env:BLUEBERRY_PIPE_NAME, $env:BLUEBERRY_TOKEN, $PSVersionTable.PSVersion.ToString(), $blueberryDirectModule.Version.ToString())
 if ($blueberryDirectScriptEnter) {
+    if ($blueberryDirectCommandEnter) { [Blueberry.Direct.Bridge]::StartupPoint('direct_command_enter', $blueberryDirectCommandEnter) }
+    if ($blueberryDirectExplicitModuleReady) { [Blueberry.Direct.Bridge]::StartupPoint('direct_explicit_module_ready', $blueberryDirectExplicitModuleReady) }
     [Blueberry.Direct.Bridge]::StartupPoint('direct_script_enter', $blueberryDirectScriptEnter)
     [Blueberry.Direct.Bridge]::StartupPoint('direct_module_loaded', $blueberryDirectModuleLoaded)
     [Blueberry.Direct.Bridge]::StartupPoint('direct_assembly_loaded', $blueberryDirectAssemblyLoaded)

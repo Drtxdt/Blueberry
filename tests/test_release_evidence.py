@@ -34,16 +34,17 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.beta6_package = self.root / "blueberry-v0.5.0-beta.6-windows-x64.zip"
         with zipfile.ZipFile(self.beta6_package, "w") as archive:
             archive.writestr("blueberry.exe", self.beta6_exe)
-        self.package = self.root / "blueberry-v0.5.0-beta.7-windows-x64.zip"
+        self.package = self.root / f"blueberry-v{validator.VERSION}-windows-x64.zip"
         manifest = {
             "version": validator.VERSION,
             "platform": "windows-x64",
+            "build": {"default_host_mode": "direct"},
             "files": [{"path": "blueberry.exe", "sha256": self.exe_hash}],
         }
         with zipfile.ZipFile(self.package, "w") as archive:
             archive.writestr("blueberry.exe", self.exe)
             archive.writestr("release.json", json.dumps(manifest))
-        self.external_manifest = self.root / "blueberry-v0.5.0-beta.7-release.json"
+        self.external_manifest = self.root / f"blueberry-v{validator.VERSION}-release.json"
         self.external_manifest.write_text(json.dumps(manifest), encoding="utf-8")
         self.evidence = {
             "schema": 2,
