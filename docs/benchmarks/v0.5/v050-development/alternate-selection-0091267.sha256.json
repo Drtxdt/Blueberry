@@ -1,0 +1,11 @@
+{
+  "formal": false,
+  "ci_run": 37319941336,
+  "ci_job": 111796143779,
+  "ci_failed": true,
+  "fixture_commit": "0091267d3410a8314c14b00d2f45d5f0f2b4a826",
+  "original_failure_unique_cause_established": false,
+  "files": 1067,
+  "archive_bytes": 7773160,
+  "archive_sha256": "d3956ee5a5c69dac24ad254fbbe0c987947afa3fd547650a05bc1ab773cf4a07"
+}

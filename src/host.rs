@@ -68,6 +68,28 @@ pub enum HostMode {
     Nested,
 }
 
+/// Opt-in raw transport capture for isolated debug fixtures only.
+#[cfg(debug_assertions)]
+struct WireWriter {
+    inner: Box<dyn Write + Send>,
+    capture: Option<std::fs::File>,
+}
+
+#[cfg(debug_assertions)]
+impl Write for WireWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        let n = self.inner.write(bytes)?;
+        if let Some(capture) = &mut self.capture {
+            capture.write_all(&bytes[..n])?;
+        }
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
 pub fn resolve_host(
     mode: Option<HostMode>,
     transport: Option<Transport>,
@@ -2545,6 +2567,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
         });
     let mut env = BTreeMap::from([
         ("BLUEBERRY_TOKEN".into(), token.clone()),
+        // Never inherit a diagnostic file destination into a normal session.
+        ("BLUEBERRY_TEST_SHELL_WIRE".into(), String::new()),
         (
             "BLUEBERRY_PIPE_NAME".into(),
             pipe.as_ref()
@@ -2578,6 +2602,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
     );
     let cwd = std::env::current_dir()?;
     crate::packs::set_cwd(cwd.clone());
+    #[cfg(debug_assertions)]
+    let capture_wire =
+        probe_token.is_some() && std::env::var("BLUEBERRY_TEST_HOST_WIRE").as_deref() == Ok("1");
+    #[cfg(debug_assertions)]
+    if capture_wire {
+        env.insert(
+            "BLUEBERRY_TEST_SHELL_WIRE".into(),
+            options
+                .data_dir
+                .join("shell-wire.log")
+                .to_string_lossy()
+                .into_owned(),
+        );
+    }
     env.extend(pty::key_environment(&config.keys));
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let mut raw = RawMode::enable()
@@ -2590,7 +2628,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let pty::Session {
         master,
         mut reader,
-        mut writer,
+        writer,
         mut child,
     } = pty::spawn(
         &options.shell,
@@ -2601,6 +2639,19 @@ pub fn run(options: RunOptions) -> Result<u32> {
         cols,
     )?;
     trace.event("pty_started", None, None, None);
+    #[cfg(not(debug_assertions))]
+    let mut writer = writer;
+    #[cfg(debug_assertions)]
+    let mut writer = WireWriter {
+        inner: writer,
+        capture: capture_wire
+            .then(|| std::fs::File::create(options.data_dir.join("child-input.bin")))
+            .transpose()?,
+    };
+    #[cfg(debug_assertions)]
+    let mut output_capture = capture_wire
+        .then(|| std::fs::File::create(options.data_dir.join("child-output.bin")))
+        .transpose()?;
     if let Some(server) = pipe.as_mut() {
         if let Some(pid) = child.process_id() {
             server.set_client_pid(pid);
@@ -2631,6 +2682,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 }
                 Ok(n) => {
                     output_trace.event("child_output_received", None, None, Some(n));
+                    #[cfg(debug_assertions)]
+                    if let Some(capture) = &mut output_capture
+                        && let Err(error) = capture.write_all(&buffer[..n])
+                    {
+                        let _ = read_tx.send(HostEvent::Error(error.to_string()));
+                        break;
+                    }
                     if read_tx
                         .send(HostEvent::Output(buffer[..n].to_vec(), Instant::now()))
                         .is_err()

@@ -139,9 +139,17 @@ jobs:
         run: |
           cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'pipe terminal regressions failed' }
-      - name: Repeat session command snapshot regression
+      - name: Repeat OSC session command snapshot regression
+        env:
+          BLUEBERRY_TEST_TRANSPORT: osc
+          BLUEBERRY_TEST_HOST_WIRE: '1'
+        shell: pwsh
+        run: |
+          ./scripts/repeat-rust-test.ps1 -Target host -Test host_finds_real_cargo_and_merges_more_than_512_shell_commands -Count 100
+      - name: Repeat pipe session command snapshot regression
         env:
           BLUEBERRY_TEST_TRANSPORT: pipe
+          BLUEBERRY_TEST_HOST_WIRE: '1'
         shell: pwsh
         run: |
           ./scripts/repeat-rust-test.ps1 -Target host -Test host_finds_real_cargo_and_merges_more_than_512_shell_commands -Count 100

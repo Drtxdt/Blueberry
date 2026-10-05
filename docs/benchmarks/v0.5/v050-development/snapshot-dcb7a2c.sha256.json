@@ -1,0 +1,13 @@
+{
+  "formal": false,
+  "ci_run": 37323071591,
+  "ci_job": 111806787425,
+  "ci_failed": true,
+  "source_commit": "dcb7a2ca9bff326995722d0216e06aa4f469732c",
+  "repetition_failed": 37,
+  "reported_transport_environment": "pipe",
+  "actual_capability_transport": "osc",
+  "cause_established": false,
+  "files": 2,
+  "archive_sha256": "4cb4abf354618bd9c6a6dc10287cdc59a9d5e798d71f37763a7dedb65cc4e094"
+}

@@ -108,6 +108,8 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
     )
     .context("write test config")?;
     let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
+    let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
+    ensure!(matches!(transport.as_str(), "osc" | "pipe"));
     std::fs::write(
         data_dir.path().join("fixture.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
@@ -115,7 +117,7 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
             "executable_sha256": blueberry::metrics::executable_sha256(&program)?,
             "shell": std::env::var("BLUEBERRY_TEST_SHELL").ok(),
             "editor": std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE").ok(),
-            "transport": std::env::var("BLUEBERRY_TEST_TRANSPORT").ok(),
+            "requested_transport": transport,
             "trace": std::env::var_os("BLUEBERRY_TEST_HOST_TRACE").is_some(),
         }))?,
     )?;
@@ -126,6 +128,8 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         "run".to_owned(),
         "--host-mode".to_owned(),
         "nested".to_owned(),
+        "--transport".to_owned(),
+        transport.clone(),
         "--no-profile".to_owned(),
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),
@@ -162,6 +166,13 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         .wait_text("PS ", PTY_TIMEOUT)
         .context("wait for the initial PowerShell prompt")?;
     harness.event("prompt_end", PTY_TIMEOUT)?;
+    let capabilities = harness
+        .capabilities()
+        .context("missing adapter capabilities")?;
+    ensure!(
+        capabilities["transport"] == transport,
+        "requested {transport} transport was not active: {capabilities}"
+    );
     Ok(RunningHost {
         harness,
         _data_dir: data_dir,
