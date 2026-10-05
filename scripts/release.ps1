@@ -98,7 +98,7 @@ function Assert-ReleaseVersion {
     param([Parameter(Mandatory = $true)][string]$Value)
     if (-not [Text.RegularExpressions.Regex]::IsMatch(
             $Value, '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$')) {
-        throw "版本号无效（需要例如 0.5.0-beta.1）: $Value"
+        throw "版本号无效（需要例如 0.5.0 或 0.5.1-beta.1）: $Value"
     }
 }
 

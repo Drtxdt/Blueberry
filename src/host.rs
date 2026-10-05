@@ -2789,6 +2789,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let mut output = stdout.lock();
     let mut exit_code = None;
     let mut frame = Vec::with_capacity(32_768);
+    #[cfg(debug_assertions)]
+    let mut last_probe_request_state = Value::Null;
     loop {
         frame.clear();
         let mut ui_dirty = false;
@@ -3049,6 +3051,27 @@ pub fn run(options: RunOptions) -> Result<u32> {
             state.parser.process(MOUSE_OFF);
         }
         state.query(&mut writer)?;
+        #[cfg(debug_assertions)]
+        if let Some(token) = &probe_token {
+            // A stalled fixture needs the request gates as well as its last
+            // visible menu. Emit only changed numeric/identity state; this is
+            // absent from release builds and does not query the editor.
+            let value = json!({"event":"request_state",
+                "ready":state.ready,"prompt":state.prompt,"dirty":state.dirty,
+                "commands_pending":state.commands_pending,
+                "commands_inflight":state.commands_inflight,
+                "commands_allowed":state.commands_allowed,"nested_edit":state.nested_edit,
+                "pending_query":state.pending_query,"native_request":state.native_request,
+                "reset_pending":state.reset_pending.is_some(),
+                "metadata_pending":state.metadata_pending.is_some(),
+                "snapshot":state.commands_snapshot.id,
+                "pending_commands":state.commands_snapshot.pending.len(),
+                "previous_commands":state.commands_snapshot.previous.len()});
+            if value != last_probe_request_state {
+                frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
+                last_probe_request_state = value;
+            }
+        }
         if std::mem::take(&mut state.repaint) {
             frame.extend_from_slice(b"\x1b[2J\x1b[H");
             frame.extend_from_slice(&state.parser.screen().state_formatted());

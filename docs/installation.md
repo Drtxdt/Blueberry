@@ -14,13 +14,15 @@
 
 发布者需要先公开 GitHub Release，安装命令才能下载对应版本。
 
+`0.5.0` 尚在候选验收中；下面指定版本和本地包的示例供该版本发布后使用。当前进度见 [0.5.0 验收记录](v0.5.0-validation.md)。
+
 若 PowerShell 提示“此系统上禁止运行脚本”，先运行 `Get-ExecutionPolicy -List` 查看策略。个人电脑可自行执行 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`，允许本地安装脚本和 profile 加载；组织管理的电脑请遵循管理员策略。安装程序保留现有执行策略。
 
 ## 指定版本与无人值守安装
 
 ```powershell
 $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1').TrimStart([char]0xFEFF)
-& ([scriptblock]::Create($installer)) -Version 0.5.0-beta.2 -NoPrompt
+& ([scriptblock]::Create($installer)) -Version 0.5.0 -NoPrompt
 ```
 
 `-EnableStartup` 明确开启自动启动；`-NoPrompt` 跳过询问，默认关闭。`-InstallRoot` 可更改安装目录，`-ConfigRoot` 可更改首次配置写入目录；自定义配置目录启动时使用 `--config` 指定文件。
@@ -30,7 +32,7 @@ $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/insta
 从 Releases 下载 ZIP 及同名 `.sha256`，放入同一目录。解压 ZIP 可直接运行 `blueberry.exe`；纳入安装管理时执行：
 
 ```powershell
-.\install.ps1 -PackagePath C:\Downloads\blueberry-v0.5.0-beta.2-windows-x64.zip
+.\install.ps1 -PackagePath C:\Downloads\blueberry-v0.5.0-windows-x64.zip
 ```
 
 ## 升级、回滚与卸载

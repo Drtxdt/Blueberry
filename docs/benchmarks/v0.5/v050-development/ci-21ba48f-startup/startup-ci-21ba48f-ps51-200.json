@@ -1,0 +1,477 @@
+{
+  "actual_automatic_menu": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "actual_host_modes": [
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct",
+    "direct"
+  ],
+  "actual_transports": [
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe",
+    "pipe"
+  ],
+  "adapter_source": "embedded",
+  "arch": "x86_64",
+  "build": "release",
+  "candidate_first_input": {
+    "median": 355.0405,
+    "p95": 971.4857999999999,
+    "samples": [
+      971.4857999999999,
+      354.37800000000004,
+      372.5994,
+      337.8596,
+      360.9462,
+      341.4906,
+      355.703,
+      372.56489999999997,
+      343.06989999999996,
+      332.6809
+    ],
+    "unit": "ms"
+  },
+  "editor_eligible": true,
+  "editors": [
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    },
+    {
+      "dll_sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+      "fallback_reason": null,
+      "mode": "editor_hooks_v1",
+      "patch": "blueberry-editor-v1"
+    }
+  ],
+  "executable_sha256": "D143935A5B9C5241241F516C76A7DB598B9CBE36B69FB5A8BB2DB87237032738",
+  "first_dynamic_candidate": {
+    "median": 5.529,
+    "p95": 8.491800000000001,
+    "samples": [
+      7.353400000000001,
+      5.6428,
+      6.7604,
+      5.1567,
+      8.491800000000001,
+      5.0109,
+      6.1239,
+      4.389200000000001,
+      5.4152000000000005,
+      5.1107000000000005
+    ],
+    "unit": "ms"
+  },
+  "first_key_echo": {
+    "median": 18.66505,
+    "p95": 20.833399999999997,
+    "samples": [
+      20.833399999999997,
+      19.272100000000002,
+      19.7498,
+      13.383600000000001,
+      19.849700000000002,
+      18.0904,
+      19.2397,
+      14.5174,
+      16.654700000000002,
+      15.6735
+    ],
+    "unit": "ms"
+  },
+  "first_static_candidate": {
+    "median": 19.3184,
+    "p95": 20.833399999999997,
+    "samples": [
+      20.833399999999997,
+      19.272100000000002,
+      19.7498,
+      13.534799999999999,
+      19.849700000000002,
+      18.0904,
+      19.499599999999997,
+      14.5174,
+      19.3647,
+      15.6735
+    ],
+    "unit": "ms"
+  },
+  "host_mode": "direct",
+  "index_cache": "new directory per pair",
+  "iterations": 10,
+  "machine_id": "LIUHETONG",
+  "measurement": "complete_product",
+  "no_profile": false,
+  "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+  "os_cache_cleared": false,
+  "paired_first_input_delta": {
+    "median": 45.555049999999994,
+    "p95": 632.0636999999999,
+    "samples": [
+      632.0636999999999,
+      30.69670000000002,
+      65.31130000000002,
+      25.951499999999953,
+      75.12279999999998,
+      15.89889999999997,
+      60.56569999999999,
+      58.100300000000004,
+      33.009799999999984,
+      13.632000000000005
+    ],
+    "unit": "ms"
+  },
+  "plain_editors": [
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    },
+    {
+      "assembly": "Microsoft.PowerShell.PSReadLine2, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "dll_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+      "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+      "module_path": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psm1"
+    }
+  ],
+  "plain_first_input": {
+    "median": 313.18635,
+    "p95": 339.4221,
+    "samples": [
+      339.4221,
+      323.6813,
+      307.2881,
+      311.90810000000005,
+      285.8234,
+      325.5917,
+      295.1373,
+      314.46459999999996,
+      310.0601,
+      319.0489
+    ],
+    "unit": "ms"
+  },
+  "platform": "windows",
+  "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+  "power_policy_label": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+  "private_editors": {
+    "files": [
+      {
+        "path": "License.txt",
+        "sha256": "2c679724a13cec8a7589034b5725c749a304cef4a8ce4dc474f508095e627f4b",
+        "version": "2.0.0"
+      },
+      {
+        "path": "Microsoft.PowerShell.PSReadLine2.dll",
+        "sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+        "version": "2.0.0"
+      },
+      {
+        "path": "PSReadLine.format.ps1xml",
+        "sha256": "da79d15c91edd0559d70dbcda76f9b41ef1b17a141d137a485027971a08df1bb",
+        "version": "2.0.0"
+      },
+      {
+        "path": "PSReadLine.psd1",
+        "sha256": "8da4596d105078a4d6d5ae64ddf433fd7a538acea8c253df2945612bc0c98dd7",
+        "version": "2.0.0"
+      },
+      {
+        "path": "PSReadLine.psm1",
+        "sha256": "98c2733e43ffe148378f645b5626e585578fcfd04fcc2fcb443ba61d54430912",
+        "version": "2.0.0"
+      },
+      {
+        "path": "RUNTIME-LICENSE.txt",
+        "sha256": "b7d43d08f59637129c482c63dcd4811077101ac41cc763b3b58490137f741977",
+        "version": "2.0.0"
+      },
+      {
+        "path": "RUNTIME-NOTICES.txt",
+        "sha256": "fd880d29a522f238c178452b38cbf196bb5c0dab7ebfdc590b02b8e5019ebc71",
+        "version": "2.0.0"
+      },
+      {
+        "path": "System.Runtime.InteropServices.RuntimeInformation.dll",
+        "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8",
+        "version": "2.0.0"
+      },
+      {
+        "path": "License.txt",
+        "sha256": "577273b040bdddb01b02768d9ad07fcb40415479fc2e65c8287294c6abf56de6",
+        "version": "2.4.5"
+      },
+      {
+        "path": "Microsoft.PowerShell.Pager.dll",
+        "sha256": "451994c3d3e38d939b4fa5f8594d0207840f45e7a210aa75f81aef85aa17c592",
+        "version": "2.4.5"
+      },
+      {
+        "path": "Microsoft.PowerShell.PSReadLine.dll",
+        "sha256": "0b548c4b42c9b9e4658cbdb94fe58c8fc270d275d04f4fdca814369049b88643",
+        "version": "2.4.5"
+      },
+      {
+        "path": "net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+        "sha256": "d077c3a44d7702197e398ef56dcc72006502daff430acbbfbf95ee9dcb15a19d",
+        "version": "2.4.5"
+      },
+      {
+        "path": "netstd/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+        "sha256": "79a53c023977a91ab0abd8cd4279b918a1eecb1826ce796eade63dd9363e9cf0",
+        "version": "2.4.5"
+      },
+      {
+        "path": "Pager-LICENSE.txt",
+        "sha256": "ac40d0ffe53b81204451b78b6772b5bb53c5c9ea7d32f694596fae5b9150c9b9",
+        "version": "2.4.5"
+      },
+      {
+        "path": "PSReadLine.format.ps1xml",
+        "sha256": "9676711e5883b8aeea5affae7868c6b651e5250a132691ec26a6e94c79702e22",
+        "version": "2.4.5"
+      },
+      {
+        "path": "PSReadLine.psd1",
+        "sha256": "243b46505e5e0ed7d313d340d9c717b2a7bdd1a9e184b99d36d921e9d48cee02",
+        "version": "2.4.5"
+      },
+      {
+        "path": "PSReadLine.psm1",
+        "sha256": "ea065fe561207681b987eee788ac24e7d58c45daca310ff53ceeff01ceb86edd",
+        "version": "2.4.5"
+      }
+    ],
+    "patch": "blueberry-editor-v1",
+    "repository": "https://github.com/PowerShell/PSReadLine",
+    "versions": {
+      "2.0.0": {
+        "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c",
+        "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6"
+      },
+      "2.4.5": {
+        "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0",
+        "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f"
+      }
+    }
+  },
+  "profile_autostart": "suppressed identically with BLUEBERRY_ACTIVE=1",
+  "profile_inventory": [
+    {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+      "sha256": null
+    },
+    {
+      "path": "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1",
+      "sha256": "FA895BE81AE7CE7F14FBC668E7936A353362DC292875281C798656BF3BD2CB16"
+    }
+  ],
+  "profile_mode": "with_profile",
+  "profile_sha256": "C6FBE838A0B766996734B5CA266364DE9441EF105AAC657D53E44E2548299E67",
+  "psreadline_versions": [
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0",
+    "2.0.0"
+  ],
+  "schema": 3,
+  "scratch_directory": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-product-probe-7bfaf170-cfeb-44ce-ba0b-62e7af73a2c0",
+  "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "shell_versions": [
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444",
+    "5.1.26100.9444"
+  ],
+  "source_commit": "3f32924c4a58468708a9cb85cf1ca3c782bb082c",
+  "source_dirty": false,
+  "startup_orders": [
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ],
+    [
+      "plain",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "plain"
+    ]
+  ],
+  "terminal_columns": 120,
+  "terminal_rows": 30,
+  "trace": "disabled",
+  "trace_directory": null
+}

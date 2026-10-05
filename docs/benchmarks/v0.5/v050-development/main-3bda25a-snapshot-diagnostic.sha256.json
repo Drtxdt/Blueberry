@@ -1,0 +1,16 @@
+{
+  "formal": false,
+  "source_commit": "3bda25a9d8587493d43641e576c4d0e263bceee6",
+  "diagnostic_commit": "77a3da70db3ad92e9ff46bbc5aca54afad64fc7e",
+  "main_ci_run": 37318089584,
+  "main_ci_passed": false,
+  "cause_established": false,
+  "local_repetitions": {
+    "trace": 30,
+    "no_trace": 100,
+    "four_concurrent_sessions": 120
+  },
+  "files": 2293,
+  "archive_sha256": "2b2a7944cdaf0aaabdf9b2826f83c37832a9a69ba166d6a021b5f4497921b832",
+  "archive_bytes": 17754168
+}
