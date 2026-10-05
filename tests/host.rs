@@ -16,6 +16,12 @@ struct RunningHost {
     _data_dir: TempDir,
 }
 
+impl Drop for RunningHost {
+    fn drop(&mut self) {
+        let _ = self.harness.save_evidence(self._data_dir.path());
+    }
+}
+
 #[test]
 fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Result<()> {
     let cwd = tempdir()?;
@@ -88,7 +94,13 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
 }
 
 fn start_host(cwd: &Path) -> Result<RunningHost> {
-    let data_dir = tempdir().context("create host data directory")?;
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/nested-terminal-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let mut data_dir = tempfile::Builder::new()
+        .prefix("host-")
+        .tempdir_in(&evidence)?;
+    data_dir.disable_cleanup(true);
+    eprintln!("host evidence: {}", data_dir.path().display());
     let config_path = data_dir.path().join("config.toml");
     std::fs::write(
         &config_path,
@@ -96,8 +108,19 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
     )
     .context("write test config")?;
     let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
+    std::fs::write(
+        data_dir.path().join("fixture.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "executable": program,
+            "executable_sha256": blueberry::metrics::executable_sha256(&program)?,
+            "shell": std::env::var("BLUEBERRY_TEST_SHELL").ok(),
+            "editor": std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE").ok(),
+            "transport": std::env::var("BLUEBERRY_TEST_TRANSPORT").ok(),
+            "trace": std::env::var_os("BLUEBERRY_TEST_HOST_TRACE").is_some(),
+        }))?,
+    )?;
     let inherited_path = std::env::var_os("PATH").unwrap_or_default();
-    let args = vec![
+    let mut args = vec![
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
         "run".to_owned(),
@@ -107,6 +130,16 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),
     ];
+    if std::env::var_os("BLUEBERRY_TEST_HOST_TRACE").is_some() {
+        args.extend([
+            "--trace".to_owned(),
+            data_dir
+                .path()
+                .join("trace.jsonl")
+                .to_string_lossy()
+                .into_owned(),
+        ]);
+    }
 
     // Put a deterministic git.cmd first in PATH. CommandIndex labels PATH
     // entries as Executable, which gives this test a stable completion row
