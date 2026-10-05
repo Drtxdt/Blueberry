@@ -54,10 +54,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          for ($sample = 1; $sample -le 20; $sample++) {
-            cargo test --locked --test commands_store independent_processes_keep_all_favorites -- --exact --nocapture
-            if ($LASTEXITCODE -ne 0) { throw "concurrent store repetition $sample failed; all writer logs retained" }
-          }
+          ./scripts/repeat-rust-test.ps1 -Target commands_store -Test independent_processes_keep_all_favorites -Count 20
       - name: Preserve concurrent store evidence
         if: always() && runner.os == 'Windows'
         uses: actions/upload-artifact@v4
@@ -152,10 +149,7 @@ jobs:
         env:
           BLUEBERRY_TEST_TRANSPORT: pipe
         run: |
-          for ($sample = 1; $sample -le 30; $sample++) {
-            cargo test --locked --test terminal_modes repeated_resize_and_large_output_preserve_menu_and_real_buffer -- --exact --nocapture
-            if ($LASTEXITCODE -ne 0) { throw "pipe resize repetition $sample failed; transport diagnostics retained" }
-          }
+          ./scripts/repeat-rust-test.ps1 -Target terminal_modes -Test repeated_resize_and_large_output_preserve_menu_and_real_buffer -Count 30
       - name: Preserve nested terminal evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -222,11 +216,7 @@ jobs:
       - name: Repeat the intermittent resize regression
         shell: pwsh
         run: |
-          for ($sample = 1; $sample -le 30; $sample++) {
-            Write-Output "Resize repetition $sample / 30"
-            cargo test --locked --test terminal_modes repeated_resize_and_large_output_preserve_menu_and_real_buffer -- --exact --nocapture
-            if ($LASTEXITCODE -ne 0) { throw "resize repetition $sample failed; native snapshot is retained" }
-          }
+          ./scripts/repeat-rust-test.ps1 -Target terminal_modes -Test repeated_resize_and_large_output_preserve_menu_and_real_buffer -Count 30
       - name: Direct inherited-console regressions
         if: matrix.transport == 'pipe'
         shell: pwsh

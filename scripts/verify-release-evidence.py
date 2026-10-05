@@ -238,7 +238,9 @@ def check_comparison(path, executable_hash, commit, profile, manual):
     report = read_json(path)
     shell_name, shell_major, psreadline = PROFILES[profile]
     label = f"{profile} comparison"
-    require(report.get("schema") == 2 and report.get("profile") == profile, f"{label}: wrong schema/profile")
+    require(report.get("schema") in (2, 3) and report.get("profile") == profile, f"{label}: wrong schema/profile")
+    if report.get("schema") == 3:
+        require(report.get("formal") is True and report.get("passed") is True, f"{label}: comparison batch is exploratory or incomplete")
     require(report.get("source_commit", "").lower() == commit.lower(), f"{label}: different source commit")
     require(PureWindowsPath(report.get("shell", "")).name.lower() == shell_name, f"{label}: wrong shell")
     require(str(report.get("shell_version", "")).startswith(shell_major), f"{label}: wrong shell version")
@@ -292,6 +294,45 @@ def check_comparison(path, executable_hash, commit, profile, manual):
                 samples(measurement.get("input_echo"), hot_count, f"{label}/{mode}/{scenario}/{cache_mode} echo")
                 if mode == "plain":
                     require(measurement.get("menu") is None and measurement.get("cache_capability") == "not_applicable", f"{label}/plain: menu/cache must be not applicable")
+                elif measurement.get("menu_status") == "not_observed_in_capability_probe":
+                    # A comparator that never supplied the fixture candidate
+                    # has no menu latency. Keep its timeout evidence and 300
+                    # echo samples; this is never a product performance pass.
+                    require(report.get("schema") == 3 and mode == "inshellisense", f"{label}/{mode}: product menu samples cannot be waived")
+                    require(measurement.get("menu") is None and measurement.get("cache_capability") == "not_applicable", f"{label}/{mode}: unavailable menu must not have latency/cache statistics")
+                    probes = measurement.get("capability_probes")
+                    require(isinstance(probes, list) and len(probes) >= 3, f"{label}/{mode}: three retained capability probes required")
+                    seen = set()
+                    seen_queries = set()
+                    fixture_prefixes = {
+                        "root": ("ssbeta-root-", "ssbeta-root-"),
+                        "git": ("git switch ssbeta-git-", "ssbeta-git-"),
+                        "cargo": ("cargo build --features ssbeta-cargo-", "ssbeta-cargo-"),
+                        "js": ("npm run ssbeta-js-", "ssbeta-js-"),
+                        "path": ("cd ssbeta-path-", "ssbeta-path-"),
+                        "fuzzy": ("ssbf", "ssbeta-fuzzy-"),
+                    }
+                    for probe in probes:
+                        raw_path = report_path(path.parent, probe.get("report"))
+                        require(str(raw_path) not in seen, f"{label}/{mode}: duplicate capability probe")
+                        seen.add(str(raw_path))
+                        require(sha256_file(raw_path) == probe.get("sha256", "").upper(), f"{label}/{mode}: capability evidence hash mismatch")
+                        raw = read_json(raw_path)
+                        require(raw.get("program_sha256", "").upper() == expected_hashes[mode], f"{label}/{mode}: capability executable mismatch")
+                        actual = raw.get("actual_shell", {})
+                        require(str(actual.get("shell", "")).startswith(shell_major) and actual.get("psreadline") == psreadline, f"{label}/{mode}: capability editor mismatch")
+                        queries = raw.get("queries")
+                        require(raw.get("passed") is False and isinstance(queries, list) and len(queries) == 1, f"{label}/{mode}: capability timeout missing")
+                        query = queries[0]
+                        expected_queries = {(fixture_prefixes[scenario][0] + str(index), fixture_prefixes[scenario][1] + str(index)) for index in range(10)}
+                        identity = (query.get("line"), query.get("expected"))
+                        require(identity in expected_queries and identity not in seen_queries, f"{label}/{mode}: capability fixture mismatch or duplicate query")
+                        seen_queries.add(identity)
+                        require(query.get("failed") is True and query.get("menu") is None and query.get("elapsed_ms", 0) >= 20000
+                                and isinstance(query.get("input_echo"), (int, float)) and query["input_echo"] >= 0
+                                and math.isfinite(query["input_echo"]) and math.isfinite(query["elapsed_ms"])
+                                and query.get("line") == probe.get("line") and query.get("expected") == probe.get("expected")
+                                and isinstance(query.get("observations"), list) and query["observations"], f"{label}/{mode}: incomplete capability timeout evidence")
                 else:
                     samples(measurement.get("menu"), hot_count, f"{label}/{mode}/{scenario}/{cache_mode} menu")
                     require(measurement.get("cache_capability") in ("supported", "not_applicable"), f"{label}/{mode}: cache capability missing")
@@ -397,6 +438,14 @@ def bundle(evidence_path, output_path):
     evidence = read_json(evidence_path)
     reports = set(evidence["startup_reports"].values())
     reports.update(evidence["comparison_reports"].values())
+    for comparison in evidence["comparison_reports"].values():
+        comparison_path = report_path(evidence_path.parent, comparison)
+        for mode in read_json(comparison_path)["modes"].values():
+            for groups in mode["hot"].values():
+                for measurement in groups.values():
+                    for probe in measurement.get("capability_probes", []):
+                        raw_path = report_path(comparison_path.parent, probe["report"])
+                        reports.add(raw_path.relative_to(evidence_path.parent).as_posix())
     for variants in evidence["hot_reports"].values():
         reports.update(variants.values())
     for variants in evidence["nested_compatibility_reports"].values():
