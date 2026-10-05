@@ -78,7 +78,15 @@ fn envelope(text: &str, physical_keys: bool) -> Vec<u8> {
 #[test]
 fn signing_command_remains_exact_across_input_protocols() -> Result<()> {
     let mut reference = None;
-    for mode in ["plain", "nested", "direct"] {
+    // The same fixture can inspect the frozen public beta without pretending
+    // that its failures are current-product failures or modifying its files.
+    let baseline = std::env::var_os("BLUEBERRY_INPUT_BASELINE_EXE").map(std::path::PathBuf::from);
+    let modes: &[&str] = if baseline.is_some() {
+        &["plain", "beta6"]
+    } else {
+        &["plain", "nested", "direct"]
+    };
+    for &mode in modes {
         let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
         fs::create_dir_all(&evidence)?;
         let retained = tempfile::Builder::new()
@@ -103,15 +111,23 @@ Set-PSReadLineKeyHandler -Key F4 -ScriptBlock {{
     $line=''; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor)
     @{{line=$line;cursor=$cursor}} | ConvertTo-Json -Compress | Set-Content -LiteralPath {buffer} -Encoding UTF8
 }}
-'true' | Set-Content -LiteralPath {ready}
+@{{ shell=$PSVersionTable.PSVersion.ToString(); psreadline=(Get-Module PSReadLine).Version.ToString(); dll=[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location }} | ConvertTo-Json -Compress | Set-Content -LiteralPath {ready} -Encoding UTF8
 "#,
                 executions = quote(&executions),
                 buffer = quote(&buffer),
                 ready = quote(&ready)
             ),
         )?;
-        let shell = blueberry::pty::default_shell();
-        let args = if mode == "plain" {
+        let selected_shell = blueberry::pty::default_shell();
+        let shell = if selected_shell.is_absolute() {
+            selected_shell
+        } else {
+            std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+                .map(|directory| directory.join(&selected_shell))
+                .find(|path| path.is_file())
+                .ok_or_else(|| anyhow::anyhow!("cannot resolve {}", selected_shell.display()))?
+        };
+        let mut args = if mode == "plain" {
             let module = std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE")
                 .ok()
                 .map(|p| format!("Import-Module {} -ErrorAction Stop; ", quote(Path::new(&p))))
@@ -139,11 +155,24 @@ Set-PSReadLineKeyHandler -Key F4 -ScriptBlock {{
                 dir.join("data").to_string_lossy().into_owned(),
             ]
         };
+        if mode == "beta6" {
+            args.drain(1..3); // Published beta.6 predates --host-mode.
+            args[2] = "osc".into();
+        }
         let program = if mode == "plain" {
             shell.as_path()
+        } else if mode == "beta6" {
+            baseline.as_deref().expect("baseline mode requires an EXE")
         } else {
             Path::new(env!("CARGO_BIN_EXE_blueberry"))
         };
+        use sha2::{Digest, Sha256};
+        fs::write(
+            dir.join("identity.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "mode":mode, "program":program, "sha256":format!("{:x}",Sha256::digest(fs::read(program)?)), "args":args
+            }))?,
+        )?;
         let mut h = Harness::start(
             program,
             &args,
@@ -160,13 +189,38 @@ Set-PSReadLineKeyHandler -Key F4 -ScriptBlock {{
         h.send(b"\x1bOS")?;
         ensure!(read_json(&mut h, &buffer)?["line"] == "");
         fs::remove_file(&buffer)?;
-        for pasted in [false, true] {
+        for (phase, pasted) in [
+            ("typed", false),
+            ("paste", true),
+            ("external-return", false),
+            ("shell-return", true),
+        ] {
+            if phase == "external-return" {
+                let returned = dir.join("external-return.json");
+                h.send(format!("& {} -NoProfile -NonInteractive -Command 'exit 17'; $LASTEXITCODE | Set-Content -LiteralPath {}\r", quote(&shell), quote(&returned)).as_bytes())?;
+                ensure!(
+                    read_json(&mut h, &returned)? == 17,
+                    "external exit code changed"
+                );
+            } else if phase == "shell-return" {
+                let entered = dir.join("nested-entered.json");
+                let returned = dir.join("nested-returned.json");
+                h.send(format!("& {} -NoLogo -NoProfile -NoExit -Command \"'true' | Set-Content -LiteralPath {}\"; 'true' | Set-Content -LiteralPath {}\r", quote(&shell), quote(&entered), quote(&returned)).as_bytes())?;
+                read_json(&mut h, &entered)?;
+                h.send(b"exit\r")?;
+                read_json(&mut h, &returned)?;
+                // F4 is registered only in the parent. Its empty-buffer
+                // record proves the nested shell returned before the input.
+                h.send(b"\x1bOS")?;
+                ensure!(read_json(&mut h, &buffer)?["line"] == "");
+                fs::remove_file(&buffer)?;
+            }
             // First establish ordinary input, then switch to Win32 envelopes.
             h.send(b"x\x01\x7f")?;
             // Only nested negotiates bracketed paste. Stock Windows
             // PSReadLine (and direct) receives an unmarked console batch.
-            if pasted && mode != "nested" {
-                fs::write(dir.join("wire-pasted.bin"), COMMAND.as_bytes())?;
+            if pasted && !matches!(mode, "nested" | "beta6") {
+                fs::write(dir.join(format!("wire-{phase}.bin")), COMMAND.as_bytes())?;
                 h.send(COMMAND.as_bytes())?;
             } else {
                 let input = if pasted {
@@ -175,7 +229,7 @@ Set-PSReadLineKeyHandler -Key F4 -ScriptBlock {{
                     COMMAND.into()
                 };
                 let wire = envelope(&input, !pasted);
-                fs::write(dir.join(format!("wire-{pasted}.bin")), &wire)?;
+                fs::write(dir.join(format!("wire-{phase}.bin")), &wire)?;
                 // ConPTY's input parser flushes incomplete escape sequences at
                 // each write (microsoft/terminal#4037). Feed complete terminal
                 // records here. Arbitrary fragmentation at Blueberry's own
@@ -187,19 +241,19 @@ Set-PSReadLineKeyHandler -Key F4 -ScriptBlock {{
             h.send(b"\x1bOS")?;
             let actual = read_json(&mut h, &buffer)?;
             fs::write(
-                dir.join(format!("checkpoint-buffer-{pasted}.json")),
+                dir.join(format!("checkpoint-buffer-{phase}.json")),
                 serde_json::to_vec_pretty(&actual)?,
             )?;
             ensure!(
                 actual["line"] == COMMAND && actual["cursor"] == COMMAND.len(),
-                "{mode}, pasted={pasted}: {actual}; screen={}",
+                "{mode}, phase={phase}: {actual}; screen={}",
                 h.contents()
             );
             fs::remove_file(&buffer)?;
             h.send(b"\x1b[13;28;13;1;0;1_\x1b[13;28;13;0;0;1_")?;
             let actual = read_json(&mut h, &executions)?;
             fs::write(
-                dir.join(format!("checkpoint-execution-{pasted}.json")),
+                dir.join(format!("checkpoint-execution-{phase}.json")),
                 serde_json::to_vec_pretty(&actual)?,
             )?;
             if let Some(expected) = &reference {
@@ -217,7 +271,31 @@ Set-PSReadLineKeyHandler -Key F4 -ScriptBlock {{
             );
             ensure!(!executions.exists(), "release executed twice in {mode}");
             fs::remove_file(&buffer)?;
+            // Repeated physical Enter on the empty prompt must not repeat the
+            // previous signing invocation or leave wire syntax in the editor.
+            h.send(b"\x1b[13;28;13;1;0;2_\x1b[13;28;13;0;0;1_\x1bOS")?;
+            ensure!(read_json(&mut h, &buffer)?["line"] == "");
+            ensure!(
+                !executions.exists(),
+                "empty Enter repeated the command in {mode}"
+            );
+            fs::remove_file(&buffer)?;
         }
+        let literal = "Write-Output '^[[13;28;13;1;0;1_ literal_under_score | quoted'";
+        h.send(literal.as_bytes())?;
+        h.send(b"\x1bOS")?;
+        let actual = read_json(&mut h, &buffer)?;
+        fs::write(
+            dir.join("checkpoint-literal.json"),
+            serde_json::to_vec_pretty(&actual)?,
+        )?;
+        ensure!(
+            actual["line"] == literal,
+            "literal protocol-like text changed: {actual}"
+        );
+        fs::remove_file(&buffer)?;
+        h.send(b"\x01\x7f\x1bOS")?;
+        ensure!(read_json(&mut h, &buffer)?["line"] == "");
         h.finish(TIMEOUT)?;
     }
     Ok(())

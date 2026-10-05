@@ -191,6 +191,14 @@ jobs:
         run: |
           cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'PowerShell 7 ConPTY regressions failed' }
+      - name: Repeat the intermittent resize regression
+        shell: pwsh
+        run: |
+          for ($sample = 1; $sample -le 30; $sample++) {
+            Write-Output "Resize repetition $sample / 30"
+            cargo test --locked --test terminal_modes repeated_resize_and_large_output_preserve_menu_and_real_buffer -- --exact --nocapture
+            if ($LASTEXITCODE -ne 0) { throw "resize repetition $sample failed; native snapshot is retained" }
+          }
       - name: Direct inherited-console regressions
         if: matrix.transport == 'pipe'
         shell: pwsh
