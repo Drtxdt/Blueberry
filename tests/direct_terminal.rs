@@ -34,7 +34,10 @@ fn send_unicode_input(h: &mut Harness, input: &str) -> Result<()> {
             encoded.push(ch);
         } else {
             for unit in ch.encode_utf16(&mut [0; 2]) {
-                encoded.push_str(&format!("\x1b[0;0;{unit};1;0;1_\x1b[0;0;{unit};0;0;1_"));
+                // VK_PACKET identifies synthesized Unicode key input. VK=0,
+                // scan=0 identifies VT payload in ConPTY and is not a physical
+                // Unicode key on all supported console implementations.
+                encoded.push_str(&format!("\x1b[231;0;{unit};1;0;1_\x1b[231;0;{unit};0;0;1_"));
             }
         }
     }
@@ -168,6 +171,18 @@ fn start(directory: &std::path::Path) -> Result<Harness> {
 }
 
 fn start_with_delay(directory: &std::path::Path, delay: u32) -> Result<Harness> {
+    start_delayed_executable(
+        directory,
+        delay,
+        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+    )
+}
+
+fn start_delayed_executable(
+    directory: &std::path::Path,
+    delay: u32,
+    executable: &std::path::Path,
+) -> Result<Harness> {
     let mut args = vec![
         "run".into(),
         "--host-mode".into(),
@@ -189,7 +204,7 @@ fn start_with_delay(directory: &std::path::Path, delay: u32) -> Result<Harness> 
         ]);
     }
     let mut harness = Harness::start(
-        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        executable,
         &args,
         directory,
         &BTreeMap::from([
@@ -201,6 +216,128 @@ fn start_with_delay(directory: &std::path::Path, delay: u32) -> Result<Harness> 
     )?;
     wait_editor_begin(&mut harness, directory, 1)?;
     Ok(harness)
+}
+
+#[test]
+#[ignore = "isolated fixed-machine 5 ms wake qualification; requires explicit artifact and output directory"]
+fn direct_wake_latency_qualification() -> Result<()> {
+    use sha2::{Digest, Sha256};
+    let executable = std::path::PathBuf::from(std::env::var("BLUEBERRY_QUALIFICATION_EXE")?);
+    let output = std::path::PathBuf::from(std::env::var("BLUEBERRY_QUALIFICATION_OUTPUT")?);
+    ensure!(!output.exists(), "qualification output must be new");
+    std::fs::create_dir_all(&output)?;
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn QueryPerformanceFrequency(value: *mut i64) -> i32;
+    }
+    let mut frequency = 0i64;
+    ensure!(
+        unsafe { QueryPerformanceFrequency(&mut frequency) } != 0,
+        "QPC frequency unavailable"
+    );
+    let identity = std::process::Command::new(&executable)
+        .args(["doctor", "--json"])
+        .output()?;
+    ensure!(identity.status.success(), "candidate doctor failed");
+    std::fs::write(output.join("identity.json"), identity.stdout)?;
+    std::fs::write(
+        output.join("artifacts.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "executable":executable,"executable_sha256":format!("{:x}",Sha256::digest(std::fs::read(&executable)?)),
+            "probe_sha256":format!("{:x}",Sha256::digest(std::fs::read(std::env::current_exe()?)?)),
+            "shell":blueberry::pty::default_shell(),"trace_enabled":true
+        }))?,
+    )?;
+    let mut results = Vec::new();
+    let mut passed = true;
+    for delay in [0, 3, 5, 10, 40, 100] {
+        let directory = output.join(format!("delay-{delay}"));
+        std::fs::create_dir(&directory)?;
+        let mut h = start_delayed_executable(&directory, delay, &executable)?;
+        let mut last_revision = -1;
+        for _ in 0..30 {
+            h.send(b"\x01\x7fgit sw")?;
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            loop {
+                let trace =
+                    std::fs::read_to_string(directory.join("trace.jsonl")).unwrap_or_default();
+                let revision = trace
+                    .lines()
+                    .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+                    .filter(|event| event["event"] == "editor_menu_written")
+                    .filter_map(|event| event["revision"].as_i64())
+                    .max()
+                    .unwrap_or(-1);
+                if revision > last_revision {
+                    last_revision = revision;
+                    break;
+                }
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "idle editor failed to refresh; evidence at {}",
+                    directory.display()
+                );
+                let _ = h.pump(Duration::from_millis(5));
+            }
+        }
+        h.send(b"\x01\x7f")?;
+        h.finish(TIMEOUT)?;
+        let status = std::fs::read_dir(&directory)?
+            .filter_map(Result::ok)
+            .find_map(|entry| std::fs::read(entry.path().join("adapter.json")).ok())
+            .context("missing actual editor identity")?;
+        let status: serde_json::Value = serde_json::from_slice(&status)?;
+        ensure!(
+            status["editor_mode"] == "editor_hooks_v1",
+            "fallback is not qualified"
+        );
+        let trace = std::fs::read_to_string(directory.join("trace.jsonl"))?;
+        let events: Vec<serde_json::Value> = trace
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .collect();
+        let receipts: BTreeMap<_, _> = events
+            .iter()
+            .filter(|event| event["event"] == "editor_frame_received")
+            .map(|event| {
+                (
+                    (event["revision"].as_u64(), event["frame_id"].as_u64()),
+                    event["qpc"].as_i64().unwrap(),
+                )
+            })
+            .collect();
+        let mut waits = Vec::new();
+        for event in events
+            .iter()
+            .filter(|event| event["event"] == "editor_menu_written")
+        {
+            let key = (event["revision"].as_u64(), event["frame_id"].as_u64());
+            let received = receipts
+                .get(&key)
+                .context("paint has no matching receive timestamp")?;
+            waits.push(
+                (event["qpc"].as_i64().context("missing paint timestamp")? - received) as f64
+                    * 1000.0
+                    / frequency as f64,
+            );
+        }
+        ensure!(waits.len() >= 30, "missing qualified samples");
+        waits.sort_by(f64::total_cmp);
+        let p95 = waits[((waits.len() as f64 * 0.95).ceil() as usize).saturating_sub(1)];
+        passed &= p95 <= 5.0;
+        results.push(
+            serde_json::json!({"delay_ms":delay,"samples":waits,"qpc_frequency":frequency,"endpoint":"editor_menu_written","p95_ms":p95,"passed":p95<=5.0}),
+        );
+        std::fs::write(
+            output.join("results.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+    }
+    ensure!(
+        passed,
+        "receive-to-paint P95 exceeded 5 ms; all samples retained"
+    );
+    Ok(())
 }
 
 fn wait_editor_begin(h: &mut Harness, directory: &std::path::Path, count: usize) -> Result<()> {
@@ -540,7 +677,7 @@ fn editor_equivalence(vi: bool) -> Result<()> {
     }
     ensure!(
         results[1][0].contains("中文😀e\u{301}👩‍💻"),
-        "Unicode input lost"
+        "Unicode input lost in plain/direct snapshots: {results:?}"
     );
     ensure!(
         results[1][4].ends_with("CHORD") && results[1][5].ends_with("xx"),

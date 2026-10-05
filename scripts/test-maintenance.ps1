@@ -49,10 +49,19 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Runtime.InteropServices;
 class Hold {
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern IntPtr CreateJobObject(IntPtr attributes,string name);
+    [DllImport("kernel32.dll")] static extern bool AssignProcessToJobObject(IntPtr job,IntPtr process);
     static int Main() {
         string exe=Environment.GetEnvironmentVariable("BB_TEST_EXE");
         string operation=Environment.GetEnvironmentVariable("BB_TEST_OPERATION");
+        bool blocked=Environment.GetEnvironmentVariable("BB_TEST_BLOCK_JOB")=="1";
+        if(blocked) {
+            // An additional enclosing Job deliberately forbids breakaway.
+            IntPtr job=CreateJobObject(IntPtr.Zero,null);
+            if(job==IntPtr.Zero || !AssignProcessToJobObject(job,Process.GetCurrentProcess().Handle))return 90;
+        }
         if(operation=="hold") {
             File.WriteAllText(Environment.GetEnvironmentVariable("BB_TEST_READY"),"0\n");
             using(var wait=new EventWaitHandle(false,EventResetMode.ManualReset,Environment.GetEnvironmentVariable("BB_TEST_EVENT"))) {wait.WaitOne();}
@@ -63,8 +72,9 @@ class Hold {
         using(var process=Process.Start(info)) {
             string output=process.StandardOutput.ReadToEnd()+process.StandardError.ReadToEnd();
             process.WaitForExit();
-            File.WriteAllText(Environment.GetEnvironmentVariable("BB_TEST_READY"),process.ExitCode+"\n"+output);
-            if(process.ExitCode!=0)return process.ExitCode;
+            int result=blocked ? (process.ExitCode==0 ? 91 : 0) : process.ExitCode;
+            File.WriteAllText(Environment.GetEnvironmentVariable("BB_TEST_READY"),result+"\nCLI_EXIT="+process.ExitCode+"\n"+output);
+            if(result!=0)return result;
         }
         using(var done=new EventWaitHandle(false,EventResetMode.ManualReset,Environment.GetEnvironmentVariable("BB_TEST_EVENT"))) {done.WaitOne();}
         return 0;
@@ -74,7 +84,7 @@ class Hold {
 $fixture=Join-Path $scratch 'hold.exe'
 & "$env:SystemRoot\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe "/out:$fixture" $helper
 if($LASTEXITCODE -ne 0){throw 'Compile fixture failed'}
-function Start-QueuedSession([string]$Operation) {
+function Start-QueuedSession([string]$Operation,[bool]$Blocked=$false) {
     $key=[Guid]::NewGuid().ToString('N')
     $event=[Threading.EventWaitHandle]::new($false,'ManualReset',('Local\Blueberry.Test.'+$key))
     $ready=Join-Path $scratch ($key+'.ready')
@@ -87,6 +97,7 @@ function Start-QueuedSession([string]$Operation) {
     $info.EnvironmentVariables['BB_TEST_PACKAGE']=$Package
     $info.EnvironmentVariables['BB_TEST_READY']=$ready
     $info.EnvironmentVariables['BB_TEST_EVENT']='Local\Blueberry.Test.'+$key
+    $info.EnvironmentVariables['BB_TEST_BLOCK_JOB']=if($Blocked){'1'}else{'0'}
     $process=[Diagnostics.Process]::Start($info)
     $deadline=[DateTime]::UtcNow.AddSeconds(60)
     while(-not [IO.File]::Exists($ready)) {
@@ -137,6 +148,14 @@ try {
     & $maintenance -Mode Worker -InstallRoot $root -StateRoot $stateRoot
     if((Read-State).status -ne 'completed'){throw 'Post-commit interruption recovery failed'}
     Invoke-Cli -Arguments @('rollback')
+    $null=Wait-State @('completed')
+
+    $session=Start-QueuedSession 'upgrade' $true
+    try {
+        if((Read-State).status -ne 'queued'){throw 'A non-breakaway Job did not preserve the queued operation'}
+    } finally {End-Session $session}
+    $session=Start-QueuedSession 'hold'
+    try { $null=Wait-State @('waiting') } finally {End-Session $session}
     $null=Wait-State @('completed')
 
     $before=(Get-FileHash (Join-Path $root 'install.json')).Hash

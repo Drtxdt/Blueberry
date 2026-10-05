@@ -99,7 +99,7 @@ jobs:
         with:
           name: psreadline-upstream-${{ matrix.psreadline }}
           path: |
-            target/private-editor/upstream-tests/**/TestResults/*.trx
+            target/private-editor/upstream-tests/**/TestResults/**/*.trx
             target/private-editor/upstream-tests/**/summary.json
       - name: Adapter regressions
         shell: pwsh
