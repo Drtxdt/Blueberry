@@ -377,7 +377,13 @@ fn start_host() -> Result<RunningHost> {
     )
     .context("write deterministic git.cmd")?;
 
-    let data_dir = tempdir().context("create terminal-modes data directory")?;
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/nested-terminal-evidence");
+    fs::create_dir_all(&evidence)?;
+    let mut data_dir = tempfile::Builder::new()
+        .prefix("modes-")
+        .tempdir_in(&evidence)?;
+    data_dir.disable_cleanup(true);
+    eprintln!("terminal modes evidence: {}", data_dir.path().display());
     let config_path = data_dir.path().join("config.toml");
     fs::write(
         &config_path,
@@ -399,6 +405,14 @@ fn start_host() -> Result<RunningHost> {
         // This keeps PSReadLine history and learning output inside data_dir.
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
+        (
+            "BLUEBERRY_PIPE_DIAGNOSTIC".into(),
+            data_dir
+                .path()
+                .join("pipe-faults.csv")
+                .to_string_lossy()
+                .into_owned(),
+        ),
     ]);
     let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let args = vec![
@@ -414,6 +428,12 @@ fn start_host() -> Result<RunningHost> {
         "--no-profile".to_owned(),
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),
+        "--trace".into(),
+        data_dir
+            .path()
+            .join("trace.jsonl")
+            .to_string_lossy()
+            .into_owned(),
     ];
     let mut harness = Harness::start(&program, &args, cwd.path(), &env, token)
         .with_context(|| format!("start {}", program.display()))?;

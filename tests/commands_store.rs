@@ -1,7 +1,11 @@
 #![cfg(windows)]
 
 use anyhow::{Context, Result, ensure};
-use std::{fs, path::Path, process::Command};
+use std::{
+    fs,
+    path::Path,
+    process::{Command, Stdio},
+};
 
 fn blueberry(appdata: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_blueberry"));
@@ -11,12 +15,20 @@ fn blueberry(appdata: &Path) -> Command {
 
 #[test]
 fn independent_processes_keep_all_favorites() -> Result<()> {
-    let directory = tempfile::tempdir()?;
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/store-evidence");
+    fs::create_dir_all(&evidence)?;
+    let mut directory = tempfile::Builder::new()
+        .prefix("concurrent-")
+        .tempdir_in(&evidence)?;
+    directory.disable_cleanup(true);
     let root = directory.path();
     let mut children = Vec::new();
     for index in 0..16 {
         children.push(
             blueberry(root)
+                .env("BLUEBERRY_TEST_STORE_TRACE", "1")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
                 .args([
                     "hub",
                     "--add",
@@ -28,9 +40,22 @@ fn independent_processes_keep_all_favorites() -> Result<()> {
                 .with_context(|| format!("start writer {index}"))?,
         );
     }
-    for (index, mut child) in children.into_iter().enumerate() {
-        ensure!(child.wait()?.success(), "writer {index} failed");
+    let mut failures = Vec::new();
+    // Join every writer before inspecting the result or releasing the fixture.
+    // An early failure must not delete the directory under surviving writers.
+    for (index, child) in children.into_iter().enumerate() {
+        let output = child.wait_with_output()?;
+        fs::write(root.join(format!("writer-{index}.stdout")), &output.stdout)?;
+        fs::write(root.join(format!("writer-{index}.stderr")), &output.stderr)?;
+        if !output.status.success() {
+            failures.push(index);
+        }
     }
+    ensure!(
+        failures.is_empty(),
+        "writers {failures:?} failed; evidence: {}",
+        root.display()
+    );
     let path = root.join("Blueberry/commands.toml");
     let document: toml::Value = toml::from_str(&fs::read_to_string(&path)?)?;
     let favorites = document["favorites"]

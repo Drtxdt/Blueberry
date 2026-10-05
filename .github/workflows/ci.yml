@@ -50,6 +50,21 @@ jobs:
         run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge -- --test-threads=1
       - run: cargo run --locked -- --version
       - run: cargo run --locked -- specs check
+      - name: Repeat concurrent favorites writers
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          for ($sample = 1; $sample -le 20; $sample++) {
+            cargo test --locked --test commands_store independent_processes_keep_all_favorites -- --exact --nocapture
+            if ($LASTEXITCODE -ne 0) { throw "concurrent store repetition $sample failed; all writer logs retained" }
+          }
+      - name: Preserve concurrent store evidence
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: concurrent-store-windows
+          path: target/store-evidence
+          if-no-files-found: ignore
   powershell-51:
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
@@ -130,6 +145,15 @@ jobs:
         run: |
           cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
+      - name: Repeat Windows PowerShell pipe resize regression
+        shell: pwsh
+        env:
+          BLUEBERRY_TEST_TRANSPORT: pipe
+        run: |
+          for ($sample = 1; $sample -le 30; $sample++) {
+            cargo test --locked --test terminal_modes repeated_resize_and_large_output_preserve_menu_and_real_buffer -- --exact --nocapture
+            if ($LASTEXITCODE -ne 0) { throw "pipe resize repetition $sample failed; transport diagnostics retained" }
+          }
       - name: Preserve nested terminal evidence
         if: always()
         uses: actions/upload-artifact@v4

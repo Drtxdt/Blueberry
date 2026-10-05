@@ -2,6 +2,50 @@
 param([Parameter(Mandatory)][string]$Executable, [Parameter(Mandatory)][string]$Package)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+# Hosted CI itself can own a non-breakaway Job. Give this isolated fixture
+# the same innermost breakaway boundary as a Blueberry session; helpers leave
+# our test Job while remaining subject to the runner's outer cleanup Job.
+# The blocked-Job case below adds a new non-breakaway boundary and must still
+# reject helper launch and retain its durable queue.
+Add-Type -TypeDefinition @'
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+public static class BlueberryMaintenanceTestJob {
+    [StructLayout(LayoutKind.Sequential)] struct BasicLimits {
+        public long ProcessTime, JobTime;
+        public uint Flags;
+        public UIntPtr MinWorkingSet, MaxWorkingSet;
+        public uint ActiveProcesses;
+        public UIntPtr Affinity;
+        public uint Priority, Scheduling;
+    }
+    [StructLayout(LayoutKind.Sequential)] struct IoCounters {
+        public ulong ReadOperations, WriteOperations, OtherOperations, ReadBytes, WriteBytes, OtherBytes;
+    }
+    [StructLayout(LayoutKind.Sequential)] struct ExtendedLimits {
+        public BasicLimits Basic;
+        public IoCounters Io;
+        public UIntPtr ProcessMemory, JobMemory, PeakProcessMemory, PeakJobMemory;
+    }
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr CreateJobObject(IntPtr attributes,string name);
+    [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetInformationJobObject(IntPtr job,int type,ref ExtendedLimits information,uint length);
+    [DllImport("kernel32.dll", SetLastError=true)] static extern bool AssignProcessToJobObject(IntPtr job,IntPtr process);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    public static void Attach() {
+        IntPtr job=CreateJobObject(IntPtr.Zero,null);
+        if(job==IntPtr.Zero)throw new System.ComponentModel.Win32Exception();
+        try {
+            var limits=new ExtendedLimits();
+            limits.Basic.Flags=0x800; // JOB_OBJECT_LIMIT_BREAKAWAY_OK, no kill-on-close.
+            if(!SetInformationJobObject(job,9,ref limits,(uint)Marshal.SizeOf(limits)) ||
+                !AssignProcessToJobObject(job,Process.GetCurrentProcess().Handle))
+                throw new System.ComponentModel.Win32Exception();
+        } finally { CloseHandle(job); }
+    }
+}
+'@
+[BlueberryMaintenanceTestJob]::Attach()
 . (Join-Path $PSScriptRoot 'install-common.ps1')
 $canonical='{"records":[{"bytes":3,"path":"a"}],"touched":["README.md"]}'
 if ((ConvertTo-BlueberryCanonicalJson ($canonical | ConvertFrom-BlueberryInstallJson)) -cne $canonical) { throw 'Nested transaction JSON did not round-trip' }

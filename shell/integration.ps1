@@ -243,6 +243,17 @@ function Disable-BlueberryPipe {
     }
 }
 
+function Write-BlueberryPipeDiagnostic {
+    param([string]$Phase, [int]$ErrorCode = 0)
+    $path = [Environment]::GetEnvironmentVariable('BLUEBERRY_PIPE_DIAGNOSTIC', 'Process')
+    if ([string]::IsNullOrEmpty($path)) { return }
+    try {
+        # Failure-only diagnostics never enter the transport being diagnosed.
+        # No command text or payload is recorded.
+        [IO.File]::AppendAllText($path, ('{0},{1},{2}{3}' -f [Diagnostics.Stopwatch]::GetTimestamp(), $Phase, $ErrorCode, [Environment]::NewLine))
+    } catch { }
+}
+
 function Initialize-BlueberryPipe {
     [CmdletBinding()]
     param()
@@ -350,6 +361,7 @@ function Send-BlueberryPipeEvent {
         try {
             $writeTask = $stream.WriteAsync($bytes, 0, $bytes.Length, $cts.Token)
             if (-not $writeTask.Wait(50)) {
+                Write-BlueberryPipeDiagnostic 'write_timeout'
                 $cts.Cancel()
                 try {
                     $writeTask.Wait(50) | Out-Null
@@ -381,6 +393,7 @@ function Send-BlueberryPipeEvent {
         }
         return $true
     } catch {
+        Write-BlueberryPipeDiagnostic 'write_failed' $_.Exception.HResult
         Disable-BlueberryPipe
         return $false
     } finally {
@@ -419,6 +432,7 @@ function Read-BlueberryPipeJson {
             try {
                 $readTask = $stream.ReadAsync($bytes, $offset, $remaining, $cts.Token)
                 if (-not $readTask.Wait(50)) {
+                    Write-BlueberryPipeDiagnostic 'read_timeout'
                     $cts.Cancel()
                     try {
                         $readTask.Wait(50) | Out-Null
@@ -445,6 +459,7 @@ function Read-BlueberryPipeJson {
             [object],
             (Get-BlueberryJsonOptions))
     } catch {
+        Write-BlueberryPipeDiagnostic 'read_failed' $_.Exception.HResult
         Disable-BlueberryPipe
         return $null
     }
