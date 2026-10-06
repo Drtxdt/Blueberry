@@ -1,0 +1,14 @@
+{
+  "files": [
+    "docs\\benchmarks\\v0.5\\v050-final\\functional-ci.json",
+    "docs\\benchmarks\\v0.5\\v0.5.0-release-evidence.json",
+    "docs\\benchmarks\\v0.5\\v050-development\\ci-37347868367.json",
+    "docs\\benchmarks\\v0.5\\v050-development\\ci-37347878789.json"
+  ],
+  "credential_findings": [],
+  "public_source": "GitHub public repository workflow run 37438578681; original plan explicitly authorizes publication of the identical CI artifact and raw acceptance evidence.",
+  "scope": "CI logs, product SHA-256 identities, synthetic beta.6 migration fixture output; no real private key is used by the signing fixture.",
+  "archive_members_checked": 15,
+  "label_review": "All secret/token/authorization/credential mentions inspected: GitHub Actions credentials are masked as ***, or labels/test fixture protocol names. No private key or unmasked credential found.",
+  "limitations": "Pattern checks are supplemented by review of matching labels; not a general claim that arbitrary future logs are safe."
+}

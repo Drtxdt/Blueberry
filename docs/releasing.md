@@ -2,9 +2,9 @@
 
 GitHub 仓库存放源码；Release 存放用户下载的程序。CI 为已冻结的源码提交生成 Windows x64 包；发布工作流只复用这份绑定验收记录的包，不在打标签后重新构建替换。
 
-`0.5.0` 按用户 2026-10-06 的明确要求“如果没有bug先直接发版吧，性能以后再优化”，性能目标及正式性能矩阵延期，不再阻断本版发布，也不标记为通过。最新本地探索的 PS5.1／2.0.0 启动增量 P50 为 70.04770 ms，超过 50 ms 目标；其他历史探索不能代替最终包的正式验收。功能 CI、安装升级回滚、Windows Terminal 人工检查和最终 main CI 包身份仍须通过。目标用户试用保留此前明确豁免。后文完整性能流程保留给后续优化；本版使用下面的限版本延期记录。候选验证记录见 [0.5.0 验收](v0.5.0-validation.md)。
+`0.5.0` 按用户 2026-10-06 的明确要求“如果没有bug先直接发版吧，性能以后再优化”，性能目标及正式性能矩阵延期，不再阻断本版发布，也不标记为通过。最新本地探索的 PS5.1／2.0.0 启动增量 P50 为 70.04770 ms，超过 50 ms 目标；其他历史探索不能代替最终包的正式验收。功能 CI、安装升级回滚和最终 main CI 包身份仍须通过。最终包交付后，用户进一步明确“本次也免除人工检查，按自动回归结果发布”；Windows Terminal 人工项目记录为豁免、未执行，不标记通过。目标用户试用保留此前明确豁免。后文完整性能流程保留给后续优化；本版使用下面的限版本延期记录。候选验证记录见 [0.5.0 验收](v0.5.0-validation.md)。
 
-本版证据仍为 schema v2，新增 `performance_waiver`：`version: "0.5.0"`、`status: "deferred_by_user"`、`passed: false`、`authorization` 为上面用户原文，`limitations` 写明超标及缺少正式矩阵。四个正式性能报告映射留空；`functional_ci` 绑定包含 GitHub 原始 run/jobs 的 JSON 文件路径及 SHA-256，必须是最终源码的成功 main push CI，完整功能与 package 工作均成功。校验器保留全部包校验和人工项目，延期不能绕过功能失败。发布工作流仍独立查询实际 CI 状态。开发原始失败数据继续保留，不伪造性能通过。
+本版证据仍为 schema v2，新增 `performance_waiver`：`version: "0.5.0"`、`status: "deferred_by_user"`、`passed: false`、`authorization` 为上面用户原文，`limitations` 写明超标及缺少正式矩阵。四个正式性能报告映射留空；`functional_ci` 绑定包含 GitHub 原始 run/jobs 的 JSON 文件路径及 SHA-256，必须是最终源码的成功 main push CI，完整功能与 package 工作均成功。校验器保留全部包校验和安装事务项目，延期不能绕过功能失败。Windows Terminal 使用 `windows_terminal: {}` 和 `windows_terminal_waiver`（版本 0.5.0、`status: waived_by_user`、`executed: false`、`passed: false`、上述用户原文 `authorization`），不伪造操作结果。发布工作流仍独立查询实际 CI 状态。开发原始失败数据继续保留，不伪造性能通过。
 
 ## 第一次准备
 
@@ -35,7 +35,7 @@ cargo build --release --locked
 python scripts/verify-release-evidence.py .\docs\benchmarks\v0.5\v0.5.0-release-evidence.json .\dist\candidate\blueberry-v0.5.0-windows-x64.zip --commit <冻结源码提交SHA> --public-beta6-package <从公开 v0.5.0-beta.6 Release 下载的 ZIP>
 ```
 
-人工记录仍绑定最终 `executable_sha256` 和 `source_commit`。`installation` 的 install／upgrade／rollback／uninstall／queued_maintenance／interrupted_maintenance、`windows_terminal` 的 ime／font_zoom／selection／paste／nested_program 均须实际通过。本版豁免记录为 `user_trials: []`，并提供 `user_trial_waiver: {"status":"waived_by_user","version":"0.5.0","executed":false,"reason":"用户明确要求本版跳过目标用户试用"}`；不能填成 passed，也不豁免其他人工项目。另记录经公开附件核验的 `public_beta6_sha256`、固定的 `inshellisense_sha256`。换 EXE 后相关记录失效。正式报告及原始数据作为只含证据的后续提交保存；不能修改被测程序或包。
+人工记录仍绑定最终 `executable_sha256` 和 `source_commit`。`installation` 的 install／upgrade／rollback／uninstall／queued_maintenance／interrupted_maintenance、`windows_terminal` 的 ime／font_zoom／selection／paste／nested_program 均须实际通过。本版豁免记录为 `user_trials: []`，并提供 `user_trial_waiver: {"status":"waived_by_user","version":"0.5.0","executed":false,"reason":"用户明确要求本版跳过目标用户试用"}`；不能填成 passed，也不豁免其他人工项目。另记录经公开附件核验的 `public_beta6_sha256`、固定的 `inshellisense_sha256`。换 EXE 后相关记录失效。正式报告及原始数据作为后续提交保存；不能修改被测程序或包。本版冻结之后的用户豁免仅允许更新发布校验器、对应测试、发布工作流、发布说明文档及证据。工作流从已合入 main 的证据提交运行校验器及其测试；仍禁止产品源码、依赖及打包脚本变化。最终 EXE 与 ZIP 保持原 main CI 字节，不重新编译。
 
 校验器核对公开 beta.6 ZIP 内 `blueberry.exe` 的摘要与四方对照记录。发布工作流会从本仓库的公开 beta.6 Release 重新下载该 ZIP；无法下载或摘要不符时不会创建草稿。
 

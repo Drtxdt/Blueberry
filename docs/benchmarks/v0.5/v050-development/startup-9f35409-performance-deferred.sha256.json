@@ -1,0 +1,10 @@
+{
+  "source_commit": "9f3540907af1a7e3f1c12954cf8f64e0b505b08c",
+  "formal": false,
+  "passed": false,
+  "status": "performance_deferred_by_user",
+  "startup_ps51_200_p50_delta_ms": 70.0477,
+  "sha256": "835c86b030434fbb4e9ca5d609cb90aee9a00a6a8d280aa2224a9f6054f0ab46",
+  "bytes": 61475,
+  "note": "Ten paired startup samples failed the old 50 ms target. Diagnostic launch was interrupted when user deferred performance; incomplete diagnostic data retained."
+}

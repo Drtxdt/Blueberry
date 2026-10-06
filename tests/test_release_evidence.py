@@ -279,6 +279,24 @@ class ReleaseEvidenceTests(unittest.TestCase):
         save()
         with self.assertRaisesRegex(ValueError, "cannot claim a pass"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        self.evidence["performance_waiver"]["passed"] = False
+        manual = self.evidence["manual_acceptance"]
+        manual["windows_terminal"] = {}
+        manual["windows_terminal_waiver"] = {
+            "version": "0.5.0", "status": "waived_by_user", "executed": False, "passed": False,
+            "authorization": "本次也免除人工检查，按自动回归结果发布",
+        }
+        save()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        manual["installation"]["rollback"] = False
+        save()
+        with self.assertRaisesRegex(ValueError, "installation"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        manual["installation"]["rollback"] = True
+        manual["windows_terminal_waiver"]["executed"] = True
+        save()
+        with self.assertRaisesRegex(ValueError, "non-execution"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
     def test_conpty_fallback_or_changed_runtime_blocks_release(self):
         path = self.root / self.evidence["startup_reports"]["ps51-2.0.0"]

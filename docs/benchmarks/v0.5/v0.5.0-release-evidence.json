@@ -1,0 +1,62 @@
+{
+  "schema": 2,
+  "version": "0.5.0",
+  "source_commit": "910d5b04d9f73f57a417c2f516c67673e8ff183a",
+  "package_sha256": "5CF4D82B5D7A9E54BFEF83291E30E0EBAFDE0AD24C0C3140426E3E4DC2CBD794",
+  "executable_sha256": "A6A3D118A37D7D4F6CFD9987B5DC53A214A2AECE8DFAADE6AEB3324E1AE9F134",
+  "ci": {
+    "run_id": 37438578681,
+    "branch": "main",
+    "event": "push",
+    "status": "success",
+    "source_commit": "910d5b04d9f73f57a417c2f516c67673e8ff183a",
+    "package_sha256": "5CF4D82B5D7A9E54BFEF83291E30E0EBAFDE0AD24C0C3140426E3E4DC2CBD794"
+  },
+  "performance_waiver": {
+    "version": "0.5.0",
+    "status": "deferred_by_user",
+    "passed": false,
+    "authorization": "如果没有bug先直接发版吧，性能以后再优化",
+    "limitations": "Performance is not certified. Latest local PS5.1/2.0.0 startup exploration had P50 increment 70.04770 ms against 50 ms. Formal startup/hot/four-way performance qualification deferred. Earlier exploratory passes are not final-package evidence."
+  },
+  "startup_reports": {},
+  "hot_reports": {},
+  "comparison_reports": {},
+  "nested_compatibility_reports": {},
+  "environments": {},
+  "functional_ci": {
+    "report": "v050-final/functional-ci.json",
+    "sha256": "E45FA4B0C23D574DE106B15924CF8849C2DBDB8331BADF923C447EC5BC7362D1"
+  },
+  "manual_acceptance": {
+    "source_commit": "910d5b04d9f73f57a417c2f516c67673e8ff183a",
+    "source_dirty": false,
+    "executable_sha256": "A6A3D118A37D7D4F6CFD9987B5DC53A214A2AECE8DFAADE6AEB3324E1AE9F134",
+    "installation": {
+      "install": true,
+      "upgrade": true,
+      "rollback": true,
+      "uninstall": true,
+      "queued_maintenance": true,
+      "interrupted_maintenance": true
+    },
+    "windows_terminal": {},
+    "user_trials": [],
+    "user_trial_waiver": {
+      "status": "waived_by_user",
+      "version": "0.5.0",
+      "executed": false,
+      "reason": "用户明确要求本版跳过目标用户试用"
+    },
+    "public_beta6_sha256": "C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86",
+    "inshellisense_sha256": "075503ED8DEE2A1A5160125FFA2EFB241986532294CC6128C3CB21196DC3059E",
+    "windows_terminal_waiver": {
+      "version": "0.5.0",
+      "status": "waived_by_user",
+      "executed": false,
+      "passed": false,
+      "authorization": "本次也免除人工检查，按自动回归结果发布"
+    },
+    "installation_method": "Automated final main CI package lifecycle plus local public beta.6 migration; not represented as human execution."
+  }
+}
