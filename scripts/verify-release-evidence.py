@@ -20,6 +20,7 @@ import tomllib
 
 VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
 USER_TRIAL_WAIVERS = {"0.5.0"}  # Explicit user authorization applies only to this release.
+PERFORMANCE_WAIVERS = {"0.5.0"}  # User requested release now, performance optimization later.
 PROFILES = {
     "ps51-2.0.0": ("powershell.exe", "5.", "2.0.0"),
     "ps51-2.4.5": ("powershell.exe", "5.", "2.4.5"),
@@ -360,6 +361,35 @@ def check_comparison(path, executable_hash, commit, profile, manual):
             require(all(order == list(COMPARISON_MODES[index % 4:] + COMPARISON_MODES[:index % 4]) for index, order in enumerate(orders)), f"{label}/{scenario}/{cache_mode}: hot order is not rotated")
 
 
+def check_performance_waiver(evidence, root, commit):
+    waiver = evidence["performance_waiver"]
+    require(VERSION in PERFORMANCE_WAIVERS, "No performance waiver authorized for this release")
+    require(isinstance(waiver, dict) and waiver.get("version") == VERSION
+            and waiver.get("status") == "deferred_by_user" and waiver.get("passed") is False
+            and waiver.get("authorization") == "如果没有bug先直接发版吧，性能以后再优化"
+            and isinstance(waiver.get("limitations"), str) and waiver["limitations"].strip(),
+            "performance deferral must retain explicit authorization and cannot claim a pass")
+    for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
+        require(evidence.get(field) == {}, "deferred formal performance reports must be empty; retain exploratory data separately")
+    record = evidence.get("functional_ci", {})
+    path = report_path(root, record.get("report"))
+    require(sha256_file(path) == record.get("sha256", "").upper(), "functional CI evidence hash mismatch")
+    data = read_json(path)
+    run = data.get("run", {})
+    require(run.get("id") == evidence["ci"]["run_id"] and run.get("head_sha") == commit
+            and run.get("event") == "push" and run.get("head_branch") == "main"
+            and run.get("name") == "Blueberry CI" and run.get("conclusion") == "success",
+            "functional evidence must be from the successful final main CI run")
+    jobs = data.get("jobs", [])
+    required = {"format", "Core / ubuntu-24.04", "Core / macos-15", "Core / windows-2022",
+                "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+                "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
+                "PowerShell 7 / PSReadLine 2.4.5 / pipe", "package"}
+    require(isinstance(jobs, list) and required <= {job.get("name") for job in jobs}
+            and all(job.get("conclusion") == "success" for job in jobs),
+            "functional and package CI matrix incomplete or failed")
+
+
 def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None):
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
@@ -410,6 +440,11 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
                 require(item["bytes"] == archive.getinfo(path).file_size, f"package file size mismatch: {path}")
         records = [item for item in files if item.get("path") == "blueberry.exe"]
         require(len(records) == 1 and records[0].get("sha256", "").upper() == executable_hash, "manifest EXE SHA-256 mismatch")
+    if "performance_waiver" in evidence:
+        check_performance_waiver(evidence, evidence_path.parent, commit)
+        check_manual_acceptance(evidence, executable_hash, commit)
+        check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
+        return executable_hash
     startup = evidence.get("startup_reports")
     hot = evidence.get("hot_reports")
     comparisons = evidence.get("comparison_reports")
@@ -453,6 +488,8 @@ def bundle(evidence_path, output_path):
     evidence_path = evidence_path.resolve(strict=True)
     evidence = read_json(evidence_path)
     reports = set(evidence["startup_reports"].values())
+    if "performance_waiver" in evidence:
+        reports.add(evidence["functional_ci"]["report"])
     reports.update(evidence["comparison_reports"].values())
     for comparison in evidence["comparison_reports"].values():
         comparison_path = report_path(evidence_path.parent, comparison)
