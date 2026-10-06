@@ -42,7 +42,7 @@ namespace Blueberry.Direct {
         static IDisposable editorRegistration;
         static Action requestEditorRefresh;
         static Func<long[]> editorTracePoints;
-        static string hubChord;
+        static string hubChord, refreshChord;
         public static bool EditorHooks { get; private set; }
         static string editorHash, editorFallbackReason;
         public static string EditorFallbackReason { get { return editorFallbackReason; } }
@@ -163,6 +163,7 @@ namespace Blueberry.Direct {
             try {
                 if (EditorHooks) {
                     hubChord = Environment.GetEnvironmentVariable("BLUEBERRY_PUBLIC_KEY_HUB") ?? "Ctrl+Alt+p";
+                    refreshChord = Environment.GetEnvironmentVariable("BLUEBERRY_PUBLIC_KEY_REFRESH") ?? "Ctrl+Alt+c";
                     requestEditorRefresh = (Action)Public("RequestEditorRefresh", typeof(Action));
                     if(diagnostic) editorTracePoints=(Func<long[]>)Public("GetEditorTracePoints",typeof(Func<long[]>));
                     editorRegistration = (IDisposable)api.GetMethod("RegisterEditorIntegration").Invoke(null, new object[] {
@@ -186,7 +187,7 @@ namespace Blueberry.Direct {
                 {"automatic_menu", enabled}, {"disabled_reason", DisabledReason},
                 {"psreadline", moduleVersion.ToString()},
                 {"editor_mode", EditorHooks ? "editor_hooks_v1" : "legacy"},
-                {"editor_patch", EditorHooks ? "blueberry-editor-v1" : null},
+                {"editor_patch", EditorHooks ? (string)api.GetProperty("EditorIntegrationPatch").GetValue(null, null) : null},
                 {"editor_dll_sha256", editorHash}, {"editor_fallback_reason", editorFallbackReason},
                 {"shell_version", shellVersion},
                 {"capabilities", new object[] {"revision", "frame_identity", "accept_identity", "utf16_edit"}}
@@ -337,6 +338,10 @@ namespace Blueberry.Direct {
             string chord = ((k.Modifiers & ConsoleModifiers.Control) != 0 ? "Ctrl+" : "")
                 + ((k.Modifiers & ConsoleModifiers.Alt) != 0 ? "Alt+" : "")
                 + ((k.Modifiers & ConsoleModifiers.Shift) != 0 ? "Shift+" : "") + k.Key;
+            if (nativeHandler == null && String.Equals(chord, refreshChord, StringComparison.OrdinalIgnoreCase)) {
+                Send(new Dictionary<string,object> {{"event","commands_refresh"},{"session",commandSession}});
+                StartCommands(); Query("query"); return true;
+            }
             if (nativeHandler == null && String.Equals(chord, hubChord, StringComparison.OrdinalIgnoreCase)) {
                 interaction = interaction == "completion" ? "hub" : "completion";
                 Query(interaction == "hub" ? "hub" : "cancel"); return true;
@@ -401,10 +406,48 @@ namespace Blueberry.Direct {
                 installed.Clear(); originals.Clear(); wrappers.Clear();
             } catch { /* The original edit action is still delegated by hooks. */ }
         }
+        static IEnumerator<string[]> commandEnumerator;
+        static string commandSnapshot;
+        static long commandSession, commandOffset;
+        static void StopCommands() {
+            if (commandEnumerator != null) { commandEnumerator.Dispose(); commandEnumerator = null; }
+        }
+        static void StartCommands() {
+            StopCommands(); commandSnapshot = Guid.NewGuid().ToString("N"); commandOffset = 0;
+            try {
+                var method = api.GetMethod("GetEditorCommands");
+                if (method == null) throw new NotSupportedException("Session command enumeration unavailable");
+                commandEnumerator = (IEnumerator<string[]>)method.Invoke(null, null);
+                Send(new Dictionary<string,object> {{"event","commands_started"},{"session",commandSession},{"snapshot",commandSnapshot}});
+                requestEditorRefresh();
+            } catch (Exception error) { CommandError(error); }
+        }
+        static void CommandError(Exception error) {
+            StopCommands();
+            Send(new Dictionary<string,object> {{"event","commands_error"},{"session",commandSession},
+                {"error",error.GetBaseException().Message}});
+        }
+        static void PumpCommands() {
+            if (commandEnumerator == null) return;
+            var batch = new List<object>(); bool complete = false;
+            long start = Stopwatch.GetTimestamp();
+            try {
+                do {
+                    if (!commandEnumerator.MoveNext()) { complete = true; break; }
+                    var record = commandEnumerator.Current;
+                    batch.Add(new Dictionary<string,object> {{"name",record[0]},{"kind",record[1]},{"definition",record[2]}});
+                } while (batch.Count < 64 && Stopwatch.GetTimestamp()-start < Stopwatch.Frequency/500);
+                Send(new Dictionary<string,object> {{"event","commands"},{"session",commandSession},
+                    {"snapshot",commandSnapshot},{"offset",commandOffset},{"complete",complete},{"commands",batch}});
+                commandOffset += batch.Count;
+                if (complete) StopCommands(); else requestEditorRefresh();
+            } catch (Exception error) { CommandError(error); }
+        }
         public static void Begin(string cwd, string historyPath) {
             long beginning=diagnostic ? Stopwatch.GetTimestamp() : 0;
             Clear(); displayed = null; acceptingFrame = null; expectedUiEditRevision=-1; interaction = "completion"; directory = cwd; editing = true; editorThread = Thread.CurrentThread.ManagedThreadId;
             revision++;
+            commandSession = revision;
             if (enabled && !EditorHooks) {
                 try { AuditBindings(); } catch (Exception error) { Disable(error.GetBaseException().Message); }
             }
@@ -412,9 +455,11 @@ namespace Blueberry.Direct {
             var environment = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             foreach(DictionaryEntry entry in Environment.GetEnvironmentVariables()) environment[((string)entry.Key).ToUpperInvariant()] = (string)entry.Value;
             Send(new Dictionary<string, object> { {"event", "begin"}, {"revision", revision}, {"cwd",cwd}, {"history_path",historyPath}, {"environment",environment}, {"automatic_menu", AutomaticMenu}, {"disabled_reason", DisabledReason} });
+            if (EditorHooks) StartCommands();
             if(diagnostic) TraceStage("direct_readline_begin",Stopwatch.GetTimestamp()-beginning,1);
         }
         public static void End() {
+            StopCommands();
             string line; int cursor; buffer(out line,out cursor);
             Clear(); displayed = null; acceptingFrame=null; expectedUiEditRevision=-1; editing = false; revision++;
             Send(new Dictionary<string, object> { {"event", "end"}, {"revision", revision}, {"line",line} });
@@ -546,6 +591,7 @@ namespace Blueberry.Direct {
         public static bool Refresh() {
             if (!editing || Thread.CurrentThread.ManagedThreadId != editorThread) return false;
             if (!connected) { Clear(); return false; }
+            if (EditorHooks) PumpCommands();
             if(!EditorHooks && enabled && !waitingForFrame) { try { AuditBindings(); } catch(Exception error) { Disable(error.GetBaseException().Message); return false; } }
             Dictionary<string, object> frame;
             long frameReceived;

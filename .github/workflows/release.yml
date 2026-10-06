@@ -1,5 +1,7 @@
 name: Blueberry release draft
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       release_tag:
@@ -17,7 +19,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: release-${{ inputs.release_tag }}
+  group: release-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 jobs:
   draft:
@@ -27,12 +29,12 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
       CI_RUN_ID: ${{ inputs.ci_run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ inputs.release_tag || github.ref_name }}
           fetch-depth: 0
       - name: Validate tag, version and main ancestry
         shell: bash
@@ -42,7 +44,10 @@ jobs:
           echo "EVIDENCE_PATH=docs/benchmarks/v0.5/$RELEASE_TAG-release-evidence.json" >> "$GITHUB_ENV"
           echo "VALIDATION_PATH=docs/$RELEASE_TAG-validation.md" >> "$GITHUB_ENV"
           git fetch origin main:refs/remotes/origin/main
+          # Resolve main once. Subsequent pushes must not change this run's evidence.
+          echo "EVIDENCE_REF=$(git rev-parse origin/main)" >> "$GITHUB_ENV"
           TAG_SHA="$(git rev-parse HEAD)"
+          [[ "$(git cat-file -t "refs/tags/$RELEASE_TAG")" == tag ]] || { echo 'Expected an annotated release tag' >&2; exit 1; }
           [[ "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" == "$TAG_SHA" ]]
           git merge-base --is-ancestor "$TAG_SHA" origin/main
           echo "TAG_SHA=$TAG_SHA" >> "$GITHUB_ENV"
@@ -55,6 +60,31 @@ jobs:
           section = re.search(r'^## ' + re.escape(version) + r'\s*\n(.*?)(?=^## |\Z)', Path('CHANGELOG.md').read_text(), re.M | re.S)
           assert section, 'Missing release notes'
           Path('release-notes.md').write_text('# Blueberry ' + version + '\n\n' + section[1].strip() + '\n')
+          PY
+      - name: Resolve exact CI run from pinned version evidence
+        env:
+          MANUAL_EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          MANUAL_CI_RUN_ID: ${{ inputs.ci_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$MANUAL_EVIDENCE_REF" ]]; then
+            EVIDENCE_REF="$(git rev-parse "$MANUAL_EVIDENCE_REF^{commit}")"
+          fi
+          git merge-base --is-ancestor "$EVIDENCE_REF" origin/main
+          git show "$EVIDENCE_REF:$EVIDENCE_PATH" > pinned-evidence.json
+          export EVIDENCE_REF
+          python3 - <<'PY'
+          import json, os
+          evidence = json.load(open('pinned-evidence.json'))
+          assert 'v' + evidence['version'] == os.environ['RELEASE_TAG'], 'Evidence version mismatch'
+          assert evidence['source_commit'] == os.environ['TAG_SHA'], 'Evidence source mismatch'
+          run_id = str(evidence['ci']['run_id'])
+          assert run_id.isdigit(), 'Invalid evidence CI run ID'
+          manual = os.environ['MANUAL_CI_RUN_ID']
+          assert not manual or manual == run_id, 'Manual CI run differs from pinned evidence'
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('CI_RUN_ID=' + run_id + '\nEVIDENCE_REF=' + os.environ['EVIDENCE_REF'] + '\n')
           PY
       - name: Confirm the measured CI run belongs to this tag commit
         shell: bash
@@ -71,7 +101,7 @@ jobs:
           PY
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.evidence_ref }}
+          ref: ${{ env.EVIDENCE_REF }}
           fetch-depth: 0
           path: release-evidence
       - name: Confirm evidence commit follows the tagged source
@@ -96,7 +126,7 @@ jobs:
         with:
           name: blueberry-windows-x64
           path: release-assets
-          run-id: ${{ inputs.ci_run_id }}
+          run-id: ${{ env.CI_RUN_ID }}
           github-token: ${{ github.token }}
       - name: Fetch the published beta.6 comparison asset
         shell: bash
@@ -117,7 +147,7 @@ jobs:
             "release-evidence/$EVIDENCE_PATH" \
             "release-assets/blueberry-$RELEASE_TAG-windows-x64.zip" \
             --commit "$TAG_SHA" \
-            --ci-run-id '${{ inputs.ci_run_id }}' \
+            --ci-run-id "$CI_RUN_ID" \
             --public-beta6-package beta6-public/blueberry-v0.5.0-beta.6-windows-x64.zip \
             --bundle-out "release-assets/blueberry-$RELEASE_TAG-evidence.zip"
       - name: Create or update unpublished draft with the measured bytes
@@ -133,4 +163,9 @@ jobs:
           fi
           find release-assets -maxdepth 1 -type f -print0 | while IFS= read -r -d '' asset; do
             gh release upload "$RELEASE_TAG" "$asset" --clobber
+          done
+          mkdir -p draft-verification
+          gh release download "$RELEASE_TAG" --dir draft-verification
+          find release-assets -maxdepth 1 -type f -print0 | while IFS= read -r -d '' asset; do
+            cmp "$asset" "draft-verification/$(basename "$asset")"
           done

@@ -11,6 +11,22 @@ use std::{
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+fn command_batch_matches(
+    value: &Value,
+    session: Option<u64>,
+    snapshot: Option<&str>,
+    offset: u64,
+    complete: bool,
+) -> bool {
+    !complete
+        && session.is_some()
+        && session == value["session"].as_u64()
+        && snapshot.is_some()
+        && snapshot == value["snapshot"].as_str()
+        && value["offset"].as_u64() == Some(offset)
+        && value["error"].is_null()
+}
+
 /// Keep a query and its visible frame separate: asynchronous results must not
 /// change which candidate an acceptance request identifies.
 struct Session {
@@ -544,6 +560,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let status_writer = crate::status::StatusWriter::new(directory.join("adapter.json"));
     let mut adapter_status = Value::Null;
     let mut active_query: Option<Query> = None;
+    let mut command_session = None;
+    let mut command_snapshot = CommandSnapshot::default();
+    let mut command_offset = 0u64;
+    let mut command_snapshot_id: Option<String> = None;
+    let mut command_complete = false;
+    let mut system_generation = 1u64;
+    let mut system_discovery = None;
     worker.update(|w| w.started = true);
     let served = (|| -> Result<u32> {
         loop {
@@ -715,9 +738,26 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             automatic = value["automatic_menu"] == true;
                             adapter_status = json!({"shell_version":value["shell_version"],"psreadline_version":value["psreadline"],
                             "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],
+                            "session_commands":{"source":"editor","count":0,"complete":false,"error":null},
+                            "system_commands":{"source":"system module export metadata","count":0,"error":null},
                             "transport":"pipe","host_mode":"direct","automatic_menu":automatic && settings.completion.auto_trigger,
                             "disabled_reason":if automatic && !settings.completion.auto_trigger {json!("completion.auto_trigger is disabled")} else {value["disabled_reason"].clone()}});
+                            if value["editor_mode"] != "editor_hooks_v1" {
+                                adapter_status["session_commands"]["error"] = json!(
+                                    "Session command enumeration requires the private editor extension"
+                                );
+                            }
                             status_writer.update(adapter_status.clone());
+                            let system_tx = tx.clone();
+                            match crate::system_commands::start(&options.shell, move |result| {
+                                let _ = system_tx.send(HostEvent::SystemCommands(1, result));
+                            }) {
+                                Ok(discovery) => system_discovery = Some(discovery),
+                                Err(error) => {
+                                    adapter_status["system_commands"] = json!({"source":"system module export metadata","count":0,"error":error.to_string()});
+                                    status_writer.update(adapter_status.clone());
+                                }
+                            }
                         }
                         Some("begin" | "end") if ready => {
                             let revision = value["revision"]
@@ -729,6 +769,9 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             session.accepting = false;
                             session.ui = None;
                             active_query = None;
+                            command_session = (value["event"] == "begin").then_some(revision);
+                            command_offset = 0;
+                            command_snapshot_id = None;
                             if value["event"] == "begin" {
                                 if !history_requested {
                                     history_requested = true;
@@ -797,6 +840,66 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 w.cancel = true;
                                 w.query = None;
                             });
+                        }
+                        Some("commands_refresh")
+                            if ready
+                                && command_session.is_some()
+                                && command_session == value["session"].as_u64() =>
+                        {
+                            command_offset = 0;
+                            command_snapshot_id = None;
+                            system_generation += 1;
+                            let generation = system_generation;
+                            let system_tx = tx.clone();
+                            system_discovery.take();
+                            match crate::system_commands::start(&options.shell, move |result| {
+                                let _ =
+                                    system_tx.send(HostEvent::SystemCommands(generation, result));
+                            }) {
+                                Ok(discovery) => system_discovery = Some(discovery),
+                                Err(error) => {
+                                    adapter_status["system_commands"]["error"] =
+                                        json!(error.to_string());
+                                    status_writer.update(adapter_status.clone());
+                                }
+                            }
+                            worker.update(|w| w.refresh = true);
+                        }
+                        Some("commands_started")
+                            if ready
+                                && command_session.is_some()
+                                && command_session == value["session"].as_u64() =>
+                        {
+                            command_snapshot_id = value["snapshot"].as_str().map(str::to_owned);
+                            command_offset = 0;
+                            command_complete = false;
+                        }
+                        Some("commands") if ready => {
+                            if !command_batch_matches(
+                                &value,
+                                command_session,
+                                command_snapshot_id.as_deref(),
+                                command_offset,
+                                command_complete,
+                            ) {
+                                continue;
+                            }
+                            if let Some((commands, complete)) = command_snapshot.receive(&value) {
+                                command_complete = complete;
+                                command_offset +=
+                                    value["commands"].as_array().map_or(0, |v| v.len()) as u64;
+                                adapter_status["session_commands"] = json!({"source":"editor","count":commands.len(),"complete":complete,"session":command_session,"error":null});
+                                status_writer.update(adapter_status.clone());
+                                worker.update(|w| w.commands = Some(commands));
+                            }
+                        }
+                        Some("commands_error")
+                            if ready
+                                && command_session.is_some()
+                                && command_session == value["session"].as_u64() =>
+                        {
+                            adapter_status["session_commands"]["error"] = value["error"].clone();
+                            status_writer.update(adapter_status.clone());
                         }
                         Some("hub" | "query" | "cancel") if ready && automatic => {
                             session.query(&value)?;
@@ -948,6 +1051,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         Some(output.elapsed()),
                         frame["lines"].as_array().map(Vec::len),
                     );
+                } else if let HostEvent::SystemCommands(generation, result) = event {
+                    if generation == system_generation {
+                        match result {
+                            Ok(commands) => {
+                                adapter_status["system_commands"] = json!({"source":"system module export metadata","count":commands.len(),"error":null});
+                                worker.update(|w| w.system_commands = Some(commands));
+                            }
+                            Err(error) => {
+                                adapter_status["system_commands"]["error"] =
+                                    json!(error.to_string());
+                            }
+                        }
+                        status_writer.update(adapter_status.clone());
+                    }
                 } else if let HostEvent::HistoryLoaded(_, values, partial, elapsed) = event {
                     trace.event("history_load", None, Some(elapsed), Some(values.len()));
                     let mut merged = history.clone();
@@ -994,6 +1111,52 @@ pub fn run(options: RunOptions) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn command_batches_reject_old_prompts_wrong_snapshots_gaps_and_completed_replays() {
+        let value = json!({"session":10,"snapshot":"current","offset":64});
+        assert!(command_batch_matches(
+            &value,
+            Some(10),
+            Some("current"),
+            64,
+            false
+        ));
+        assert!(!command_batch_matches(
+            &value,
+            Some(11),
+            Some("current"),
+            64,
+            false
+        ));
+        assert!(!command_batch_matches(
+            &value,
+            None,
+            Some("current"),
+            64,
+            false
+        ));
+        assert!(!command_batch_matches(
+            &value,
+            Some(10),
+            Some("next"),
+            64,
+            false
+        ));
+        assert!(!command_batch_matches(
+            &value,
+            Some(10),
+            Some("current"),
+            128,
+            false
+        ));
+        assert!(!command_batch_matches(
+            &value,
+            Some(10),
+            Some("current"),
+            64,
+            true
+        ));
+    }
     #[test]
     fn accept_requires_visible_identity_revision_and_utf16_buffer() {
         let mut session = Session::new();

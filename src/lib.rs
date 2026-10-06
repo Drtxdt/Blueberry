@@ -32,6 +32,8 @@ pub mod sources;
 pub mod spec_catalog;
 pub mod specs;
 pub mod status;
+#[cfg(windows)]
+pub mod system_commands;
 pub mod terminal_ui;
 pub mod tool_registry;
 pub mod tools_ui;

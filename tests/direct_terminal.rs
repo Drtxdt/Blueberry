@@ -236,11 +236,10 @@ fn start(directory: &std::path::Path) -> Result<Harness> {
 }
 
 fn start_with_delay(directory: &std::path::Path, delay: u32) -> Result<Harness> {
-    start_delayed_executable(
-        directory,
-        delay,
-        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
-    )
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    start_delayed_executable(directory, delay, &executable)
 }
 
 fn start_delayed_executable(
@@ -602,6 +601,8 @@ fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<(
             documents.join("Microsoft.PowerShell_profile.ps1"),
             r#"
 $global:BlueberryProfileCount++
+function global:bb-profile-function { 'PROFILE-FUNCTION' }
+Set-Alias -Name bb-profile-alias -Value bb-profile-function -Scope Global
 Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('PROFILE_BINDING') }
 $global:LASTEXITCODE = 37
 "#,
@@ -637,6 +638,11 @@ $global:LASTEXITCODE = 37
         String::new(),
     )?;
     wait_editor_begin(&mut h, &data, 1)?;
+    h.send(b"bb-profile-functio")?;
+    h.wait_text("bb-profile-function", TIMEOUT)?;
+    h.send(b"\x01\x7fbb-profile-alia")?;
+    h.wait_text("bb-profile-alias", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
     h.send(b"[Console]::WriteLine(('PROFILE:{0}:{1}' -f $global:BlueberryProfileCount, $LASTEXITCODE))\r")?;
     wait_output_line(&mut h, "PROFILE:1:37")?;
     h.send(b"\x07")?;
@@ -663,6 +669,120 @@ fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<(
     let mut h = start(dir.path())?;
     h.send(b"if ((Get-Command Get-FileHash -ErrorAction Stop).Source -eq 'Microsoft.PowerShell.Utility' -and (Get-Command ConvertTo-Json -ErrorAction Stop)) { Write-Output 'MODULE-AUTOLOAD-OK' }\r")?;
     wait_output_line(&mut h, "MODULE-AUTOLOAD-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut h = start(dir.path())?;
+    // No command execution/autoload is allowed before these first-prompt checks.
+    for prefix in ["get", "GET", "get-"] {
+        h.send(prefix.as_bytes())?;
+        h.wait_text("Get-Help", TIMEOUT)?;
+        h.send(b"\x01\x7f")?;
+    }
+    for command in ["Get-ChildItem", "Get-Process", "Get-FileHash"] {
+        h.send(&command.as_bytes()[..command.len() - 1])?;
+        h.wait_text(command, TIMEOUT)?; // Full name can only come from the menu.
+        h.send(b"\t")?;
+        h.wait_text(&format!("{command} "), TIMEOUT)?;
+        h.send(b"\x01\x7f")?;
+    }
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_refreshes_large_runtime_snapshots_and_removals() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut h = start(dir.path())?;
+    h.send(b"1..705 | ForEach-Object { Set-Alias -Name ('bb-session-'+$_) -Value Get-Help }; function bb-runtime { 'old' }; 'SNAPSHOT-READY'\r")?;
+    wait_output_line(&mut h, "SNAPSHOT-READY")?;
+    wait_editor_begin(&mut h, dir.path(), 2)?;
+    h.send(b"bb-session-705")?;
+    h.wait_text("Get-Help", TIMEOUT)?;
+    h.send(b"\x01\x7fRemove-Item Alias:bb-session-705; function bb-runtime { 'new' }; 'REMOVAL-READY'\r")?;
+    wait_output_line(&mut h, "REMOVAL-READY")?;
+    wait_editor_begin(&mut h, dir.path(), 3)?;
+    h.send(b"bb-runtim")?;
+    h.wait_text("bb-runtime", TIMEOUT)?;
+    h.send(b"\t\r")?;
+    wait_output_line(&mut h, "new")?;
+    wait_editor_begin(&mut h, dir.path(), 4)?;
+    h.send(b"\x0cbb-session-705")?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    while std::time::Instant::now() < deadline {
+        let _ = h.pump(Duration::from_millis(20));
+    }
+    ensure!(
+        h.viewport_contents().matches("bb-session-705").count() == 1,
+        "deleted alias still in menu: {}",
+        h.viewport_contents()
+    );
+    h.send(b"\x01\x7f")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_commands_are_isolated_between_live_sessions() -> Result<()> {
+    let first = tempfile::tempdir()?;
+    let second = tempfile::tempdir()?;
+    let mut a = start(first.path())?;
+    let mut b = start(second.path())?;
+    a.send(b"function bb-only-one { 'ONE' }; 'ISOLATION-READY'\r")?;
+    wait_output_line(&mut a, "ISOLATION-READY")?;
+    wait_editor_begin(&mut a, first.path(), 2)?;
+    a.send(b"bb-only-on")?;
+    a.wait_text("bb-only-one", TIMEOUT)?;
+    b.send(b"bb-only-on")?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    while std::time::Instant::now() < deadline {
+        let _ = b.pump(Duration::from_millis(20));
+    }
+    ensure!(
+        !b.viewport_contents().contains("bb-only-one"),
+        "other session commands leaked"
+    );
+    a.send(b"\x01\x7f")?;
+    b.send(b"\x01\x7f")?;
+    a.finish(TIMEOUT)?;
+    b.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_tracks_imported_and_removed_module_exports() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    std::fs::write(
+        dir.path().join("Commands.psm1"),
+        "function Get-BlueberryModuleOnly { 'MODULE-RESULT' }; Export-ModuleMember -Function Get-BlueberryModuleOnly",
+    )?;
+    let mut h = start(dir.path())?;
+    h.send(b"Import-Module ./Commands.psm1; 'IMPORT-READY'\r")?;
+    wait_output_line(&mut h, "IMPORT-READY")?;
+    wait_editor_begin(&mut h, dir.path(), 2)?;
+    h.send(b"Get-BlueberryModuleOnl")?;
+    h.wait_text("Get-BlueberryModuleOnly", TIMEOUT)?;
+    h.send(b"\t\r")?;
+    wait_output_line(&mut h, "MODULE-RESULT")?;
+    h.send(b"Remove-Module Commands; 'REMOVE-READY'\r")?;
+    wait_output_line(&mut h, "REMOVE-READY")?;
+    wait_editor_begin(&mut h, dir.path(), 4)?;
+    h.send(b"\x0cGet-BlueberryModuleOnl")?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    while std::time::Instant::now() < deadline {
+        let _ = h.pump(Duration::from_millis(20));
+    }
+    ensure!(
+        // PSReadLine 2.4.5 may display its own history prediction on the
+        // prompt row. Check the menu below it, not that native ghost text.
+        !h.viewport_contents()
+            .lines()
+            .skip(1)
+            .any(|line| line.contains("Get-BlueberryModuleOnly")),
+        "removed module still in menu: {}",
+        h.viewport_contents()
+    );
+    h.send(b"\x01\x7f")?;
     h.finish(TIMEOUT)
 }
 

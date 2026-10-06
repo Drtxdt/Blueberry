@@ -825,6 +825,14 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             .map(|transport| serde_json::json!(transport))
             .unwrap_or(serde_json::Value::Null);
         value["commands"] = commands;
+        value["command_sources"] = adapter
+            .as_ref()
+            .map(|status| {
+                serde_json::json!({
+                    "session":status["session_commands"], "system":status["system_commands"]
+                })
+            })
+            .unwrap_or(serde_json::Value::Null);
         value["host_mode"] = adapter
             .as_ref()
             .and_then(|status| status["host_mode"].as_str())
@@ -859,6 +867,11 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             "Shell: {} · PSReadLine: {} · Transport: {}",
             adapter["shell_version"], adapter["psreadline_version"], adapter["transport"]
         );
+        for source in ["session_commands", "system_commands"] {
+            if !adapter[source].is_null() {
+                println!("{source}: {}", adapter[source]);
+            }
+        }
     }
     if commands["valid"] == true {
         println!("Commands: {} saved items", commands["count"]);

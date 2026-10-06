@@ -117,6 +117,8 @@ pub fn resolve_host(
 enum HostEvent {
     #[cfg(windows)]
     DirectMessage(Value, Instant),
+    #[cfg(windows)]
+    SystemCommands(u64, Result<Vec<ShellCommand>>),
     Output(Vec<u8>, Instant),
     Input(Vec<Event>, Instant),
     Eof,
@@ -155,6 +157,7 @@ struct Work {
     refresh: bool,
     stop: bool,
     commands: Option<Vec<ShellCommand>>,
+    system_commands: Option<Vec<ShellCommand>>,
     query: Option<Query>,
     environment: Option<(String, String)>,
     source_updates: Vec<crate::sources::SourceUpdate>,
@@ -238,6 +241,7 @@ impl Worker {
             let mut discovery: Option<Discovery> = None;
             let mut environment: Option<(String, String)> = None;
             let mut shell_commands = Vec::new();
+            let mut system_commands = Vec::new();
             let mut latest_query: Option<Query> = None;
             let mut prepared: Option<(u64, Completion, crate::sources::SourceRequest)> = None;
             let mut published = crate::completion::PublishedCompletion::default();
@@ -248,6 +252,7 @@ impl Worker {
                     && (!work.started
                         || (!work.refresh
                             && work.commands.is_none()
+                            && work.system_commands.is_none()
                             && work.query.is_none()
                             && work.source_updates.is_empty()
                             && work.help_updates.is_empty()
@@ -273,7 +278,11 @@ impl Worker {
                 let entry_changed = !entry_updates.is_empty();
                 let reload_catalog = work.catalog_path.take();
                 let commands = work.commands.take();
-                let commands_changed = commands.is_some();
+                let declarations = work.system_commands.take();
+                let commands_changed = commands.is_some() || declarations.is_some();
+                if let Some(commands) = declarations {
+                    system_commands = commands;
+                }
                 let query = work.query.take();
                 let query_changed = query.is_some();
                 if let Some(query) = query.as_ref() {
@@ -413,6 +422,7 @@ impl Worker {
                 }
                 let index = index.as_mut().unwrap();
                 if changed {
+                    index.replace_system_commands(system_commands.clone());
                     index.replace_shell_commands(shell_commands.clone());
                 }
                 if let Some(q) = latest_query.as_ref().filter(|_| {
@@ -3095,6 +3105,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 HostEvent::Eof => eof = true,
                 #[cfg(windows)]
                 HostEvent::DirectMessage(_, _) => {}
+                #[cfg(windows)]
+                HostEvent::SystemCommands(_, _) => {}
                 HostEvent::Error(error) => {
                     if exit_code.is_none() {
                         return Err(anyhow::anyhow!(error));

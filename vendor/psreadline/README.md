@@ -64,3 +64,17 @@ Performance qualification requires trace-disabled measurements of the final
 EXE, its embedded DLL digests, and the same probe and fixtures. Functional test
 timeouts and small delay-injection samples are not performance acceptance.
 Windows Terminal IME/clipboard/visual checks remain separate required evidence.
+
+Patch v1.1 adds `GetEditorCommands`: a lazy enumeration of current aliases,
+functions and cmdlets, advanced only on the active editor thread. The bridge
+sends at most 64 records per approximately 2 ms batch, wakes the next safe point,
+and disposes the enumerator on prompt exit. Begin/snapshot/offset identities
+reject stale or reordered batches; incomplete enumeration retains the previous
+complete snapshot. Function bodies are never transmitted.
+
+A separate hidden NoProfile process reads system module export metadata with
+autoload disabled only in that helper. It never imports modules or invokes their
+commands. Live session definitions override declarations. Both sources are
+session-local and reported by doctor; Ctrl+Alt+C refreshes both sources while
+respecting custom bindings. Metadata discovery has a deadline and is cancelled
+when the session exits or a replacement discovery begins.

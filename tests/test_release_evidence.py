@@ -3,6 +3,10 @@
 import hashlib
 import importlib.util
 import json
+import os
+import subprocess
+import sys
+import textwrap
 import shutil
 import unittest
 import uuid
@@ -20,6 +24,30 @@ def statistics(value, count):
 
 
 class ReleaseEvidenceTests(unittest.TestCase):
+    def test_tag_and_manual_resolution_use_exact_evidence_run(self):
+        workflow = (MODULE_PATH.parent.parent / '.github/workflows/release.yml').read_text(encoding='utf-8')
+        section = workflow.split('name: Resolve exact CI run from pinned version evidence', 1)[1]
+        code = textwrap.dedent(section.split("python3 - <<'PY'", 1)[1].split('\n          PY', 1)[0])
+        fixture = {"version": validator.VERSION, "source_commit": self.commit, "ci": {"run_id": 123}}
+        evidence = self.root / 'pinned-evidence.json'
+        output = self.root / 'env'
+        environment = dict(os.environ, RELEASE_TAG='v'+validator.VERSION, TAG_SHA=self.commit,
+                           EVIDENCE_REF='b'*40, GITHUB_ENV=str(output))
+        for manual, version, commit, passed in [('', validator.VERSION, self.commit, True),
+                ('123', validator.VERSION, self.commit, True), ('456', validator.VERSION, self.commit, False),
+                ('', '99.0.0', self.commit, False), ('', validator.VERSION, 'c'*40, False)]:
+            fixture.update(version=version, source_commit=commit)
+            evidence.write_text(json.dumps(fixture), encoding='utf-8')
+            environment['MANUAL_CI_RUN_ID'] = manual
+            result = subprocess.run([sys.executable, '-c', code], cwd=self.root, env=environment,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode == 0, passed, result.stderr)
+            if passed:
+                self.assertIn('CI_RUN_ID=123\n', output.read_text())
+        evidence.unlink()
+        self.assertNotEqual(subprocess.run([sys.executable, '-c', code], cwd=self.root, env=environment,
+                                          capture_output=True).returncode, 0)
+
     def setUp(self):
         scratch = Path(__file__).resolve().parents[1] / "target/release-evidence-tests"
         scratch.mkdir(parents=True, exist_ok=True)
@@ -242,7 +270,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
 
     def test_performance_deferral_preserves_functional_and_identity_gates(self):
         self.evidence["performance_waiver"] = {
-            "version": "0.5.0", "status": "deferred_by_user", "passed": False,
+            "version": validator.VERSION, "status": "deferred_by_user", "passed": False,
             "authorization": "如果没有bug先直接发版吧，性能以后再优化",
             "limitations": "Startup target missed; full performance matrix deferred.",
         }
@@ -283,7 +311,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
         manual = self.evidence["manual_acceptance"]
         manual["windows_terminal"] = {}
         manual["windows_terminal_waiver"] = {
-            "version": "0.5.0", "status": "waived_by_user", "executed": False, "passed": False,
+            "version": validator.VERSION, "status": "waived_by_user", "executed": False, "passed": False,
             "authorization": "本次也免除人工检查，按自动回归结果发布",
         }
         save()

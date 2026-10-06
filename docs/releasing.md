@@ -6,6 +6,14 @@ GitHub 仓库存放源码；Release 存放用户下载的程序。CI 为已冻�
 
 本版证据仍为 schema v2，新增 `performance_waiver`：`version: "0.5.0"`、`status: "deferred_by_user"`、`passed: false`、`authorization` 为上面用户原文，`limitations` 写明超标及缺少正式矩阵。四个正式性能报告映射留空；`functional_ci` 绑定包含 GitHub 原始 run/jobs 的 JSON 文件路径及 SHA-256，必须是最终源码的成功 main push CI，完整功能与 package 工作均成功。校验器保留全部包校验和安装事务项目，延期不能绕过功能失败。Windows Terminal 使用 `windows_terminal: {}` 和 `windows_terminal_waiver`（版本 0.5.0、`status: waived_by_user`、`executed: false`、`passed: false`、上述用户原文 `authorization`），不伪造操作结果。发布工作流仍独立查询实际 CI 状态。开发原始失败数据继续保留，不伪造性能通过。
 
+## 0.5.1 命令补全修复与标签草稿
+
+本轮 0.5.1 延续用户明确批准的性能延期、Windows Terminal 人工检查和目标用户试用豁免；均记录为未通过／未执行。自动功能和安装生命周期仍须通过。保留既有 v0.5.0，不移动旧标签。
+
+`v*` 标签推送自动触发草稿工作流。工作流启动时固定 main 提交，从该提交的 `docs/benchmarks/v0.5/<标签>-release-evidence.json` 读取 CI run ID，再校验标签源码、main 成功 CI、版本和包身份。证据缺失或身份不符直接失败；不构建、不选择其他包。手动入口用于重试，显式 CI ID 必须与对应证据一致。
+
+先提交产品和版本，等待 main CI 成功，验证该包，再提交绑定摘要的证据，最后为被测产品提交推送注释标签。草稿上传后重新下载逐字节检查。本轮仅生成未公开 draft，不自动公开；已公开 Release 禁止覆盖。
+
 ## 第一次准备
 
 1. 在仓库的 Actions 页面启用工作流。
@@ -48,7 +56,7 @@ git tag -a v0.5.0 <冻结源码提交SHA> -m "Blueberry 0.5.0"
 git push origin v0.5.0
 ```
 
-标签必须与 Cargo 版本一致，且提交属于 main 历史。标签本身不会自动生成草稿；在 Actions 手动启动 **Blueberry release draft**，传入 `release_tag=v0.5.0`、被测的 main `ci_run_id`、正式报告提交 `evidence_ref`。工作流再次确认 CI 源码、全部原始性能报告、包和 EXE 摘要完全一致，才创建草稿并上传同一 ZIP、校验文件、清单及证据包。每次版本使用新标签。
+标签必须与 Cargo 版本一致，且提交属于 main 历史。标签推送自动生成草稿；也可在 Actions 手动启动 **Blueberry release draft**，传入 `release_tag=v0.5.0`、被测的 main `ci_run_id`、正式报告提交 `evidence_ref`。工作流再次确认 CI 源码、全部原始性能报告、包和 EXE 摘要完全一致，才创建草稿并上传同一 ZIP、校验文件、清单及证据包。每次版本使用新标签。
 
 失败运行中的标签仍指向原提交；点击 Re-run 不会读取之后的 main 修复。准备重发时，先确认标签指向包含修复的提交。已公开版本使用新的版本号和标签，保留原标签。
 

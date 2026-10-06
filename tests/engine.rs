@@ -261,6 +261,28 @@ fn replacing_session_commands_restores_shadowed_path_command() {
 }
 
 #[test]
+fn live_definitions_override_module_declarations_case_insensitively() {
+    let mut index = CommandIndex::default();
+    index.replace_system_commands(vec![shell_command("Get-Example", "Alias", "Get-Help")]);
+    index.replace_shell_commands(vec![shell_command("get-example", "Function", "")]);
+    let result = index.complete("GET-EX", 6, Path::new("."), 20);
+    assert_eq!(result.candidates.len(), 1);
+    assert_eq!(result.candidates[0].kind, CandidateKind::Function);
+    index.replace_shell_commands(Vec::new());
+    assert_eq!(
+        index.complete("get-ex", 6, Path::new("."), 20).candidates[0].kind,
+        CandidateKind::Alias
+    );
+    index.replace_system_commands(Vec::new());
+    assert!(
+        index
+            .complete("get-ex", 6, Path::new("."), 20)
+            .candidates
+            .is_empty()
+    );
+}
+
+#[test]
 fn separators_are_quote_aware_and_suffix_is_replaced() {
     let mut index = CommandIndex::default();
     index.merge_shell_commands(vec![shell_command("git", "Application", "")]);

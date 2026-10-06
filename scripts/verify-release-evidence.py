@@ -19,9 +19,9 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 import tomllib
 
 VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
-USER_TRIAL_WAIVERS = {"0.5.0"}  # Explicit user authorization applies only to this release.
-PERFORMANCE_WAIVERS = {"0.5.0"}  # User requested release now, performance optimization later.
-TERMINAL_WAIVERS = {"0.5.0"}  # User explicitly waived manual checks after receiving the final package.
+USER_TRIAL_WAIVERS = {"0.5.0", "0.5.1"}  # Explicit user authorization applies only to this release.
+PERFORMANCE_WAIVERS = {"0.5.0", "0.5.1"}  # User requested release now, performance optimization later.
+TERMINAL_WAIVERS = {"0.5.0", "0.5.1"}  # User explicitly waived manual checks after receiving the final package.
 PROFILES = {
     "ps51-2.0.0": ("powershell.exe", "5.", "2.0.0"),
     "ps51-2.4.5": ("powershell.exe", "5.", "2.4.5"),

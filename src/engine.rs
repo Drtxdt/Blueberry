@@ -42,6 +42,7 @@ pub struct CommandIndex {
     base_entries: Vec<IndexedCommand>,
     session_commands: HashMap<String, IndexedCommand>,
     session_order: Vec<String>,
+    system_commands: Vec<IndexedCommand>,
 }
 
 impl Default for CommandIndex {
@@ -55,6 +56,7 @@ impl Default for CommandIndex {
             base_entries: Vec::new(),
             session_commands: HashMap::new(),
             session_order: Vec::new(),
+            system_commands: Vec::new(),
         }
     }
 }
@@ -174,6 +176,7 @@ impl Discovery {
             base_entries: Vec::new(),
             session_commands: HashMap::new(),
             session_order: Vec::new(),
+            system_commands: Vec::new(),
         };
         Self {
             index,
@@ -397,6 +400,7 @@ impl CommandIndex {
             base_entries: Vec::new(),
             session_commands: HashMap::new(),
             session_order: Vec::new(),
+            system_commands: Vec::new(),
         };
         for command in cache.commands {
             index.insert_command(command, false);
@@ -479,6 +483,14 @@ impl CommandIndex {
         for command in commands {
             self.merge_session_command(command);
         }
+        self.rebuild_entries();
+    }
+
+    /// Available module declarations are separate from actual runspace definitions.
+    pub fn replace_system_commands(&mut self, commands: Vec<ShellCommand>) {
+        let mut declarations = Self::default();
+        declarations.replace_shell_commands(commands);
+        self.system_commands = declarations.entries;
         self.rebuild_entries();
     }
 
@@ -760,14 +772,21 @@ impl CommandIndex {
             self.by_name
                 .insert(command_key(&self.entries[index].name), index);
         }
+        for command in &self.system_commands {
+            let key = command_key(&command.name);
+            if let Some(&index) = self.by_name.get(&key) {
+                self.entries[index] = command.clone();
+            } else {
+                self.by_name.insert(key, self.entries.len());
+                self.entries.push(command.clone());
+            }
+        }
         for key in &self.session_order {
             let Some(command) = self.session_commands.get(key).cloned() else {
                 continue;
             };
             if let Some(&index) = self.by_name.get(key) {
-                if command_priority(&command.kind) >= command_priority(&self.entries[index].kind) {
-                    self.entries[index] = command;
-                }
+                self.entries[index] = command;
             } else {
                 let index = self.entries.len();
                 self.entries.push(command);
@@ -806,7 +825,13 @@ impl CommandIndex {
                     },
                     source: match &command.executable_path {
                         Some(path) => path.display().to_string(),
-                        None => "PowerShell 会话".into(),
+                        None if self
+                            .session_commands
+                            .contains_key(&command_key(&command.name)) =>
+                        {
+                            "PowerShell 会话".into()
+                        }
+                        None => "PowerShell 系统模块".into(),
                     },
                     append_space: true,
                     ..Default::default()
