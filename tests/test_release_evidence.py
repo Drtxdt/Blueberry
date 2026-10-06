@@ -24,6 +24,32 @@ def statistics(value, count):
 
 
 class ReleaseEvidenceTests(unittest.TestCase):
+    def test_real_ci_artifact_layout_preserves_bytes_and_rejects_duplicates(self):
+        workflow = (MODULE_PATH.parent.parent / '.github/workflows/release.yml').read_text(encoding='utf-8')
+        section = workflow.split('name: Normalize the original CI artifact layout', 1)[1]
+        code = textwrap.dedent(section.split("python3 - <<'PY'", 1)[1].split('\n          PY', 1)[0])
+        assets = self.root / 'release-assets'
+        nested = assets / 'dist/ci'
+        nested.mkdir(parents=True)
+        tag = 'v' + validator.VERSION
+        names = [f'blueberry-{tag}-windows-x64.zip', f'blueberry-{tag}-windows-x64.zip.sha256', f'blueberry-{tag}-release.json']
+        for index, name in enumerate(names):
+            (nested / name).write_bytes(bytes([index, 0, 255]))
+        (assets / 'install.ps1').write_bytes(b'original installer')
+        environment = dict(os.environ, RELEASE_TAG=tag)
+        for _ in range(2):
+            result = subprocess.run([sys.executable, '-c', code], cwd=self.root, env=environment, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for index, name in enumerate(names):
+                self.assertEqual((assets / name).read_bytes(), bytes([index, 0, 255]))
+            self.assertEqual((assets / 'install.ps1').read_bytes(), b'original installer')
+        (nested / names[0]).write_bytes(b'ambiguous')
+        self.assertNotEqual(subprocess.run([sys.executable, '-c', code], cwd=self.root, env=environment, capture_output=True).returncode, 0)
+        self.assertEqual((assets / names[0]).read_bytes(), bytes([0, 0, 255]))
+        (nested / names[0]).unlink()
+        (assets / names[0]).unlink()
+        self.assertNotEqual(subprocess.run([sys.executable, '-c', code], cwd=self.root, env=environment, capture_output=True).returncode, 0)
+
     @unittest.skipIf(os.name == 'nt', 'Release shell simulation runs in the required Linux format job')
     def test_draft_creation_retry_and_published_release_protection(self):
         workflow = (MODULE_PATH.parent.parent / '.github/workflows/release.yml').read_text(encoding='utf-8')

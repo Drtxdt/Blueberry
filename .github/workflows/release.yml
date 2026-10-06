@@ -128,6 +128,28 @@ jobs:
           path: release-assets
           run-id: ${{ env.CI_RUN_ID }}
           github-token: ${{ github.token }}
+      - name: Normalize the original CI artifact layout
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          root = Path('release-assets')
+          tag = os.environ['RELEASE_TAG']
+          names = [f'blueberry-{tag}-windows-x64.zip', f'blueberry-{tag}-windows-x64.zip.sha256', f'blueberry-{tag}-release.json']
+          # upload-artifact retains dist/ci because install.ps1 is also at the repository root.
+          # Accept that layout or an already-flat artifact, but never ambiguous duplicates.
+          moves = []
+          for name in names:
+              matches = list(root.rglob(name))
+              assert len(matches) == 1 and matches[0].is_file(), f'Missing or ambiguous CI asset: {name}'
+              source = matches[0]
+              assert source.relative_to(root).as_posix() in (name, 'dist/ci/' + name), f'Unexpected CI asset location: {source}'
+              moves.append((source, root / name))
+          for source, destination in moves:
+              if source != destination:
+                  source.rename(destination)
+          PY
       - name: Fetch the published beta.6 comparison asset
         shell: bash
         run: |
