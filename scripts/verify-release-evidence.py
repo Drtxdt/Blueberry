@@ -21,6 +21,7 @@ import tomllib
 VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
 USER_TRIAL_WAIVERS = {"0.5.0"}  # Explicit user authorization applies only to this release.
 PERFORMANCE_WAIVERS = {"0.5.0"}  # User requested release now, performance optimization later.
+TERMINAL_WAIVERS = {"0.5.0"}  # User explicitly waived manual checks after receiving the final package.
 PROFILES = {
     "ps51-2.0.0": ("powershell.exe", "5.", "2.0.0"),
     "ps51-2.4.5": ("powershell.exe", "5.", "2.4.5"),
@@ -214,6 +215,16 @@ def check_manual_acceptance(evidence, executable_hash, commit):
     require(manual.get("source_commit", "").lower() == commit.lower(), "manual acceptance belongs to another source commit")
     for field, expected in (("installation", INSTALL_TASKS), ("windows_terminal", TERMINAL_TASKS)):
         tasks = manual.get(field)
+        if field == "windows_terminal" and "windows_terminal_waiver" in manual:
+            waiver = manual["windows_terminal_waiver"]
+            require(VERSION in TERMINAL_WAIVERS and isinstance(waiver, dict)
+                    and waiver.get("version") == VERSION and waiver.get("status") == "waived_by_user"
+                    and waiver.get("executed") is False and waiver.get("passed") is False
+                    and waiver.get("authorization") == "本次也免除人工检查，按自动回归结果发布"
+                    and tasks == {}, "manual terminal waiver must explicitly record non-execution, not a pass")
+            require("performance_waiver" in evidence and "functional_ci" in evidence,
+                    "manual terminal waiver requires the final automated qualification record")
+            continue
         require(isinstance(tasks, dict) and set(tasks) == expected and all(value is True for value in tasks.values()), f"{field}: incomplete manual acceptance")
     trials = manual.get("user_trials")
     waiver = manual.get("user_trial_waiver")

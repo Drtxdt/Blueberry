@@ -1,0 +1,1378 @@
+{
+  "run": {
+    "id": 37347868367,
+    "name": "Blueberry CI",
+    "node_id": "WFR_kwLOUZEG-s8AAAAIshs-zw",
+    "head_branch": "codex/v050-main-qualification",
+    "head_sha": "9f3540907af1a7e3f1c12954cf8f64e0b505b08c",
+    "path": ".github/workflows/ci.yml",
+    "display_title": "Keep editor Ctrl+C mode during nested buffer callbacks",
+    "run_number": 81,
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "workflow_id": 357189545,
+    "check_suite_id": 101160394495,
+    "check_suite_node_id": "CS_kwDOUZEG-s8AAAAXjaEe_w",
+    "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/runs/37347868367",
+    "html_url": "https://github.com/Drtxdt/Blueberry/actions/runs/37347868367",
+    "pull_requests": [],
+    "created_at": "2026-10-05T17:21:57Z",
+    "updated_at": "2026-10-05T18:01:27Z",
+    "actor": {
+      "login": "Drtxdt",
+      "id": 178075726,
+      "node_id": "U_kgDOCp04Tg",
+      "avatar_url": "https://avatars.githubusercontent.com/u/178075726?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Drtxdt",
+      "html_url": "https://github.com/Drtxdt",
+      "followers_url": "https://api.github.com/users/Drtxdt/followers",
+      "following_url": "https://api.github.com/users/Drtxdt/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Drtxdt/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Drtxdt/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Drtxdt/subscriptions",
+      "organizations_url": "https://api.github.com/users/Drtxdt/orgs",
+      "repos_url": "https://api.github.com/users/Drtxdt/repos",
+      "events_url": "https://api.github.com/users/Drtxdt/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Drtxdt/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "run_attempt": 1,
+    "referenced_workflows": [],
+    "run_started_at": "2026-10-05T17:21:57Z",
+    "triggering_actor": {
+      "login": "Drtxdt",
+      "id": 178075726,
+      "node_id": "U_kgDOCp04Tg",
+      "avatar_url": "https://avatars.githubusercontent.com/u/178075726?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Drtxdt",
+      "html_url": "https://github.com/Drtxdt",
+      "followers_url": "https://api.github.com/users/Drtxdt/followers",
+      "following_url": "https://api.github.com/users/Drtxdt/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Drtxdt/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Drtxdt/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Drtxdt/subscriptions",
+      "organizations_url": "https://api.github.com/users/Drtxdt/orgs",
+      "repos_url": "https://api.github.com/users/Drtxdt/repos",
+      "events_url": "https://api.github.com/users/Drtxdt/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Drtxdt/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "jobs_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/runs/37347868367/jobs",
+    "logs_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/runs/37347868367/logs",
+    "check_suite_url": "https://api.github.com/repos/Drtxdt/Blueberry/check-suites/101160394495",
+    "artifacts_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/runs/37347868367/artifacts",
+    "cancel_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/runs/37347868367/cancel",
+    "rerun_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/runs/37347868367/rerun",
+    "previous_attempt_url": null,
+    "workflow_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/workflows/357189545",
+    "head_commit": {
+      "id": "9f3540907af1a7e3f1c12954cf8f64e0b505b08c",
+      "tree_id": "03a536db557bc9b255ed863a6fc209d7d4aab636",
+      "message": "Keep editor Ctrl+C mode during nested buffer callbacks",
+      "timestamp": "2026-10-05T17:21:18Z",
+      "author": {
+        "name": "Drtxdt",
+        "email": "lhtshuai@126.com"
+      },
+      "committer": {
+        "name": "Drtxdt",
+        "email": "lhtshuai@126.com"
+      }
+    },
+    "repository": {
+      "id": 1368459002,
+      "node_id": "R_kgDOUZEG-g",
+      "name": "Blueberry",
+      "full_name": "Drtxdt/Blueberry",
+      "private": false,
+      "owner": {
+        "login": "Drtxdt",
+        "id": 178075726,
+        "node_id": "U_kgDOCp04Tg",
+        "avatar_url": "https://avatars.githubusercontent.com/u/178075726?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Drtxdt",
+        "html_url": "https://github.com/Drtxdt",
+        "followers_url": "https://api.github.com/users/Drtxdt/followers",
+        "following_url": "https://api.github.com/users/Drtxdt/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Drtxdt/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Drtxdt/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Drtxdt/subscriptions",
+        "organizations_url": "https://api.github.com/users/Drtxdt/orgs",
+        "repos_url": "https://api.github.com/users/Drtxdt/repos",
+        "events_url": "https://api.github.com/users/Drtxdt/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Drtxdt/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/Drtxdt/Blueberry",
+      "description": "一个使用rust主要构建的高性能终端IDE风格补全工具",
+      "fork": false,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry",
+      "forks_url": "https://api.github.com/repos/Drtxdt/Blueberry/forks",
+      "keys_url": "https://api.github.com/repos/Drtxdt/Blueberry/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/Drtxdt/Blueberry/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/Drtxdt/Blueberry/teams",
+      "hooks_url": "https://api.github.com/repos/Drtxdt/Blueberry/hooks",
+      "issue_events_url": "https://api.github.com/repos/Drtxdt/Blueberry/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/Drtxdt/Blueberry/events",
+      "assignees_url": "https://api.github.com/repos/Drtxdt/Blueberry/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/Drtxdt/Blueberry/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/Drtxdt/Blueberry/tags",
+      "blobs_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/Drtxdt/Blueberry/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/Drtxdt/Blueberry/languages",
+      "stargazers_url": "https://api.github.com/repos/Drtxdt/Blueberry/stargazers",
+      "contributors_url": "https://api.github.com/repos/Drtxdt/Blueberry/contributors",
+      "subscribers_url": "https://api.github.com/repos/Drtxdt/Blueberry/subscribers",
+      "subscription_url": "https://api.github.com/repos/Drtxdt/Blueberry/subscription",
+      "commits_url": "https://api.github.com/repos/Drtxdt/Blueberry/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/Drtxdt/Blueberry/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/Drtxdt/Blueberry/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/Drtxdt/Blueberry/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/Drtxdt/Blueberry/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/Drtxdt/Blueberry/merges",
+      "archive_url": "https://api.github.com/repos/Drtxdt/Blueberry/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/Drtxdt/Blueberry/downloads",
+      "issues_url": "https://api.github.com/repos/Drtxdt/Blueberry/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/Drtxdt/Blueberry/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/Drtxdt/Blueberry/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/Drtxdt/Blueberry/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/Drtxdt/Blueberry/labels{/name}",
+      "releases_url": "https://api.github.com/repos/Drtxdt/Blueberry/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/Drtxdt/Blueberry/deployments"
+    },
+    "head_repository": {
+      "id": 1368459002,
+      "node_id": "R_kgDOUZEG-g",
+      "name": "Blueberry",
+      "full_name": "Drtxdt/Blueberry",
+      "private": false,
+      "owner": {
+        "login": "Drtxdt",
+        "id": 178075726,
+        "node_id": "U_kgDOCp04Tg",
+        "avatar_url": "https://avatars.githubusercontent.com/u/178075726?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Drtxdt",
+        "html_url": "https://github.com/Drtxdt",
+        "followers_url": "https://api.github.com/users/Drtxdt/followers",
+        "following_url": "https://api.github.com/users/Drtxdt/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Drtxdt/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Drtxdt/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Drtxdt/subscriptions",
+        "organizations_url": "https://api.github.com/users/Drtxdt/orgs",
+        "repos_url": "https://api.github.com/users/Drtxdt/repos",
+        "events_url": "https://api.github.com/users/Drtxdt/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Drtxdt/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/Drtxdt/Blueberry",
+      "description": "一个使用rust主要构建的高性能终端IDE风格补全工具",
+      "fork": false,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry",
+      "forks_url": "https://api.github.com/repos/Drtxdt/Blueberry/forks",
+      "keys_url": "https://api.github.com/repos/Drtxdt/Blueberry/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/Drtxdt/Blueberry/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/Drtxdt/Blueberry/teams",
+      "hooks_url": "https://api.github.com/repos/Drtxdt/Blueberry/hooks",
+      "issue_events_url": "https://api.github.com/repos/Drtxdt/Blueberry/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/Drtxdt/Blueberry/events",
+      "assignees_url": "https://api.github.com/repos/Drtxdt/Blueberry/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/Drtxdt/Blueberry/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/Drtxdt/Blueberry/tags",
+      "blobs_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/Drtxdt/Blueberry/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/Drtxdt/Blueberry/languages",
+      "stargazers_url": "https://api.github.com/repos/Drtxdt/Blueberry/stargazers",
+      "contributors_url": "https://api.github.com/repos/Drtxdt/Blueberry/contributors",
+      "subscribers_url": "https://api.github.com/repos/Drtxdt/Blueberry/subscribers",
+      "subscription_url": "https://api.github.com/repos/Drtxdt/Blueberry/subscription",
+      "commits_url": "https://api.github.com/repos/Drtxdt/Blueberry/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/Drtxdt/Blueberry/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/Drtxdt/Blueberry/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/Drtxdt/Blueberry/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/Drtxdt/Blueberry/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/Drtxdt/Blueberry/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/Drtxdt/Blueberry/merges",
+      "archive_url": "https://api.github.com/repos/Drtxdt/Blueberry/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/Drtxdt/Blueberry/downloads",
+      "issues_url": "https://api.github.com/repos/Drtxdt/Blueberry/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/Drtxdt/Blueberry/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/Drtxdt/Blueberry/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/Drtxdt/Blueberry/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/Drtxdt/Blueberry/labels{/name}",
+      "releases_url": "https://api.github.com/repos/Drtxdt/Blueberry/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/Drtxdt/Blueberry/deployments"
+    }
+  },
+  "jobs": [
+    {
+      "id": 111890946408,
+      "name": "Native ConPTY mouse / windows-2025",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Native mouse records through nested ConPTY",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Win32 input protocol / all supported editor combinations",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Preserve full protocol evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21
+        }
+      ]
+    },
+    {
+      "id": 111890946662,
+      "name": "Core / macos-15",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7
+        },
+        {
+          "name": "Run cargo build --locked",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Run cargo clippy --all-targets --locked -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Core tests (no interactive shell)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Run cargo run --locked -- --version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Run cargo run --locked -- specs check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Repeat concurrent favorites writers",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13
+        },
+        {
+          "name": "Preserve concurrent store evidence",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 14
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29
+        }
+      ]
+    },
+    {
+      "id": 111890946668,
+      "name": "Core / windows-2022",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Run cargo build --locked",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Run cargo clippy --all-targets --locked -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Core tests (no interactive shell)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Run cargo run --locked -- --version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Run cargo run --locked -- specs check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Repeat concurrent favorites writers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Preserve concurrent store evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29
+        }
+      ]
+    },
+    {
+      "id": 111890946724,
+      "name": "Windows PowerShell 5.1 / PSReadLine 2.4.5",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Select exact PSReadLine version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Upstream PSReadLine editing tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Preserve upstream test evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Adapter regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Startup regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "OSC ConPTY regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Pipe ConPTY regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Repeat OSC session command snapshot regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15
+        },
+        {
+          "name": "Repeat pipe session command snapshot regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Direct inherited-console regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Repeat Windows PowerShell pipe resize regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Preserve nested terminal evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 35
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 36
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 37
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 38
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 39
+        }
+      ]
+    },
+    {
+      "id": 111890946756,
+      "name": "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Select exact PSReadLine version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Upstream PSReadLine editing tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Preserve upstream test evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Adapter regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Startup regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "OSC ConPTY regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Pipe ConPTY regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Repeat OSC session command snapshot regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15
+        },
+        {
+          "name": "Repeat pipe session command snapshot regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Direct inherited-console regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Repeat Windows PowerShell pipe resize regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Preserve nested terminal evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 35
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 36
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 37
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 38
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 39
+        }
+      ]
+    },
+    {
+      "id": 111890946776,
+      "name": "Core / ubuntu-24.04",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7
+        },
+        {
+          "name": "Run cargo build --locked",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Run cargo clippy --all-targets --locked -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Core tests (no interactive shell)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Run cargo run --locked -- --version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Run cargo run --locked -- specs check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Repeat concurrent favorites writers",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13
+        },
+        {
+          "name": "Preserve concurrent store evidence",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 14
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29
+        }
+      ]
+    },
+    {
+      "id": 111890946784,
+      "name": "format",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run cargo fmt --all -- --check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run python3 -m unittest discover -s tests -p test_release_evidence.py",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        }
+      ]
+    },
+    {
+      "id": 111890946875,
+      "name": "PowerShell 7 / PSReadLine 2.4.5 / osc",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Select exact PSReadLine version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Adapter and startup regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Real ConPTY interaction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Repeat the intermittent resize regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Direct inherited-console regressions",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 12
+        },
+        {
+          "name": "Preserve nested terminal evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 24
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        }
+      ]
+    },
+    {
+      "id": 111890948392,
+      "name": "PowerShell 7 / PSReadLine 2.4.5 / pipe",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Select exact PSReadLine version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Adapter and startup regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Real ConPTY interaction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Repeat the intermittent resize regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Direct inherited-console regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Preserve nested terminal evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 24
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        }
+      ]
+    },
+    {
+      "id": 111904317312,
+      "name": "package",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 37347868367,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Build pinned private editors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Fetch locked sources for offline license collection",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Run cargo build --release --locked",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Package and validate installation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23
+        }
+      ]
+    }
+  ]
+}

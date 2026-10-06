@@ -83,9 +83,15 @@ jobs:
           git merge-base --is-ancestor "$EVIDENCE_SHA" origin/main
           changed="$(git -C release-evidence diff --name-only "$TAG_SHA" "$EVIDENCE_SHA")"
           while IFS= read -r file; do
-            [[ -z "$file" || "$file" == docs/benchmarks/v0.5/* || "$file" == "$VALIDATION_PATH" ]] || { echo "Non-evidence change: $file" >&2; exit 1; }
+            # Release-policy changes may follow the frozen product without
+            # rebuilding it. Product, packaging and dependency changes remain forbidden.
+            [[ -z "$file" || "$file" == docs/benchmarks/v0.5/* || "$file" == "$VALIDATION_PATH" || "$file" == docs/releasing.md || "$file" == scripts/verify-release-evidence.py || "$file" == tests/test_release_evidence.py || "$file" == .github/workflows/release.yml ]] || { echo "Product or packaging change after freeze: $file" >&2; exit 1; }
           done <<< "$changed"
           test -f "release-evidence/$EVIDENCE_PATH"
+          echo "EVIDENCE_SHA=$EVIDENCE_SHA" >> "$GITHUB_ENV"
+      - name: Test the version-bound release policy from the evidence commit
+        working-directory: release-evidence
+        run: python3 -m unittest discover -s tests -p test_release_evidence.py
       - uses: actions/download-artifact@v4
         with:
           name: blueberry-windows-x64
@@ -107,7 +113,7 @@ jobs:
           cd release-assets
           sha256sum --check "blueberry-$RELEASE_TAG-windows-x64.zip.sha256"
           cd ..
-          python3 scripts/verify-release-evidence.py \
+          python3 release-evidence/scripts/verify-release-evidence.py \
             "release-evidence/$EVIDENCE_PATH" \
             "release-assets/blueberry-$RELEASE_TAG-windows-x64.zip" \
             --commit "$TAG_SHA" \
