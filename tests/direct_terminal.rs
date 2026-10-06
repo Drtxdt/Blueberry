@@ -638,7 +638,7 @@ $global:LASTEXITCODE = 37
         String::new(),
     )?;
     wait_editor_begin(&mut h, &data, 1)?;
-    h.send(b"bb-profile-functio")?;
+    h.send_text("bb-profile-functio")?;
     h.wait_text("bb-profile-function", TIMEOUT)?;
     h.send(b"\x01\x7fbb-profile-alia")?;
     h.wait_text("bb-profile-alias", TIMEOUT)?;
@@ -678,15 +678,16 @@ fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() 
     let mut h = start(dir.path())?;
     // No command execution/autoload is allowed before these first-prompt checks.
     for prefix in ["get", "GET", "get-"] {
-        h.send(prefix.as_bytes())?;
+        h.send_text(prefix)?;
         h.wait_text("Get-Help", TIMEOUT)?;
         h.send(b"\x01\x7f")?;
     }
     for command in ["Get-ChildItem", "Get-Process", "Get-FileHash"] {
-        h.send(&command.as_bytes()[..command.len() - 1])?;
+        h.send_text(&command[..command.len() - 1])?;
         h.wait_text(command, TIMEOUT)?; // Full name can only come from the menu.
         h.send(b"\t")?;
-        h.wait_text(&format!("{command} "), TIMEOUT)?;
+        h.send_text("X")?;
+        h.wait_text(&format!("> {command} X"), TIMEOUT)?;
         h.send(b"\x01\x7f")?;
     }
     h.finish(TIMEOUT)
@@ -696,7 +697,7 @@ fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() 
 fn direct_refreshes_large_runtime_snapshots_and_removals() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let mut h = start(dir.path())?;
-    h.send(b"1..705 | ForEach-Object { Set-Alias -Name ('bb-session-'+$_) -Value Get-Help }; function bb-runtime { 'old' }; 'SNAPSHOT-READY'\r")?;
+    h.send_text("1..705 | ForEach-Object { Set-Alias -Name ('bb-session-'+$_) -Value Get-Help }; function bb-runtime { 'old' }; 'SNAPSHOT-READY'\r")?;
     wait_output_line(&mut h, "SNAPSHOT-READY")?;
     wait_editor_begin(&mut h, dir.path(), 2)?;
     h.send(b"bb-session-705")?;
@@ -725,28 +726,59 @@ fn direct_refreshes_large_runtime_snapshots_and_removals() -> Result<()> {
 
 #[test]
 fn direct_commands_are_isolated_between_live_sessions() -> Result<()> {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    };
     let first = tempfile::tempdir()?;
     let second = tempfile::tempdir()?;
-    let mut a = start(first.path())?;
-    let mut b = start(second.path())?;
-    a.send(b"function bb-only-one { 'ONE' }; 'ISOLATION-READY'\r")?;
-    wait_output_line(&mut a, "ISOLATION-READY")?;
-    wait_editor_begin(&mut a, first.path(), 2)?;
-    a.send(b"bb-only-on")?;
-    a.wait_text("bb-only-one", TIMEOUT)?;
-    b.send(b"bb-only-on")?;
-    let deadline = std::time::Instant::now() + Duration::from_secs(1);
-    while std::time::Instant::now() < deadline {
-        let _ = b.pump(Duration::from_millis(20));
-    }
-    ensure!(
-        !b.viewport_contents().contains("bb-only-one"),
-        "other session commands leaked"
-    );
-    a.send(b"\x01\x7f")?;
-    b.send(b"\x01\x7f")?;
-    a.finish(TIMEOUT)?;
-    b.finish(TIMEOUT)
+    let stop = Arc::new(AtomicBool::new(false));
+    let observer_stop = stop.clone();
+    let (ready, ready_rx) = mpsc::channel();
+    // Each terminal must keep answering its own cursor queries. Driving two
+    // Harnesses serially starves the first while waiting on the second; a late
+    // CPR then becomes F3 or literal input after ConPTY's response deadline.
+    let observer = std::thread::spawn(move || -> Result<()> {
+        let mut a = start(first.path())?;
+        a.send_text("function bb-only-one { 'ONE' }; 'ISOLATION-READY'\r")?;
+        wait_output_line(&mut a, "ISOLATION-READY")?;
+        wait_editor_begin(&mut a, first.path(), 2)?;
+        a.send_text("bb-only-on")?;
+        a.wait_text("bb-only-one", TIMEOUT)?;
+        ready.send(())?;
+        let deadline = std::time::Instant::now() + TIMEOUT * 3;
+        while !observer_stop.load(Ordering::Acquire) {
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "second session did not finish"
+            );
+            let _ = a.pump(Duration::from_millis(20));
+        }
+        a.send(b"\x01\x7f")?;
+        a.finish(TIMEOUT)
+    });
+    let result = (|| -> Result<()> {
+        ready_rx.recv_timeout(TIMEOUT * 2)?;
+        let mut b = start(second.path())?;
+        b.send_text("bb-only-on")?;
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        while std::time::Instant::now() < deadline {
+            let _ = b.pump(Duration::from_millis(20));
+        }
+        ensure!(
+            !b.viewport_contents().contains("bb-only-one"),
+            "other session commands leaked"
+        );
+        b.send(b"\x01\x7f")?;
+        b.finish(TIMEOUT)
+    })();
+    stop.store(true, Ordering::Release);
+    let first_result = observer
+        .join()
+        .map_err(|_| anyhow::anyhow!("first observer panicked"))?;
+    result?;
+    first_result
 }
 
 #[test]
@@ -757,7 +789,7 @@ fn direct_tracks_imported_and_removed_module_exports() -> Result<()> {
         "function Get-BlueberryModuleOnly { 'MODULE-RESULT' }; Export-ModuleMember -Function Get-BlueberryModuleOnly",
     )?;
     let mut h = start(dir.path())?;
-    h.send(b"Import-Module ./Commands.psm1; 'IMPORT-READY'\r")?;
+    h.send_text("Import-Module ./Commands.psm1; 'IMPORT-READY'\r")?;
     wait_output_line(&mut h, "IMPORT-READY")?;
     wait_editor_begin(&mut h, dir.path(), 2)?;
     h.send(b"Get-BlueberryModuleOnl")?;

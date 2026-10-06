@@ -429,6 +429,21 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         require(external_manifest.read_bytes() == manifest_bytes, "external and packaged manifests differ")
         manifest = json.loads(manifest_bytes)
         require(manifest.get("version") == VERSION and manifest.get("platform") == "windows-x64", "package manifest version/platform mismatch")
+        build = manifest.get("build", {})
+        require(build.get("commit") == commit and build.get("dirty") is False
+                and build.get("profile") == "release", "package build is not the frozen release source")
+        require(evidence.get("build_identity") == build, "package build/private dependency identity differs from measured EXE")
+        editors = build.get("private_editors", {})
+        pinned_editors = read_json(Path(__file__).resolve().parents[1] / "vendor/psreadline/upstream.json")
+        require(all(editors.get(key) == value for key, value in pinned_editors.items()), "private editor upstream/patch identity mismatch")
+        editor_files = editors.get("files", [])
+        require(isinstance(editor_files, list) and editor_files
+                and all(isinstance(item, dict) and item.get("version") in pinned_editors["versions"]
+                        and HEX64.fullmatch(item.get("sha256", "")) for item in editor_files), "private editor file hashes missing")
+        identities = [(item["version"], item.get("path")) for item in editor_files]
+        require(len(identities) == len(set(identities))
+                and {("2.0.0", "Microsoft.PowerShell.PSReadLine2.dll"), ("2.4.5", "Microsoft.PowerShell.PSReadLine.dll")} <= set(identities),
+                "private editor DLL matrix incomplete or duplicated")
         require(manifest.get("build", {}).get("default_host_mode") == "direct", "final package does not default to direct")
         conpty = manifest.get("build", {}).get("conpty", {})
         pinned_conpty = read_json(Path(__file__).resolve().parents[1] / "vendor/conpty/upstream.json")

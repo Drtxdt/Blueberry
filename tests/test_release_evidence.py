@@ -24,6 +24,43 @@ def statistics(value, count):
 
 
 class ReleaseEvidenceTests(unittest.TestCase):
+    @unittest.skipIf(os.name == 'nt', 'Release shell simulation runs in the required Linux format job')
+    def test_draft_creation_retry_and_published_release_protection(self):
+        workflow = (MODULE_PATH.parent.parent / '.github/workflows/release.yml').read_text(encoding='utf-8')
+        code = textwrap.dedent(workflow.split('name: Create or update unpublished draft with the measured bytes', 1)[1].split('run: |', 1)[1])
+        binary = self.root / 'bin'
+        binary.mkdir()
+        gh = binary / 'gh'
+        gh.write_text('''#!/usr/bin/env bash
+set -euo pipefail
+echo "$*" >> "$MOCK_ROOT/calls"
+case "$1 $2" in
+  'release view') test -f "$MOCK_ROOT/state" || exit 1; cat "$MOCK_ROOT/state" ;;
+  'release create') [[ " $* " == *" --draft "* ]]; echo '{"isDraft":true}' > "$MOCK_ROOT/state" ;;
+  'release upload') cp "$4" "$MOCK_ROOT/remote/$(basename "$4")" ;;
+  'release download') cp "$MOCK_ROOT"/remote/* "$MOCK_ROOT/draft-verification/" ;;
+  *) exit 90 ;;
+esac
+''', encoding='utf-8')
+        gh.chmod(0o755)
+        (self.root / 'remote').mkdir()
+        assets = self.root / 'release-assets'
+        assets.mkdir()
+        (assets / 'package.zip').write_bytes(b'immutable CI bytes')
+        (self.root / 'release-notes.md').write_text('notes')
+        environment = dict(os.environ, PATH=str(binary)+os.pathsep+os.environ['PATH'],
+                           MOCK_ROOT=str(self.root), RELEASE_TAG='v'+validator.VERSION)
+        for _ in range(2):
+            result = subprocess.run(['bash','-c',code], cwd=self.root, env=environment, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((self.root / 'draft-verification/package.zip').read_bytes(), b'immutable CI bytes')
+        (self.root / 'state').write_text('{"isDraft":false}')
+        (self.root / 'calls').write_text('')
+        result = subprocess.run(['bash','-c',code], cwd=self.root, env=environment, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('release upload', (self.root / 'calls').read_text())
+        self.assertNotIn('release create', (self.root / 'calls').read_text())
+
     def test_tag_and_manual_resolution_use_exact_evidence_run(self):
         workflow = (MODULE_PATH.parent.parent / '.github/workflows/release.yml').read_text(encoding='utf-8')
         section = workflow.split('name: Resolve exact CI run from pinned version evidence', 1)[1]
@@ -65,10 +102,14 @@ class ReleaseEvidenceTests(unittest.TestCase):
         with zipfile.ZipFile(self.beta6_package, "w") as archive:
             archive.writestr("blueberry.exe", self.beta6_exe)
         self.package = self.root / f"blueberry-v{validator.VERSION}-windows-x64.zip"
+        editors = validator.read_json(MODULE_PATH.parent.parent / 'vendor/psreadline/upstream.json')
+        editors['files'] = [{"version": version, "path": path, "sha256": 'F'*64} for version, path in
+                            [('2.0.0', 'Microsoft.PowerShell.PSReadLine2.dll'), ('2.4.5', 'Microsoft.PowerShell.PSReadLine.dll')]]
         manifest = {
             "version": validator.VERSION,
             "platform": "windows-x64",
-            "build": {"default_host_mode": "direct", "conpty": self.conpty},
+            "build": {"default_host_mode": "direct", "conpty": self.conpty, "commit":self.commit,
+                      "dirty":False, "profile":"release", "private_editors":editors},
             "files": [{"path": "blueberry.exe", "sha256": self.exe_hash}],
         }
         with zipfile.ZipFile(self.package, "w") as archive:
@@ -80,6 +121,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
             "schema": 2,
             "version": validator.VERSION,
             "source_commit": self.commit,
+            "build_identity": manifest['build'],
             "package_sha256": validator.sha256_file(self.package),
             "executable_sha256": self.exe_hash,
             "startup_reports": {},
@@ -267,6 +309,32 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.assertEqual(
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash
         )
+
+    def test_measured_private_dll_identity_mismatch_blocks_release(self):
+        self.evidence['build_identity']['private_editors']['files'][0]['sha256'] = 'E'*64
+        self.save_evidence()
+        with self.assertRaisesRegex(ValueError, 'private dependency identity'):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_wrong_frozen_build_and_missing_private_editor_matrix_block_release(self):
+        original = json.loads(self.external_manifest.read_text(encoding='utf-8'))
+        for mutation, error in [('commit', 'frozen release source'), ('editors', 'DLL matrix')]:
+            manifest = json.loads(json.dumps(original))
+            if mutation == 'commit':
+                manifest['build']['commit'] = 'b'*40
+            else:
+                manifest['build']['private_editors']['files'].pop()
+            self.evidence['build_identity'] = manifest['build']
+            raw = json.dumps(manifest)
+            with zipfile.ZipFile(self.package, 'w') as archive:
+                archive.writestr('blueberry.exe', self.exe)
+                archive.writestr('release.json', raw)
+            self.external_manifest.write_text(raw, encoding='utf-8')
+            self.evidence['package_sha256'] = validator.sha256_file(self.package)
+            self.evidence['ci']['package_sha256'] = self.evidence['package_sha256']
+            self.save_evidence()
+            with self.assertRaisesRegex(ValueError, error):
+                validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
     def test_performance_deferral_preserves_functional_and_identity_gates(self):
         self.evidence["performance_waiver"] = {
