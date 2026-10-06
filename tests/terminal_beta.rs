@@ -25,6 +25,12 @@ struct RunningHost {
     native_marker: PathBuf,
 }
 
+impl Drop for RunningHost {
+    fn drop(&mut self) {
+        let _ = self.harness.save_evidence(self.data_dir.path());
+    }
+}
+
 fn protocol_chord(suffix: char) -> Vec<u8> {
     // F12 remains the protocol default in the temporary config. Keeping the
     // encoder here in sync with src/input.rs makes each test exercise the
@@ -46,7 +52,7 @@ fn ctrl_space_records() -> &'static [u8] {
 fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_line() -> Result<()> {
     let mut host = start_host()?;
     clear_line(&mut host.harness)?;
-    host.harness.send(b"cargo test -p --release")?;
+    host.harness.send_text("cargo test -p --release")?;
     host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
     read_real_buffer(
         &mut host.harness,
@@ -72,21 +78,21 @@ fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_lin
             "late ordinary completion replaced the displayed hub operation"
         );
     }
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_until(
         &mut host.harness,
         "package parameter form",
         PTY_TIMEOUT,
         |screen| screen.contains("工作区包"),
     )?;
-    host.harness.send(b"blue berry")?;
+    host.harness.send_text("blue berry")?;
     wait_until(
         &mut host.harness,
         "typed package value",
         PTY_TIMEOUT,
         |screen| screen.contains("当前值：blue berry"),
     )?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     let result = host.harness.event("edit_result", PTY_TIMEOUT)?;
     ensure!(result["applied"] == true, "guided edit rejected: {result}");
     read_real_buffer(
@@ -103,7 +109,7 @@ fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_lin
 fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
     let mut host = start_host()?;
     clear_line(&mut host.harness)?;
-    host.harness.send(b"cargo test -p --release")?;
+    host.harness.send_text("cargo test -p --release")?;
     host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
     read_real_buffer(
         &mut host.harness,
@@ -113,14 +119,14 @@ fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
     )?;
     host.harness.send(b"\x1b[112;7u")?;
     select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_until(
         &mut host.harness,
         "cancelable package form",
         PTY_TIMEOUT,
         |screen| screen.contains("工作区包"),
     )?;
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     read_real_buffer(
         &mut host.harness,
         "canceled package",
@@ -138,7 +144,7 @@ fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion
     config.ui.icon_style = "nerd".into();
     fs::write(config_path, toml::to_string(&config)?)?;
     clear_line(&mut host.harness)?;
-    host.harness.send("查看分支".as_bytes())?;
+    host.harness.send_text("查看分支")?;
     let _ = request_buffer(&mut host.harness, "查看分支")?;
     host.harness.send(b"\x1b[102;7u")?;
     host.harness.wait_text("git branch", PTY_TIMEOUT)?;
@@ -151,7 +157,7 @@ fn terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion
         "invalid search insertion: {buffer}"
     );
     clear_line(&mut host.harness)?;
-    host.harness.send(b"codex --model ")?;
+    host.harness.send_text("codex --model ")?;
     let buffer = request_buffer(&mut host.harness, "codex --model")?;
     host.harness.wait_text("<MODEL>", PTY_TIMEOUT)?;
     ensure!(
@@ -173,7 +179,7 @@ fn terminal_static_function_metadata_refreshes_values_without_execution() -> Res
         "SS_METADATA_READY",
     )?;
     clear_line(&mut host.harness)?;
-    host.harness.send(b"SS-Knowledge -Mode ")?;
+    host.harness.send_text("SS-Knowledge -Mode ")?;
     let _ = request_buffer(&mut host.harness, "SS-Knowledge")?;
     let metadata = host.harness.event("command_metadata", PTY_TIMEOUT)?;
     let _: blueberry::knowledge::HelpPage = serde_json::from_value(metadata["page"].clone())?;
@@ -237,7 +243,7 @@ fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
     let path = std::env::join_paths(paths).context("construct deterministic PATH")?;
     let token = format!("terminal-beta-{}", uuid::Uuid::new_v4());
     let native_marker = cwd.path().join("native-called.txt");
-    let input_trace = cwd.path().join("input-trace.txt");
+    let input_trace = data_dir.path().join("input-trace.txt");
     let clipboard_fixture = cwd.path().join("clipboard-fixture.txt");
     let mut env = BTreeMap::from([
         (
@@ -373,7 +379,7 @@ fn terminal_workbench_reloads_external_store_and_keeps_last_good_snapshot() -> R
     wait_for_live_store(&mut host.harness, "recovered favorite", |screen| {
         screen.contains("Reload Fixed") && !screen.contains("Reload After")
     })?;
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     read_real_buffer(&mut host.harness, "closed workbench", "", Some(0))?;
     Ok(())
 }
@@ -436,13 +442,13 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
 
 fn send_command(harness: &mut Harness, command: &str, marker: &str) -> Result<()> {
     clear_line(harness)?;
-    harness.send(command.as_bytes())?;
+    harness.send_text(command)?;
     let buffer = request_buffer(harness, command)?;
     ensure!(
         buffer["line"].as_str() == Some(command),
         "incomplete editor command: {buffer}"
     );
-    harness.send(b"\r")?;
+    harness.send_text("\r")?;
     harness.event("execute", PTY_TIMEOUT)?;
     harness.wait_text(marker, PTY_TIMEOUT)?;
     harness.event("prompt_end", PTY_TIMEOUT)?;
@@ -576,7 +582,7 @@ fn loading_notice_is_not_a_selectable_candidate() {
 }
 
 fn accept_selected(harness: &mut Harness) -> Result<Value> {
-    harness.send(b"\t")?;
+    harness.send_text("\t")?;
     let state = harness.event("accept_state", PTY_TIMEOUT)?;
     ensure!(
         state["revision"] == state["presented_revision"]
@@ -625,6 +631,43 @@ fn usage_snapshot(host: &mut RunningHost) -> Result<Value> {
 }
 
 #[test]
+fn terminal_beta_cancel_during_buffer_callback_is_delivered_to_editor() -> Result<()> {
+    let mut host = start_host()?;
+    let mode_file = host.data_dir.path().join("buffer-control-c-mode.txt");
+    // Extend the real interval between emitting a buffer reply and returning
+    // from its PSReadLine handler. A reply does not mean the handler returned.
+    send_command(
+        &mut host.harness,
+        &format!(
+            "$global:BlueberryOriginalBuffer = ${{function:Send-BlueberryBuffer}}; function global:Send-BlueberryBuffer {{ [IO.File]::WriteAllText({}, [Console]::TreatControlCAsInput.ToString()); & $global:BlueberryOriginalBuffer; [Threading.Thread]::Sleep(250) }}; Write-Output BB_DELAY_READY",
+            ps_quote(&mode_file)
+        ),
+        "BB_DELAY_READY",
+    )?;
+    clear_line(&mut host.harness)?;
+    host.harness.send_text("Write-Output '\r")?;
+    let editing = host.harness.event("editing", PTY_TIMEOUT)?;
+    ensure!(
+        editing["state"] == "continuation",
+        "expected continuation: {editing}"
+    );
+    host.harness.send_text("gi")?;
+    request_buffer(&mut host.harness, "gi")?;
+    cancel_to_prompt(&mut host.harness)?;
+    ensure!(
+        fs::read_to_string(mode_file)? == "True",
+        "buffer callback changed the editor's Ctrl+C input mode"
+    );
+    send_command(
+        &mut host.harness,
+        "Write-Output BB_CANCEL_RECOVERED",
+        "BB_CANCEL_RECOVERED",
+    )?;
+    host.harness.finish(PTY_TIMEOUT)?;
+    Ok(())
+}
+
+#[test]
 fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknown_text()
 -> Result<()> {
     let mut host = start_host()?;
@@ -638,7 +681,7 @@ fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknow
         clear_line(&mut host.harness)
             .with_context(|| format!("clear before continuation {prefix:?}"))?;
         host.harness.send(prefix.as_bytes())?;
-        host.harness.send(b"\r")?;
+        host.harness.send_text("\r")?;
         let editing = host
             .harness
             .event("editing", PTY_TIMEOUT)
@@ -673,14 +716,14 @@ fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknow
 
     // Here-string body text is intentionally opaque to the adapter.
     clear_line(&mut host.harness)?;
-    host.harness.send(b"@\"")?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("@\"")?;
+    host.harness.send_text("\r")?;
     let editing = host.harness.event("editing", PTY_TIMEOUT)?;
     ensure!(
         editing["state"] == "continuation",
         "here-string Enter did not continue"
     );
-    host.harness.send(b"BODY")?;
+    host.harness.send_text("BODY")?;
     let here = request_buffer(&mut host.harness, "BODY")?;
     ensure!(
         here["context"]["suppressed"] == true,
@@ -689,7 +732,7 @@ fn terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknow
     cancel_to_prompt(&mut host.harness)?;
 
     clear_line(&mut host.harness)?;
-    host.harness.send(b"# comment text")?;
+    host.harness.send_text("# comment text")?;
     let comment = request_buffer(&mut host.harness, "# comment")?;
     ensure!(
         comment["context"]["suppressed"] == true,
@@ -705,7 +748,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     let mut host = start_host()?;
 
     clear_line(&mut host.harness)?;
-    host.harness.send(b"git")?;
+    host.harness.send_text("git")?;
     host.harness.send(b"\x1b[D\x1b[D")?;
     let _ = request_buffer(&mut host.harness, "git")?;
     select_candidate(&mut host.harness, "git")?;
@@ -722,7 +765,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     )?;
 
     clear_line(&mut host.harness)?;
-    host.harness.send(b"giXYZ")?;
+    host.harness.send_text("giXYZ")?;
     host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
     let _ = request_buffer(&mut host.harness, "giXYZ")?;
     select_candidate(&mut host.harness, "git")?;
@@ -735,8 +778,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     )?;
 
     clear_line(&mut host.harness)?;
-    host.harness
-        .send("Get-ChildItem -Name '中文😀".as_bytes())?;
+    host.harness.send_text("Get-ChildItem -Name '中文😀")?;
     let _ = request_buffer(&mut host.harness, "Get-ChildItem -Name '中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
     let _ = accept_selected(&mut host.harness)?;
@@ -756,8 +798,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     // instead of making this assertion depend on menu-dismissal timing.
     host.harness.stop()?;
     let mut host = start_host()?;
-    host.harness
-        .send("Get-ChildItem -Name \"中文😀".as_bytes())?;
+    host.harness.send_text("Get-ChildItem -Name \"中文😀")?;
     let _ = request_buffer(&mut host.harness, "中文😀")?;
     select_candidate(&mut host.harness, "中文😀 文件.txt")?;
     let _ = accept_selected(&mut host.harness)?;
@@ -780,7 +821,7 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
 fn terminal_tab_accepts_displayed_candidate_after_unpainted_worker_reply() -> Result<()> {
     let mut host = start_host_with_unpainted_reply(true)?;
     clear_line(&mut host.harness)?;
-    host.harness.send(b"giXYZ")?;
+    host.harness.send_text("giXYZ")?;
     host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
     let _ = request_buffer(&mut host.harness, "giXYZ")?;
     select_candidate(&mut host.harness, "git")?;
@@ -810,7 +851,7 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
 
     clear_line(&mut host.harness)?;
     let line = "Test-BlueberryNative -Value a";
-    host.harness.send(line.as_bytes())?;
+    host.harness.send_text(line)?;
     let buffer = request_buffer(&mut host.harness, "Test-BlueberryNative")?;
     ensure!(
         !host.native_marker.exists(),
@@ -860,7 +901,7 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
         "manual native request did not invoke the current-session completer"
     );
     select_candidate(&mut host.harness, "alpha")?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     let applied = host.harness.event("edit_result", PTY_TIMEOUT)?;
     ensure!(
         applied["applied"] == true,
@@ -873,7 +914,7 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
             .is_some_and(|line| line.trim_end() == "Test-BlueberryNative -Value alpha"),
         "native replacement changed unrelated text: {inserted}"
     );
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness.event("prompt_end", PTY_TIMEOUT)?;
     host.harness.wait_line("NATIVE:alpha", PTY_TIMEOUT)?;
@@ -890,11 +931,11 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         "SS_UP_HISTORY",
     )?;
     clear_line(&mut host.harness)?;
-    host.harness.send(b"gi")?;
+    host.harness.send_text("gi")?;
     wait_until(&mut host.harness, "automatic menu", PTY_TIMEOUT, |screen| {
         screen.contains("› ")
     })?;
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     wait_until(
         &mut host.harness,
         "completion menu dismissal before history navigation",
@@ -922,7 +963,7 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         actual["line"] == pasted,
         "bracketed paste changed input: {actual}"
     );
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness.event("prompt_end", PTY_TIMEOUT)?;
     host.harness.wait_line("粘贴😀 与空格", PTY_TIMEOUT)?;
@@ -940,7 +981,7 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         actual["line"] == multiline,
         "multiline paste executed or changed text before Enter: {actual}"
     );
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     host.harness.event("execute", PTY_TIMEOUT)?;
     host.harness.event("prompt_end", PTY_TIMEOUT)?;
     host.harness.wait_line("第一行😀", PTY_TIMEOUT)?;
@@ -968,18 +1009,18 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
     .with_context(|| {
         format!(
             "input metadata: {}",
-            fs::read_to_string(host._cwd.path().join("input-trace.txt")).unwrap_or_default()
+            fs::read_to_string(host.data_dir.path().join("input-trace.txt")).unwrap_or_default()
         )
     })?;
     ensure!(
         actual["line"]
             == "Get-PnpDevice -PresentOnly |\nWhere-Object {$_.InstanceId -like 'PCI\\VEN_15B7*'} |\nFormat-List *",
         "unmarked multiline paste lost or executed its first line: {actual}; input metadata: {}",
-        fs::read_to_string(host._cwd.path().join("input-trace.txt")).unwrap_or_default()
+        fs::read_to_string(host.data_dir.path().join("input-trace.txt")).unwrap_or_default()
     );
     fs::remove_file(clipboard_fixture)?;
     clear_line(&mut host.harness)?;
-    host.harness.send(b"old selection")?;
+    host.harness.send_text("old selection")?;
     host.harness.send(b"\x01")?;
     host.harness.send(b"\x1b[200~one\r\ntwo\x1b[201~")?;
     let selected = read_real_buffer(
@@ -1059,9 +1100,9 @@ fn terminal_beta_learning_records_only_an_applied_edit() -> Result<()> {
     }
 
     clear_line(&mut host.harness)?;
-    host.harness.send(b"gi")?;
+    host.harness.send_text("gi")?;
     select_candidate(&mut host.harness, "git")?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     let value = usage_snapshot(&mut host)?;
     let raw = fs::read_to_string(&usage_path)?;
     ensure!(

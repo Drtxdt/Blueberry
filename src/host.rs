@@ -68,6 +68,28 @@ pub enum HostMode {
     Nested,
 }
 
+/// Opt-in raw transport capture for isolated debug fixtures only.
+#[cfg(debug_assertions)]
+struct WireWriter {
+    inner: Box<dyn Write + Send>,
+    capture: Option<std::fs::File>,
+}
+
+#[cfg(debug_assertions)]
+impl Write for WireWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        let n = self.inner.write(bytes)?;
+        if let Some(capture) = &mut self.capture {
+            capture.write_all(&bytes[..n])?;
+        }
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
 pub fn resolve_host(
     mode: Option<HostMode>,
     transport: Option<Transport>,
@@ -719,14 +741,17 @@ impl RawMode {
                 if GetConsoleMode(handle, &mut original) == 0 {
                     return Err(std::io::Error::last_os_error());
                 }
+                // ReadConsoleInputW already preserves native key identities.
+                // VT input would re-encode Ctrl/Enter as CSI_ strings among
+                // raw paste characters, destroying the payload boundary.
                 let mode = (original
                     & !(ENABLE_LINE_INPUT
                         | ENABLE_ECHO_INPUT
                         | ENABLE_PROCESSED_INPUT
+                        | ENABLE_VIRTUAL_TERMINAL_INPUT
                         | ENABLE_QUICK_EDIT_MODE
                         | ENABLE_MOUSE_INPUT))
                     | ENABLE_WINDOW_INPUT
-                    | ENABLE_VIRTUAL_TERMINAL_INPUT
                     | ENABLE_EXTENDED_FLAGS;
                 if SetConsoleMode(handle, mode) == 0 {
                     return Err(std::io::Error::last_os_error());
@@ -2545,6 +2570,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
         });
     let mut env = BTreeMap::from([
         ("BLUEBERRY_TOKEN".into(), token.clone()),
+        // Never inherit a diagnostic file destination into a normal session.
+        ("BLUEBERRY_TEST_SHELL_WIRE".into(), String::new()),
         (
             "BLUEBERRY_PIPE_NAME".into(),
             pipe.as_ref()
@@ -2578,6 +2605,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
     );
     let cwd = std::env::current_dir()?;
     crate::packs::set_cwd(cwd.clone());
+    #[cfg(debug_assertions)]
+    let capture_wire =
+        probe_token.is_some() && std::env::var("BLUEBERRY_TEST_HOST_WIRE").as_deref() == Ok("1");
+    #[cfg(debug_assertions)]
+    if capture_wire {
+        env.insert(
+            "BLUEBERRY_TEST_SHELL_WIRE".into(),
+            options
+                .data_dir
+                .join("shell-wire.log")
+                .to_string_lossy()
+                .into_owned(),
+        );
+    }
     env.extend(pty::key_environment(&config.keys));
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let mut raw = RawMode::enable()
@@ -2590,7 +2631,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let pty::Session {
         master,
         mut reader,
-        mut writer,
+        writer,
         mut child,
     } = pty::spawn(
         &options.shell,
@@ -2601,6 +2642,19 @@ pub fn run(options: RunOptions) -> Result<u32> {
         cols,
     )?;
     trace.event("pty_started", None, None, None);
+    #[cfg(not(debug_assertions))]
+    let mut writer = writer;
+    #[cfg(debug_assertions)]
+    let mut writer = WireWriter {
+        inner: writer,
+        capture: capture_wire
+            .then(|| std::fs::File::create(options.data_dir.join("child-input.bin")))
+            .transpose()?,
+    };
+    #[cfg(debug_assertions)]
+    let mut output_capture = capture_wire
+        .then(|| std::fs::File::create(options.data_dir.join("child-output.bin")))
+        .transpose()?;
     if let Some(server) = pipe.as_mut() {
         if let Some(pid) = child.process_id() {
             server.set_client_pid(pid);
@@ -2631,6 +2685,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 }
                 Ok(n) => {
                     output_trace.event("child_output_received", None, None, Some(n));
+                    #[cfg(debug_assertions)]
+                    if let Some(capture) = &mut output_capture
+                        && let Err(error) = capture.write_all(&buffer[..n])
+                    {
+                        let _ = read_tx.send(HostEvent::Error(error.to_string()));
+                        break;
+                    }
                     if read_tx
                         .send(HostEvent::Output(buffer[..n].to_vec(), Instant::now()))
                         .is_err()
@@ -2789,6 +2850,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let mut output = stdout.lock();
     let mut exit_code = None;
     let mut frame = Vec::with_capacity(32_768);
+    #[cfg(debug_assertions)]
+    let mut last_probe_request_state = Value::Null;
     loop {
         frame.clear();
         let mut ui_dirty = false;
@@ -2895,6 +2958,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             let shown = state.presented_candidate.as_ref();
                             let value = json!({"event":"accept_state","revision":state.revision,
                                 "presented_revision":shown.map(|p|p.revision),
+                                "presented_label":shown.map(|p|p.candidate.label.as_str()),
+                                "presented_id":shown.map(|p|p.candidate.id.as_str()),
                                 "line_matches":shown.is_some_and(|p|p.line==state.line),
                                 "cursor_matches":shown.is_some_and(|p|p.cursor==state.cursor),
                                 "prompt":state.prompt,"dismissed":state.dismissed,
@@ -3047,6 +3112,27 @@ pub fn run(options: RunOptions) -> Result<u32> {
             state.parser.process(MOUSE_OFF);
         }
         state.query(&mut writer)?;
+        #[cfg(debug_assertions)]
+        if let Some(token) = &probe_token {
+            // A stalled fixture needs the request gates as well as its last
+            // visible menu. Emit only changed numeric/identity state; this is
+            // absent from release builds and does not query the editor.
+            let value = json!({"event":"request_state",
+                "ready":state.ready,"prompt":state.prompt,"dirty":state.dirty,
+                "commands_pending":state.commands_pending,
+                "commands_inflight":state.commands_inflight,
+                "commands_allowed":state.commands_allowed,"nested_edit":state.nested_edit,
+                "pending_query":state.pending_query,"native_request":state.native_request,
+                "reset_pending":state.reset_pending.is_some(),
+                "metadata_pending":state.metadata_pending.is_some(),
+                "snapshot":state.commands_snapshot.id,
+                "pending_commands":state.commands_snapshot.pending.len(),
+                "previous_commands":state.commands_snapshot.previous.len()});
+            if value != last_probe_request_state {
+                frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
+                last_probe_request_state = value;
+            }
+        }
         if std::mem::take(&mut state.repaint) {
             frame.extend_from_slice(b"\x1b[2J\x1b[H");
             frame.extend_from_slice(&state.parser.screen().state_formatted());

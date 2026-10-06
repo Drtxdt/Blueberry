@@ -31,6 +31,20 @@ pub struct Harness {
 }
 
 impl Harness {
+    /// Preserve synthetic fixture state on success or failure, outside timing.
+    pub fn save_evidence(&self, directory: &Path) -> Result<()> {
+        std::fs::write(directory.join("probe-screen.txt"), self.viewport_contents())?;
+        std::fs::write(directory.join("probe-output-tail.bin"), &self.trace)?;
+        std::fs::write(
+            directory.join("probe-pending-events.json"),
+            serde_json::to_vec_pretty(&self.messages)?,
+        )?;
+        std::fs::write(
+            directory.join("probe-capabilities.json"),
+            serde_json::to_vec_pretty(&self.last_capabilities)?,
+        )?;
+        Ok(())
+    }
     pub fn last_output_qpc(&self) -> Option<i64> {
         self.last_output_qpc
     }
@@ -86,6 +100,18 @@ impl Harness {
         self.session.writer.write_all(bytes)?;
         self.session.writer.flush()?;
         Ok(())
+    }
+    /// Type real text using native key identity on Windows. `send` remains the
+    /// raw wire API for control sequences, paste transactions and fault tests.
+    pub fn send_text(&mut self, text: &str) -> Result<()> {
+        #[cfg(windows)]
+        {
+            self.send(&crate::input::windows_text_records(text))
+        }
+        #[cfg(not(windows))]
+        {
+            self.send(text.as_bytes())
+        }
     }
     pub fn pump(&mut self, timeout: Duration) -> Result<()> {
         let (bytes, arrived, qpc) = self.receive.recv_timeout(timeout).with_context(|| {

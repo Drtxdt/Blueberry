@@ -784,6 +784,7 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
     let build = {
         let mut build = build;
         build["private_editors"] = blueberry::editor::build_identity();
+        build["conpty"] = blueberry::conpty::build_identity();
         build
     };
     if json {
@@ -800,6 +801,10 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             }
         };
         value["build"] = build;
+        value["conpty"] = adapter
+            .as_ref()
+            .map(|status| status["conpty"].clone())
+            .unwrap_or(serde_json::Value::Null);
         value["shell"] = adapter
             .as_ref()
             .and_then(|status| status["shell_version"].as_str())

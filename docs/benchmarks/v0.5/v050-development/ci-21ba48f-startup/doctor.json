@@ -1,0 +1,993 @@
+{
+  "arch": "x86_64",
+  "automatic_menu": null,
+  "automatic_menu_disabled_reason": null,
+  "build": {
+    "commit": "3f32924c4a58468708a9cb85cf1ca3c782bb082c",
+    "default_host_mode": "direct",
+    "dirty": false,
+    "private_editors": {
+      "files": [
+        {
+          "path": "License.txt",
+          "sha256": "2c679724a13cec8a7589034b5725c749a304cef4a8ce4dc474f508095e627f4b",
+          "version": "2.0.0"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine2.dll",
+          "sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "da79d15c91edd0559d70dbcda76f9b41ef1b17a141d137a485027971a08df1bb",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "8da4596d105078a4d6d5ae64ddf433fd7a538acea8c253df2945612bc0c98dd7",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "98c2733e43ffe148378f645b5626e585578fcfd04fcc2fcb443ba61d54430912",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-LICENSE.txt",
+          "sha256": "b7d43d08f59637129c482c63dcd4811077101ac41cc763b3b58490137f741977",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-NOTICES.txt",
+          "sha256": "fd880d29a522f238c178452b38cbf196bb5c0dab7ebfdc590b02b8e5019ebc71",
+          "version": "2.0.0"
+        },
+        {
+          "path": "System.Runtime.InteropServices.RuntimeInformation.dll",
+          "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8",
+          "version": "2.0.0"
+        },
+        {
+          "path": "License.txt",
+          "sha256": "577273b040bdddb01b02768d9ad07fcb40415479fc2e65c8287294c6abf56de6",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.Pager.dll",
+          "sha256": "451994c3d3e38d939b4fa5f8594d0207840f45e7a210aa75f81aef85aa17c592",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine.dll",
+          "sha256": "0b548c4b42c9b9e4658cbdb94fe58c8fc270d275d04f4fdca814369049b88643",
+          "version": "2.4.5"
+        },
+        {
+          "path": "net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "d077c3a44d7702197e398ef56dcc72006502daff430acbbfbf95ee9dcb15a19d",
+          "version": "2.4.5"
+        },
+        {
+          "path": "netstd/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "79a53c023977a91ab0abd8cd4279b918a1eecb1826ce796eade63dd9363e9cf0",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Pager-LICENSE.txt",
+          "sha256": "ac40d0ffe53b81204451b78b6772b5bb53c5c9ea7d32f694596fae5b9150c9b9",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "9676711e5883b8aeea5affae7868c6b651e5250a132691ec26a6e94c79702e22",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "243b46505e5e0ed7d313d340d9c717b2a7bdd1a9e184b99d36d921e9d48cee02",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "ea065fe561207681b987eee788ac24e7d58c45daca310ff53ceeff01ceb86edd",
+          "version": "2.4.5"
+        }
+      ],
+      "patch": "blueberry-editor-v1",
+      "repository": "https://github.com/PowerShell/PSReadLine",
+      "versions": {
+        "2.0.0": {
+          "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c",
+          "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6"
+        },
+        "2.4.5": {
+          "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0",
+          "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f"
+        }
+      }
+    },
+    "profile": "release",
+    "time_unix": 1791205967
+  },
+  "cache": "C:\\Users\\dell\\AppData\\Local\\Packages\\sandbox.{6e31260b-1066-49d6-bf8c-f3a336e114bb}\\AC\\Blueberry\\cache",
+  "commands": {
+    "count": 0,
+    "valid": true
+  },
+  "config": "C:\\Users\\dell\\AppData\\Roaming\\Blueberry\\config.toml",
+  "dynamic": true,
+  "editor": null,
+  "help_cache": [],
+  "host_mode": null,
+  "keys": {
+    "details": "F1",
+    "hub": "Ctrl+Alt+P",
+    "native": "Ctrl+Alt+Space",
+    "protocol_prefix": "F12",
+    "refresh": "Ctrl+Alt+C",
+    "reload": "Ctrl+Alt+R",
+    "resources": "Ctrl+Alt+D",
+    "search": "Ctrl+Alt+F",
+    "trigger": "Ctrl+Space"
+  },
+  "platform": "windows",
+  "psreadline": null,
+  "shell": null,
+  "tool_registry": [
+    {
+      "help": "cargo",
+      "name": "cargo",
+      "providers": [
+        "cargo",
+        "cargo.packages",
+        "cargo.features",
+        "cargo.bins",
+        "cargo.examples",
+        "cargo.tests",
+        "cargo.benches"
+      ],
+      "required": [
+        "build",
+        "check",
+        "run",
+        "test"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "git",
+      "name": "git",
+      "providers": [
+        "git",
+        "git.refs",
+        "git.branches",
+        "git.remotes",
+        "git.tags",
+        "git.worktrees",
+        "git.status",
+        "git.paths"
+      ],
+      "required": [
+        "add",
+        "branch",
+        "commit",
+        "push",
+        "status"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "gh",
+      "name": "gh",
+      "providers": [],
+      "required": [
+        "auth",
+        "issue",
+        "pr",
+        "release",
+        "repo",
+        "workflow"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "rustc",
+      "providers": [],
+      "required": [],
+      "resources": "none"
+    },
+    {
+      "help": "sectioned",
+      "name": "rustup",
+      "providers": [
+        "rustup.toolchains",
+        "rustup.targets",
+        "rustup.components"
+      ],
+      "required": [
+        "toolchain",
+        "target",
+        "component",
+        "default",
+        "override"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "python",
+      "name": "python",
+      "providers": [
+        "python.scripts",
+        "python.dependencies",
+        "python.environments"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "pip",
+      "providers": [],
+      "required": [
+        "install",
+        "uninstall",
+        "show",
+        "list"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "uv",
+      "providers": [],
+      "required": [
+        "run",
+        "sync",
+        "add",
+        "remove",
+        "python",
+        "tool"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "conda",
+      "providers": [
+        "conda.environments",
+        "conda.packages"
+      ],
+      "required": [
+        "activate",
+        "run",
+        "list",
+        "install",
+        "remove",
+        "env"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "poetry",
+      "providers": [
+        "poetry.scripts",
+        "poetry.dependencies",
+        "poetry.environments"
+      ],
+      "required": [
+        "run",
+        "add",
+        "remove",
+        "install",
+        "env"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "npm",
+      "name": "npm",
+      "providers": [
+        "npm",
+        "npm.scripts",
+        "npm.workspaces",
+        "npm.dependencies"
+      ],
+      "required": [
+        "install",
+        "run",
+        "test",
+        "uninstall",
+        "update"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "pnpm",
+      "name": "pnpm",
+      "providers": [
+        "pnpm",
+        "pnpm.scripts",
+        "pnpm.workspaces",
+        "pnpm.dependencies"
+      ],
+      "required": [
+        "add",
+        "install",
+        "remove",
+        "run",
+        "test"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "yarn",
+      "providers": [
+        "yarn.scripts",
+        "yarn.workspaces",
+        "yarn.dependencies"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "bun",
+      "providers": [
+        "bun.scripts",
+        "bun.workspaces",
+        "bun.dependencies"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "go",
+      "providers": [
+        "go.packages",
+        "go.files",
+        "go.workspaces"
+      ],
+      "required": [
+        "run",
+        "build",
+        "test",
+        "list",
+        "mod",
+        "work"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "dotnet",
+      "providers": [
+        "dotnet.projects",
+        "dotnet.frameworks",
+        "dotnet.references",
+        "dotnet.tools"
+      ],
+      "required": [
+        "new",
+        "build",
+        "run",
+        "test",
+        "publish",
+        "tool"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "cmake",
+      "providers": [
+        "cmake.presets",
+        "cmake.build_presets",
+        "cmake.test_presets",
+        "cmake.targets"
+      ],
+      "required": [
+        "--build",
+        "--install",
+        "--workflow"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "ctest",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "docker",
+      "name": "docker",
+      "providers": [
+        "docker.services",
+        "docker.profiles",
+        "docker.contexts"
+      ],
+      "required": [
+        "build",
+        "compose",
+        "container",
+        "image",
+        "network",
+        "volume"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "kubectl",
+      "providers": [
+        "kubectl.contexts",
+        "kubectl.namespaces",
+        "kubectl.resources"
+      ],
+      "required": [
+        "get",
+        "describe",
+        "logs",
+        "exec",
+        "delete",
+        "config",
+        "apply"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "helm",
+      "providers": [
+        "helm.charts",
+        "helm.repositories",
+        "helm.releases"
+      ],
+      "required": [
+        "list",
+        "status",
+        "install",
+        "upgrade",
+        "uninstall",
+        "template",
+        "lint",
+        "repo"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "ssh",
+      "providers": [
+        "ssh.hosts"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "scp",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "sftp",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "codex",
+      "providers": [],
+      "required": [
+        "exec",
+        "review",
+        "resume",
+        "fork",
+        "mcp",
+        "completion"
+      ],
+      "resources": "none"
+    },
+    {
+      "help": "sectioned",
+      "name": "winget",
+      "providers": [],
+      "required": [
+        "search",
+        "show",
+        "install",
+        "upgrade",
+        "uninstall",
+        "list"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "pwsh",
+      "providers": [
+        "powershell.env",
+        "powershell.paths",
+        "powershell.redirects"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Get-ChildItem",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Set-Location",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "deno",
+      "providers": [
+        "deno.tasks"
+      ],
+      "required": [
+        "run",
+        "task",
+        "test",
+        "fmt",
+        "lint"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "corepack",
+      "providers": [],
+      "required": [
+        "enable",
+        "install",
+        "use"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "java",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "javac",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "mvn",
+      "providers": [
+        "maven.modules"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "gradle",
+      "providers": [
+        "gradle.tasks"
+      ],
+      "required": [
+        "build",
+        "tasks",
+        "test"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "make",
+      "providers": [
+        "make.targets"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "ninja",
+      "providers": [
+        "ninja.targets"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "just",
+      "providers": [
+        "just.recipes"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "task",
+      "providers": [
+        "task.tasks"
+      ],
+      "required": [
+        "init",
+        "list"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "terraform",
+      "providers": [
+        "terraform.symbols"
+      ],
+      "required": [
+        "init",
+        "plan",
+        "apply",
+        "destroy",
+        "validate",
+        "workspace"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "tofu",
+      "providers": [
+        "tofu.symbols"
+      ],
+      "required": [
+        "init",
+        "plan",
+        "apply",
+        "destroy",
+        "validate",
+        "workspace"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "ansible",
+      "providers": [
+        "ansible.inventory"
+      ],
+      "required": [],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "ansible-playbook",
+      "providers": [],
+      "required": [],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "ansible-galaxy",
+      "providers": [],
+      "required": [
+        "collection",
+        "role"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "ansible-vault",
+      "providers": [],
+      "required": [
+        "create",
+        "decrypt",
+        "edit",
+        "encrypt",
+        "view"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "scoop",
+      "name": "scoop",
+      "providers": [
+        "windows.scoop_packages"
+      ],
+      "required": [
+        "install",
+        "uninstall",
+        "update",
+        "search",
+        "list"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "choco",
+      "name": "choco",
+      "providers": [
+        "windows.choco_packages"
+      ],
+      "required": [
+        "install",
+        "uninstall",
+        "upgrade",
+        "search",
+        "list"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "wsl",
+      "providers": [
+        "windows.wsl_distros"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sevenzip",
+      "name": "7z",
+      "providers": [],
+      "required": [
+        "a",
+        "e",
+        "l",
+        "t",
+        "x"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "robocopy",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "where",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "tasklist",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "taskkill",
+      "providers": [
+        "windows.processes"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "ipconfig",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "netstat",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "sc",
+      "providers": [
+        "windows.services"
+      ],
+      "required": [
+        "query",
+        "start",
+        "stop",
+        "create",
+        "delete",
+        "config"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "windows-slash",
+      "name": "reg",
+      "providers": [],
+      "required": [
+        "add",
+        "delete",
+        "export",
+        "import",
+        "query"
+      ],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Get-Module",
+      "providers": [
+        "powershell.modules"
+      ],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Import-Module",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Remove-Module",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Install-Module",
+      "providers": [],
+      "required": [],
+      "resources": "manual"
+    },
+    {
+      "help": "powershell",
+      "name": "Get-Command",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Get-Help",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Compress-Archive",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "powershell",
+      "name": "Expand-Archive",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "aws",
+      "name": "aws",
+      "providers": [
+        "cloud.aws_profiles",
+        "cloud.aws_resources"
+      ],
+      "required": [
+        "configure",
+        "s3",
+        "ec2",
+        "iam",
+        "sts",
+        "lambda"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "az",
+      "providers": [
+        "cloud.azure_profiles",
+        "cloud.azure_resources"
+      ],
+      "required": [
+        "login",
+        "account",
+        "group",
+        "resource",
+        "vm",
+        "storage"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "gcloud",
+      "providers": [
+        "cloud.gcloud_profiles",
+        "cloud.gcloud_resources"
+      ],
+      "required": [
+        "auth",
+        "config",
+        "projects",
+        "compute",
+        "container",
+        "run"
+      ],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "psql",
+      "providers": [
+        "db.postgres"
+      ],
+      "required": [],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "mysql",
+      "providers": [
+        "db.mysql"
+      ],
+      "required": [],
+      "resources": "manual"
+    },
+    {
+      "help": "sqlite",
+      "name": "sqlite3",
+      "providers": [],
+      "required": [],
+      "resources": "local"
+    },
+    {
+      "help": "sectioned",
+      "name": "redis-cli",
+      "providers": [
+        "db.redis"
+      ],
+      "required": [],
+      "resources": "manual"
+    },
+    {
+      "help": "sectioned",
+      "name": "mongosh",
+      "providers": [
+        "db.mongo"
+      ],
+      "required": [],
+      "resources": "manual"
+    }
+  ],
+  "transport": null,
+  "valid": true,
+  "version": "0.5.0"
+}

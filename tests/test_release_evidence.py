@@ -27,6 +27,8 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.root.mkdir()
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
         self.commit = "a" * 40
+        self.conpty = validator.read_json(MODULE_PATH.parent.parent / "vendor/conpty/upstream.json")
+        self.runtime = {**self.conpty, "mode": "pinned"}
         self.exe = b"MZ synthetic release fixture"
         self.exe_hash = hashlib.sha256(self.exe).hexdigest().upper()
         self.beta6_exe = b"MZ synthetic public beta.6 fixture"
@@ -38,7 +40,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
         manifest = {
             "version": validator.VERSION,
             "platform": "windows-x64",
-            "build": {"default_host_mode": "direct"},
+            "build": {"default_host_mode": "direct", "conpty": self.conpty},
             "files": [{"path": "blueberry.exe", "sha256": self.exe_hash}],
         }
         with zipfile.ZipFile(self.package, "w") as archive:
@@ -83,6 +85,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
             order = list(validator.COMPARISON_MODES)
             rotated = lambda index: order[index % 4:] + order[:index % 4]
             comparison = {
+                "probe_conpty": self.runtime,
                 "schema": 2,
                 **environment,
                 "profile": profile,
@@ -137,6 +140,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
             (self.root / comparison_name).write_text(json.dumps(comparison), encoding="utf-8")
             self.evidence["comparison_reports"][profile] = comparison_name
             startup = {
+                "probe_conpty": self.runtime, "product_conpty": self.conpty,
                 "schema": 3,
                 "measurement": "complete_product",
                 "source_commit": self.commit,
@@ -187,6 +191,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
                         "acceptance": {"cache_miss": acceptance, "cache_hit": acceptance},
                     })
                 hot = {
+                    "probe_conpty": self.runtime, "product_conpty": self.conpty,
                     "schema": 2,
                     "source_commit": self.commit, **environment,
                     "source_dirty": False,
@@ -211,6 +216,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
             self.evidence["nested_compatibility_reports"][profile] = {}
             for variant, transport in validator.NESTED_VARIANTS.items():
                 nested = {
+                    "probe_conpty": self.runtime, "product_conpty": self.conpty,
                     "source_commit": self.commit, **environment,
                     "source_dirty": False,
                     "build": "release", "platform": "windows", "arch": "x86_64",
@@ -233,6 +239,59 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.assertEqual(
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash
         )
+
+    def test_performance_deferral_preserves_functional_and_identity_gates(self):
+        self.evidence["performance_waiver"] = {
+            "version": "0.5.0", "status": "deferred_by_user", "passed": False,
+            "authorization": "如果没有bug先直接发版吧，性能以后再优化",
+            "limitations": "Startup target missed; full performance matrix deferred.",
+        }
+        for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
+            self.evidence[field] = {}
+        names = ["format", "Core / ubuntu-24.04", "Core / macos-15", "Core / windows-2022",
+                 "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+                 "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
+                 "PowerShell 7 / PSReadLine 2.4.5 / pipe", "package"]
+        data = {"run": {"id": 123, "head_sha": self.commit, "head_branch": "main",
+                        "event": "push", "name": "Blueberry CI", "conclusion": "success"},
+                "jobs": [{"name": name, "conclusion": "success"} for name in names]}
+        path = self.root / "functional-ci.json"
+        def save():
+            path.write_text(json.dumps(data), encoding="utf-8")
+            self.evidence["functional_ci"] = {"report": path.name, "sha256": validator.sha256_file(path)}
+            self.save_evidence()
+        save()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        validator.bundle(self.evidence_path, self.root / "evidence.zip")
+        with zipfile.ZipFile(self.root / "evidence.zip") as archive:
+            self.assertIn(path.name, archive.namelist())
+        data["jobs"][-1]["conclusion"] = "failure"
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        data["jobs"][-1]["conclusion"] = "success"
+        self.evidence["manual_acceptance"]["windows_terminal"]["ime"] = False
+        save()
+        with self.assertRaisesRegex(ValueError, "windows_terminal"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        self.evidence["manual_acceptance"]["windows_terminal"]["ime"] = True
+        self.evidence["performance_waiver"]["passed"] = True
+        save()
+        with self.assertRaisesRegex(ValueError, "cannot claim a pass"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_conpty_fallback_or_changed_runtime_blocks_release(self):
+        path = self.root / self.evidence["startup_reports"]["ps51-2.0.0"]
+        report = validator.read_json(path)
+        report["probe_conpty"]["mode"] = "system"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "verified probe ConPTY missing"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        report["probe_conpty"]["mode"] = "pinned"
+        report["probe_conpty"]["sha256"] = "0" * 64
+        path.write_text(json.dumps(report), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "probe ConPTY identity mismatch"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
     def test_ci_record_must_match_the_downloaded_run(self):
         run_id=self.evidence["ci"]["run_id"]

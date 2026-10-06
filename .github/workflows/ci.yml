@@ -43,7 +43,9 @@ jobs:
           key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
       - name: Build pinned private editors
         if: runner.os == 'Windows'
-        run: python scripts/prepare-editor.py
+        run: |
+          python scripts/prepare-editor.py
+          python scripts/prepare-conpty.py
       - run: cargo build --locked
       - run: cargo clippy --all-targets --locked -- -D warnings
       - name: Core tests (no interactive shell)
@@ -89,7 +91,9 @@ jobs:
           key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
       - name: Build pinned private editors
         if: runner.os == 'Windows'
-        run: python scripts/prepare-editor.py
+        run: |
+          python scripts/prepare-editor.py
+          python scripts/prepare-conpty.py
       - name: Select exact PSReadLine version
         shell: pwsh
         run: |
@@ -139,11 +143,27 @@ jobs:
         run: |
           cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'pipe terminal regressions failed' }
+      - name: Repeat OSC session command snapshot regression
+        env:
+          BLUEBERRY_TEST_TRANSPORT: osc
+          BLUEBERRY_TEST_HOST_WIRE: '1'
+        shell: pwsh
+        run: |
+          ./scripts/repeat-rust-test.ps1 -Target host -Test host_finds_real_cargo_and_merges_more_than_512_shell_commands -Count 100
+      - name: Repeat pipe session command snapshot regression
+        env:
+          BLUEBERRY_TEST_TRANSPORT: pipe
+          BLUEBERRY_TEST_HOST_WIRE: '1'
+        shell: pwsh
+        run: |
+          ./scripts/repeat-rust-test.ps1 -Target host -Test host_finds_real_cargo_and_merges_more_than_512_shell_commands -Count 100
       - name: Direct inherited-console regressions
         shell: pwsh
         run: |
           cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
+          cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
       - name: Repeat Windows PowerShell pipe resize regression
         shell: pwsh
         env:
@@ -155,7 +175,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nested-terminal-ps51-${{ matrix.psreadline }}
-          path: target/nested-terminal-evidence
+          path: |
+            target/nested-terminal-evidence
+            target/startup-terminal-evidence
+            target/input-protocol-evidence
           if-no-files-found: ignore
   powershell-7:
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
@@ -185,7 +208,9 @@ jobs:
           key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
       - name: Build pinned private editors
         if: runner.os == 'Windows'
-        run: python scripts/prepare-editor.py
+        run: |
+          python scripts/prepare-editor.py
+          python scripts/prepare-conpty.py
       - name: Select exact PSReadLine version
         shell: pwsh
         run: |
@@ -223,12 +248,17 @@ jobs:
         run: |
           cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
+          cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
       - name: Preserve nested terminal evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nested-terminal-ps7-${{ matrix.transport }}
-          path: target/nested-terminal-evidence
+          path: |
+            target/nested-terminal-evidence
+            target/startup-terminal-evidence
+            target/input-protocol-evidence
           if-no-files-found: ignore
   native-mouse:
     name: Native ConPTY mouse / windows-2025
@@ -253,7 +283,9 @@ jobs:
           key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
       - name: Build pinned private editors
         if: runner.os == 'Windows'
-        run: python scripts/prepare-editor.py
+        run: |
+          python scripts/prepare-editor.py
+          python scripts/prepare-conpty.py
       - name: Native mouse records through nested ConPTY
         shell: pwsh
         run: |
@@ -262,9 +294,8 @@ jobs:
             cargo test --locked --test terminal_modes conpty_native_mouse_passthrough_for_external_program -- --exact --ignored --nocapture
             if ($LASTEXITCODE -ne 0) { throw "$transport native mouse regression failed" }
           }
-      # Server 2022's inbox ConPTY corrupts long Win32 input streams even in
-      # plain PowerShell (microsoft/terminal#16466). Keep its editor coverage
-      # above; run the actual wire-protocol matrix on the fixed ConPTY here.
+      # Both runner generations now use the pinned runtime. Retain this
+      # second OS generation as an independent native input lifecycle check.
       - name: Win32 input protocol / all supported editor combinations
         shell: pwsh
         run: |
@@ -305,7 +336,9 @@ jobs:
           key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
       - name: Build pinned private editors
         if: runner.os == 'Windows'
-        run: python scripts/prepare-editor.py
+        run: |
+          python scripts/prepare-editor.py
+          python scripts/prepare-conpty.py
       - name: Fetch locked sources for offline license collection
         run: cargo fetch --locked --target x86_64-pc-windows-msvc
       - run: cargo build --release --locked

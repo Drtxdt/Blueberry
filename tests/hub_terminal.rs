@@ -64,21 +64,21 @@ fn standalone_template_form_cancel_and_query_shrink_leave_no_stale_rows() -> Res
     wait_screen(&mut harness, "shortened Unicode query", |s| {
         s.contains("模板") && !s.contains('😀')
     })?;
-    harness.send(b"\r")?;
+    harness.send_text("\r")?;
     wait_screen(&mut harness, "structured template form", |s| {
         s.contains("分支名称")
     })?;
-    harness.send(b"new branch")?;
+    harness.send_text("new branch")?;
     wait_screen(&mut harness, "typed parameter", |s| {
         s.contains("new branch")
     })?;
-    harness.send(b"\x1b")?;
+    harness.send_text("\x1b")?;
     wait_screen(&mut harness, "canceled form", |s| {
         s.contains("Blueberry 命令工作台")
             && !s.contains("填写模板参数")
             && !s.contains("new branch")
     })?;
     assert_eq!(fs::read_to_string(&store)?, original);
-    harness.send(b"\x1b")?;
+    harness.send_text("\x1b")?;
     Ok(())
 }

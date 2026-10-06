@@ -3,6 +3,8 @@ pub mod cache_writer;
 pub mod completion;
 pub mod config;
 #[cfg(windows)]
+pub mod conpty;
+#[cfg(windows)]
 pub mod editor;
 pub mod engine;
 pub mod host;

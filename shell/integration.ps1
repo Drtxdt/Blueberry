@@ -1,5 +1,8 @@
 ﻿$blueberryJsonInitialization = [Diagnostics.Stopwatch]::StartNew()
 # Select the native JSON implementation, or the inbox .NET Framework compatibility reader.
+# The debug host sets this only for isolated, history-disabled test fixtures.
+$script:BLUEBERRY_TEST_SHELL_WIRE = [Environment]::GetEnvironmentVariable('BLUEBERRY_TEST_SHELL_WIRE', 'Process')
+[Environment]::SetEnvironmentVariable('BLUEBERRY_TEST_SHELL_WIRE', $null, 'Process')
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     if ($null -eq ('Blueberry.LegacyJson.JsonSerializer' -as [type])) {
         $embeddedLegacyJson = 'BLUEBERRY_LEGACY_ASSEMBLY_BASE64'
@@ -311,6 +314,9 @@ function Send-BlueberryOscPayload {
     }
     try {
         $frame = ConvertTo-BlueberryFrame -Token ([string]$script:BLUEBERRY_TOKEN) -Payload $Payload
+        if (-not [string]::IsNullOrEmpty($script:BLUEBERRY_TEST_SHELL_WIRE)) {
+            [IO.File]::AppendAllText($script:BLUEBERRY_TEST_SHELL_WIRE, ('frame' + "`t" + $frame + "`n"))
+        }
         # [Console]::Out avoids adding the frame to a PowerShell pipeline and
         # therefore avoids contaminating prompt text or command output.
         [Console]::Out.Write($frame)
@@ -2517,6 +2523,9 @@ function Invoke-BlueberryApplyKeyHandler {
 function Invoke-BlueberryCommandsKeyHandler {
     [CmdletBinding()]
     param()
+    if (-not [string]::IsNullOrEmpty($script:BLUEBERRY_TEST_SHELL_WIRE)) {
+        [IO.File]::AppendAllText($script:BLUEBERRY_TEST_SHELL_WIRE, ('commands_enter' + "`t" + $script:BLUEBERRY_COMMAND_SNAPSHOT_OFFSET + "`n"))
+    }
     $request = Read-BlueberryRequest -ExpectedKind @('commands_reset', 'commands_next')
     if ($null -ne $request) {
         if ([string]::Equals([string]$request.kind, 'commands_reset', [StringComparison]::Ordinal)) {
@@ -3019,11 +3028,25 @@ function Register-BlueberryKeyHandler {
     }
 
     try {
-        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
-            [string[]]@($Chord),
-            $ScriptBlock,
-            ('Blueberry ' + $Name),
-            ('Report blueberry ' + $Name + ' state.'))
+        if ($Name -eq 'buffer') {
+            # This callback only reads the editor and emits a protocol reply;
+            # it cannot run an external program. The ScriptBlock overload
+            # temporarily enables processed input, so Ctrl+C arriving after
+            # that reply can interrupt the callback instead of CancelLine.
+            # Keep the editor's native input mode until this handler returns.
+            $action = [Action[Nullable[ConsoleKeyInfo], object]]$ScriptBlock
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+                [string[]]@($Chord), $action,
+                ('Blueberry ' + $Name), ('Report blueberry ' + $Name + ' state.'))
+        } else {
+            # Native completion and user handlers can invoke external tools;
+            # preserve PSReadLine's normal console-mode management for them.
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler(
+                [string[]]@($Chord),
+                $ScriptBlock,
+                ('Blueberry ' + $Name),
+                ('Report blueberry ' + $Name + ' state.'))
+        }
         return $true
     } catch {
         Send-BlueberryEvent -Event 'error' -Data ([ordered]@{

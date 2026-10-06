@@ -26,6 +26,7 @@ if ($ExpectedExecutableSha256 -and $exeHash -ine $ExpectedExecutableSha256) { th
 if ($ExpectedProbeSha256 -and $probeHash -ine $ExpectedProbeSha256) { throw 'Probe identity mismatch' }
 $identity=& $Executable doctor --json | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or -not $identity.build.private_editors) { throw 'Missing private module build identity' }
+if (-not $identity.build.conpty) { throw 'Missing pinned ConPTY build identity' }
 if ($Formal -and $identity.build.dirty) { throw 'Formal qualification requires a clean CI candidate' }
 if ($Formal -and ($env:BLUEBERRY_TEST_DISABLE_PREJIT -or $env:BLUEBERRY_TEST_FRAME_DELAY_MS -or $env:BLUEBERRY_DIRECT_TRACE)) { throw 'Formal qualification forbids diagnostic timing overrides.' }
 if ($Resume) {
@@ -64,7 +65,9 @@ function Invoke-Probe([string]$Name,[string[]]$Arguments) {
     $manifest.results+=@{name=$Name;exit_code=$exitCode;report=$json;log=$log}
     Save-State
     if($exitCode -ne 0) { throw "$Name failed; raw evidence and log retained at $out" }
-    Get-Content -LiteralPath $json -Raw | ConvertFrom-Json
+    $report=Get-Content -LiteralPath $json -Raw | ConvertFrom-Json
+    if ($report.probe_conpty.mode -ne 'pinned' -or $report.probe_conpty.sha256 -ine $identity.build.conpty.sha256 -or $report.product_conpty.sha256 -ine $identity.build.conpty.sha256) { throw "$Name ConPTY identity mismatch" }
+    $report
 }
 try {
     $env:BLUEBERRY_NO_HISTORY='1'

@@ -9,11 +9,34 @@ use tempfile::{TempDir, tempdir};
 
 const PTY_TIMEOUT: Duration = Duration::from_secs(20);
 
+#[path = "support/console_snapshot.rs"]
+mod console_snapshot;
+
+#[test]
+#[ignore = "read-only console snapshot helper invoked by resize regressions"]
+fn console_snapshot_helper() -> Result<()> {
+    console_snapshot::write_attached()
+}
+
+fn has_border_width(screen: &str, width: usize) -> bool {
+    screen.lines().any(|line| {
+        line.find('╭')
+            .zip(line.rfind('╮'))
+            .is_some_and(|(start, end)| line[start..end].chars().count() + 1 == width)
+    })
+}
+
 struct RunningHost {
     harness: Harness,
     // Keep the data directory alive until the host process has exited. The
     // host writes its integration script, command cache, and edit file here.
     _data_dir: TempDir,
+}
+
+impl Drop for RunningHost {
+    fn drop(&mut self) {
+        let _ = self.harness.save_evidence(self._data_dir.path());
+    }
 }
 
 #[test]
@@ -24,7 +47,7 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
         b"@echo off\r\necho GIT_ARGS:%*\r\n",
     )?;
     let mut host = start_host(cwd.path())?;
-    host.harness.send(b"git log --o")?;
+    host.harness.send_text("git log --o")?;
     host.harness.wait_text("每条提交显示为一行", PTY_TIMEOUT)?;
     let config_path = host._data_dir.path().join("config.toml");
     let mut settings = config::Config::default();
@@ -47,7 +70,7 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
     host.harness.send(reload)?;
     host.harness
         .wait_text("配置无效，保留上次有效设置", PTY_TIMEOUT)?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     wait_until(
         &mut host.harness,
         "reloaded completion accepted",
@@ -58,7 +81,7 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
         },
     )?;
     let previous_prompt_count = prompt_count(&host.harness.contents());
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_for_line(
         &mut host.harness,
         "GIT_ARGS:log --oneline",
@@ -69,15 +92,15 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
         previous_prompt_count,
         "prompt before inline choice",
     )?;
-    host.harness.send(b"git status --ignored=mat")?;
+    host.harness.send_text("git status --ignored=mat")?;
     host.harness.wait_text("--ignored=matching", PTY_TIMEOUT)?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     wait_until(&mut host.harness, "inline value accepted", |screen| {
         screen
             .lines()
             .any(|line| line.trim_end().ends_with("> git status --ignored=matching"))
     })?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_for_line(
         &mut host.harness,
         "GIT_ARGS:status --ignored=matching",
@@ -88,7 +111,13 @@ fn host_reloads_context_descriptions_and_applies_the_same_real_buffer() -> Resul
 }
 
 fn start_host(cwd: &Path) -> Result<RunningHost> {
-    let data_dir = tempdir().context("create host data directory")?;
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/nested-terminal-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let mut data_dir = tempfile::Builder::new()
+        .prefix("host-")
+        .tempdir_in(&evidence)?;
+    data_dir.disable_cleanup(true);
+    eprintln!("host evidence: {}", data_dir.path().display());
     let config_path = data_dir.path().join("config.toml");
     std::fs::write(
         &config_path,
@@ -96,17 +125,42 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
     )
     .context("write test config")?;
     let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
+    let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
+    ensure!(matches!(transport.as_str(), "osc" | "pipe"));
+    std::fs::write(
+        data_dir.path().join("fixture.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "executable": program,
+            "executable_sha256": blueberry::metrics::executable_sha256(&program)?,
+            "shell": std::env::var("BLUEBERRY_TEST_SHELL").ok(),
+            "editor": std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE").ok(),
+            "requested_transport": transport,
+            "trace": std::env::var_os("BLUEBERRY_TEST_HOST_TRACE").is_some(),
+        }))?,
+    )?;
     let inherited_path = std::env::var_os("PATH").unwrap_or_default();
-    let args = vec![
+    let mut args = vec![
         "--config".to_owned(),
         config_path.to_string_lossy().into_owned(),
         "run".to_owned(),
         "--host-mode".to_owned(),
         "nested".to_owned(),
+        "--transport".to_owned(),
+        transport.clone(),
         "--no-profile".to_owned(),
         "--data-dir".to_owned(),
         data_dir.path().to_string_lossy().into_owned(),
     ];
+    if std::env::var_os("BLUEBERRY_TEST_HOST_TRACE").is_some() {
+        args.extend([
+            "--trace".to_owned(),
+            data_dir
+                .path()
+                .join("trace.jsonl")
+                .to_string_lossy()
+                .into_owned(),
+        ]);
+    }
 
     // Put a deterministic git.cmd first in PATH. CommandIndex labels PATH
     // entries as Executable, which gives this test a stable completion row
@@ -129,6 +183,38 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         .wait_text("PS ", PTY_TIMEOUT)
         .context("wait for the initial PowerShell prompt")?;
     harness.event("prompt_end", PTY_TIMEOUT)?;
+    let capabilities = harness
+        .capabilities()
+        .context("missing adapter capabilities")?;
+    ensure!(
+        capabilities["transport"] == transport,
+        "requested {transport} transport was not active: {capabilities}"
+    );
+    // Status is written asynchronously under the session directory, not on the
+    // terminal stream. Wait on that file independently of terminal arrivals.
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    let status = loop {
+        let status = std::fs::read_dir(data_dir.path())?
+            .flatten()
+            .find_map(|entry| {
+                let bytes = std::fs::read(entry.path().join("adapter.json")).ok()?;
+                serde_json::from_slice::<serde_json::Value>(&bytes).ok()
+            });
+        if let Some(status) = status {
+            break status;
+        }
+        ensure!(Instant::now() < deadline, "Missing nested adapter status");
+        std::thread::sleep(Duration::from_millis(5));
+    };
+    ensure!(
+        status["conpty"]["mode"] == "pinned"
+            && status["conpty"]["sha256"] == blueberry::conpty::build_identity()["sha256"],
+        "Nested ConPTY identity mismatch: {status}"
+    );
+    std::fs::write(
+        data_dir.path().join("initial-adapter.json"),
+        serde_json::to_vec_pretty(&status)?,
+    )?;
     Ok(RunningHost {
         harness,
         _data_dir: data_dir,
@@ -220,7 +306,7 @@ fn run_and_wait_for_output(
     clear_line_and_send(harness, body, description)?;
     let typed = String::from_utf8_lossy(body);
     wait_for_editor_line(harness, typed.as_ref())?;
-    harness.send(b"\r")?;
+    harness.send_text("\r")?;
     wait_for_line(harness, marker, &format!("{description} output"))?;
     wait_for_next_prompt(
         harness,
@@ -263,7 +349,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // should replace the complete token with git. The overlay is gone once
     // the underlying screen contains the accepted line and its description is
     // no longer present.
-    host.harness.send(b"gi")?;
+    host.harness.send_text("gi")?;
     host.harness
         .wait_text("⌘ git ", PTY_TIMEOUT)
         .context("wait for git executable completion")?;
@@ -283,7 +369,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
             screen.contains("› ⌘ git ")
         })?;
     }
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     wait_until(
         &mut host.harness,
         "accepted git row without menu",
@@ -293,7 +379,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // Execute the accepted candidate itself. If Tab had left `gi` in the
     // buffer, this deterministic command would not produce its marker.
     let previous_prompt_count = prompt_count(&host.harness.contents());
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_for_line(
         &mut host.harness,
         "deterministic git placeholder",
@@ -311,7 +397,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     host.harness
         .wait_text("-Command", PTY_TIMEOUT)
         .context("wait for pwsh option completion")?;
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     wait_until(&mut host.harness, "option menu dismissal", |contents| {
         contents.contains("pwsh -") && !contents.contains("-Command")
     })?;
@@ -333,7 +419,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     host.harness
         .wait_text("中文文件.txt", PTY_TIMEOUT)
         .context("wait for Chinese filesystem completion")?;
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     wait_until(&mut host.harness, "Chinese menu dismissal", |contents| {
         contents.contains("Get-ChildItem 中") && !contents.contains("中文文件.txt")
     })?;
@@ -354,7 +440,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     wait_until(&mut host.harness, "emoji candidate row", |contents| {
         contents.contains("😀 file.txt") && contents.contains("□ 😀 file.txt")
     })?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     wait_until(
         &mut host.harness,
         "quoted emoji candidate acceptance",
@@ -366,7 +452,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         },
     )?;
     let previous_prompt_count = prompt_count(&host.harness.contents());
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_for_line(&mut host.harness, "😀 file.txt", "emoji completion output")?;
     wait_for_next_prompt(
         &mut host.harness,
@@ -392,7 +478,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
                 && contents.contains("□ 😀 file.txt")
         },
     )?;
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     wait_until(
         &mut host.harness,
         "emoji clear-query menu dismissal",
@@ -409,7 +495,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // Tab so a visually correct menu cannot hide a failed replacement.
     clear_line_and_send(&mut host.harness, b"git log --o", "git log option")?;
     host.harness.wait_text("--oneline", PTY_TIMEOUT)?;
-    host.harness.send(b"\t")?;
+    host.harness.send_text("\t")?;
     wait_until(&mut host.harness, "accepted git log option", |contents| {
         contents
             .lines()
@@ -417,7 +503,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
             && !contents.contains("− --oneline")
     })?;
     let previous_prompt_count = prompt_count(&host.harness.contents());
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_for_line(
         &mut host.harness,
         "GIT_ARGS:log --oneline",
@@ -450,13 +536,13 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         "interactive external command",
     )?;
     wait_for_editor_line(&mut host.harness, "cmd.exe /d /c blueberry-readline.cmd")?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_for_line(
         &mut host.harness,
         "READ_READY",
         "external command readiness",
     )?;
-    host.harness.send(b"hello\r")?;
+    host.harness.send_text("hello\r")?;
     wait_for_line(
         &mut host.harness,
         "RECEIVED:hello",
@@ -479,14 +565,19 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         &mut host.harness,
         "menu after 24x80 resize",
         Duration::from_secs(5),
-        |contents| {
-            contents.contains("git")
-                && contents.lines().any(|line| {
-                    let line = line.trim();
-                    line.starts_with('╭') && line.ends_with('╮') && line.chars().count() == 79
-                })
-        },
+        |contents| contents.contains("git") && has_border_width(contents, 79),
     )?;
+    // The column outside the 79-cell overlay can legitimately retain shell
+    // text. Check the border itself and independently verify the native screen.
+    let snapshot_path = host._data_dir.path().join("resize-24-80.json");
+    console_snapshot::capture(&host.harness, &snapshot_path)?;
+    let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
+    ensure!(
+        actual["width"] == 80
+            && actual["height"] == 24
+            && has_border_width(actual["screen"].as_str().unwrap_or_default(), 79),
+        "Native narrow menu size mismatch: {actual}"
+    );
     let narrow_contents = host.harness.contents();
     ensure!(
         narrow_contents.lines().count() <= 24,
@@ -495,7 +586,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // A ConPTY resize is asynchronous. A changed query acknowledges the
     // narrow child viewport before issuing the next resize, so an old frame
     // reflowed by the outer PTY cannot masquerade as that acknowledgement.
-    host.harness.send(b"t")?;
+    host.harness.send_text("t")?;
     wait_until(
         &mut host.harness,
         "editable menu in narrow viewport",
@@ -520,7 +611,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
                 })
         },
     )?;
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     wait_until_for(
         &mut host.harness,
         "menu dismissal after resize",
@@ -536,15 +627,31 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
 fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()> {
     let cwd = tempdir()?;
     let mut host = start_host(cwd.path())?;
+    if std::env::var("BLUEBERRY_TEST_HOST_WATCHDOG").as_deref() == Ok("1") {
+        let source = host._data_dir.path().join("readline_watchdog.cs");
+        std::fs::write(&source, include_bytes!("readline_watchdog.cs"))?;
+        let log = host._data_dir.path().join("readline-watchdog.log");
+        let command = format!(
+            "Add-Type -Path '{}'; [Blueberry.Test.ReadlineWatchdog]::Start([Microsoft.PowerShell.PSConsoleReadLine], '{}'); Write-Output WATCHDOG_READY\r",
+            source.display().to_string().replace('\'', "''"),
+            log.display().to_string().replace('\'', "''"),
+        );
+        run_and_wait_for_output(
+            &mut host.harness,
+            command.as_bytes(),
+            "WATCHDOG_READY",
+            "read-only watchdog",
+        )?;
+    }
     let cargo_version = std::process::Command::new("cargo")
         .arg("--version")
         .output()
         .context("read the installed Cargo version")?;
     ensure!(cargo_version.status.success(), "Cargo fixture is available");
     let cargo_version = String::from_utf8(cargo_version.stdout)?.trim().to_owned();
-    host.harness.send(b"car")?;
+    host.harness.send_text("car")?;
     host.harness.wait_text("⌘ cargo ", PTY_TIMEOUT)?;
-    host.harness.send(b"\t --version\r")?;
+    host.harness.send_text("\t --version\r")?;
     wait_for_line(
         &mut host.harness,
         &cargo_version,
@@ -562,9 +669,9 @@ fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()>
     // CSI-u keeps Ctrl+Alt+C intact across older ConPTY versions.
     // Win32 CSI_ injection can arrive as plain Ctrl+C on Server 2022.
     host.harness.send(b"\x1b[99;7u")?;
-    host.harness.send(b"ssfixture070")?;
+    host.harness.send_text("ssfixture070")?;
     host.harness.wait_text("≈ ssfixture0700", PTY_TIMEOUT)?;
-    host.harness.send(b"\t SNAPSHOT_ALIAS_OK\r")?;
+    host.harness.send_text("\t SNAPSHOT_ALIAS_OK\r")?;
     wait_for_line(
         &mut host.harness,
         "SNAPSHOT_ALIAS_OK",
@@ -611,7 +718,7 @@ fn host_preserves_psreadline_history_search() -> Result<()> {
         |contents| contents.contains("bck-i-search") && contents.contains("HISTORY_SEARCH_ONE"),
     )?;
     let previous_prompt_count = prompt_count(&host.harness.contents());
-    host.harness.send(b"\x1b")?;
+    host.harness.send_text("\x1b")?;
     wait_until(
         &mut host.harness,
         "history search ends with selected buffer",
@@ -623,7 +730,7 @@ fn host_preserves_psreadline_history_search() -> Result<()> {
                     .is_some_and(|line| line.trim_end().ends_with("HISTORY_SEARCH_ONE"))
         },
     )?;
-    host.harness.send(b"\r")?;
+    host.harness.send_text("\r")?;
     wait_for_next_prompt(
         &mut host.harness,
         previous_prompt_count,

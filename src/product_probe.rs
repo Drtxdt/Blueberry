@@ -190,7 +190,7 @@ fn measure(
     let before = harness.viewport_contents();
     let prompt = before.lines().last().unwrap_or("").trim_end().to_owned();
     let key_start = Instant::now();
-    harness.send(b"g")?;
+    harness.send_text("g")?;
     wait(&mut harness, "first PSReadLine-confirmed echo", |screen| {
         screen.lines().any(|line| {
             line.trim_end()
@@ -217,12 +217,23 @@ fn measure(
                 "direct automatic menu unavailable: {status}"
             );
         }
+        #[cfg(windows)]
+        if host_mode == "nested" {
+            let expected = crate::conpty::build_identity();
+            ensure!(
+                status["conpty"]["mode"] == "pinned"
+                    && status["conpty"]["sha256"] == expected["sha256"]
+                    && status["conpty"]["files"] == expected["files"],
+                "Nested product ConPTY identity mismatch: {}",
+                status["conpty"]
+            );
+        }
         harness.send(b"\x01\x7f")?;
         wait(&mut harness, "clear first query", |screen| {
             !screen.contains("› ")
         })?;
         let dynamic_start = Instant::now();
-        harness.send(b"cd bb-product-probe-dir")?;
+        harness.send_text("cd bb-product-probe-dir")?;
         wait(&mut harness, "first complete dynamic menu", |screen| {
             beta_metrics::has_complete_status(screen)
                 && screen
@@ -234,7 +245,7 @@ fn measure(
         (Some(first_static), Some(first_dynamic), status)
     } else {
         harness.send(b"\x01\x7f")?;
-        harness.send(b"Write-Output ('BB_PRODUCT_META:' + $PSVersionTable.PSVersion.ToString() + ':' + (Get-Module PSReadLine).Version.ToString() + ':BB_PRODUCT_META_END')\r")?;
+        harness.send_text("Write-Output ('BB_PRODUCT_META:' + $PSVersionTable.PSVersion.ToString() + ':' + (Get-Module PSReadLine).Version.ToString() + ':BB_PRODUCT_META_END')\r")?;
         wait(&mut harness, "plain version metadata", |screen| {
             shell_metadata(screen).is_some()
         })?;
@@ -248,7 +259,7 @@ fn measure(
             "[IO.File]::WriteAllLines('{}', [string[]]@((Get-Module PSReadLine).Path,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.FullName,[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes([Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location))).Replace('-',''))); Write-Output 'BB_PLAIN_IDENTITY_DONE'\r",
             metadata_path.to_string_lossy().replace('\'', "''")
         );
-        harness.send(command.as_bytes())?;
+        harness.send_text(&command)?;
         wait(&mut harness, "plain assembly identity", |screen| {
             screen
                 .lines()
@@ -296,6 +307,11 @@ pub fn run_with_trace(
         "invalid product probe options"
     );
     let frozen = environment(shell)?;
+    // Probe setup is outside both members of every pair and reported separately.
+    // Nested product setup remains inside the measured child process lifetime.
+    let runtime_start = Instant::now();
+    crate::conpty::ensure_loaded()?;
+    let probe_runtime_prepare_ms = runtime_start.elapsed().as_secs_f64() * 1000.0;
     let trace_path = trace_directory
         .map(|path| {
             std::fs::create_dir_all(path)?;
@@ -414,6 +430,7 @@ pub fn run_with_trace(
         "first_dynamic_candidate":stats(&dynamic_menus),"shell_versions":shells,"psreadline_versions":psreadline,
         "actual_transports":transports,"actual_host_modes":hosts,"actual_automatic_menu":automatic_menus,
         "editors":editors,"private_editors":identity["private_editors"],
+        "product_conpty":identity["conpty"],"probe_conpty":crate::conpty::loaded_identity(),"probe_runtime_prepare_ms":probe_runtime_prepare_ms,
         "editor_eligible":host_mode!="direct" || editors.iter().all(|editor|editor["mode"]=="editor_hooks_v1")});
     report
         .as_object_mut()

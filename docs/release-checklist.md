@@ -1,6 +1,6 @@
-> 历史记录：本文保留 0.5.0-beta.1 阶段的安装与验收资料，不表示 beta.7 的状态。当前工作区已经位于 `E:\OpenSource\shellsense-rs`；下文有关 E 盘离线、迁移待办及 C 盘唯一副本的叙述仅为当时记录。当前版本请使用 [安装指南](installation.md)、[发版指南](releasing.md) 和 [beta.7 验收记录](beta-7-validation.md)。
+> 历史记录：本文保留 0.5.0-beta.1 阶段的安装与验收资料，不表示当前候选的状态。当前工作区已经位于 `E:\OpenSource\shellsense-rs`；下文有关 E 盘离线、迁移待办及 C 盘唯一副本的叙述仅为当时记录。当前版本请使用 [安装指南](installation.md)、[发版指南](releasing.md) 和 [0.5.0 验收记录](v0.5.0-validation.md)。
 
-beta.7 新状态：单层 pipe 仍为实验宿主，三个固定 Shell／PSReadLine 组合的完整正确性与探索性能通过后才切换默认。正式单层矩阵、远程 CI、安装升级回滚和 Windows Terminal 人工验收仍待完成。目标用户试用按用户要求豁免、未执行；公开 beta.6 附件已核验。以下勾选项均属于历史版本，不能沿用。
+0.5.0 源码候选在 Windows 上默认 direct，保留 nested 兼容入口，尚未正式发布。以下勾选项均属于历史版本，不能沿用；最终包的正式性能、功能、安装生命周期和 Windows Terminal 人工验收以当前验收记录为准。目标用户试用按用户要求豁免，未执行。
 
 # ShellSense Beta 发布准备与验收
 

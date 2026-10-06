@@ -98,7 +98,7 @@ function Assert-ReleaseVersion {
     param([Parameter(Mandatory = $true)][string]$Value)
     if (-not [Text.RegularExpressions.Regex]::IsMatch(
             $Value, '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$')) {
-        throw "版本号无效（需要例如 0.5.0-beta.1）: $Value"
+        throw "版本号无效（需要例如 0.5.0 或 0.5.1-beta.1）: $Value"
     }
 }
 
@@ -478,6 +478,8 @@ try {
     }
     $buildIdentity = (& (Join-Path $stagePayload 'blueberry.exe') doctor --json | ConvertFrom-Json).build
     if ($LASTEXITCODE -ne 0 -or -not $buildIdentity.private_editors) { throw 'Executable has no private editor build identity' }
+    $conpty = Get-Content -LiteralPath (Join-Path $repoRoot 'vendor/conpty/upstream.json') -Raw | ConvertFrom-Json
+    if (-not $buildIdentity.conpty -or $buildIdentity.conpty.sha256 -ne $conpty.sha256) { throw 'Executable has no matching pinned ConPTY identity' }
     $manifest = [ordered]@{
         schema_version = 1; product = 'Blueberry'; name = 'Blueberry'; version = $Version
         platform = 'windows-x64'; architecture = 'x64'; executable = 'blueberry.exe'

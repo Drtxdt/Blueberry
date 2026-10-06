@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "product": "Blueberry",
+  "name": "Blueberry",
+  "version": "0.5.0",
+  "platform": "windows-x64",
+  "architecture": "x64",
+  "executable": "blueberry.exe",
+  "signed": false,
+  "signature_status": "unsigned",
+  "release_notes": "RELEASE-NOTES.md",
+  "license_notices": "THIRD-PARTY-NOTICES.txt",
+  "license_source": "provided",
+  "performance_artifacts": [],
+  "files": [
+    {
+      "path": "blueberry.exe",
+      "sha256": "D143935A5B9C5241241F516C76A7DB598B9CBE36B69FB5A8BB2DB87237032738",
+      "bytes": 8452608
+    },
+    {
+      "path": "config.example.toml",
+      "sha256": "78CD9671999D4DF941166B990AADBEF8974F706B8904E29D61F201087E09091F",
+      "bytes": 1872
+    },
+    {
+      "path": "docs/installation.md",
+      "sha256": "80ECBBE8D8707C8EB43E3C28C85529EF7FF871DB6A82BA231CC47BAE7D239870",
+      "bytes": 4609
+    },
+    {
+      "path": "docs/powershell-adapter.md",
+      "sha256": "4C88F0F5483EF95621850C4133820453C08057B1CED58EE739FD348798C9C6D6",
+      "bytes": 13653
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "D9460888802392046FB39E167DC7CA0F50B1F048844FAB9773B989EE1521189F",
+      "bytes": 8974
+    },
+    {
+      "path": "docs/specifications.md",
+      "sha256": "87F135C6B813B111E6735648DFED15F986C4057966C6EB9A79801BFEF3F05FC2",
+      "bytes": 8723
+    },
+    {
+      "path": "install-common.ps1",
+      "sha256": "4859A364BDA51721B814917C36FB42BB75C32DC49C6CABFC663A3BB297A43B52",
+      "bytes": 4467
+    },
+    {
+      "path": "install.ps1",
+      "sha256": "314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C",
+      "bytes": 17346
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "2FEB9979C41260E08EC02DFEC79AD2F0A4421E9C2531F6E6DAF461CB5E4B5DCE",
+      "bytes": 1080
+    },
+    {
+      "path": "manage-install.ps1",
+      "sha256": "20CF4ECCD6B88DC308BF7E04C004551F03FA7374A7C8163DF71C8F2FE1479E2D",
+      "bytes": 85389
+    },
+    {
+      "path": "README.md",
+      "sha256": "5B46502032E31A47744455792B992B5555FDB5DC4870EAFFBB1452374490E642",
+      "bytes": 11051
+    },
+    {
+      "path": "RELEASE-NOTES.md",
+      "sha256": "28C4F6F5A204332C15E8F785030F30527201054900584D296BFCCE3149089D79",
+      "bytes": 1539
+    },
+    {
+      "path": "specs/builtin/_catalog.toml",
+      "sha256": "ADB0EF55F71D17822B143D2544E58EB509198446AF5C06E5F3537E5981995D47",
+      "bytes": 3148
+    },
+    {
+      "path": "specs/builtin/build.toml",
+      "sha256": "7F9BC10FB679E5F32F7F2F4B4701D8B88FF6CBDC0BC7328695AC9FA7F798C34B",
+      "bytes": 6614
+    },
+    {
+      "path": "specs/builtin/cloud_database.toml",
+      "sha256": "310D9C8A9F8FC5118AF509D2FD4EB7859484DEBC13B6DCE247A68523DFF5CC84",
+      "bytes": 16778
+    },
+    {
+      "path": "specs/builtin/containers.toml",
+      "sha256": "93C755B6F95360B2657E58CB8AF85EACCAFA41D8F291CE9344BB6646013FBFF8",
+      "bytes": 63887
+    },
+    {
+      "path": "specs/builtin/core.toml",
+      "sha256": "0E68DE5264B5E850E749E2904286544FA356C5BA4D27C8F8787448CAFF755813",
+      "bytes": 41437
+    },
+    {
+      "path": "specs/builtin/devops.toml",
+      "sha256": "D2379DF2A357F0C029223695D438A4C98FD8C934CC249C99CBF3075D80258AB4",
+      "bytes": 42494
+    },
+    {
+      "path": "specs/builtin/javascript.toml",
+      "sha256": "FD52177988B4235EC9C7D497589EEF201B05186B379AD2CCF2437CF7143C4776",
+      "bytes": 32264
+    },
+    {
+      "path": "specs/builtin/python.toml",
+      "sha256": "C9EA34968CCB22323E409C2DBF872B5DE80EB2E6C7FFC5278F9A8A3AEDCDFADB",
+      "bytes": 7203
+    },
+    {
+      "path": "specs/builtin/remote.toml",
+      "sha256": "60260F280BBFDAB8C1C0F776AC66FF6EC3F039FFA378327EFB11A2C96F58D582",
+      "bytes": 1071
+    },
+    {
+      "path": "specs/builtin/rust.toml",
+      "sha256": "8FBC1BCA0CE0F66D3D39A3DC08AF114AC24DACDA9F8AC8685C322028D062701C",
+      "bytes": 34735
+    },
+    {
+      "path": "specs/builtin/vcs.toml",
+      "sha256": "0126794BE697CA16ECFC945922FBFD3EB376FE53651D13C0DFE727867E6657DD",
+      "bytes": 163593
+    },
+    {
+      "path": "specs/builtin/windows.toml",
+      "sha256": "E2FFA09B3027FD6A7507D787FF90568FD99E5A098D46EAD2E6750FD4620F477F",
+      "bytes": 27955
+    },
+    {
+      "path": "specs/tools.toml",
+      "sha256": "EB1B65BDDEA6BE6EFD421F0D6C7A005138B8536FA4D3484073B4F7BF2ABBDE1F",
+      "bytes": 12334
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.txt",
+      "sha256": "30AEFE5997A8544CC7B244A6F60EBD7A2191C0F55344DAF425537B1B55F06404",
+      "bytes": 953453
+    },
+    {
+      "path": "VERSION.txt",
+      "sha256": "FD86447DE00BB56009930D5ECD902FE2818301775B9C15842B2E3E09377EF193",
+      "bytes": 58
+    }
+  ],
+  "build": {
+    "commit": "3f32924c4a58468708a9cb85cf1ca3c782bb082c",
+    "default_host_mode": "direct",
+    "dirty": false,
+    "private_editors": {
+      "files": [
+        {
+          "path": "License.txt",
+          "sha256": "2c679724a13cec8a7589034b5725c749a304cef4a8ce4dc474f508095e627f4b",
+          "version": "2.0.0"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine2.dll",
+          "sha256": "a177facc3a5d407269b82a16af5ed2c5b5bfbefc7222e25c6c0349bcbecf6350",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "da79d15c91edd0559d70dbcda76f9b41ef1b17a141d137a485027971a08df1bb",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "8da4596d105078a4d6d5ae64ddf433fd7a538acea8c253df2945612bc0c98dd7",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "98c2733e43ffe148378f645b5626e585578fcfd04fcc2fcb443ba61d54430912",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-LICENSE.txt",
+          "sha256": "b7d43d08f59637129c482c63dcd4811077101ac41cc763b3b58490137f741977",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-NOTICES.txt",
+          "sha256": "fd880d29a522f238c178452b38cbf196bb5c0dab7ebfdc590b02b8e5019ebc71",
+          "version": "2.0.0"
+        },
+        {
+          "path": "System.Runtime.InteropServices.RuntimeInformation.dll",
+          "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8",
+          "version": "2.0.0"
+        },
+        {
+          "path": "License.txt",
+          "sha256": "577273b040bdddb01b02768d9ad07fcb40415479fc2e65c8287294c6abf56de6",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.Pager.dll",
+          "sha256": "451994c3d3e38d939b4fa5f8594d0207840f45e7a210aa75f81aef85aa17c592",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine.dll",
+          "sha256": "0b548c4b42c9b9e4658cbdb94fe58c8fc270d275d04f4fdca814369049b88643",
+          "version": "2.4.5"
+        },
+        {
+          "path": "net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "d077c3a44d7702197e398ef56dcc72006502daff430acbbfbf95ee9dcb15a19d",
+          "version": "2.4.5"
+        },
+        {
+          "path": "netstd/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "79a53c023977a91ab0abd8cd4279b918a1eecb1826ce796eade63dd9363e9cf0",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Pager-LICENSE.txt",
+          "sha256": "ac40d0ffe53b81204451b78b6772b5bb53c5c9ea7d32f694596fae5b9150c9b9",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "9676711e5883b8aeea5affae7868c6b651e5250a132691ec26a6e94c79702e22",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "243b46505e5e0ed7d313d340d9c717b2a7bdd1a9e184b99d36d921e9d48cee02",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "ea065fe561207681b987eee788ac24e7d58c45daca310ff53ceeff01ceb86edd",
+          "version": "2.4.5"
+        }
+      ],
+      "patch": "blueberry-editor-v1",
+      "repository": "https://github.com/PowerShell/PSReadLine",
+      "versions": {
+        "2.0.0": {
+          "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c",
+          "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6"
+        },
+        "2.4.5": {
+          "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0",
+          "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f"
+        }
+      }
+    },
+    "profile": "release",
+    "time_unix": 1791205967
+  }
+}

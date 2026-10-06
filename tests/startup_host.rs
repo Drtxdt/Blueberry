@@ -10,16 +10,23 @@ use std::{
 
 #[test]
 fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()> {
-    let root = tempfile::tempdir()?;
-    let profile = root.path().join("中文 profile.ps1");
+    let evidence =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/startup-terminal-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let root = tempfile::Builder::new()
+        .prefix("startup-")
+        .tempdir_in(evidence)?
+        .keep();
+    eprintln!("startup evidence: {}", root.display());
+    let profile = root.as_path().join("中文 profile.ps1");
     std::fs::write(
         &profile,
         b"Write-Output ('BB_PARENT_RESUMED_' + $env:BLUEBERRY_ACTIVE)\n",
     )?;
     let executable = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let shell = pty::default_shell();
-    let local = root.path().join("local");
-    let roaming = root.path().join("roaming");
+    let local = root.as_path().join("local");
+    let roaming = root.as_path().join("roaming");
     let status = std::process::Command::new(&executable)
         .args(["startup", "enable", "--profile"])
         .arg(&profile)
@@ -37,13 +44,13 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         &hook[..start],
         &hook[end..]
     );
-    let trace = root.path().join("startup-trace.jsonl");
+    let trace = root.as_path().join("startup-trace.jsonl");
     let hook = hook.replace(
         " run --shell $blueberryAutoShell",
         &format!(
             " run --trace '{}' --data-dir '{}' --shell $blueberryAutoShell",
             trace.display().to_string().replace('\'', "''"),
-            root.path()
+            root.as_path()
                 .join("data")
                 .display()
                 .to_string()
@@ -71,7 +78,7 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
     .map(String::from);
     let mut args = args.to_vec();
     args.push(format!(". '{quoted}'"));
-    let mut terminal = Harness::start(&shell, &args, root.path(), &environment, String::new())?;
+    let mut terminal = Harness::start(&shell, &args, root.as_path(), &environment, String::new())?;
     // A real profile may replace the prompt (Starship, Oh My Posh, etc.).
     // Observe editor entry rather than assuming the stock "PS " prompt.
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -105,9 +112,9 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         &format!(". '{quoted}'; Write-Output BB_NESTED_SKIPPED"),
     )?;
     wait_line(&mut terminal, "BB_NESTED_SKIPPED")?;
-    terminal.send(b"exit\r")?;
+    terminal.send_text("exit\r")?;
     wait_line(&mut terminal, "BB_PARENT_RESUMED_0")?;
-    terminal.send(b"Write-Output ('BB_OUTER_' + $env:BLUEBERRY_ACTIVE)\r")?;
+    terminal.send_text("Write-Output ('BB_OUTER_' + $env:BLUEBERRY_ACTIVE)\r")?;
     wait_line(&mut terminal, "BB_OUTER_0")?;
     // The parent is now plain PowerShell: the nested Blueberry protocol has
     // exited, so the probe's host-aware finish chord is no longer applicable.
@@ -117,26 +124,36 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
 
 #[test]
 fn no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path() -> Result<()> {
-    let root = tempfile::tempdir()?;
+    let evidence =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/startup-terminal-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let root = tempfile::Builder::new()
+        .prefix("startup-")
+        .tempdir_in(evidence)?
+        .keep();
+    eprintln!("startup evidence: {}", root.display());
     let environment = BTreeMap::from([
         ("BLUEBERRY_TEST_SHELL".into(), String::new()),
         ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
         ("BLUEBERRY_ACTIVE".into(), "0".into()),
-        ("PATH".into(), root.path().to_string_lossy().into_owned()),
+        ("PATH".into(), root.as_path().to_string_lossy().into_owned()),
         (
             "LOCALAPPDATA".into(),
-            root.path().join("local").to_string_lossy().into_owned(),
+            root.as_path().join("local").to_string_lossy().into_owned(),
         ),
         (
             "APPDATA".into(),
-            root.path().join("roaming").to_string_lossy().into_owned(),
+            root.as_path()
+                .join("roaming")
+                .to_string_lossy()
+                .into_owned(),
         ),
         ("BLUEBERRY_PROBE_TOKEN".into(), "fallback-test".into()),
     ]);
     let mut terminal = Harness::start(
         &PathBuf::from(env!("CARGO_BIN_EXE_blueberry")),
         &[],
-        root.path(),
+        root.as_path(),
         &environment,
         String::new(),
     )?;
@@ -154,8 +171,8 @@ fn no_arguments_falls_back_to_inbox_shell_without_pwsh_on_path() -> Result<()> {
 }
 
 fn send_editor_command(terminal: &mut Harness, command: &str) -> Result<()> {
-    terminal.send(command.as_bytes())?;
-    terminal.send(b"\r")?;
+    terminal.send_text(command)?;
+    terminal.send_text("\r")?;
     Ok(())
 }
 
@@ -166,7 +183,9 @@ fn wait_line(terminal: &mut Harness, expected: &str) -> Result<()> {
         .lines()
         .any(|line| line.trim() == expected)
     {
-        terminal.pump(deadline.saturating_duration_since(Instant::now()))?;
+        terminal
+            .pump(deadline.saturating_duration_since(Instant::now()))
+            .with_context(|| format!("wait for output line {expected}"))?;
     }
     Ok(())
 }
