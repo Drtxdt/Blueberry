@@ -6,6 +6,48 @@ use blueberry::probe::Harness;
 use std::{collections::BTreeMap, time::Duration};
 const TIMEOUT: Duration = Duration::from_secs(20);
 
+#[path = "support/console_snapshot.rs"]
+mod console_snapshot;
+
+#[test]
+#[ignore = "isolated console snapshot helper"]
+fn console_snapshot_helper() -> Result<()> {
+    console_snapshot::write_attached()
+}
+
+fn capture_live_console(h: &mut Harness, path: &std::path::Path) -> Result<()> {
+    use std::os::windows::process::CommandExt;
+    let mut child = std::process::Command::new(std::env::current_exe()?)
+        .args(["console_snapshot_helper", "--exact", "--ignored"])
+        .env(
+            "BLUEBERRY_SNAPSHOT_PID",
+            h.process_id().context("missing console PID")?.to_string(),
+        )
+        .env("BLUEBERRY_SNAPSHOT_PATH", path)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW)
+        .spawn()?;
+    // PSReadLine may request cursor position during resize. Keep answering
+    // while the snapshot helper starts; a late CPR can become editor input.
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    while child.try_wait()?.is_none() {
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            anyhow::bail!("console snapshot timed out");
+        }
+        let _ = h.pump(Duration::from_millis(5));
+    }
+    let output = child.wait_with_output()?;
+    ensure!(
+        output.status.success(),
+        "console snapshot failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}
+
 fn wait_output_line(h: &mut Harness, expected: &str) -> Result<()> {
     let deadline = std::time::Instant::now() + TIMEOUT;
     while !h
@@ -1058,6 +1100,273 @@ fn direct_selected_frame_navigation_survives_resize_and_disconnect() -> Result<(
     harness.send(b"Write-Output 'editing-restored'\r")?;
     harness.wait_text("editing-restored", TIMEOUT)?;
     harness.finish(TIMEOUT)
+}
+
+fn selected_path(h: &Harness, name: &str) -> bool {
+    h.viewport_contents()
+        .lines()
+        .any(|line| line.contains('›') && line.contains(name))
+}
+
+fn wait_selected_path(h: &mut Harness, name: &str) -> Result<()> {
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    while !selected_path(h, name) {
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "selection never reached {name}: {}",
+            h.viewport_contents()
+        );
+        let _ = h.pump(Duration::from_millis(10));
+    }
+    Ok(())
+}
+
+fn path_fixture(root: &std::path::Path) -> Result<()> {
+    for index in 0..16 {
+        std::fs::write(root.join(format!("nav-{index:02}.txt")), "fixture")?;
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result<()> {
+    for delay in [0, 40] {
+        let dir = tempfile::tempdir()?;
+        path_fixture(dir.path())?;
+        let mut h = start_with_delay(dir.path(), delay)?;
+        let result = (|| -> Result<()> {
+            h.send_text("Get-ChildItem .\\nav-")?;
+            wait_selected_path(&mut h, "nav-00.txt")?;
+            h.send(b"\x1b[B")?;
+            wait_selected_path(&mut h, "nav-01.txt")?;
+            // Observe beyond injected delays: the old bug briefly showed the
+            // next item, then an empty worker result reset it to the first.
+            let until = std::time::Instant::now() + Duration::from_millis(600);
+            while std::time::Instant::now() < until {
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            ensure!(
+                selected_path(&h, "nav-01.txt"),
+                "provider reset the selection: {}",
+                h.viewport_contents()
+            );
+            h.send(b"\x1b[A")?;
+            wait_selected_path(&mut h, "nav-00.txt")?;
+            let steps = if delay == 0 { 10 } else { 3 };
+            let mut burst = b"\x1b[B".repeat(steps);
+            burst.push(b'\t');
+            h.send(&burst)?;
+            h.wait_text(&format!("Get-ChildItem .\\nav-{steps:02}.txt"), TIMEOUT)?;
+            let trace = std::fs::read_to_string(dir.path().join("trace.jsonl"))?;
+            ensure!(
+                trace
+                    .lines()
+                    .filter(|line| line.contains("\"direct_readline_begin\""))
+                    .count()
+                    == 1,
+                "acceptance executed the command"
+            );
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error).with_context(|| {
+                format!("path navigation delay {delay}: {}", dir.keep().display())
+            });
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    path_fixture(dir.path())?;
+    let mut h = start(dir.path())?;
+    let result = (|| -> Result<()> {
+        h.send_text("1..40 | ForEach-Object { 'BOTTOM-SENTINEL' }")?;
+        h.send(b"\r")?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        h.send_text("Get-ChildItem .\\nav-")?;
+        wait_selected_path(&mut h, "nav-00.txt")?;
+        let screen = h.viewport_contents();
+        let rows: Vec<_> = screen.lines().collect();
+        let input = rows
+            .iter()
+            .position(|row| row.contains("Get-ChildItem .\\nav-"))
+            .context("input missing")?;
+        let menu = rows
+            .iter()
+            .position(|row| row.contains('›'))
+            .context("menu missing")?;
+        ensure!(
+            menu < input,
+            "bottom menu did not open above input: {screen}"
+        );
+        h.resize(10, 90)?;
+        h.send(b"\x1b[B")?;
+        wait_selected_path(&mut h, "nav-01.txt")?;
+        h.send(b"\x1b[B")?;
+        wait_selected_path(&mut h, "nav-02.txt")?;
+        h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+        let until = std::time::Instant::now() + Duration::from_millis(400);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        ensure!(
+            !h.viewport_contents().contains('›'),
+            "Escape left the overlay visible"
+        );
+        ensure!(
+            h.viewport_contents().contains("BOTTOM-SENTINEL"),
+            "overlay failed to restore underlying output"
+        );
+        h.send_text("x")?;
+        h.wait_text("Get-ChildItem .\\nav-x", TIMEOUT)?;
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = console_snapshot::capture(&h, &dir.path().join("native-screen.json"));
+        let _ = h.stop();
+        return Err(error).with_context(|| format!("bottom menu: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_pending_path_navigation_yields_to_typing_and_discards_late_frames() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    path_fixture(dir.path())?;
+    let mut h = start_with_delay(dir.path(), 100)?;
+    let result = (|| -> Result<()> {
+        h.send_text("Get-ChildItem .\\nav-")?;
+        wait_selected_path(&mut h, "nav-00.txt")?;
+        h.send(b"\x1b[B\x1b[B")?;
+        h.send_text("x")?;
+        h.wait_text("Get-ChildItem .\\nav-x", TIMEOUT)?;
+        let until = std::time::Instant::now() + Duration::from_millis(800);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        ensure!(
+            !h.viewport_contents().contains('›'),
+            "late navigation resurrected the old menu"
+        );
+        ensure!(
+            h.viewport_contents().contains("Get-ChildItem .\\nav-x"),
+            "late navigation overwrote typing"
+        );
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error).with_context(|| format!("pending navigation: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    path_fixture(dir.path())?;
+    let suffix = " ; Write-Output 'RIGHT'";
+    let expected = format!(
+        "Write-Output 'HEAD{}'\nGet-ChildItem .\\nav-{suffix}",
+        "中".repeat(30)
+    );
+    std::fs::write(dir.path().join("input.txt"), &expected)?;
+    let quote = |name: &str| {
+        dir.path()
+            .join(name)
+            .display()
+            .to_string()
+            .replace('\'', "''")
+    };
+    let script = format!(
+        r#"
+function global:prompt {{ 'BB> ' }}
+Set-PSReadLineKeyHandler -Chord F6 -ScriptBlock {{
+    [Microsoft.PowerShell.PSConsoleReadLine]::Insert([IO.File]::ReadAllText('{input}'))
+    [Microsoft.PowerShell.PSConsoleReadLine]::BackwardChar($null,{back})
+}}
+Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
+    $line=''; $cursor=0
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor)
+    [IO.File]::WriteAllText('{snapshot}',$line)
+}}
+1..40 | ForEach-Object {{ 'MULTILINE-SENTINEL' }}
+"#,
+        input = quote("input.txt"),
+        back = suffix.encode_utf16().count(),
+        snapshot = quote("buffer.txt")
+    );
+    std::fs::write(dir.path().join("setup.ps1"), script)?;
+    let mut h = start(dir.path())?;
+    let result = (|| -> Result<()> {
+        h.resize(12, 70)?;
+        h.send_text(&format!(". '{}'", quote("setup.ps1")))?;
+        h.send(b"\r")?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        h.send(b"\x1b[17~")?;
+        wait_selected_path(&mut h, "nav-00.txt")?;
+        let snapshot = dir.path().join("native-screen.json");
+        capture_live_console(&mut h, &snapshot)?;
+        let native: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot)?)?;
+        let screen = native["screen"]
+            .as_str()
+            .context("native viewport missing")?;
+        let rows: Vec<_> = screen.lines().collect();
+        let input = rows
+            .iter()
+            .position(|row| row.contains("HEAD"))
+            .context("wrapped input start missing")?;
+        let menu = rows
+            .iter()
+            .position(|row| row.contains('›'))
+            .context("native menu missing")?;
+        ensure!(
+            menu < input && screen.contains("RIGHT"),
+            "menu covered multiline input: {screen}"
+        );
+        h.resize(10, 60)?;
+        h.send(b"\x1b[B")?;
+        wait_selected_path(&mut h, "nav-01.txt")?;
+        capture_live_console(&mut h, &dir.path().join("native-resized.json"))?;
+        let resized: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(dir.path().join("native-resized.json"))?)?;
+        let resized_screen = resized["screen"]
+            .as_str()
+            .context("resized viewport missing")?;
+        ensure!(
+            resized_screen.contains("HEAD") && resized_screen.contains("RIGHT"),
+            "resize covered the input or its suffix: {resized_screen}"
+        );
+        h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+        h.send(b"\x1b[24~")?;
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        while !dir.path().join("buffer.txt").is_file() {
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "native buffer snapshot missing"
+            );
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        ensure!(
+            std::fs::read_to_string(dir.path().join("buffer.txt"))? == expected,
+            "navigation/resize modified the editor buffer"
+        );
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = console_snapshot::capture(&h, &dir.path().join("native-failure.json"));
+        let _ = h.stop();
+        return Err(error).with_context(|| format!("multiline overlay: {}", dir.keep().display()));
+    }
+    Ok(())
 }
 
 #[test]

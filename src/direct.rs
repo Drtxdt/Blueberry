@@ -35,6 +35,8 @@ struct Session {
     cursor: usize,
     width: u16,
     rows: usize,
+    available_rows: Option<usize>,
+    last_completion: Option<Completion>,
     frame: u64,
     visible: std::collections::VecDeque<(u64, String, Candidate, Completion)>,
     accepting: bool,
@@ -65,6 +67,8 @@ impl Session {
             cursor: 0,
             width: 120,
             rows: 30,
+            available_rows: None,
+            last_completion: None,
             frame: 0,
             visible: Default::default(),
             accepting: false,
@@ -90,16 +94,57 @@ impl Session {
         self.revision = revision;
         self.line = line.into();
         self.cursor = cursor;
-        self.width = value["width"].as_u64().unwrap_or(120).clamp(1, 512) as u16;
-        self.rows = value["rows"].as_u64().unwrap_or(30).clamp(1, 512) as usize;
+        self.geometry(value);
+        self.last_completion = None;
         self.visible.clear();
         self.accepting = false;
         self.selected = 0;
         self.selected_id = None;
         Ok(())
     }
-    fn render(&mut self, completion: Completion, settings: &Config, token: &str) -> Value {
+    fn geometry(&mut self, value: &Value) {
+        self.width = value["width"]
+            .as_u64()
+            .unwrap_or(self.width.into())
+            .clamp(1, 512) as u16;
+        self.rows = value["rows"]
+            .as_u64()
+            .unwrap_or(self.rows as u64)
+            .clamp(1, 512) as usize;
+        if let Some(rows) = value["available_rows"].as_u64() {
+            self.available_rows = Some(rows.min(self.rows as u64) as usize);
+        }
+    }
+    fn layout(&mut self, value: &Value, settings: &Config, token: &str) -> Option<Value> {
+        let revision = value["revision"].as_u64()?;
+        if revision <= self.revision
+            || value["line"].as_str() != Some(&self.line)
+            || value["cursor"].as_u64().map(|v| v as usize)
+                != protocol::byte_to_utf16(&self.line, self.cursor)
+        {
+            return None;
+        }
+        self.revision = revision;
+        self.geometry(value);
+        Some(match self.last_completion.clone() {
+            Some(completion) => self.render(completion, settings, token),
+            None => self.clear_frame(token),
+        })
+    }
+    fn render(&mut self, mut completion: Completion, settings: &Config, token: &str) -> Value {
         self.frame += 1;
+        // An unfinished provider refresh must not remove the navigated item.
+        // A final result (including an empty one) is authoritative.
+        if self.ui.is_none()
+            && completion.incomplete
+            && let Some(id) = &self.selected_id
+            && !completion.candidates.iter().any(|c| c.identity() == id)
+            && let Some(previous) = &self.last_completion
+            && previous.replace_start == completion.replace_start
+            && previous.replace_end == completion.replace_end
+        {
+            completion.candidates.clone_from(&previous.candidates);
+        }
         if let Some(id) = &self.selected_id
             && let Some(index) = completion
                 .candidates
@@ -130,7 +175,9 @@ impl Session {
                 argument_hint: Some(&completion.argument_hint),
                 ..Default::default()
             },
-            self.rows.saturating_sub(tail_rows + 2).min(12),
+            self.available_rows
+                .unwrap_or_else(|| self.rows.saturating_sub(tail_rows + 2))
+                .min(12),
         );
         if let Some(candidate) = candidate.cloned() {
             self.visible
@@ -140,9 +187,11 @@ impl Session {
             }
         }
         self.selected_id = (!id.is_empty()).then_some(id.clone());
+        self.last_completion = Some(completion.clone());
         json!({"kind":"frame", "token":token, "revision":self.revision, "frame_id":self.frame,
             "candidate_id":id, "expected_line":self.line, "expected_cursor":protocol::byte_to_utf16(&self.line,self.cursor),
             "lines":menu.lines, "width":menu.width, "tail_rows":tail_rows, "incomplete":completion.incomplete,
+            "columns":self.width,"available_rows":self.available_rows,
             "interaction":if self.ui.as_ref().is_some_and(|ui|ui.form.is_some()) {"form"} else if self.ui.is_some() {"hub"} else {"completion"}})
     }
     fn accept(&self, value: &Value, token: &str) -> Option<Value> {
@@ -399,6 +448,7 @@ impl Session {
             .context("unseen candidate")?;
         let count = completion.candidates.len();
         self.revision = next;
+        self.geometry(value);
         self.selected = if value["key"] == "F1" {
             self.details = !self.details;
             current
@@ -766,6 +816,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             ensure!(revision > session.revision, "stale lifecycle revision");
                             session.revision = revision;
                             session.visible.clear();
+                            session.last_completion = None;
+                            session.selected_id = None;
                             session.accepting = false;
                             session.ui = None;
                             active_query = None;
@@ -990,12 +1042,26 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             session.request_values(tx.clone(), environment.clone());
                         }
                         Some("menu_key") if ready && automatic => {
-                            let frame = session.navigate(&value, &settings, &token)?;
-                            pipe.write_json(&frame)?;
-                            if let Some(query) = active_query.as_mut() {
-                                query.revision = session.revision;
-                                query.queued_at = Instant::now();
-                                worker.update(|w| w.query = Some(query.clone()));
+                            match session.navigate(&value, &settings, &token) {
+                                Ok(frame) => pipe.write_json(&frame)?,
+                                Err(_) => {
+                                    // A displayed frame may have aged out. Dismiss it,
+                                    // but never tear down the service for a stale key.
+                                    if let Some(frame) = session.layout(&value, &settings, &token) {
+                                        pipe.write_json(&frame)?;
+                                    }
+                                    trace.event(
+                                        "direct_stale_navigation",
+                                        value["revision"].as_u64(),
+                                        None,
+                                        None,
+                                    );
+                                }
+                            }
+                        }
+                        Some("layout") if ready && automatic => {
+                            if let Some(frame) = session.layout(&value, &settings, &token) {
+                                pipe.write_json(&frame)?;
                             }
                         }
                         _ => bail!("unexpected direct protocol event"),
@@ -1017,13 +1083,17 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     && automatic
                     && session.ui.is_none()
                     && !session.accepting
-                    && *revision == session.revision
+                    && active_query.as_ref().is_some_and(|query| {
+                        query.revision == *revision
+                            && query.line == session.line
+                            && query.cursor == session.cursor
+                    })
                 {
                     let rendered = Instant::now();
                     let frame = session.render(completion.clone(), &settings, &token);
                     trace.event(
                         "direct_menu_render",
-                        Some(*revision),
+                        Some(session.revision),
                         Some(rendered.elapsed()),
                         frame["lines"].as_array().map(Vec::len),
                     );
@@ -1031,7 +1101,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if trace.enabled() {
                         trace.point(
                             "direct_frame_ready",
-                            Some(*revision),
+                            Some(session.revision),
                             frame["frame_id"].as_u64(),
                             crate::latency_layers::qpc()?,
                         );
@@ -1040,14 +1110,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if trace.enabled() {
                         trace.point(
                             "direct_frame_sent",
-                            Some(*revision),
+                            Some(session.revision),
                             frame["frame_id"].as_u64(),
                             crate::latency_layers::qpc()?,
                         );
                     }
                     trace.event(
                         "direct_frame_written",
-                        Some(*revision),
+                        Some(session.revision),
                         Some(output.elapsed()),
                         frame["lines"].as_array().map(Vec::len),
                     );
@@ -1205,5 +1275,87 @@ mod tests {
                 .is_err()
         );
         assert_eq!(session.line, "😀");
+    }
+    #[test]
+    fn path_selection_survives_incomplete_refresh_and_layout_but_not_final_removal() {
+        let config = Config::default();
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":1,"line":"cat ./","cursor":6,"available_rows":12}))
+            .unwrap();
+        let completion = Completion {
+            replace_start: 4,
+            replace_end: 6,
+            candidates: ["a", "b", "c"]
+                .into_iter()
+                .map(|name| Candidate {
+                    id: name.into(),
+                    label: name.into(),
+                    insert_text: name.into(),
+                    kind: crate::model::CandidateKind::File,
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let first = session.render(completion.clone(), &config, "token");
+        let second = session
+            .navigate(
+                &json!({"revision":2,"line":"cat ./","cursor":6,
+            "frame_id":first["frame_id"],"candidate_id":"a","key":"DownArrow"}),
+                &config,
+                "token",
+            )
+            .unwrap();
+        assert_eq!(second["candidate_id"], "b");
+        let empty = Completion {
+            candidates: vec![],
+            incomplete: true,
+            ..completion.clone()
+        };
+        assert_eq!(
+            session.render(empty.clone(), &config, "token")["candidate_id"],
+            "b"
+        );
+        let layout = session
+            .layout(
+                &json!({"revision":3,"line":"cat ./","cursor":6,
+            "width":25,"rows":4,"available_rows":1}),
+                &config,
+                "token",
+            )
+            .unwrap();
+        assert_eq!(layout["candidate_id"], "b");
+        assert_eq!(layout["lines"].as_array().unwrap().len(), 1);
+        assert!(layout["lines"][0].as_str().unwrap().contains('b'));
+        let final_empty = session.render(
+            Completion {
+                incomplete: false,
+                ..empty
+            },
+            &config,
+            "token",
+        );
+        assert_eq!(final_empty["candidate_id"], "");
+        assert!(final_empty["lines"].as_array().unwrap().is_empty());
+    }
+    #[test]
+    fn layout_rejects_old_or_changed_buffers() {
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":5,"line":"cat ./","cursor":6}))
+            .unwrap();
+        for value in [
+            json!({"revision":4,"line":"cat ./","cursor":6}),
+            json!({"revision":6,"line":"cat x","cursor":5}),
+            json!({"revision":6,"line":"cat ./","cursor":4}),
+        ] {
+            assert!(
+                session
+                    .layout(&value, &Config::default(), "token")
+                    .is_none()
+            );
+        }
+        assert_eq!(session.revision, 5);
     }
 }

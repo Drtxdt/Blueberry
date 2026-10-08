@@ -72,6 +72,25 @@ and disposes the enumerator on prompt exit. Begin/snapshot/offset identities
 reject stale or reordered batches; incomplete enumeration retains the previous
 complete snapshot. Function bodies are never transmitted.
 
+Patch v1.2 adds `GetEditorBufferBounds`, read-only absolute console rows
+covering the prompt and edited buffer, followed by the input origin row/column.
+Both baselines use their own cell
+width and continuation-prompt rules; the API is restricted to the active editor
+thread. Direct menus use the actual free rows below/above this region, and
+reflow without restarting their completion query. Legacy editors without the
+optional API retain conservative downward-only placement.
+
+Navigation advances the interaction revision while retaining the active source
+query revision. Candidate identities survive partial refreshes; only final
+results can remove the selection. Arrow bursts are queued until each response
+is painted; explicit Tab acceptance drains that queue within its bounded wait.
+Typing, cancellation and disconnect discard queued navigation. Overlay painting
+also saves the unpainted viewport so a resize cannot leave reflowed menu cells
+behind when the original rectangle no longer exists.
+`RestoreEditorLayout(row, column)` then re-renders the existing input with the
+editor's own logical-line layout at the restored origin. It only runs on the
+active editor thread and does not modify text, cursor offset, undo or history.
+
 A separate hidden NoProfile process reads system module export metadata with
 autoload disabled only in that helper. It never imports modules or invokes their
 commands. Live session definitions override declarations. Both sources are

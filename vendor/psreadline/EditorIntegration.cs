@@ -10,7 +10,41 @@ namespace Microsoft.PowerShell
     public partial class PSConsoleReadLine
     {
         public static int EditorIntegrationVersion { get { return 1; } }
-        public static string EditorIntegrationPatch { get { return "blueberry-editor-v1.1"; } }
+        public static string EditorIntegrationPatch { get { return "blueberry-editor-v1.2"; } }
+
+        // Absolute console rows, including the prompt and continuation lines.
+        // Use the editor's own cell-width/wrapping rules, on its owning thread.
+        public static int[] GetEditorBufferBounds()
+        {
+            if (_singleton._editorIntegration == null || !_singleton._editorIntegration.Active ||
+                Thread.CurrentThread.ManagedThreadId != _singleton._editorThreadId)
+                throw new InvalidOperationException("Buffer bounds require an active editor callback");
+            var cursor = _singleton.ConvertOffsetToPoint(_singleton._current);
+            int delta = _singleton._console.CursorTop - cursor.Y;
+            return new int[] {
+                _singleton._initialY - _singleton._options.ExtraPromptLineCount + delta,
+                _singleton.ConvertOffsetToPoint(_singleton._buffer.Length).Y + delta,
+                _singleton._initialY + delta, _singleton._initialX
+            };
+        }
+
+        // The bridge restores the unpainted surface after a console resize.
+        // Let the editor reflow its logical lines (rather than treating old
+        // physical wraps as hard newlines). This never changes buffer/history.
+        public static void RestoreEditorLayout(int row, int column)
+        {
+            if (_singleton._editorIntegration == null || !_singleton._editorIntegration.Active ||
+                Thread.CurrentThread.ManagedThreadId != _singleton._editorThreadId)
+                throw new InvalidOperationException("Layout restoration requires an active editor callback");
+            _singleton._initialY = row;
+            _singleton._initialX = column;
+            _singleton._previousRender = new RenderData {
+                lines = _initialPrevRender.lines,
+                bufferWidth = _singleton._console.BufferWidth,
+                bufferHeight = _singleton._console.BufferHeight
+            };
+            _singleton.ForceRender();
+        }
 
         private readonly AutoResetEvent _editorRefreshEvent = new AutoResetEvent(false);
         private EditorRegistration _editorIntegration;

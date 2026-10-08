@@ -64,7 +64,7 @@ def prepare(version, spec, dotnet):
     subprocess.run([dotnet, "build", str(project), "-c", "Release", "-f", framework,
                     "--source", "https://api.nuget.org/v3/index.json",
                     "-p:TargetFrameworks=" + framework, "-p:RestoreIgnoreFailedSources=false",
-                    "-p:InformationalVersion=" + version + "+blueberry.editor.v1.1"],
+                    "-p:InformationalVersion=" + version + "+blueberry.editor.v1.2"],
                    cwd=ROOT, env=env, check=True)
     built = source / "PSReadLine" / "bin" / "Release" / framework
     module = OUTPUT / "modules" / version / "PSReadLine" / version

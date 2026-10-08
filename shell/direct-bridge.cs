@@ -42,6 +42,12 @@ namespace Blueberry.Direct {
         static IDisposable editorRegistration;
         static Action requestEditorRefresh;
         static Func<long[]> editorTracePoints;
+        static Func<int[]> editorBufferBounds;
+        static Action<int,int> restoreEditorLayout;
+        static bool navigationPending;
+        static readonly Queue<ConsoleKeyInfo> navigationKeys = new Queue<ConsoleKeyInfo>();
+        static string queriedLine;
+        static int queriedCursor;
         static string hubChord, refreshChord;
         public static bool EditorHooks { get; private set; }
         static string editorHash, editorFallbackReason;
@@ -165,6 +171,10 @@ namespace Blueberry.Direct {
                     hubChord = Environment.GetEnvironmentVariable("BLUEBERRY_PUBLIC_KEY_HUB") ?? "Ctrl+Alt+p";
                     refreshChord = Environment.GetEnvironmentVariable("BLUEBERRY_PUBLIC_KEY_REFRESH") ?? "Ctrl+Alt+c";
                     requestEditorRefresh = (Action)Public("RequestEditorRefresh", typeof(Action));
+                    if (api.GetMethod("GetEditorBufferBounds") != null)
+                        editorBufferBounds = (Func<int[]>)Public("GetEditorBufferBounds", typeof(Func<int[]>));
+                    if (api.GetMethod("RestoreEditorLayout") != null)
+                        restoreEditorLayout = (Action<int,int>)Public("RestoreEditorLayout", typeof(Action<int,int>),typeof(int),typeof(int));
                     if(diagnostic) editorTracePoints=(Func<long[]>)Public("GetEditorTracePoints",typeof(Func<long[]>));
                     editorRegistration = (IDisposable)api.GetMethod("RegisterEditorIntegration").Invoke(null, new object[] {
                         1, (Action<string,string>)Begin, (Action)Clear,
@@ -333,7 +343,8 @@ namespace Blueberry.Direct {
             }) { IsBackground=true, Name="Blueberry startup compilation" }.Start();
         }
         static bool EditorKey(ConsoleKeyInfo? key, object nativeHandler, bool builtin) {
-            if (!editing || !AutomaticMenu || !key.HasValue || !builtin) return false;
+            if (!editing || !AutomaticMenu || !key.HasValue) return false;
+            if (!builtin) { ResetNavigation(); displayed=null; return false; }
             var k = key.Value;
             string chord = ((k.Modifiers & ConsoleModifiers.Control) != 0 ? "Ctrl+" : "")
                 + ((k.Modifiers & ConsoleModifiers.Alt) != 0 ? "Alt+" : "")
@@ -347,22 +358,42 @@ namespace Blueberry.Direct {
                 Query(interaction == "hub" ? "hub" : "cancel"); return true;
             }
             if (interaction != "completion") { SendKey(k); return true; }
-            if (displayed == null) return false;
+            if (displayed == null && !navigationPending) return false;
             // Compare the action resolved for this very keystroke. A user may
             // rebind to another built-in action, not only to a script block.
             var action = nativeHandler as Delegate;
             string name = action == null ? null : action.Method.Name;
-            if (k.Key == ConsoleKey.Tab && name != "Complete" && name != "MenuComplete" && name != "TabCompleteNext" && name != "TabCompletePrevious") return false;
-            if (k.Key == ConsoleKey.UpArrow && name != "PreviousHistory" && name != "HistorySearchBackward") return false;
-            if (k.Key == ConsoleKey.DownArrow && name != "NextHistory" && name != "HistorySearchForward") return false;
-            if (k.Key == ConsoleKey.F1 && action != null) return false;
-            if (k.Key == ConsoleKey.Escape && name != null && name != "RevertLine") return false;
+            if (k.Key == ConsoleKey.Tab && name != "Complete" && name != "MenuComplete" && name != "TabCompleteNext" && name != "TabCompletePrevious") { ResetNavigation(); return false; }
+            if (k.Key == ConsoleKey.UpArrow && name != "PreviousHistory" && name != "HistorySearchBackward") { ResetNavigation(); return false; }
+            if (k.Key == ConsoleKey.DownArrow && name != "NextHistory" && name != "HistorySearchForward") { ResetNavigation(); return false; }
+            if (k.Key == ConsoleKey.F1 && action != null) { ResetNavigation(); return false; }
+            if (k.Key == ConsoleKey.Escape && name != null && name != "RevertLine") { ResetNavigation(); return false; }
             if (k.Key == ConsoleKey.Escape) { interaction="completion"; Query("cancel"); return true; }
             if (k.Modifiers == 0 && (k.Key == ConsoleKey.UpArrow || k.Key == ConsoleKey.DownArrow || k.Key == ConsoleKey.F1)) {
-                SendKey(k,"menu_key"); return true;
+                Navigate(k); return true;
             }
-            if (k.Key == ConsoleKey.Tab) { Accept(); return true; }
+            if (k.Key == ConsoleKey.Tab) { AcceptAfterNavigation(); return true; }
+            ResetNavigation(); displayed=null;
             return false;
+        }
+        static void ResetNavigation() { navigationPending=false; navigationKeys.Clear(); }
+        static void Navigate(ConsoleKeyInfo key) {
+            if (navigationPending) { navigationKeys.Enqueue(key); return; }
+            SendKey(key,"menu_key");
+        }
+        static void AcceptAfterNavigation() {
+            // Acceptance is already an explicit ordered operation. Arrows never
+            // block the editor; Tab drains their responses before binding an edit.
+            long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/2;
+            while (navigationPending && connected && Stopwatch.GetTimestamp()<deadline) {
+                Refresh();
+                if (!navigationPending) break;
+                lock(frameLock) { if(reliableFrames.Count>0 || pending!=null) continue; }
+                int remaining=(int)Math.Max(1,(deadline-Stopwatch.GetTimestamp())*1000/Stopwatch.Frequency);
+                arrived.WaitOne(remaining);
+            }
+            if (navigationPending) { Query("cancel"); return; }
+            if (displayed!=null) Accept();
         }
         static void RegisterCharacters(HashSet<string> bound) {
             var characters = new List<string>();
@@ -378,6 +409,7 @@ namespace Blueberry.Direct {
             register(characters.ToArray(), insert, "SelfInsert", "Blueberry confirmed edit");
         }
         static void Disable(string reason) {
+            ResetNavigation();
             enabled = false; DisabledReason = reason; Clear();
             if (EditorHooks) {
                 if (editorRegistration != null) { editorRegistration.Dispose(); editorRegistration = null; }
@@ -459,6 +491,7 @@ namespace Blueberry.Direct {
             if(diagnostic) TraceStage("direct_readline_begin",Stopwatch.GetTimestamp()-beginning,1);
         }
         public static void End() {
+            ResetNavigation();
             StopCommands();
             string line; int cursor; buffer(out line,out cursor);
             Clear(); displayed = null; acceptingFrame=null; expectedUiEditRevision=-1; editing = false; revision++;
@@ -469,15 +502,16 @@ namespace Blueberry.Direct {
             if (editing && AutomaticMenu && interaction != "completion" && key.HasValue) {
                 SendKey(key.Value); return;
             }
-            if(editing && AutomaticMenu && displayed!=null && key.HasValue && key.Value.Key==ConsoleKey.Escape) {
+            if(editing && AutomaticMenu && (displayed!=null || navigationPending) && key.HasValue && key.Value.Key==ConsoleKey.Escape) {
                 interaction="completion"; Query("cancel"); return;
             }
-            if (editing && AutomaticMenu && displayed != null && key.HasValue
+            if (editing && AutomaticMenu && (displayed != null || navigationPending) && key.HasValue
                 && (key.Value.Key==ConsoleKey.UpArrow || key.Value.Key==ConsoleKey.DownArrow || key.Value.Key==ConsoleKey.F1)
-                && key.Value.Modifiers==0) { SendKey(key.Value,"menu_key"); return; }
-            if (editing && AutomaticMenu && displayed != null && key.HasValue && key.Value.Key == ConsoleKey.Tab) {
-                Accept(); return;
+                && key.Value.Modifiers==0) { Navigate(key.Value); return; }
+            if (editing && AutomaticMenu && (displayed != null || navigationPending) && key.HasValue && key.Value.Key == ConsoleKey.Tab) {
+                AcceptAfterNavigation(); return;
             }
+            ResetNavigation();
             long delegated=diagnostic ? Stopwatch.GetTimestamp() : 0;
             original(key, arg); // Original key and argument, including numeric repeat counts.
             if(diagnostic) TraceStage("direct_original_edit",Stopwatch.GetTimestamp()-delegated,1);
@@ -490,12 +524,15 @@ namespace Blueberry.Direct {
         static void SendKey(ConsoleKeyInfo key, string operation="ui_key") {
             string line; int cursor; buffer(out line, out cursor); revision++;
             expectedUiEditRevision=operation=="ui_key" && (key.Key==ConsoleKey.Enter || key.Key==ConsoleKey.Tab) ? revision : -1;
-            Send(new Dictionary<string,object> {
+            var message = new Dictionary<string,object> {
                 {"event",operation},{"revision",revision},{"line",line},{"cursor",cursor},
                 {"key",key.Key.ToString()},{"character_unit",(long)key.KeyChar},{"modifiers",(int)key.Modifiers},
                 {"frame_id",displayed == null ? -1 : Json.Long(displayed,"frame_id")},
                 {"candidate_id",displayed == null ? null : Json.String(displayed,"candidate_id")}
-            });
+            };
+            AddGeometry(message);
+            navigationPending=operation=="menu_key";
+            Send(message);
             displayed=null;
             if(key.Key==ConsoleKey.Escape) interaction="completion";
             if(EditorHooks && operation=="ui_key" && (key.Key==ConsoleKey.Enter || key.Key==ConsoleKey.Tab)) {
@@ -512,8 +549,16 @@ namespace Blueberry.Direct {
             WaitFrame();
         }
         static void Query(string operation) {
-            expectedUiEditRevision=-1;
             string line; int cursor; buffer(out line, out cursor);
+            // Native no-op keys and resize/event callbacks may report the same
+            // buffer again. Reflow it without creating another source request.
+            if (operation=="query" && (displayed!=null || navigationPending)
+                && line==queriedLine && cursor==queriedCursor) operation="layout";
+            if (operation!="layout") ResetNavigation();
+            else navigationPending=navigationPending || displayed!=null;
+            expectedUiEditRevision=-1;
+            if (operation=="query") { queriedLine=line; queriedCursor=cursor; }
+            else if (operation=="cancel") queriedLine=null;
             long confirmed=diagnostic ? Stopwatch.GetTimestamp() : 0;
             // A high UTF-16 surrogate can arrive as one console key before its
             // low surrogate. Wait for PSReadLine to confirm the complete pair.
@@ -539,6 +584,7 @@ namespace Blueberry.Direct {
                 {"event", operation}, {"revision", revision}, {"line", line}, {"cursor", cursor},
                 {"cwd", directory}, {"width", width}, {"rows", rows}
             };
+            AddGeometry(query);
             if(diagnostic) query["confirmed_qpc"]=confirmed;
             Send(query);
             TracePoint("editor_confirmed",revision,-1,confirmed);
@@ -590,7 +636,7 @@ namespace Blueberry.Direct {
         }
         public static bool Refresh() {
             if (!editing || Thread.CurrentThread.ManagedThreadId != editorThread) return false;
-            if (!connected) { Clear(); return false; }
+            if (!connected) { Clear(); displayed=null; ResetNavigation(); return false; }
             if (EditorHooks) PumpCommands();
             if(!EditorHooks && enabled && !waitingForFrame) { try { AuditBindings(); } catch(Exception error) { Disable(error.GetBaseException().Message); return false; } }
             Dictionary<string, object> frame;
@@ -605,7 +651,7 @@ namespace Blueberry.Direct {
             TracePoint("editor_refresh_enter",revision,Json.Long(frame,"frame_id"),Stopwatch.GetTimestamp());
             string line; int cursor; buffer(out line, out cursor);
             if (Json.String(frame, "expected_line") != line || Json.Long(frame, "expected_cursor") != cursor) return false;
-            if (Json.String(frame,"kind") == "clear") { Clear(); displayed=null; expectedUiEditRevision=-1; interaction="completion"; return true; }
+            if (Json.String(frame,"kind") == "clear") { Clear(); displayed=null; ResetNavigation(); expectedUiEditRevision=-1; interaction="completion"; return true; }
             if (Json.String(frame, "kind") == "edit") {
                 if (!EditAuthorized(frame)) return false;
                 int start = (int)Json.Long(frame, "start"), length = (int)Json.Long(frame, "length");
@@ -618,13 +664,21 @@ namespace Blueberry.Direct {
             object lines;
             if (Json.String(frame, "kind") != "frame" || !frame.TryGetValue("lines", out lines) || !(lines is List<object>)) return false;
             Clear();
+            Layout layout;
+            if (!MeasureLayout(out layout)) { displayed=null; ResetNavigation(); return false; }
+            if (Json.Long(frame,"columns")!=Math.Min(512,layout.Width) || Json.Long(frame,"available_rows")!=Math.Min(512,layout.Available)) {
+                Query("layout"); return false;
+            }
             long painted=diagnostic ? Stopwatch.GetTimestamp() : 0;
-            if (!Paint((List<object>)lines, (int)Json.Long(frame, "tail_rows"), (int)Json.Long(frame, "width"))) { displayed = null; return false; }
+            if (!Paint((List<object>)lines, layout, (int)Json.Long(frame, "width"))) { displayed = null; ResetNavigation(); return false; }
             TracePoint("editor_menu_written",revision,Json.Long(frame,"frame_id"),Stopwatch.GetTimestamp());
             if(diagnostic) TraceStage("direct_console_menu_output",Stopwatch.GetTimestamp()-painted,((List<object>)lines).Count);
             if(diagnostic && frameReceived!=0) TraceStage("direct_frame_to_paint",Stopwatch.GetTimestamp()-frameReceived,1);
             expectedUiEditRevision=-1;
-            interaction=Json.String(frame,"interaction") ?? "completion"; displayed = frame; return true;
+            interaction=Json.String(frame,"interaction") ?? "completion"; displayed = frame;
+            navigationPending=false;
+            if (navigationKeys.Count>0) Navigate(navigationKeys.Dequeue());
+            return true;
         }
         static bool EditAuthorized(Dictionary<string,object> frame) {
             if(Json.Long(frame,"revision")!=revision) return false;
@@ -713,21 +767,70 @@ namespace Blueberry.Direct {
         [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetWaitableTimer(IntPtr timer,ref long due,int period,IntPtr callback,IntPtr argument,bool resume);
         [DllImport("kernel32.dll",SetLastError=true)] static extern uint WaitForMultipleObjects(uint count,IntPtr[] handles,bool waitAll,uint milliseconds);
         [DllImport("kernel32.dll")] static extern bool GetConsoleScreenBufferInfo(IntPtr handle, out Info info);
+        [DllImport("kernel32.dll")] static extern bool SetConsoleCursorPosition(IntPtr handle, Coord position);
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern bool ReadConsoleOutputW(IntPtr handle, [Out] Cell[] cells, Coord size, Coord origin, ref Rect region);
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern bool WriteConsoleOutputW(IntPtr handle, Cell[] cells, Coord size, Coord origin, ref Rect region);
         static Cell[] covered; static Rect region; static Coord coveredSize; static IntPtr output;
-        static bool Paint(List<object> lines, int tailRows, int width) {
-            output = GetStdHandle(-11); Info info;
-            if (!GetConsoleScreenBufferInfo(output, out info)) return false;
-            int top = info.Cursor.Y + Math.Max(0, tailRows) + 1;
-            int height = Math.Min(lines.Count, info.Window.Bottom - top + 1);
-            width = Math.Min(width, info.Size.X-1);
-            if (height <= 0 || width <= 0) return false;
+        static Cell[] savedViewport; static Info paintedInfo;
+        static int paintedInputRow, paintedInputColumn, paintedInputLast;
+        struct Layout {
+            internal Info Info;
+            internal int First, Last, Above, Below, Width, Rows, InputRow, InputColumn;
+            internal int Available { get { return Math.Max(Above,Below); } }
+        }
+        static bool MeasureLayout(out Layout layout) {
+            layout=new Layout(); Info info;
+            if (!GetConsoleScreenBufferInfo(GetStdHandle(-11),out info)) return false;
+            layout.Info=info;
+            layout.Width=Math.Min(info.Size.X,info.Window.Right-info.Window.Left+1);
+            layout.Rows=info.Window.Bottom-info.Window.Top+1;
+            // Without verified editor bounds, legacy mode retains its safe
+            // downward placement and conservatively reserves the right text.
+            string line; int cursor; buffer(out line,out cursor);
+            layout.First=info.Window.Top;
+            int tailCells=0, tailRows=0;
+            for(int i=cursor;i<line.Length;i++) {
+                if(line[i]=='\n') { tailRows++; tailCells+=layout.Width; }
+                else tailCells+=2;
+            }
+            layout.Last=info.Cursor.Y+tailRows+(tailCells+Math.Max(1,layout.Width)-1)/Math.Max(1,layout.Width);
+            if (editorBufferBounds!=null) {
+                int[] bounds=editorBufferBounds();
+                layout.First=Math.Min(bounds[0],info.Cursor.Y);
+                layout.Last=Math.Max(bounds[1],info.Cursor.Y);
+                if(bounds.Length>=4) { layout.InputRow=bounds[2]; layout.InputColumn=bounds[3]; }
+            }
+            layout.Above=Math.Max(0,Math.Min(layout.Rows,layout.First-info.Window.Top));
+            layout.Below=Math.Max(0,Math.Min(layout.Rows,info.Window.Bottom-layout.Last));
+            return true;
+        }
+        static void AddGeometry(Dictionary<string,object> message) {
+            Layout layout;
+            if (!MeasureLayout(out layout)) return;
+            message["width"]=Math.Min(512,layout.Width); message["rows"]=Math.Min(512,layout.Rows);
+            message["available_rows"]=Math.Min(512,layout.Available);
+        }
+        static bool Paint(List<object> lines, Layout layout, int width) {
+            output = GetStdHandle(-11); Info info=layout.Info;
+            int height=lines.Count;
+            // Never clip a rendered page: that could hide the selected item.
+            if (height<=0 || height>layout.Available || width<=0 || width>=layout.Width) return false;
+            int top=layout.Below>=height ? layout.Last+1 : layout.First-height;
             // Preserve exactly the painted rectangle. Touching the last
             // column of every row would introduce soft wraps in ConPTY.
-            region = new Rect { Left=0, Right=(short)(width-1), Top=(short)top, Bottom=(short)(top+height-1) };
+            region = new Rect { Left=info.Window.Left, Right=(short)(info.Window.Left+width-1), Top=(short)top, Bottom=(short)(top+height-1) };
             coveredSize = new Coord(width, height); covered = new Cell[width*height];
             if (!ReadConsoleOutputW(output, covered, coveredSize, new Coord(0,0), ref region)) { covered=null; return false; }
+            // A resize reflows the overlay itself, so its old rectangle no
+            // longer identifies the covered cells. Retain the unpainted visible
+            // surface as well, to restore that surface before the next reflow.
+            var viewport=info.Window;
+            savedViewport=new Cell[layout.Width*layout.Rows];
+            if (!ReadConsoleOutputW(output,savedViewport,new Coord(layout.Width,layout.Rows),new Coord(0,0),ref viewport)) {
+                covered=null; savedViewport=null; return false;
+            }
+            paintedInfo=info;
+            paintedInputRow=layout.InputRow; paintedInputColumn=layout.InputColumn; paintedInputLast=layout.Last;
             try {
                 var outputText = new StringBuilder();
                 for (int i=0; i<height; i++) {
@@ -736,7 +839,7 @@ namespace Blueberry.Direct {
                     // feeds: never scroll the inherited console from an overlay.
                     outputText.Append(lines[i] as string).Append("\x1b[0m");
                 }
-                outputText.Append("\x1b[").Append(info.Cursor.Y-info.Window.Top+1).Append(';').Append(info.Cursor.X+1).Append('H');
+                outputText.Append("\x1b[").Append(info.Cursor.Y-info.Window.Top+1).Append(';').Append(info.Cursor.X-info.Window.Left+1).Append('H');
                 // Legacy ConPTY flushes its backing render buffer before OSC
                 // 1337 actions. This private, unknown action has no terminal
                 // effect or reply; it is a frame boundary after the real menu
@@ -749,8 +852,14 @@ namespace Blueberry.Direct {
         static void Clear() {
             if (covered == null) return;
             var cells = covered; covered = null;
+            var viewport=savedViewport; savedViewport=null;
             try {
                 Info current;
+                if (viewport!=null && GetConsoleScreenBufferInfo(output,out current)
+                    && (current.Size.X!=paintedInfo.Size.X || current.Window.Bottom-current.Window.Top!=paintedInfo.Window.Bottom-paintedInfo.Window.Top)) {
+                    RestoreResizedViewport(viewport,paintedInfo,current);
+                    return;
+                }
                 if (GetConsoleScreenBufferInfo(output, out current) && region.Top < current.Size.Y && region.Left < current.Size.X) {
                     var clipped=region;
                     clipped.Right=(short)Math.Min(clipped.Right,current.Size.X-1);
@@ -758,6 +867,60 @@ namespace Blueberry.Direct {
                     WriteConsoleOutputW(output, cells, coveredSize, new Coord(0,0), ref clipped);
                 }
             } catch { }
+        }
+        static void RestoreResizedViewport(Cell[] source, Info before, Info current) {
+            int oldWidth=before.Window.Right-before.Window.Left+1;
+            int oldHeight=before.Window.Bottom-before.Window.Top+1;
+            int width=current.Window.Right-current.Window.Left+1;
+            int height=current.Window.Bottom-current.Window.Top+1;
+            if(width<=0 || height<=0) return;
+            int cursorRow=before.Cursor.Y-before.Window.Top, cursorCol=before.Cursor.X-before.Window.Left;
+            int mappedRow=0, mappedCol=0;
+            int inputRow=paintedInputRow-before.Window.Top, inputColumn=paintedInputColumn-before.Window.Left;
+            int inputMappedRow=-1, inputMappedColumn=0, inputMappedLast=-1;
+            var rows=new List<Cell[]>();
+            for(int row=0;row<oldHeight;row++) {
+                int length=oldWidth;
+                while(length>0 && (source[row*oldWidth+length-1].Character==' ' || source[row*oldWidth+length-1].Character=='\0')
+                    && source[row*oldWidth+length-1].Attributes==before.Attributes) length--;
+                if(row==cursorRow) length=Math.Max(length,cursorCol+1);
+                if(row==inputRow) length=Math.Max(length,inputColumn+1);
+                int offset=0;
+                do {
+                    int count=Math.Min(width,length-offset);
+                    // Keep a wide console cell's lead/trail halves together.
+                    if(count>1 && offset+count<length && (source[row*oldWidth+offset+count-1].Attributes&0x100)!=0) count--;
+                    var line=new Cell[width];
+                    for(int x=0;x<width;x++) { line[x].Character=' '; line[x].Attributes=before.Attributes; }
+                    if(count>0) Array.Copy(source,row*oldWidth+offset,line,0,count);
+                    if(row==cursorRow && cursorCol>=offset && cursorCol<offset+Math.Max(1,count)) {
+                        mappedRow=rows.Count; mappedCol=cursorCol-offset;
+                    }
+                    if(row==inputRow && inputColumn>=offset && inputColumn<offset+Math.Max(1,count)) {
+                        inputMappedRow=rows.Count; inputMappedColumn=inputColumn-offset;
+                    }
+                    rows.Add(line); offset+=Math.Max(1,count);
+                } while(offset<length);
+                if(row==paintedInputLast-before.Window.Top) inputMappedLast=rows.Count-1;
+            }
+            int start=Math.Max(0,mappedRow-Math.Max(0,current.Cursor.Y-current.Window.Top));
+            var restored=new Cell[width*height];
+            for(int y=0;y<height;y++) {
+                if(start+y<rows.Count) Array.Copy(rows[start+y],0,restored,y*width,width);
+                else for(int x=0;x<width;x++) { restored[y*width+x].Character=' '; restored[y*width+x].Attributes=before.Attributes; }
+                if(restoreEditorLayout!=null && inputMappedRow>=0 && start+y>=inputMappedRow && start+y<=inputMappedLast) {
+                    int first=start+y==inputMappedRow ? inputMappedColumn : 0;
+                    for(int x=first;x<width;x++) { restored[y*width+x].Character=' '; restored[y*width+x].Attributes=before.Attributes; }
+                }
+            }
+            var window=current.Window;
+            if(WriteConsoleOutputW(output,restored,new Coord(width,height),new Coord(0,0),ref window)) {
+                SetConsoleCursorPosition(output,new Coord(current.Window.Left+Math.Min(width-1,mappedCol),
+                    current.Window.Top+Math.Min(height-1,Math.Max(0,mappedRow-start))));
+                if(restoreEditorLayout!=null && inputMappedRow>=0)
+                    restoreEditorLayout(current.Window.Top+inputMappedRow-start,current.Window.Left+inputMappedColumn);
+                Console.Write("\x1b]1337;BlueberryFrame\x07");
+            }
         }
     }
 
