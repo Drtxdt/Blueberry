@@ -48,6 +48,35 @@ fn capture_live_console(h: &mut Harness, path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
+fn wait_native_selected_path(
+    h: &mut Harness,
+    path: &std::path::Path,
+    name: &str,
+) -> Result<String> {
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    loop {
+        capture_live_console(h, path)?;
+        let native: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)?;
+        let screen = native["screen"]
+            .as_str()
+            .context("native viewport missing")?;
+        if screen
+            .lines()
+            .any(|row| row.contains('›') && row.contains(name))
+        {
+            return Ok(screen.to_owned());
+        }
+        // The VT observer can already contain a frame while a later async
+        // completion is clearing/repainting the native buffer. Observe the
+        // selected state in this buffer too, rather than sampling it once.
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "native selection never reached {name}: {screen}"
+        );
+        let _ = h.pump(Duration::from_millis(10));
+    }
+}
+
 fn wait_output_line(h: &mut Harness, expected: &str) -> Result<()> {
     let deadline = std::time::Instant::now() + TIMEOUT;
     while !h
@@ -1270,7 +1299,13 @@ fn direct_pending_path_navigation_yields_to_typing_and_discards_late_frames() ->
 
 #[test]
 fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    // Keep failed native snapshots and traces inside the uploaded CI evidence.
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let dir = tempfile::Builder::new()
+        .prefix("direct-multiline-")
+        .tempdir_in(evidence)?;
     path_fixture(dir.path())?;
     let suffix = " ; Write-Output 'RIGHT'";
     let expected = format!(
@@ -1313,11 +1348,7 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
         h.send(b"\x1b[17~")?;
         wait_selected_path(&mut h, "nav-00.txt")?;
         let snapshot = dir.path().join("native-screen.json");
-        capture_live_console(&mut h, &snapshot)?;
-        let native: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot)?)?;
-        let screen = native["screen"]
-            .as_str()
-            .context("native viewport missing")?;
+        let screen = wait_native_selected_path(&mut h, &snapshot, "nav-00.txt")?;
         let rows: Vec<_> = screen.lines().collect();
         let input = rows
             .iter()
@@ -1334,12 +1365,11 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
         h.resize(10, 60)?;
         h.send(b"\x1b[B")?;
         wait_selected_path(&mut h, "nav-01.txt")?;
-        capture_live_console(&mut h, &dir.path().join("native-resized.json"))?;
-        let resized: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(dir.path().join("native-resized.json"))?)?;
-        let resized_screen = resized["screen"]
-            .as_str()
-            .context("resized viewport missing")?;
+        let resized_screen = wait_native_selected_path(
+            &mut h,
+            &dir.path().join("native-resized.json"),
+            "nav-01.txt",
+        )?;
         ensure!(
             resized_screen.contains("HEAD") && resized_screen.contains("RIGHT"),
             "resize covered the input or its suffix: {resized_screen}"
