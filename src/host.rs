@@ -2539,6 +2539,26 @@ impl State {
     }
 }
 
+fn selection_after_refresh(
+    previous: &Completion,
+    selected: usize,
+    selection_touched: bool,
+    next: &Completion,
+) -> usize {
+    if !selection_touched {
+        return 0;
+    }
+    previous
+        .candidates
+        .get(selected)
+        .and_then(|candidate| {
+            next.candidates
+                .iter()
+                .position(|next| next.identity() == candidate.identity())
+        })
+        .unwrap_or(0)
+}
+
 pub fn run(options: RunOptions) -> Result<u32> {
     let trace = Trace::open(options.trace_path.as_deref())?;
     trace.event("host_start", None, None, None);
@@ -3038,19 +3058,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         );
                     }
                     ui_dirty |= state.completion != completion;
-                    let selected_label = state
-                        .completion
-                        .candidates
-                        .get(state.selected)
-                        .map(|candidate| candidate.identity().to_owned());
-                    state.selected = selected_label
-                        .and_then(|label| {
-                            completion
-                                .candidates
-                                .iter()
-                                .position(|candidate| candidate.identity() == label)
-                        })
-                        .unwrap_or(0);
+                    // Follow the best match while discovery is still filling
+                    // the list, but preserve a candidate explicitly navigated
+                    // to by the user. An incidental early fuzzy match must not
+                    // scroll a later exact match out of the visible page.
+                    state.selected = selection_after_refresh(
+                        &state.completion,
+                        state.selected,
+                        state.selection_touched,
+                        &completion,
+                    );
                     state.completion = completion;
                 }
                 HostEvent::Completion(revision, _, queued_at) => {
@@ -3328,6 +3345,31 @@ fn decode_context(line: &str, value: &Value) -> Option<InputContext> {
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
+    #[test]
+    fn asynchronous_discovery_only_preserves_explicit_selection() {
+        let completion = |labels: &[&str]| Completion {
+            candidates: labels
+                .iter()
+                .map(|label| Candidate {
+                    id: (*label).into(),
+                    label: (*label).into(),
+                    insert_text: (*label).into(),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let partial = completion(&["gcc-ar"]);
+        let full = completion(&["cargo", "cargo-clippy", "gcc-ar"]);
+        assert_eq!(selection_after_refresh(&partial, 0, false, &full), 0);
+        assert_eq!(selection_after_refresh(&partial, 0, true, &full), 2);
+        let removed = completion(&["cargo"]);
+        assert_eq!(selection_after_refresh(&full, 2, true, &removed), 0);
+        assert_eq!(
+            selection_after_refresh(&full, 2, true, &Completion::default()),
+            0
+        );
+    }
     #[test]
     fn default_host_and_explicit_compatibility_transport() {
         let (mode, transport) = resolve_host(None, None).unwrap();
