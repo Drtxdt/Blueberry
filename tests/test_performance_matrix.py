@@ -19,13 +19,18 @@ class MatrixTests(unittest.TestCase):
             probe.write_text('''
 $hash='A'*64
 if($args[0] -eq 'doctor') {
-    @{build=@{dirty=$false;private_editors=@{present=$true};conpty=@{sha256=$hash}}}|ConvertTo-Json -Depth 10
+    @{build=@{dirty=$false;commit=('C'*40);private_editors=@{patch='test';files=@(@{version='2.0.0';path='Microsoft.PowerShell.PSReadLine2.dll';sha256=$hash},@{version='2.4.5';path='Microsoft.PowerShell.PSReadLine.dll';sha256=$hash})};conpty=@{sha256=$hash}}}|ConvertTo-Json -Depth 10
     exit 0
 }
 $output=$args[[Array]::IndexOf($args,'--output')+1]
 $count=2
 $stats=@{samples=@(60,60);median=60;p95=60}
 $report=@{probe_conpty=@{mode='pinned';sha256=$hash};product_conpty=@{sha256=$hash}}
+$report.executable_sha256=(Get-FileHash $PSCommandPath).Hash
+$report.source_commit='C'*40
+$version=if($env:BLUEBERRY_TEST_PSREADLINE_MODULE -like '*200*') {'2.0.0'} else {'2.4.5'}
+$shellVersion=if($output -like '*ps7-245*') {'7.6.0'} else {'5.1.0'}
+$editor=@{mode='editor_hooks_v1';dll_sha256=$hash;patch='test';fallback_reason=$null}
 if($args[0] -eq 'product-probe') {
     $module=$env:BLUEBERRY_TEST_PSREADLINE_MODULE
     $dll=Join-Path (Split-Path $module) 'Microsoft.PowerShell.PSReadLine.dll'
@@ -34,10 +39,14 @@ if($args[0] -eq 'product-probe') {
     $report.plain_editors=@(@{dll_sha256=$actual},@{dll_sha256=$actual})
     $report.editor_eligible=$true
     $report.paired_first_input_delta=$stats
+    $report.editors=@($editor,$editor)
+    $report.psreadline_versions=@($version,$version)
+    $report.shell_versions=@($shellVersion,$shellVersion)
 } else {
     $report.transport_degraded=$false
+    $session=@{editors=@($editor);psreadline_versions=@($version);shell_versions=@($shellVersion)}
     $report.scenarios=@(foreach($name in @('root','git','cargo','js','path','fuzzy')) {
-        @{name=$name;acceptance=@{cache_miss=@{observed_samples=2;expected_samples=2;statistics=$stats;status='failed'};cache_hit=@{observed_samples=2;expected_samples=2;statistics=$stats;status='failed'}}}
+        @{name=$name;cache_miss=$session;cache_hit=$session;acceptance=@{cache_miss=@{observed_samples=2;expected_samples=2;statistics=$stats;status='failed'};cache_hit=@{observed_samples=2;expected_samples=2;statistics=$stats;status='failed'}}}
     })
 }
 CORRUPTION
@@ -77,11 +86,18 @@ $report|ConvertTo-Json -Depth 20|Set-Content -LiteralPath $output -Encoding utf8
 
     def test_invalid_identity_counts_and_statistics_are_fatal(self):
         for corrupt in ["$report.probe_conpty.sha256='B'*64",
+                        "$report.executable_sha256='B'*64", "$report.source_commit='D'*40",
                         "$stats.samples=@(60)", "$stats.median=1", "$stats.p95=[double]::NaN"]:
             with self.subTest(corrupt=corrupt):
                 result = self.run_matrix(corrupt=corrupt)
                 self.assertFalse(result['measurement_complete'])
                 self.assertEqual(len(result['results']), 1)
+
+    def test_wrong_hot_editor_is_not_a_valid_slow_sample(self):
+        result = self.run_matrix(corrupt="if($args[0] -eq 'beta-probe') { $editor.dll_sha256='B'*64 }")
+        self.assertFalse(result['measurement_complete'])
+        self.assertEqual(len(result['results']), 2)
+        self.assertIn('editor identity mismatch', result['gate_error'])
 
 
 if __name__ == '__main__':
