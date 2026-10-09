@@ -143,14 +143,53 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         }
         if let Some(path) = &session.metadata_path {
             ensure!(!path.exists(), "metadata file must be new");
-            let command = format!(
-                "[IO.File]::WriteAllText('{}',(@{{shell=$PSVersionTable.PSVersion.ToString();psreadline=(Get-Module PSReadLine).Version.ToString();dll=[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location;profiles=@($PROFILE.AllUsersAllHosts,$PROFILE.AllUsersCurrentHost,$PROFILE.CurrentUserAllHosts,$PROFILE.CurrentUserCurrentHost)}}|ConvertTo-Json -Compress)); Write-Output 'BB_COMPARATOR_META_DONE'\r",
+            let script = path.with_extension("query.ps1");
+            ensure!(!script.exists(), "metadata query must be new");
+            let source = format!(
+                "\u{feff}[IO.File]::WriteAllText('{}',(@{{shell=$PSVersionTable.PSVersion.ToString();psreadline=(Get-Module PSReadLine).Version.ToString();dll=[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location;profiles=@($PROFILE.AllUsersAllHosts,$PROFILE.AllUsersCurrentHost,$PROFILE.CurrentUserAllHosts,$PROFILE.CurrentUserCurrentHost)}}|ConvertTo-Json -Compress)); Write-Output 'BB_COMPARATOR_META_DONE'\r\n",
                 path.to_string_lossy().replace('\'', "''")
             );
+            fs::write(&script, source)?;
+            // Setup is outside timing. Keep its input short, and let an
+            // external comparator finish processing the command before
+            // submitting it. The metadata file remains the authority.
+            let command = format!("& '{}'", script.to_string_lossy().replace('\'', "''"));
             h.send_text(&command)?;
-            h.wait_line("BB_COMPARATOR_META_DONE", TIMEOUT)?;
-            wait(&mut h, prompt)?;
-            result["actual_shell"] = serde_json::from_slice(&fs::read(path)?)?;
+            let until = Instant::now() + Duration::from_millis(250);
+            while Instant::now() < until {
+                let _ = h.pump(Duration::from_millis(25));
+            }
+            if session.style == "inshellisense" && h.viewport_contents().contains('│') {
+                h.send(b"\x1b")?;
+                // A comparator can leave old menu cells in the viewport.
+                // Do not treat those pixels as an active-menu handshake.
+                let until = Instant::now() + Duration::from_millis(100);
+                while Instant::now() < until {
+                    let _ = h.pump(Duration::from_millis(25));
+                }
+            }
+            h.send_text("\r")?;
+            let deadline = Instant::now() + TIMEOUT;
+            loop {
+                if let Ok(bytes) = fs::read(path)
+                    && let Ok(metadata) = serde_json::from_slice::<Value>(&bytes)
+                {
+                    result["actual_shell"] = metadata;
+                    break;
+                }
+                ensure!(Instant::now() < deadline, "metadata query did not complete");
+                let _ = h.pump(Duration::from_millis(25));
+            }
+            // An external renderer can leave menu cells after output, so an
+            // exact marker *screen row* is not a reliable completion signal.
+            // The fresh metadata file proves execution; clear setup output
+            // before waiting for a clean prompt and beginning measured input.
+            h.send_text("Clear-Host\r")?;
+            wait(&mut h, |screen| {
+                prompt(screen)
+                    && !screen.contains("BB_COMPARATOR_META_DONE")
+                    && !screen.contains("actual-shell.query.ps1")
+            })?;
             let dll = result["actual_shell"]["dll"]
                 .as_str()
                 .context("loaded editor DLL path missing")?;
