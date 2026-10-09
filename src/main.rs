@@ -121,7 +121,7 @@ enum Command {
         /// Transport for the selected host (direct requires pipe).
         #[arg(long, value_enum)]
         transport: Option<host::Transport>,
-        /// Direct is experimental until its correctness and latency gates pass.
+        /// Windows defaults to direct (pipe); nested provides ConPTY compatibility.
         #[arg(long, value_enum)]
         host_mode: Option<host::HostMode>,
         /// Select a session-private PSReadLine baseline (direct host only).

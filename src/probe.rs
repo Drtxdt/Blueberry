@@ -271,6 +271,11 @@ impl Harness {
             }
         }
         self.send(b"exit\r")?;
+        self.wait_exit(deadline.saturating_duration_since(Instant::now()))
+    }
+    /// Wait for a standalone UI to exit without injecting a shell command.
+    pub fn wait_exit(&mut self, timeout: Duration) -> Result<()> {
+        let deadline = Instant::now() + timeout;
         loop {
             if let Some(status) = self.session.child.try_wait()? {
                 ensure!(

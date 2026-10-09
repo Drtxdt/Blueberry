@@ -176,6 +176,21 @@ fn restore_cursor(screen: &vt100::Screen, output: &mut impl Write) -> io::Result
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn resizing_through_a_wide_character_keeps_the_parser_writable() {
+        for alternate in [false, true] {
+            for width in 1..6 {
+                let mut parser = vt100::Parser::new(2, 6, 0);
+                if alternate {
+                    parser.process(b"\x1b[?1049h");
+                }
+                parser.process("中中中".as_bytes());
+                parser.screen_mut().set_size(2, width);
+                parser.process(format!("\x1b[1;{width}HX").as_bytes());
+                assert_eq!(parser.screen().cell(0, width - 1).unwrap().contents(), "X");
+            }
+        }
+    }
     use super::*;
     use crate::model::CandidateKind;
     #[test]
