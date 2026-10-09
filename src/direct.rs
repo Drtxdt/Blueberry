@@ -11,6 +11,43 @@ use std::{
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+// Native foreground programs enable processed console input. Ctrl+C then
+// broadcasts a control event to every attached process, including this
+// supervisor. The shell and foreground child must handle it, while the host
+// stays alive to preserve its pipe and the child Job. Register a callback,
+// not SetConsoleCtrlHandler(NULL, TRUE): the latter's ignore flag is inherited
+// and would prevent newly spawned programs from receiving Ctrl+C.
+struct ConsoleInterruptGuard;
+unsafe extern "system" fn handle_console_interrupt(event: u32) -> i32 {
+    use windows_sys::Win32::System::Console::{CTRL_BREAK_EVENT, CTRL_C_EVENT};
+    i32::from(matches!(event, CTRL_C_EVENT | CTRL_BREAK_EVENT))
+}
+impl ConsoleInterruptGuard {
+    fn install() -> Result<Self> {
+        let installed = unsafe {
+            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(
+                Some(handle_console_interrupt),
+                1,
+            )
+        };
+        if installed == 0 {
+            return Err(std::io::Error::last_os_error())
+                .context("protect direct console supervisor");
+        }
+        Ok(Self)
+    }
+}
+impl Drop for ConsoleInterruptGuard {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(
+                Some(handle_console_interrupt),
+                0,
+            );
+        }
+    }
+}
+
 fn command_batch_matches(
     value: &Value,
     session: Option<u64>,
@@ -505,6 +542,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         matches!(options.transport, Transport::Pipe),
         "direct host requires pipe transport; OSC is only supported by the nested host"
     );
+    let _interrupts = ConsoleInterruptGuard::install()?;
     let settings = config::load(options.config_path.as_deref())?;
     let trace = Trace::open(options.trace_path.as_deref())?;
     if trace.enabled() {

@@ -1066,6 +1066,91 @@ $global:BlueberryTestRegistration=[Microsoft.PowerShell.PSConsoleReadLine]::Regi
 }
 
 #[test]
+#[ignore = "native foreground child for the Ctrl+C lifecycle regression"]
+fn external_interrupt_helper() {
+    println!(
+        "BB-EXTERNAL-INTERRUPT-READY-{}",
+        std::env::var("BLUEBERRY_INTERRUPT_ROUND").unwrap()
+    );
+    std::thread::sleep(Duration::from_secs(60));
+}
+
+#[test]
+fn direct_ctrl_c_during_native_process_preserves_session_and_prompt() -> Result<()> {
+    check_native_interrupt(false)?;
+    check_native_interrupt(true)
+}
+
+fn check_native_interrupt(parent_shell: bool) -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut h = if parent_shell {
+        let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+        let shell = blueberry::pty::default_shell();
+        let quote = |path: &std::path::Path| path.to_string_lossy().replace('\'', "''");
+        let command = format!(
+            "& '{}' run --host-mode direct --no-profile --shell '{}' --data-dir '{}' --trace '{}'",
+            quote(&executable),
+            quote(&shell),
+            quote(dir.path()),
+            quote(&dir.path().join("trace.jsonl"))
+        );
+        let mut h = Harness::start(
+            &shell,
+            &[
+                "-NoLogo".into(),
+                "-NoProfile".into(),
+                "-NoExit".into(),
+                "-Command".into(),
+                command,
+            ],
+            dir.path(),
+            &BTreeMap::from([("BLUEBERRY_NO_HISTORY".into(), "1".into())]),
+            String::new(),
+        )?;
+        wait_editor_begin(&mut h, dir.path(), 1)?;
+        h
+    } else {
+        start(dir.path())?
+    };
+    let initialize = if let Some(starship) = std::env::var_os("BLUEBERRY_TEST_STARSHIP") {
+        format!(
+            "Invoke-Expression (& '{}' init powershell)",
+            starship.to_string_lossy().replace('\'', "''")
+        )
+    } else {
+        "function global:prompt { 'BB-PLUGIN-PROMPT> ' }".into()
+    };
+    h.send_text(&format!("$global:BBInterruptPid=$PID; {initialize}; $global:BBInterruptPrompt=(Get-Command prompt).ScriptBlock.ToString(); Write-Output 'BB-PLUGIN-READY'\r"))?;
+    wait_output_line(&mut h, "BB-PLUGIN-READY")?;
+    let helper = std::env::current_exe()?
+        .to_string_lossy()
+        .replace('\'', "''");
+    for iteration in 0..3 {
+        h.send_text(&format!("$env:BLUEBERRY_INTERRUPT_ROUND='{iteration}'; & '{helper}' external_interrupt_helper --exact --ignored --nocapture\r"))?;
+        h.wait_text(&format!("BB-EXTERNAL-INTERRUPT-READY-{iteration}"), TIMEOUT)?;
+        let begins = std::fs::read_to_string(dir.path().join("trace.jsonl"))?
+            .lines()
+            .filter(|line| line.contains("direct_readline_begin"))
+            .count();
+        h.send(b"\x03")?;
+        wait_editor_begin(&mut h, dir.path(), begins + 1)?;
+        let marker = format!("BB-SESSION-PRESERVED-{iteration}");
+        h.send_text(&format!("if ($global:BBInterruptPid -eq $PID -and (Get-Command prompt).ScriptBlock.ToString() -eq $global:BBInterruptPrompt) {{ Write-Output '{marker}' }}\r"))?;
+        wait_output_line(&mut h, &marker)?;
+    }
+    h.send(b"git sw")?;
+    h.wait_text("switch", TIMEOUT)?;
+    h.send(b"\x03")?;
+    if parent_shell {
+        h.send_text("exit\r")?;
+        wait_output_line(&mut h, &format!("PS {}>", dir.path().display()))?;
+    }
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_dismiss_external_program_and_ctrl_c_restore_shell() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let mut h = start(dir.path())?;
