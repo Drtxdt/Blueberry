@@ -97,4 +97,50 @@ mod tests {
         assert_eq!(state.refresh(Some(&next), 0, &mut changed), 0);
         assert!(!state.manual);
     }
+
+    #[test]
+    fn deterministic_reordered_refreshes_follow_the_same_policy() {
+        // Both hosts use this state machine. Exercise every order of three
+        // asynchronous arrivals, with and without explicit navigation.
+        for order in [
+            [0, 1, 2],
+            [0, 2, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [2, 0, 1],
+            [2, 1, 0],
+        ] {
+            for manual in [false, true] {
+                let mut state = SelectionState::default();
+                let mut previous = completion(&["a", "b", "c"], false);
+                let mut selected = if manual { 1 } else { 0 };
+                if manual {
+                    state.navigated();
+                }
+                let arrivals = [
+                    completion(&["c", "a", "b"], true),
+                    completion(&["a"], true),
+                    completion(&["b", "c", "a"], true),
+                ];
+                for index in order {
+                    let mut next = arrivals[index].clone();
+                    selected = state.refresh(Some(&previous), selected, &mut next);
+                    if manual {
+                        assert_eq!(next.candidates[selected].id, "b");
+                    } else {
+                        assert_eq!(selected, 0);
+                        assert_eq!(next.candidates, arrivals[index].candidates);
+                    }
+                    previous = next;
+                }
+                let mut empty = completion(&[], false);
+                assert_eq!(state.refresh(Some(&previous), selected, &mut empty), 0);
+                assert!(empty.candidates.is_empty());
+                assert!(!state.manual);
+                // Final disappearance restores automatic selection on refill.
+                let mut refill = completion(&["c", "b"], false);
+                assert_eq!(state.refresh(Some(&empty), 0, &mut refill), 0);
+            }
+        }
+    }
 }
