@@ -1090,7 +1090,7 @@ fn check_native_interrupt(parent_shell: bool) -> Result<()> {
         let shell = blueberry::pty::default_shell();
         let quote = |path: &std::path::Path| path.to_string_lossy().replace('\'', "''");
         let command = format!(
-            "& '{}' run --host-mode direct --no-profile --shell '{}' --data-dir '{}' --trace '{}'",
+            "function global:prompt {{ 'BB-PARENT-RESTORED> ' }}; & '{}' run --host-mode direct --no-profile --shell '{}' --data-dir '{}' --trace '{}'",
             quote(&executable),
             quote(&shell),
             quote(dir.path()),
@@ -1145,7 +1145,8 @@ fn check_native_interrupt(parent_shell: bool) -> Result<()> {
     h.send(b"\x03")?;
     if parent_shell {
         h.send_text("exit\r")?;
-        wait_output_line(&mut h, &format!("PS {}>", dir.path().display()))?;
+        // Windows may expand an 8.3 TEMP path in its stock prompt.
+        wait_output_line(&mut h, "BB-PARENT-RESTORED>")?;
     }
     h.finish(TIMEOUT)
 }
