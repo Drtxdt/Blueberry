@@ -14,7 +14,9 @@
 
 发布者需要先公开 GitHub Release，安装命令才能下载对应版本。
 
-`0.5.0` 尚在候选验收中；下面指定版本和本地包的示例供该版本发布后使用。当前进度见 [0.5.0 验收记录](v0.5.0-validation.md)。
+当前公开版为 `0.5.2`；`0.5.3` 候选单独验收，不能通过在线安装示例假定已公开。见 [0.5.3 验收记录](v0.5.3-validation.md)。
+
+Windows 默认 direct／pipe；`blueberry run --host-mode nested --transport osc` 或 `--transport pipe` 进入 ConPTY 兼容模式。支持矩阵为 PS5.1／PSReadLine 2.0.0、PS5.1／2.4.5、PS7／2.4.5；direct 使用随包提供的对应私有编辑器。
 
 若 PowerShell 提示“此系统上禁止运行脚本”，先运行 `Get-ExecutionPolicy -List` 查看策略。个人电脑可自行执行 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`，允许本地安装脚本和 profile 加载；组织管理的电脑请遵循管理员策略。安装程序保留现有执行策略。
 
@@ -22,7 +24,7 @@
 
 ```powershell
 $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1').TrimStart([char]0xFEFF)
-& ([scriptblock]::Create($installer)) -Version 0.5.0 -NoPrompt
+& ([scriptblock]::Create($installer)) -Version 0.5.2 -NoPrompt
 ```
 
 `-EnableStartup` 明确开启自动启动；`-NoPrompt` 跳过询问，默认关闭。`-InstallRoot` 可更改安装目录，`-ConfigRoot` 可更改首次配置写入目录；自定义配置目录启动时使用 `--config` 指定文件。
@@ -32,7 +34,7 @@ $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/insta
 从 Releases 下载 ZIP 及同名 `.sha256`，放入同一目录。解压 ZIP 可直接运行 `blueberry.exe`；纳入安装管理时执行：
 
 ```powershell
-.\install.ps1 -PackagePath C:\Downloads\blueberry-v0.5.0-windows-x64.zip
+.\install.ps1 -PackagePath C:\Downloads\blueberry-v0.5.2-windows-x64.zip
 ```
 
 ## 升级、回滚与卸载
@@ -42,8 +44,8 @@ $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/insta
 ```powershell
 blueberry upgrade --check
 blueberry upgrade
-blueberry upgrade --version 0.5.0
-blueberry upgrade --package C:\Downloads\blueberry-v0.5.0-windows-x64.zip
+blueberry upgrade --version 0.5.2
+blueberry upgrade --package C:\Downloads\blueberry-v0.5.2-windows-x64.zip
 blueberry rollback
 blueberry uninstall
 blueberry maintenance status
@@ -88,3 +90,7 @@ blueberry startup disable
 - 自动启动启用、关闭，以及退出 Blueberry 后继续使用 PowerShell。
 
 出现问题时附上 `blueberry doctor`、PowerShell/PSReadLine 版本及复现步骤。
+
+## 故障诊断与反馈
+
+先记录 `blueberry --version`、`blueberry doctor --json`、实际宿主模式、PowerShell／PSReadLine 和终端版本，再提供最短复现、预期与实际结果。诊断输出可能包含本机路径，分享前检查。通过仓库 Bug 模板提交；真实终端操作清单见 [当前候选验收](v0.5.3-validation.md)。

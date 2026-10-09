@@ -165,6 +165,7 @@ jobs:
           cd release-assets
           sha256sum --check "blueberry-$RELEASE_TAG-windows-x64.zip.sha256"
           cd ..
+          python3 release-evidence/scripts/materialize-release-artifacts.py "release-evidence/$EVIDENCE_PATH"
           python3 release-evidence/scripts/verify-release-evidence.py \
             "release-evidence/$EVIDENCE_PATH" \
             "release-assets/blueberry-$RELEASE_TAG-windows-x64.zip" \

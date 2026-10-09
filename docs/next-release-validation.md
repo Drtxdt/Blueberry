@@ -1,6 +1,8 @@
-# 下一版人工体验清单
+# 当前候选人工体验入口
 
-本轮按发布者要求只执行 `cargo build --release --locked`。以下交互项目留给 Windows Terminal 实测，检查结果应在下一次发版前记录。
+当前清单见 [0.5.3 候选验收](v0.5.3-validation.md)。以下为旧轮次遗留项目，不是本版通过记录，也不限制本版自动测试范围。
+
+旧轮次按发布者要求只执行 `cargo build --release --locked`。以下交互项目留给 Windows Terminal 实测，检查结果应在下一次发版前记录。
 
 - PowerShell 5.1 和 7 中切换 Conda、Mamba、uv 与虚拟环境，确认环境名和依赖候选更新。
 - 在 Python、Node、Rust、Go、.NET、CMake 项目中检查脚本、工作区、项目文件和预设。

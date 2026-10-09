@@ -11,6 +11,7 @@ param(
     [int]$StartupPairs = 10,
     [switch]$Formal,
     [switch]$Resume,
+    [switch]$ContinueOnGateFailure,
     [string]$ExpectedExecutableSha256,
     [string]$ExpectedProbeSha256
 )
@@ -27,7 +28,7 @@ if ($ExpectedProbeSha256 -and $probeHash -ine $ExpectedProbeSha256) { throw 'Pro
 $identity=& $Executable doctor --json | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or -not $identity.build.private_editors) { throw 'Missing private module build identity' }
 if (-not $identity.build.conpty) { throw 'Missing pinned ConPTY build identity' }
-if ($Formal -and $identity.build.dirty) { throw 'Formal qualification requires a clean CI candidate' }
+if ($Formal -and ($identity.build.dirty -or $identity.build.profile -ne 'release' -or $identity.build.commit -notmatch '^[0-9a-fA-F]{40}$')) { throw 'Formal qualification requires a clean release CI candidate' }
 if ($Formal -and ($env:BLUEBERRY_TEST_DISABLE_PREJIT -or $env:BLUEBERRY_TEST_FRAME_DELAY_MS -or $env:BLUEBERRY_DIRECT_TRACE)) { throw 'Formal qualification forbids diagnostic timing overrides.' }
 if ($Resume) {
     if ($Formal) { throw 'Formal batches cannot resume across an interruption; retain the interrupted batch and use a new directory.' }
@@ -41,6 +42,26 @@ if ($Resume) {
     $manifest=[ordered]@{ formal=$Formal.IsPresent; started_at_utc=[DateTime]::UtcNow.ToString('o'); executable_sha256=$exeHash; probe_sha256=$probeHash; build=$identity.build; samples=$Samples; startup_pairs=$StartupPairs; results=@() }
 }
 $saved=@{}
+$manifest['measurement_complete']=$false
+$manifest['automated_performance_passed']=$false
+$manifest['gate_errors']=@()
+function Record-GateFailure([string]$Message) {
+    $manifest['gate_errors']+=@($Message)
+    Save-State
+    if (-not $ContinueOnGateFailure) { throw $Message }
+}
+function Assert-Statistics($Statistics, [int]$Count, [string]$Label) {
+    $values=@($Statistics.samples)
+    if ($values.Count -ne $Count -or $Count -lt 1) { throw "$Label sample count mismatch" }
+    foreach ($value in @($values) + @($Statistics.median, $Statistics.p95)) {
+        if ($null -eq $value -or $value -is [string] -or $value -is [bool] -or [double]::IsNaN([double]$value) -or [double]::IsInfinity([double]$value)) { throw "$Label nonfinite or invalid sample" }
+    }
+    $ordered=@($values | ForEach-Object { [double]$_ } | Sort-Object)
+    $middle=[int][Math]::Floor($Count/2)
+    $median=if($Count%2) { $ordered[$middle] } else { ($ordered[$middle-1]+$ordered[$middle])/2 }
+    $p95=$ordered[[int][Math]::Ceiling($Count*0.95)-1]
+    if ($null -eq $Statistics.median -or $null -eq $Statistics.p95 -or [Math]::Abs([double]$Statistics.median-$median) -gt 0.0001 -or [Math]::Abs([double]$Statistics.p95-$p95) -gt 0.0001) { throw "$Label statistics disagree with raw samples" }
+}
 foreach($name in @('BLUEBERRY_NO_HISTORY','BLUEBERRY_TEST_PSREADLINE_MODULE','BLUEBERRY_BENCH_EVIDENCE')) { $saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process') }
 function Save-State {
     $manifest | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath (Join-Path $out 'matrix.json') -Encoding utf8
@@ -82,19 +103,34 @@ try {
         $originalHash=(Get-FileHash -LiteralPath (Join-Path $originalDirectory $dllName) -Algorithm SHA256).Hash
         $startup=Invoke-Probe ($name+'-startup') @('product-probe','--shell',$shell,'--iterations',"$StartupPairs",'--host-mode','direct')
         if(@($startup.plain_editors).Count -ne $StartupPairs -or @($startup.plain_editors | Where-Object { $_.dll_sha256 -ine $originalHash }).Count -gt 0) { throw "$name original DLL identity mismatch; version labels alone are insufficient." }
-        if(-not $startup.editor_eligible -or $startup.paired_first_input_delta.median -gt 50) { throw "$name startup gate failed; see retained evidence." }
+        if(-not $startup.editor_eligible) { throw "$name editor identity is ineligible" }
+        Assert-Statistics $startup.paired_first_input_delta $StartupPairs "$name startup"
+        if($startup.paired_first_input_delta.median -gt 50) { Record-GateFailure "$name startup gate failed; see retained evidence." }
         foreach($descriptions in @($true,$false)) {
             $arguments=@('beta-probe','--shell',$shell,'--samples',"$Samples",'--transport','pipe','--host-mode','direct')
             if(-not $descriptions) { $arguments+='--no-descriptions' }
             $hot=Invoke-Probe ($name+'-hot-descriptions-'+$descriptions.ToString().ToLowerInvariant()) $arguments
-            $failed=@($hot.scenarios | Where-Object { $_.acceptance.cache_miss.status -ne 'passed' -or $_.acceptance.cache_hit.status -ne 'passed' })
-            if($hot.transport_degraded -or $failed.Count -gt 0) { throw "$name hot gate failed; retain and attribute slow samples before proceeding." }
+            if($hot.transport_degraded) { throw "$name transport degraded" }
+            $scenarioNames=@($hot.scenarios | ForEach-Object { $_.name } | Sort-Object)
+            if(($scenarioNames -join ',') -ne 'cargo,fuzzy,git,js,path,root') { throw "$name scenario matrix incomplete" }
+            foreach($scenario in $hot.scenarios) {
+                foreach($cache in @('cache_miss','cache_hit')) {
+                    $acceptance=$scenario.acceptance.$cache
+                    if($acceptance.observed_samples -ne $Samples -or $acceptance.expected_samples -ne $Samples) { throw "$name observed samples incomplete" }
+                    Assert-Statistics $acceptance.statistics $Samples "$name/$($scenario.name)/$cache"
+                    if($acceptance.statistics.p95 -gt 20) {
+                        Record-GateFailure "$name descriptions=$descriptions $($scenario.name)/$cache P95 exceeds 20 ms"
+                    } elseif($Formal -and $acceptance.status -ne 'passed') { throw "$name inconsistent acceptance status" }
+                }
+            }
         }
     }
     if((Get-FileHash $Executable).Hash -ne $exeHash -or (Get-FileHash $Probe).Hash -ne $probeHash) { throw 'Artifact changed during measurement' }
-    $manifest['automated_performance_passed']=$true
+    $manifest['measurement_complete']=$true
+    $manifest['automated_performance_passed']=($manifest.gate_errors.Count -eq 0 -and $Formal.IsPresent)
     $manifest['completed_at_utc']=[DateTime]::UtcNow.ToString('o')
     Save-State
+    if($manifest.gate_errors.Count -gt 0) { throw "Measurement complete; $($manifest.gate_errors.Count) performance gates failed. See matrix.json." }
 } catch {
     $manifest['gate_error']=$_.Exception.Message
     $manifest['stopped_at_utc']=[DateTime]::UtcNow.ToString('o')

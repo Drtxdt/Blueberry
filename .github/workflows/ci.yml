@@ -12,11 +12,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
-      - run: python3 -m unittest discover -s tests -p test_release_evidence.py
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Reject new oversized benchmark artifacts
+        env:
+          BENCHMARK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
     name: Core / ${{ matrix.os }}
     strategy:
@@ -61,6 +67,7 @@ jobs:
         if: always() && runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: concurrent-store-windows
           path: target/store-evidence
           if-no-files-found: ignore
@@ -113,6 +120,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: psreadline-upstream-${{ matrix.psreadline }}
           path: |
             target/private-editor/upstream-tests/**/TestResults/**/*.trx
@@ -160,7 +168,7 @@ jobs:
       - name: Direct inherited-console regressions
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal --test tools_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
           cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
@@ -174,6 +182,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: nested-terminal-ps51-${{ matrix.psreadline }}
           path: |
             target/nested-terminal-evidence
@@ -246,7 +255,7 @@ jobs:
         if: matrix.transport == 'pipe'
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal --test tools_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
           cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
@@ -254,6 +263,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: nested-terminal-ps7-${{ matrix.transport }}
           path: |
             target/nested-terminal-evidence
@@ -313,6 +323,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: input-protocol-fixed-conpty
           path: target/input-protocol-evidence
           if-no-files-found: ignore
@@ -357,6 +368,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw '5.1 download selection tests failed' }
       - uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: blueberry-windows-x64
           path: |
             dist/ci/*.zip
