@@ -16,8 +16,25 @@
   "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
   "test_executable_sha256": "F3AC1429B4971F486D13163007C755A3C2045E3E862BBC14F5C36D1AA4C52A81",
   "automated_candidate_checks": "passed",
-  "manual_acceptance": "not_executed",
-  "manual_checks": [],
+  "manual_acceptance": "partial_passed",
+  "manual_checks": [
+    {
+      "date": "2026-10-10",
+      "source": "user_report",
+      "terminal": "Windows Terminal (version not provided)",
+      "shell": "Prior report: PowerShell 7.6.6; version not reconfirmed in this response",
+      "check": "above_menu_preserves_historical_prompt_without_resize",
+      "status": "passed",
+      "detail": "User confirmed historical colors and characters restore fully after Escape."
+    },
+    {
+      "date": "2026-10-10",
+      "source": "user_report",
+      "check": "foreground_ctrl_c_preserves_blueberry_and_starship",
+      "status": "passed",
+      "detail": "User confirmed Ctrl+C remains normal on this fixed candidate."
+    }
+  ],
   "external_trials": "not_executed",
   "formal_performance": "not_executed_for_this_candidate",
   "performance_progress": "docs/benchmarks/v0.5.3-performance-progress.json",
@@ -26,7 +43,7 @@
   "known_limitations": [
     "Full truecolor historical restoration during resize remains unresolved.",
     "Unidentified terminals and VS Code use legacy cell restoration.",
-    "Physical screen manual validation pending."
+    "Remaining manual checklist items and other editor combinations have not been executed."
   ],
   "prior_candidate_manual_results": "docs/benchmarks/v0.5.3-candidate-validation.json",
   "checks": [
