@@ -180,5 +180,50 @@
     "Formal independent resource batch",
     "Stage/allocation diagnosis and same-condition optimization remeasurement",
     "Physical screen visibility measurement (currently unmeasured)"
-  ]
+  ],
+  "current_candidate_progress": {
+    "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+    "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+    "probe_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+    "observed_at_utc": "2026-10-10T14:40:34.890957+00:00",
+    "pilot": {
+      "measurement_complete": true,
+      "formal": false,
+      "groups": 9,
+      "hot_samples_per_group": 3,
+      "startup_pairs": 2,
+      "gate_errors": [
+        "ps51-200 startup gate failed; see retained evidence."
+      ],
+      "raw": {
+        "path": "artifacts/v053-matrix-pilot-2fe57b9/matrix.json",
+        "sha256": "DC112AE96950677DE5CA5238E0FF4C53487712BA023309B227F8184EC2552652"
+      }
+    },
+    "formal_batch": {
+      "status": "in_progress",
+      "measurement_complete": false,
+      "configured_hot_samples_per_group": 300,
+      "configured_startup_pairs": 30,
+      "state_manifest": "artifacts/v053-formal-matrix-2fe57b9/matrix.json",
+      "startup_group": {
+        "profile": "ps51-200",
+        "pairs": 30,
+        "delta_p50_ms": 355.6137,
+        "delta_p95_ms": 782.8187999999998,
+        "gate_passed": false,
+        "terminal_restore_modes": [
+          "legacy_cells"
+        ],
+        "raw": {
+          "path": "artifacts/v053-formal-matrix-2fe57b9/ps51-200-startup.json",
+          "sha256": "F0A4BC86AC8C38AAE7FB6B4E96ECDF967AB0FCF7D859C8362E1FB98CE659190B"
+        }
+      }
+    },
+    "unmeasured": [
+      "Physical screen latency",
+      "Windows Terminal rich-page restoration path latency"
+    ]
+  }
 }

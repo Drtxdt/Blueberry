@@ -36,7 +36,7 @@
     }
   ],
   "external_trials": "not_executed",
-  "formal_performance": "not_executed_for_this_candidate",
+  "formal_performance": "in_progress_incomplete",
   "performance_progress": "docs/benchmarks/v0.5.3-performance-progress.json",
   "local_raw_location": "artifacts/v053-candidate-2fe57b9",
   "local_raw_uploaded": false,
