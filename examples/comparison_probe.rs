@@ -312,7 +312,9 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 "stale input before query"
             );
             let start = Instant::now();
-            h.send_text(&query.line)?;
+            // Use the same UTF-8 terminal input stream for every comparator.
+            // An external nested host may not preserve Win32 key envelopes.
+            h.send(query.line.as_bytes())?;
             let mut echo = None;
             let mut observations = Vec::new();
             let mut last_observed = None;
