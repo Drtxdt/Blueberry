@@ -99,6 +99,17 @@ $report|ConvertTo-Json -Depth 20|Set-Content -LiteralPath $output -Encoding utf8
         self.assertEqual(len(result['results']), 2)
         self.assertIn('editor identity mismatch', result['gate_error'])
 
+    def test_invalid_hot_latency_and_status_stop_collection(self):
+        for corrupt, message in [
+            ("$stats.samples=@(-1,-1); $stats.median=-1; $stats.p95=-1", 'negative hot latency'),
+            ("$report.scenarios[0].acceptance.cache_miss.status='passed'", 'inconsistent acceptance status'),
+        ]:
+            with self.subTest(corrupt=corrupt):
+                result = self.run_matrix(corrupt="if($args[0] -eq 'beta-probe') { " + corrupt + " }")
+                self.assertFalse(result['measurement_complete'])
+                self.assertEqual(len(result['results']), 2)
+                self.assertIn(message, result['gate_error'])
+
 
 if __name__ == '__main__':
     unittest.main()

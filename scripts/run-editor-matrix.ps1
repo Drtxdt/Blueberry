@@ -136,8 +136,10 @@ try {
                     $acceptance=$scenario.acceptance.$cache
                     if($acceptance.observed_samples -ne $Samples -or $acceptance.expected_samples -ne $Samples) { throw "$name observed samples incomplete" }
                     Assert-Statistics $acceptance.statistics $Samples "$name/$($scenario.name)/$cache"
+                    if (@($acceptance.statistics.samples | Where-Object { $_ -lt 0 }).Count) { throw "$name negative hot latency" }
                     if ($acceptance.status -notin @('passed','failed')) { throw "$name ineligible acceptance status" }
                     if($acceptance.statistics.p95 -gt 20) {
+                        if ($acceptance.status -eq 'passed') { throw "$name inconsistent acceptance status" }
                         Record-GateFailure "$name descriptions=$descriptions $($scenario.name)/$cache P95 exceeds 20 ms"
                     } elseif($Formal -and $acceptance.status -ne 'passed') { throw "$name inconsistent acceptance status" }
                 }
