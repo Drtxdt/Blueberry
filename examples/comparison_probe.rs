@@ -148,7 +148,35 @@ fn clear(h: &mut Harness, line: &str) -> Result<()> {
             && !screen.contains(line)
             && !screen.contains('│')
             && !screen.contains("Clear-Host")
-    })
+    })?;
+    settle_prompt(h)
+}
+fn settle_prompt(h: &mut Harness) -> Result<()> {
+    // A printed prompt can precede PSReadLine's cursor query and a nested
+    // renderer's final repaint. Establish readiness outside measured input.
+    let deadline = Instant::now() + TIMEOUT;
+    let mut last = h.last_output_arrival();
+    let mut quiet_since = Instant::now();
+    loop {
+        let _ = h.pump(Duration::from_millis(25));
+        let arrived = h.last_output_arrival();
+        if arrived != last {
+            last = arrived;
+            quiet_since = Instant::now();
+        }
+        let screen = h.viewport_contents();
+        if quiet_since.elapsed() >= Duration::from_millis(250)
+            && prompt(&screen)
+            && !screen.contains('│')
+            && !screen.contains("Clear-Host")
+        {
+            return Ok(());
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "prompt did not settle before measurement"
+        );
+    }
 }
 fn run(session: &Session, result: &mut Value) -> Result<()> {
     ensure!(
@@ -178,7 +206,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         let before = h.viewport_contents();
         let prefix = before.lines().last().unwrap_or("").trim_end().to_owned();
         let key_start = Instant::now();
-        h.send_text("g")?;
+        h.send(b"g")?;
         wait(&mut h, |screen| {
             screen.lines().any(|row| {
                 row.trim_end()
@@ -208,7 +236,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
             // external comparator finish processing the command before
             // submitting it. The metadata file remains the authority.
             let command = format!("& '{}'", script.to_string_lossy().replace('\'', "''"));
-            h.send_text(&command)?;
+            h.send(command.as_bytes())?;
             let until = Instant::now() + Duration::from_millis(250);
             while Instant::now() < until {
                 let _ = h.pump(Duration::from_millis(25));
@@ -222,7 +250,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                     let _ = h.pump(Duration::from_millis(25));
                 }
             }
-            h.send_text("\r")?;
+            h.send(b"\r")?;
             let deadline = Instant::now() + TIMEOUT;
             loop {
                 if let Ok(bytes) = fs::read(path)
@@ -238,12 +266,13 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
             // exact marker *screen row* is not a reliable completion signal.
             // The fresh metadata file proves execution; clear setup output
             // before waiting for a clean prompt and beginning measured input.
-            h.send_text("Clear-Host\r")?;
+            h.send(b"Clear-Host\r")?;
             wait(&mut h, |screen| {
                 prompt(screen)
                     && !screen.contains("BB_COMPARATOR_META_DONE")
                     && !screen.contains("actual-shell.query.ps1")
             })?;
+            settle_prompt(&mut h)?;
             let dll = result["actual_shell"]["dll"]
                 .as_str()
                 .context("loaded editor DLL path missing")?;
