@@ -21,6 +21,42 @@ def report():
 
 
 class ComparisonCollectorTests(unittest.TestCase):
+    def capability_probes(self, passed):
+        return [(Path(str(index)), {'passed': passed, 'queries': [{
+            'input_echo': 25.0, 'menu': 30.0 if passed else None,
+            'failed': not passed, 'elapsed_ms': 20001.0,
+        }]}) for index in range(3)]
+
+    def test_capability_timeout_requires_valid_input(self):
+        probes = self.capability_probes(False)
+        self.assertTrue(collector.capability_unavailable('js', probes))
+        for invalid in (None, float('nan'), -1, True):
+            with self.subTest(invalid=invalid):
+                probes[0][1]['queries'][0]['input_echo'] = invalid
+                with self.assertRaisesRegex(AssertionError, 'invalid input echo'):
+                    collector.capability_unavailable('js', probes)
+
+    def test_capability_success_requires_a_menu_observation(self):
+        probes = self.capability_probes(True)
+        self.assertFalse(collector.capability_unavailable('js', probes))
+        probes[0][1]['queries'][0]['menu'] = None
+        with self.assertRaisesRegex(AssertionError, 'invalid menu observation'):
+            collector.capability_unavailable('js', probes)
+
+    def test_capability_mixed_results_remain_a_failure(self):
+        probes = self.capability_probes(False)
+        probes[0] = self.capability_probes(True)[0]
+        with self.assertRaisesRegex(AssertionError, 'inconsistent capability'):
+            collector.capability_unavailable('js', probes)
+
+    def test_capability_short_or_failed_collection_is_not_absence(self):
+        probes = self.capability_probes(False)
+        with self.assertRaisesRegex(AssertionError, 'insufficient capability'):
+            collector.capability_unavailable('js', probes[:2])
+        probes[0][1]['queries'][0]['elapsed_ms'] = 100.0
+        with self.assertRaisesRegex(AssertionError, 'collection failure'):
+            collector.capability_unavailable('js', probes)
+
     def test_profile_creation_removal_and_edits_invalidate_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'profile.ps1'

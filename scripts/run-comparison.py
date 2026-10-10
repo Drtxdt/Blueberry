@@ -53,6 +53,27 @@ def stats(values):
 def rotate(index):
     return list(MODES[index % 4:] + MODES[:index % 4])
 
+def capability_unavailable(scenario, probes):
+    assert len(probes) == 3, f'{scenario}: insufficient capability probes'
+    outcomes = []
+    for path, value in probes:
+        queries = value.get('queries', [])
+        assert len(queries) == 1, f'{scenario}: invalid capability collection in {path}'
+        query = queries[0]
+        echo = query.get('input_echo')
+        assert type(echo) in (int, float) and math.isfinite(echo) and echo >= 0, f'{scenario}: invalid input echo in {path}; not a missing capability or slow sample'
+        passed = value.get('passed')
+        assert type(passed) is bool, f'{scenario}: missing capability outcome in {path}'
+        if passed:
+            menu = query.get('menu')
+            assert type(menu) in (int, float) and math.isfinite(menu) and menu >= 0, f'{scenario}: invalid menu observation in {path}'
+        else:
+            elapsed = query.get('elapsed_ms')
+            assert query.get('failed') is True and type(elapsed) in (int, float) and math.isfinite(elapsed) and elapsed >= 20000, f'{scenario}: collection failure in {path}; not a missing capability'
+        outcomes.append(passed)
+    assert all(outcomes) or not any(outcomes), f'{scenario}: inconsistent capability results'
+    return not any(outcomes)
+
 def summarize_measurements(report, startups, samples):
     assert set(report['modes']) == set(MODES), 'Incomplete comparison modes'
     for mode in MODES:
@@ -172,10 +193,8 @@ def run(options):
             for index in range(3):
                 path,value = session(f'capability/{scenario}-{index}','inshellisense',scenario,[query(scenario,index)],out/'data/capability',True)
                 probes.append((path,value))
-            if all(value['passed'] for _,value in probes):
+            if not capability_unavailable(scenario, probes):
                 continue
-            assert all(not value['passed'] and len(value['queries']) == 1 and value['queries'][0].get('elapsed_ms',0) >= 20000
-                       and value['queries'][0].get('input_echo') is not None for _,value in probes), f'{scenario}: inconsistent capability results'
             unavailable[scenario] = [dict(report=path.relative_to(out).as_posix(),sha256=sha(path),line=value['queries'][0]['line'],expected=value['queries'][0]['expected']) for path,value in probes]
         for index in range(options.startups):
             order = rotate(index)
