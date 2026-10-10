@@ -44,3 +44,17 @@ fn clipped_wide_rectangles_remain_safe_to_edit_and_resize() {
         assert_eq!(parser.screen().cell(0, 0).unwrap().contents(), "x");
     }
 }
+
+#[test]
+fn same_coordinate_shadow_copy_is_harmless_when_alternate_pages_alias() {
+    let mut parser = vt100::Parser::new(6, 30, 0);
+    parser.process(b"\x1b[?1049hHISTORY-ONE\x1b[4;1HHISTORY-FOUR\x1b[6;1HPROMPT> ");
+    let before = parser.screen().clone();
+    parser.process(b"\x1b[3;1;5;30;1;3;1;6$v\x1b[3;1;5;30;6;3;1;1$v");
+    assert_eq!(parser.screen().cursor_position(), before.cursor_position());
+    for row in 0..6 {
+        for col in 0..30 {
+            assert_eq!(parser.screen().cell(row, col), before.cell(row, col));
+        }
+    }
+}

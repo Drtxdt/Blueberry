@@ -873,8 +873,11 @@ namespace Blueberry.Direct {
                 var outputText = new StringBuilder();
                 // Keep rich terminal cells outside the legacy CHAR_INFO snapshot.
                 // Page 6 is invisible: DECCRA neither moves the cursor nor scrolls.
+                // Use identical coordinates: alternate screens alias all pages,
+                // so the copy must become a harmless no-op there.
                 if(terminalPages) outputText.Append("\x1b[").Append(top-info.Window.Top+1).Append(";1;")
-                    .Append(top+height-info.Window.Top).Append(';').Append(layout.Width).Append(";1;1;1;6$v");
+                    .Append(top+height-info.Window.Top).Append(';').Append(layout.Width).Append(";1;")
+                    .Append(top-info.Window.Top+1).Append(";1;6$v");
                 for (int i=0; i<height; i++) {
                     outputText.Append("\x1b[").Append(top+i-info.Window.Top+1).Append(";1H");
                     // Rust renderer emits sanitized text and SGR only. No line
@@ -909,7 +912,9 @@ namespace Blueberry.Direct {
                     WriteConsoleOutputW(output, cells, coveredSize, new Coord(0,0), ref clipped);
                     // The native console still needs its character snapshot for
                     // editor bounds. Restore the terminal's full attributes last.
-                    if(terminalPages) Console.Write("\x1b[1;1;"+coveredSize.Y+";"+(paintedInfo.Window.Right-paintedInfo.Window.Left+1)+";6;"+
+                    if(terminalPages && current.Window.Top==paintedInfo.Window.Top) Console.Write("\x1b["+
+                        (region.Top-paintedInfo.Window.Top+1)+";1;"+(region.Bottom-paintedInfo.Window.Top+1)+";"+
+                        (paintedInfo.Window.Right-paintedInfo.Window.Left+1)+";6;"+
                         (region.Top-current.Window.Top+1)+";1;1$v\x1b]1337;BlueberryFrame\x07");
                 }
             } catch { }
