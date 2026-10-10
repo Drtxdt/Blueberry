@@ -185,7 +185,7 @@
     "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
     "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
     "probe_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
-    "observed_at_utc": "2026-10-10T14:40:34.890957+00:00",
+    "observed_at_utc": "2026-10-10T15:05:54.497843+00:00",
     "pilot": {
       "measurement_complete": true,
       "formal": false,
@@ -219,11 +219,33 @@
           "path": "artifacts/v053-formal-matrix-2fe57b9/ps51-200-startup.json",
           "sha256": "F0A4BC86AC8C38AAE7FB6B4E96ECDF967AB0FCF7D859C8362E1FB98CE659190B"
         }
+      },
+      "completed_hot_group_set": {
+        "profile": "ps51-200",
+        "descriptions": true,
+        "groups": 12,
+        "samples_each": 300,
+        "maximum_p95_ms": 9.921299999999999,
+        "gates_passed": true,
+        "raw": {
+          "path": "artifacts/v053-formal-matrix-2fe57b9/ps51-200-hot-descriptions-true.json",
+          "sha256": "E6B9E32E7AEC789D6BDE4FF35706C0A8EB1C4E0CB8F796B9A6BC1730D30BB24A"
+        }
       }
     },
     "unmeasured": [
       "Physical screen latency",
       "Windows Terminal rich-page restoration path latency"
-    ]
+    ],
+    "resource_batch": {
+      "status": "queued_after_latency_matrix",
+      "scope": "ps7-245, four modes",
+      "measurement_complete": false,
+      "manifest_path": "artifacts/v053-resource-formal-2fe57b9-ps7-245/resources-manifest.json",
+      "probe_sha256": "5D4434BBC8732A16EFDA73B71292045E761362944998733B6F9446B779CD6D6C",
+      "worker_sha256": "B14BEB0DC19620114BD445A1EF0F9A4E8979F87FBBC94B0EEFCC01338A313CA7",
+      "worker_path": "artifacts/v053-validation/resources-after-matrix.py",
+      "other_editor_combinations": "not_executed"
+    }
   }
 }
