@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "kind": "candidate-validation",
+  "date": "2026-10-10",
+  "source_commit": "793c4581a08120c3d64d177ef9aa812656e25ecf",
+  "ci": {
+    "repository": "Drtxdt/Blueberry",
+    "run_id": 37880865721,
+    "attempt": 2,
+    "artifact_id": 11668777209,
+    "artifact_sha256": "B1B1132B7B1A7AF0591D2B23E60D27FEB4780C83304370B4850FD0EF9DC13462"
+  },
+  "package_sha256": "04D608046CC55FAE96C96FBDA5FFD73425C22E7580D9391FB5EA4A9D3ECBA348",
+  "executable_sha256": "B9EE662F4AB53D4C6DCC445293D911872699DB751F24228C14F641B4941993FE",
+  "automated_candidate_checks": "passed",
+  "manual_acceptance": "not_executed",
+  "external_trials": "not_executed",
+  "formal_performance": "not_executed",
+  "local_raw_location": "artifacts/v053-candidate-793c458",
+  "local_raw_uploaded": false,
+  "files": [
+    {
+      "path": "ctrl-c-ps51-200.log",
+      "sha256": "8829A9FE1648924B8D45E2610455B9747F0F45F33B1B68DF757D0A2EE9FC3ABA",
+      "size": 427
+    },
+    {
+      "path": "ctrl-c-ps51-245.log",
+      "sha256": "4D1B218642ABAF28AE85D9D368AB21C063BC1C70E5089847E7767074DD4FFE63",
+      "size": 427
+    },
+    {
+      "path": "ctrl-c-ps7-245.log",
+      "sha256": "D944E6273CAF404003FB7BC8336401C6ADB6738CFD94BC7C9225995A77A028E6",
+      "size": 427
+    },
+    {
+      "path": "upgrade-rollback.log",
+      "sha256": "C6A79B54DA8AAEAB0214B3B01BAFECBBABC15A4375F763907BFDC7092755B9EF",
+      "size": 11274
+    },
+    {
+      "path": "maintenance.log",
+      "sha256": "A179494DB18B89BF5141C7B27A053B06C6ECFEF6949D146922E835464F57C567",
+      "size": 2122
+    },
+    {
+      "path": "doctor.json",
+      "sha256": "7A25867CAA88DDA673A5FB82EBE043DDCDCAC90E943C641BA6997722B3FDD3FB",
+      "size": 32445
+    }
+  ]
+}
