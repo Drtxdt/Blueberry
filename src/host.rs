@@ -993,7 +993,7 @@ struct State {
     cursor: usize,
     completion: Completion,
     selected: usize,
-    selection_touched: bool,
+    selection: crate::selection::SelectionState,
     dismissed: bool,
     indexed: bool,
     environment: Option<(String, String)>,
@@ -1204,7 +1204,7 @@ impl State {
         self.revision += 1;
         self.completion = Completion::default();
         self.selected = 0;
-        self.selection_touched = false;
+        self.selection.reset();
         self.menu_focus = false;
         self.details = false;
         self.native_menu = false;
@@ -2349,7 +2349,7 @@ impl State {
                 return self.accept(writer);
             }
             Input::Previous if visible => {
-                self.selection_touched = true;
+                self.selection.navigated();
                 self.detail_page = 0;
                 self.selected = self
                     .selected
@@ -2359,7 +2359,7 @@ impl State {
             }
             Input::BackTab if visible => {
                 self.menu_focus = true;
-                self.selection_touched = true;
+                self.selection.navigated();
                 self.detail_page = 0;
                 self.selected = self
                     .selected
@@ -2369,7 +2369,7 @@ impl State {
             }
             Input::Next if visible => {
                 self.menu_focus = true;
-                self.selection_touched = true;
+                self.selection.navigated();
                 self.detail_page = 0;
                 self.selected = (self.selected + 1) % self.completion.candidates.len();
                 return Ok(());
@@ -2539,24 +2539,18 @@ impl State {
     }
 }
 
+#[cfg(test)]
 fn selection_after_refresh(
     previous: &Completion,
     selected: usize,
     selection_touched: bool,
     next: &Completion,
 ) -> usize {
-    if !selection_touched {
-        return 0;
+    let mut state = crate::selection::SelectionState::default();
+    if selection_touched {
+        state.navigated();
     }
-    previous
-        .candidates
-        .get(selected)
-        .and_then(|candidate| {
-            next.candidates
-                .iter()
-                .position(|next| next.identity() == candidate.identity())
-        })
-        .unwrap_or(0)
+    state.refresh(Some(previous), selected, &mut next.clone())
 }
 
 pub fn run(options: RunOptions) -> Result<u32> {
@@ -2821,7 +2815,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         cursor: 0,
         completion: Completion::default(),
         selected: 0,
-        selection_touched: false,
+        selection: Default::default(),
         dismissed: false,
         indexed: false,
         environment: None,
@@ -3062,11 +3056,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     // the list, but preserve a candidate explicitly navigated
                     // to by the user. An incidental early fuzzy match must not
                     // scroll a later exact match out of the visible page.
-                    state.selected = selection_after_refresh(
-                        &state.completion,
+                    state.selected = state.selection.refresh(
+                        Some(&state.completion),
                         state.selected,
-                        state.selection_touched,
-                        &completion,
+                        &mut completion,
                     );
                     state.completion = completion;
                 }

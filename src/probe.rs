@@ -196,6 +196,9 @@ impl Harness {
     pub fn contents(&self) -> String {
         self.screen.screen().contents()
     }
+    pub fn screen_snapshot(&self) -> vt100::Screen {
+        self.screen.screen().clone()
+    }
     /// Arrival of the bytes that most recently changed the VT observation.
     /// This excludes test-thread scheduling and is not a physical pixel time.
     pub fn last_output_arrival(&self) -> Option<Instant> {
@@ -271,6 +274,11 @@ impl Harness {
             }
         }
         self.send(b"exit\r")?;
+        self.wait_exit(deadline.saturating_duration_since(Instant::now()))
+    }
+    /// Wait for a standalone UI to exit without injecting a shell command.
+    pub fn wait_exit(&mut self, timeout: Duration) -> Result<()> {
+        let deadline = Instant::now() + timeout;
         loop {
             if let Some(status) = self.session.child.try_wait()? {
                 ensure!(

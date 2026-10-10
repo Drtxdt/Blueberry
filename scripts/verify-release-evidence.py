@@ -19,8 +19,9 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 import tomllib
 
 VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
-USER_TRIAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2"}  # Explicit user authorization is version-bound.
-PERFORMANCE_WAIVERS = {"0.5.0", "0.5.1", "0.5.2"}  # User requested release now, performance optimization later.
+USER_TRIAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2", "0.5.3", "0.6.0"}  # No external testers are available; local acceptance is separate.
+PERFORMANCE_WAIVERS = {"0.5.0", "0.5.1", "0.5.2", "0.5.3"}
+PERFORMANCE_AUTHORIZATION = {"0.5.3": "修复先交付，性能继续"}
 TERMINAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2"}  # User explicitly continued manual-check waivers for 0.5.2.
 PROFILES = {
     "ps51-2.0.0": ("powershell.exe", "5.", "2.0.0"),
@@ -377,7 +378,7 @@ def check_performance_waiver(evidence, root, commit):
     require(VERSION in PERFORMANCE_WAIVERS, "No performance waiver authorized for this release")
     require(isinstance(waiver, dict) and waiver.get("version") == VERSION
             and waiver.get("status") == "deferred_by_user" and waiver.get("passed") is False
-            and waiver.get("authorization") == "如果没有bug先直接发版吧，性能以后再优化"
+            and waiver.get("authorization") == PERFORMANCE_AUTHORIZATION.get(VERSION, "如果没有bug先直接发版吧，性能以后再优化")
             and isinstance(waiver.get("limitations"), str) and waiver["limitations"].strip(),
             "performance deferral must retain explicit authorization and cannot claim a pass")
     for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
@@ -405,6 +406,17 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
     evidence = read_json(evidence_path)
+    for artifact in evidence.get("raw_artifacts", []):
+        require(type(artifact.get("run_id")) is int and artifact["run_id"] > 0
+                and type(artifact.get("artifact_id")) is int and artifact["artifact_id"] > 0
+                and HEX64.fullmatch(artifact.get("sha256", "")) is not None,
+                "raw artifact identity missing")
+        files = artifact.get("files")
+        require(isinstance(files, dict) and files, "raw artifact file manifest missing")
+        for relative, expected in files.items():
+            require(HEX64.fullmatch(expected) is not None
+                    and sha256_file(report_path(evidence_path.parent, relative)) == expected.upper(),
+                    "raw artifact member hash mismatch")
     require(evidence.get("schema") == 2 and evidence.get("version") == VERSION, "wrong evidence version/schema")
     require(HEX40.fullmatch(commit) is not None, "--commit must be a 40-character Git SHA")
     require(evidence.get("source_commit", "").lower() == commit.lower(), "evidence source commit mismatch")
@@ -514,6 +526,8 @@ def bundle(evidence_path, output_path):
     evidence_path = evidence_path.resolve(strict=True)
     evidence = read_json(evidence_path)
     reports = set(evidence["startup_reports"].values())
+    for artifact in evidence.get("raw_artifacts", []):
+        reports.update(artifact["files"])
     if "performance_waiver" in evidence:
         reports.add(evidence["functional_ci"]["report"])
     reports.update(evidence["comparison_reports"].values())

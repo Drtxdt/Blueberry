@@ -1,0 +1,251 @@
+{
+  "schema": 1,
+  "kind": "incomplete-performance-progress",
+  "date": "2026-10-10",
+  "source_commit": "793c4581a08120c3d64d177ef9aa812656e25ecf",
+  "executable_sha256": "B9EE662F4AB53D4C6DCC445293D911872699DB751F24228C14F641B4941993FE",
+  "measurement_complete": false,
+  "formal_performance_passed": false,
+  "raw_storage": {
+    "location": "local ignored artifacts directory",
+    "uploaded": false
+  },
+  "interrupted_matrix": {
+    "status": "interrupted_incomplete",
+    "resume_allowed": false,
+    "reason": "Investigate historical menu corruption; changed product/probe requires a fresh batch.",
+    "startup_group": {
+      "profile": "ps51-200",
+      "pairs": 30,
+      "delta_p50_ms": 352.14675,
+      "delta_p95_ms": 1516.4877000000001,
+      "gate_p50_ms": 50,
+      "gate_passed": false,
+      "trace": "disabled",
+      "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+      "raw": {
+        "path": "artifacts/v053-formal-matrix-793c458/ps51-200-startup.json",
+        "sha256": "A4A77B1D21964BB4C724D0186BFA09340A8B0B54229E2A377C57CE3F841AD47E",
+        "bytes": 35956
+      }
+    }
+  },
+  "resource_pilot": {
+    "formal": false,
+    "purpose": "validate independent process-tree collection",
+    "modes": {
+      "plain": {
+        "collection_passed": true,
+        "raw": [
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/plain/session.json",
+            "sha256": "994B38C58ADC113F4B1F8777F86B9E2718A5648CB9E7BE4EC36A26EA65245FE3",
+            "bytes": 4430
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/plain/result.json",
+            "sha256": "2B1B5FD34E73EDAE40BFDA8D802A94E0381B791FAAE9030F4F2F27CD9BC705CF",
+            "bytes": 12074
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/plain/resources.json",
+            "sha256": "60E01633F7F510F4B5AD2374B228673F34A0AF51023378A0463940EF0DF4AC61",
+            "bytes": 9086
+          }
+        ]
+      },
+      "candidate": {
+        "collection_passed": true,
+        "raw": [
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/candidate/session.json",
+            "sha256": "F826FCC31DE40A6D0CD31580052EBB07713152B80C0664FA08B19788E95AE65C",
+            "bytes": 4665
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/candidate/result.json",
+            "sha256": "13A21D91C9C971A641372006515B693AAF0A209F1F41AD6106B748E5498811D8",
+            "bytes": 20340
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/candidate/resources.json",
+            "sha256": "AFBC4B600F2411E22DB30E4056DB1A14F6945FCF17EDA33BF41D8091590E0C8F",
+            "bytes": 15538
+          }
+        ]
+      },
+      "beta6": {
+        "collection_passed": true,
+        "raw": [
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/beta6/session.json",
+            "sha256": "E17EC3039540B7FDB14FAE08101D4359659B567FDF8CFDA3970978E2B0EF303C",
+            "bytes": 4609
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/beta6/result.json",
+            "sha256": "08ADFB983CCF68951811437B65D9C4E88A4178A4ACC509EE80F7B970E0267C1B",
+            "bytes": 24127
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/beta6/resources.json",
+            "sha256": "12A5F7AAFD91660D767F5B0224A954960065D971087014AE6ADD1DE57CA072D2",
+            "bytes": 18681
+          }
+        ]
+      },
+      "inshellisense": {
+        "collection_passed": true,
+        "raw": [
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/inshellisense/session.json",
+            "sha256": "F78FC4AB4F29D364096655AE1398A23EA83FEA1D5BAC30CCBCA0B203C06BF595",
+            "bytes": 4370
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/inshellisense/result.json",
+            "sha256": "C16E5D7BC1EF36C018F5E7FA8C61D6BD90F6D99DBB7F8D50C608A5D3194EBBC0",
+            "bytes": 22549
+          },
+          {
+            "path": "artifacts/v053-resource-pilot-793c458/inshellisense/resources.json",
+            "sha256": "5235CCCCE989FED790E32C0ECC409B263BDCD018CEA67FEB8C9A28AE2C68D1AC",
+            "bytes": 19172
+          }
+        ]
+      }
+    }
+  },
+  "latency_pilots": [
+    {
+      "name": "v053-comparison-pilot-settled-793c458",
+      "measurement_complete": false,
+      "error": "js: inconsistent capability results",
+      "note": "Invalid/inconsistent capability collection, not a slow sample or zero-latency missing feature.",
+      "raw": {
+        "path": "artifacts/v053-comparison-pilot-settled-793c458/comparison.json",
+        "sha256": "06D0107CEA38E6DE73721F07F263B73E13FF3F4404108C78F527A31A2F6E542F",
+        "bytes": 211538
+      },
+      "js_probe_records": [
+        {
+          "path": "artifacts/v053-comparison-pilot-settled-793c458/capability/js-0/result.json",
+          "sha256": "A71944B5E399058D201089920008CE8E82828126A5F9CB04A3F24CF50ABFD85E",
+          "bytes": 20278
+        },
+        {
+          "path": "artifacts/v053-comparison-pilot-settled-793c458/capability/js-1/result.json",
+          "sha256": "30E76B51121BD0ABDA99FED7B290539F8231FC8E1F45ED32F9A9BCF0B69C69F8",
+          "bytes": 21368
+        },
+        {
+          "path": "artifacts/v053-comparison-pilot-settled-793c458/capability/js-2/result.json",
+          "sha256": "93515F79D4D0A898D1580912A02F71A963AFA4EAF7C5D2ED09D67DC699E698D9",
+          "bytes": 24629
+        }
+      ]
+    },
+    {
+      "name": "v053-comparison-pilot-ascii-793c458",
+      "measurement_complete": false,
+      "error": "js: inconsistent capability results",
+      "note": "Invalid/inconsistent capability collection, not a slow sample or zero-latency missing feature.",
+      "raw": {
+        "path": "artifacts/v053-comparison-pilot-ascii-793c458/comparison.json",
+        "sha256": "72140119FA63BB7A73FC277A15F23C94178DA5EAE937993247881CEFEF7F13E0",
+        "bytes": 212458
+      },
+      "js_probe_records": [
+        {
+          "path": "artifacts/v053-comparison-pilot-ascii-793c458/capability/js-0/result.json",
+          "sha256": "EE79BEAC9B790BEF6134E799302EF42DFF625E813D62F53C2C0D8740325B0990",
+          "bytes": 12924
+        },
+        {
+          "path": "artifacts/v053-comparison-pilot-ascii-793c458/capability/js-1/result.json",
+          "sha256": "4CC6819990C537D65A74D0D09766D4F417C72699AB631760D5D6CF24AEA5C2DB",
+          "bytes": 15494
+        },
+        {
+          "path": "artifacts/v053-comparison-pilot-ascii-793c458/capability/js-2/result.json",
+          "sha256": "530220EC3E07A77F2BBFFF102F2570F4F54113C43A27459C3EB72F416D0F008E",
+          "bytes": 18095
+        }
+      ]
+    }
+  ],
+  "remaining": [
+    "Complete formal three-editor startup and hot matrices",
+    "Valid four-way comparison",
+    "Formal independent resource batch",
+    "Stage/allocation diagnosis and same-condition optimization remeasurement",
+    "Physical screen visibility measurement (currently unmeasured)"
+  ],
+  "current_candidate_progress": {
+    "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+    "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+    "probe_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+    "observed_at_utc": "2026-10-10T15:05:54.497843+00:00",
+    "pilot": {
+      "measurement_complete": true,
+      "formal": false,
+      "groups": 9,
+      "hot_samples_per_group": 3,
+      "startup_pairs": 2,
+      "gate_errors": [
+        "ps51-200 startup gate failed; see retained evidence."
+      ],
+      "raw": {
+        "path": "artifacts/v053-matrix-pilot-2fe57b9/matrix.json",
+        "sha256": "DC112AE96950677DE5CA5238E0FF4C53487712BA023309B227F8184EC2552652"
+      }
+    },
+    "formal_batch": {
+      "status": "in_progress",
+      "measurement_complete": false,
+      "configured_hot_samples_per_group": 300,
+      "configured_startup_pairs": 30,
+      "state_manifest": "artifacts/v053-formal-matrix-2fe57b9/matrix.json",
+      "startup_group": {
+        "profile": "ps51-200",
+        "pairs": 30,
+        "delta_p50_ms": 355.6137,
+        "delta_p95_ms": 782.8187999999998,
+        "gate_passed": false,
+        "terminal_restore_modes": [
+          "legacy_cells"
+        ],
+        "raw": {
+          "path": "artifacts/v053-formal-matrix-2fe57b9/ps51-200-startup.json",
+          "sha256": "F0A4BC86AC8C38AAE7FB6B4E96ECDF967AB0FCF7D859C8362E1FB98CE659190B"
+        }
+      },
+      "completed_hot_group_set": {
+        "profile": "ps51-200",
+        "descriptions": true,
+        "groups": 12,
+        "samples_each": 300,
+        "maximum_p95_ms": 9.921299999999999,
+        "gates_passed": true,
+        "raw": {
+          "path": "artifacts/v053-formal-matrix-2fe57b9/ps51-200-hot-descriptions-true.json",
+          "sha256": "E6B9E32E7AEC789D6BDE4FF35706C0A8EB1C4E0CB8F796B9A6BC1730D30BB24A"
+        }
+      }
+    },
+    "unmeasured": [
+      "Physical screen latency",
+      "Windows Terminal rich-page restoration path latency"
+    ],
+    "resource_batch": {
+      "status": "queued_after_latency_matrix",
+      "scope": "ps7-245, four modes",
+      "measurement_complete": false,
+      "manifest_path": "artifacts/v053-resource-formal-2fe57b9-ps7-245/resources-manifest.json",
+      "probe_sha256": "5D4434BBC8732A16EFDA73B71292045E761362944998733B6F9446B779CD6D6C",
+      "worker_sha256": "B14BEB0DC19620114BD445A1EF0F9A4E8979F87FBBC94B0EEFCC01338A313CA7",
+      "worker_path": "artifacts/v053-validation/resources-after-matrix.py",
+      "other_editor_combinations": "not_executed"
+    }
+  }
+}

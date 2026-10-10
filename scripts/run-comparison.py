@@ -32,7 +32,11 @@ def write(path, value):
     Path(path).write_text(json.dumps(value, indent=2, ensure_ascii=False), encoding='utf-8')
 
 def sha(path):
-    return hashlib.file_digest(Path(path).open('rb'), 'sha256').hexdigest().upper()
+    with Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest().upper()
+
+def profiles_unchanged(profiles):
+    return all((sha(item['path']) if Path(item['path']).exists() else None) == item['sha256'] for item in profiles)
 
 def inventory(paths):
     files = set()
@@ -42,11 +46,53 @@ def inventory(paths):
     return [dict(path=str(path), sha256=sha(path)) for path in sorted(files)]
 
 def stats(values):
+    assert values and all(type(value) in (int, float) and math.isfinite(value) and value >= 0 for value in values), 'Invalid latency samples'
     ordered = sorted(values)
     return dict(samples=values, median=statistics.median(values), p95=ordered[max(0, math.ceil(len(values)*.95)-1)], unit='ms')
 
 def rotate(index):
     return list(MODES[index % 4:] + MODES[:index % 4])
+
+def capability_unavailable(scenario, probes):
+    assert len(probes) == 3, f'{scenario}: insufficient capability probes'
+    outcomes = []
+    for path, value in probes:
+        queries = value.get('queries', [])
+        assert len(queries) == 1, f'{scenario}: invalid capability collection in {path}'
+        query = queries[0]
+        echo = query.get('input_echo')
+        assert type(echo) in (int, float) and math.isfinite(echo) and echo >= 0, f'{scenario}: invalid input echo in {path}; not a missing capability or slow sample'
+        passed = value.get('passed')
+        assert type(passed) is bool, f'{scenario}: missing capability outcome in {path}'
+        if passed:
+            menu = query.get('menu')
+            assert type(menu) in (int, float) and math.isfinite(menu) and menu >= 0, f'{scenario}: invalid menu observation in {path}'
+        else:
+            elapsed = query.get('elapsed_ms')
+            assert query.get('failed') is True and type(elapsed) in (int, float) and math.isfinite(elapsed) and elapsed >= 20000, f'{scenario}: collection failure in {path}; not a missing capability'
+        outcomes.append(passed)
+    assert all(outcomes) or not any(outcomes), f'{scenario}: inconsistent capability results'
+    return not any(outcomes)
+
+def summarize_measurements(report, startups, samples):
+    assert set(report['modes']) == set(MODES), 'Incomplete comparison modes'
+    for mode in MODES:
+        measured = report['modes'][mode]
+        assert len(measured['startup']) == startups, f'{mode}: insufficient startup samples'
+        measured['startup'] = stats(measured['startup'])
+        assert set(measured['hot']) == set(CASES), f'{mode}: incomplete scenario matrix'
+        for scenario, groups in measured['hot'].items():
+            assert set(groups) == {'cache_miss', 'cache_hit'}, f'{mode}/{scenario}: incomplete cache matrix'
+            for measurement in groups.values():
+                assert len(measurement['input_echo']) == samples, f'{mode}/{scenario}: insufficient echo samples'
+                measurement['input_echo'] = stats(measurement['input_echo'])
+                if measurement['menu'] is None:
+                    assert mode == 'plain' or (mode == 'inshellisense' and
+                        measurement.get('menu_status') == 'not_observed_in_capability_probe' and
+                        len(measurement.get('capability_probes', [])) == 3), f'{mode}/{scenario}: unexplained missing menu'
+                else:
+                    assert len(measurement['menu']) == samples, f'{mode}/{scenario}: insufficient menu samples'
+                    measurement['menu'] = stats(measurement['menu'])
 
 def run(options):
     plan = read(options.plan)
@@ -77,12 +123,16 @@ def run(options):
             profiles.append(dict(path=value, sha256=None))
     fixture_files = inventory([plan['fixtures']])
     write(out/'fixtures.json', fixture_files)
-    frozen = inventory([plan['probe'], plan['shell'], plan['original_editor']]+[v['program'] for v in plan['modes'].values()])
+    frozen = inventory([__file__, options.plan, plan['probe'], plan['shell'], plan['original_editor']]+[v['program'] for v in plan['modes'].values()])
     report = dict(schema=3, profile=plan['profile'], formal=options.formal, source_commit=build['commit'], source_dirty=build['dirty'],
         shell=plan['shell'], psreadline_version=plan['psreadline_version'], profile_mode='with_profile', profile_sha256=profile_hash.hexdigest().upper(),
         profile_inventory=profiles, machine_id=env['COMPUTERNAME'], power_policy=hashlib.sha256(subprocess.check_output(['powercfg.exe','/GETACTIVESCHEME'])).hexdigest().upper(),
         terminal_rows=30, terminal_columns=120, trace='disabled', os_cache_cleared=False, startup_pairs=options.startups,
-        hot_samples_per_mode=options.samples, startup_orders=[], hot_session_orders={}, modes={}, probe_sha256=sha(plan['probe']), passed=False)
+        hot_samples_per_mode=options.samples, startup_orders=[], hot_session_orders={}, modes={}, probe_sha256=sha(plan['probe']),
+        collector_sha256=sha(__file__), plan_sha256=sha(options.plan),
+        measurement_complete=False, performance_passed=None, performance_evaluation='separate_direct_matrix',
+        observed_stages=dict(input_echo='probe_model', menu='first_expected_candidate_in_probe_model',
+            complete_candidates='not_measured', screen_pixels='not_measured'), passed=False)
     for mode, spec in plan['modes'].items():
         dependencies = inventory(spec['dependency_paths'])
         frozen.extend(dependencies)
@@ -143,10 +193,8 @@ def run(options):
             for index in range(3):
                 path,value = session(f'capability/{scenario}-{index}','inshellisense',scenario,[query(scenario,index)],out/'data/capability',True)
                 probes.append((path,value))
-            if all(value['passed'] for _,value in probes):
+            if not capability_unavailable(scenario, probes):
                 continue
-            assert all(not value['passed'] and len(value['queries']) == 1 and value['queries'][0].get('elapsed_ms',0) >= 20000
-                       and value['queries'][0].get('input_echo') is not None for _,value in probes), f'{scenario}: inconsistent capability results'
             unavailable[scenario] = [dict(report=path.relative_to(out).as_posix(),sha256=sha(path),line=value['queries'][0]['line'],expected=value['queries'][0]['expected']) for path,value in probes]
         for index in range(options.startups):
             order = rotate(index)
@@ -186,15 +234,12 @@ def run(options):
                             else: assert identity == before[mode], 'Cache-hit rewrote the cache'
                 print(f'{scenario} pair {pair+1}/{math.ceil(options.samples/10)}',flush=True)
                 write(out/'progress.json',report)
-        for mode in MODES:
-            report['modes'][mode]['startup']=stats(report['modes'][mode]['startup'])
-            for groups in report['modes'][mode]['hot'].values():
-                for measurement in groups.values():
-                    measurement['input_echo']=stats(measurement['input_echo'])
-                    if measurement['menu'] is not None: measurement['menu']=stats(measurement['menu'])
+        summarize_measurements(report, options.startups, options.samples)
         assert all(sha(item['path']) == item['sha256'] for item in frozen), 'Frozen dependency changed'
         assert inventory([plan['fixtures']]) == fixture_files, 'Fixture changed'
-        report['passed']=True
+        assert profiles_unchanged(profiles), 'Profile changed during comparison'
+        report['measurement_complete']=True
+        report['passed']=True  # Historical alias for collection validity, not a performance gate.
     except Exception as error:
         report['error']=str(error)
         raise

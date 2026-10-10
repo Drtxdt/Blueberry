@@ -1,24 +1,53 @@
 # Architecture and engineering decisions
 
-The first supported platform is Windows Terminal + PowerShell 7. Startup latency has priority over provider coverage.
+Windows x64 is the supported interactive platform. The tested editor combinations
+are PowerShell 5.1 / PSReadLine 2.0.0, PowerShell 5.1 / 2.4.5, and PowerShell 7 / 2.4.5.
+Windows defaults to the **direct** host; nested is an explicit compatibility mode.
 
 ```mermaid
 flowchart LR
-  WT[Windows Terminal] <--> H[Rust terminal host]
-  H <--> P[ConPTY: one pwsh]
-  P <--> A[PSReadLine adapter]
-  A -->|buffer and cwd: private OSC| H
-  H --> W[Latest-request worker]
-  W --> I[PATH and loaded command index]
-  W --> S[Static Rust specs and local paths]
-  W --> H
-  H --> M[ANSI overlay]
-  H -->|validated edit file + apply chord| A
+  WT[Windows Terminal] <--> PS[PowerShell + private PSReadLine]
+  PS <--> B[C# editor bridge]
+  B <-->|named pipe: query / frame / validated edit| D[Rust direct host]
+  D --> W[Latest-request completion worker]
+  W --> I[Command index / specs / providers]
+  W --> D
 ```
+
+## Direct host and shared policy
+
+PowerShell inherits the terminal directly. PSReadLine owns editing and console
+painting; Rust computes completion and sends bounded menu frames over a named
+pipe. Build-time private editor hooks and the C# bridge preserve upstream key
+handlers. Input offsets are UTF-16 in PowerShell, UTF-8 bytes in Rust, and terminal
+cells for layout. Direct does not create a product ConPTY.
+
+Both hosts use the same selection policy: automatic selection follows the current
+best result; explicit navigation preserves candidate identity. Incomplete refreshes
+may retain the previous list for a manually selected item within the same replacement
+range. Final removal or an editing-context change resets automatic selection.
+Details and layout changes do not establish manual selection.
+
+Direct keeps displayed frame identities independently of worker snapshots. Tab
+acceptance validates revision, frame, candidate, original buffer and cursor before
+applying data through PSReadLine. A late result cannot substitute its candidate for
+the one the user accepted. Workbench forms preserve their existing fill-only policy.
+
+The tool manager runs version/help tasks on one cancellable latest-request worker.
+Each child has a two-second deadline and a combined 256 KiB stdout/stderr budget;
+Windows Job Objects clean up descendants. Learning results are published by the UI
+only after generation validation, so cancellation or cache deletion cannot publish
+an obsolete task. Idle polling does not repaint an unchanged screen.
+
+## Nested compatibility host
+
+`--host-mode nested` uses the pinned ConPTY runtime, Rust terminal input/output
+coordination and an ANSI overlay. It supports OSC and pipe transport. The sections
+below describe this compatibility path, rather than the default direct architecture.
 
 ## Process and language boundary
 
-The executable creates one pseudoterminal and one pwsh process. It does not start a separate shell for each query, shell-state collection, or completion request. Normal operation uses PowerShell's existing profile once. Launch directly from Windows Terminal to avoid paying for an outer pwsh.
+In nested mode the executable creates one pseudoterminal and one pwsh process. It does not start a separate shell for each query, shell-state collection, or completion request. Normal operation uses PowerShell's existing profile once. Launch directly from Windows Terminal to avoid paying for an outer pwsh.
 
 Rust owns terminal transport, event coordination, UTF offset conversion, completion, ranking, caching, configuration and rendering. The embedded PowerShell script only adapts supported PSReadLine APIs and the actual shell session. There is no JS runtime, TS transpilation step, npm installation or Node native addon ABI dependency.
 
@@ -73,10 +102,8 @@ Windows console resize events are explicitly enabled, and the original console i
 
 ## Next milestones
 
-1. Reduce startup overhead and end-to-end menu latency using the initial measurements in [performance.md](performance.md). Expand complete-host measurement to representative machines and real user profiles.
-2. Expand multiline/nested PowerShell parsing, key-map compatibility, rapid resize and full-screen application replay tests.
-3. Add bounded Rust providers for Git branches/remotes and command-specific values, with cancellation, deadlines and cache invalidation.
-4. Define a versioned declarative spec format and an optional offline importer. Runtime must remain independent of JS.
-5. Add signed/versioned Windows distribution, upgrade flow, and broader platform adapters after Windows acceptance.
-
-The first release is a working Alpha. These milestones are outstanding engineering work, not already-achieved capabilities.
+The 0.5.3 reliability candidate shares selection semantics and bounded child
+execution. Formal current-package performance and real-terminal acceptance are
+recorded separately in [validation](v0.5.3-validation.md). Historical Alpha/Beta
+measurements are not current performance claims. Further platform adapters and
+large provider refactors follow Windows reliability and measured bottlenecks.

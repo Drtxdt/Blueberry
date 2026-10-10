@@ -200,6 +200,7 @@ namespace Blueberry.Direct {
                 {"editor_patch", EditorHooks ? (string)api.GetProperty("EditorIntegrationPatch").GetValue(null, null) : null},
                 {"editor_dll_sha256", editorHash}, {"editor_fallback_reason", editorFallbackReason},
                 {"shell_version", shellVersion},
+                {"terminal_restore", terminalPages ? "windows_terminal_pages" : "legacy_cells"},
                 {"capabilities", new object[] {"revision", "frame_identity", "accept_identity", "utf16_edit"}}
             });
             long handshakeDeadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency*5;
@@ -772,6 +773,43 @@ namespace Blueberry.Direct {
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern bool WriteConsoleOutputW(IntPtr handle, Cell[] cells, Coord size, Coord origin, ref Rect region);
         static Cell[] covered; static Rect region; static Coord coveredSize; static IntPtr output;
         static Cell[] savedViewport; static Info paintedInfo;
+        static readonly bool terminalPages = SupportsTerminalPages();
+        [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct ProcessEntry {
+            public uint Size, Usage, ProcessId; public IntPtr Heap;
+            public uint ModuleId, Threads, ParentId; public int Priority; public uint Flags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=260)] public string Name;
+        }
+        [DllImport("kernel32.dll")] static extern IntPtr CreateToolhelp32Snapshot(uint flags,uint processId);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern bool Process32FirstW(IntPtr snapshot,ref ProcessEntry entry);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern bool Process32NextW(IntPtr snapshot,ref ProcessEntry entry);
+        static bool SupportsTerminalPages() {
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_TEST_TERMINAL_PAGES")=="1") return true;
+            if(String.IsNullOrEmpty(Environment.GetEnvironmentVariable("WT_SESSION"))) return false;
+            if(String.Equals(Environment.GetEnvironmentVariable("TERM_PROGRAM"),"vscode",StringComparison.OrdinalIgnoreCase)) return false;
+            IntPtr snapshot=IntPtr.Zero;
+            try {
+                // An unrelated newer Terminal process is not evidence about
+                // this console. Check only the actual launching ancestry.
+                snapshot=CreateToolhelp32Snapshot(2,0);
+                if(snapshot==new IntPtr(-1)) return false;
+                var parents=new Dictionary<uint,ProcessEntry>();
+                var entry=new ProcessEntry { Size=(uint)Marshal.SizeOf(typeof(ProcessEntry)) };
+                if(Process32FirstW(snapshot,ref entry)) do { parents[entry.ProcessId]=entry; } while(Process32NextW(snapshot,ref entry));
+                uint pid; using(var self=Process.GetCurrentProcess()) pid=(uint)self.Id;
+                for(int depth=0;depth<64 && parents.TryGetValue(pid,out entry);depth++) {
+                    if(String.Equals(entry.Name,"WindowsTerminal.exe",StringComparison.OrdinalIgnoreCase)) {
+                        using(var process=Process.GetProcessById((int)pid)) {
+                            var version=process.MainModule.FileVersionInfo;
+                            return version.FileMajorPart>1 || (version.FileMajorPart==1 && version.FileMinorPart>=22);
+                        }
+                    }
+                    if(entry.ParentId==pid) break;
+                    pid=entry.ParentId;
+                }
+            } catch { }
+            finally { if(snapshot!=IntPtr.Zero && snapshot!=new IntPtr(-1)) CloseHandle(snapshot); }
+            return false;
+        }
         static int paintedInputRow, paintedInputColumn, paintedInputLast;
         struct Layout {
             internal Info Info;
@@ -833,6 +871,13 @@ namespace Blueberry.Direct {
             paintedInputRow=layout.InputRow; paintedInputColumn=layout.InputColumn; paintedInputLast=layout.Last;
             try {
                 var outputText = new StringBuilder();
+                // Keep rich terminal cells outside the legacy CHAR_INFO snapshot.
+                // Page 6 is invisible: DECCRA neither moves the cursor nor scrolls.
+                // Use identical coordinates: alternate screens alias all pages,
+                // so the copy must become a harmless no-op there.
+                if(terminalPages) outputText.Append("\x1b[").Append(top-info.Window.Top+1).Append(";1;")
+                    .Append(top+height-info.Window.Top).Append(';').Append(layout.Width).Append(";1;")
+                    .Append(top-info.Window.Top+1).Append(";1;6$v");
                 for (int i=0; i<height; i++) {
                     outputText.Append("\x1b[").Append(top+i-info.Window.Top+1).Append(";1H");
                     // Rust renderer emits sanitized text and SGR only. No line
@@ -865,6 +910,12 @@ namespace Blueberry.Direct {
                     clipped.Right=(short)Math.Min(clipped.Right,current.Size.X-1);
                     clipped.Bottom=(short)Math.Min(clipped.Bottom,current.Size.Y-1);
                     WriteConsoleOutputW(output, cells, coveredSize, new Coord(0,0), ref clipped);
+                    // The native console still needs its character snapshot for
+                    // editor bounds. Restore the terminal's full attributes last.
+                    if(terminalPages && current.Window.Top==paintedInfo.Window.Top) Console.Write("\x1b["+
+                        (region.Top-paintedInfo.Window.Top+1)+";1;"+(region.Bottom-paintedInfo.Window.Top+1)+";"+
+                        (paintedInfo.Window.Right-paintedInfo.Window.Left+1)+";6;"+
+                        (region.Top-current.Window.Top+1)+";1;1$v\x1b]1337;BlueberryFrame\x07");
                 }
             } catch { }
         }

@@ -1,4 +1,4 @@
-//! Experimental inherited-console host. PSReadLine is the sole input reader
+//! Default Windows inherited-console host. PSReadLine is the sole input reader
 //! and console writer. This service reuses the nested host's completion worker.
 use super::*;
 use anyhow::{bail, ensure};
@@ -10,6 +10,43 @@ use std::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
+
+// Native foreground programs enable processed console input. Ctrl+C then
+// broadcasts a control event to every attached process, including this
+// supervisor. The shell and foreground child must handle it, while the host
+// stays alive to preserve its pipe and the child Job. Register a callback,
+// not SetConsoleCtrlHandler(NULL, TRUE): the latter's ignore flag is inherited
+// and would prevent newly spawned programs from receiving Ctrl+C.
+struct ConsoleInterruptGuard;
+unsafe extern "system" fn handle_console_interrupt(event: u32) -> i32 {
+    use windows_sys::Win32::System::Console::{CTRL_BREAK_EVENT, CTRL_C_EVENT};
+    i32::from(matches!(event, CTRL_C_EVENT | CTRL_BREAK_EVENT))
+}
+impl ConsoleInterruptGuard {
+    fn install() -> Result<Self> {
+        let installed = unsafe {
+            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(
+                Some(handle_console_interrupt),
+                1,
+            )
+        };
+        if installed == 0 {
+            return Err(std::io::Error::last_os_error())
+                .context("protect direct console supervisor");
+        }
+        Ok(Self)
+    }
+}
+impl Drop for ConsoleInterruptGuard {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(
+                Some(handle_console_interrupt),
+                0,
+            );
+        }
+    }
+}
 
 fn command_batch_matches(
     value: &Value,
@@ -42,6 +79,7 @@ struct Session {
     accepting: bool,
     selected: usize,
     selected_id: Option<String>,
+    selection: crate::selection::SelectionState,
     cwd: PathBuf,
     ui: Option<Workbench>,
     values_requested: u64,
@@ -74,6 +112,7 @@ impl Session {
             accepting: false,
             selected: 0,
             selected_id: None,
+            selection: Default::default(),
             cwd: PathBuf::new(),
             ui: None,
             values_requested: 0,
@@ -100,6 +139,7 @@ impl Session {
         self.accepting = false;
         self.selected = 0;
         self.selected_id = None;
+        self.selection.reset();
         Ok(())
     }
     fn geometry(&mut self, value: &Value) {
@@ -133,19 +173,13 @@ impl Session {
     }
     fn render(&mut self, mut completion: Completion, settings: &Config, token: &str) -> Value {
         self.frame += 1;
-        // An unfinished provider refresh must not remove the navigated item.
-        // A final result (including an empty one) is authoritative.
-        if self.ui.is_none()
-            && completion.incomplete
-            && let Some(id) = &self.selected_id
-            && !completion.candidates.iter().any(|c| c.identity() == id)
-            && let Some(previous) = &self.last_completion
-            && previous.replace_start == completion.replace_start
-            && previous.replace_end == completion.replace_end
-        {
-            completion.candidates.clone_from(&previous.candidates);
-        }
-        if let Some(id) = &self.selected_id
+        if self.ui.is_none() {
+            self.selected = self.selection.refresh(
+                self.last_completion.as_ref(),
+                self.selected,
+                &mut completion,
+            );
+        } else if let Some(id) = &self.selected_id
             && let Some(index) = completion
                 .candidates
                 .iter()
@@ -458,6 +492,12 @@ impl Session {
             (current + count - 1) % count
         };
         self.selected_id = None;
+        if value["key"] != "F1" {
+            self.selection.navigated();
+        }
+        // Navigation refers to a displayed snapshot, which may precede the
+        // most recent asynchronous result.
+        self.last_completion = Some(completion.clone());
         Ok(self.render(completion, settings, token))
     }
 }
@@ -502,6 +542,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         matches!(options.transport, Transport::Pipe),
         "direct host requires pipe transport; OSC is only supported by the nested host"
     );
+    let _interrupts = ConsoleInterruptGuard::install()?;
     let settings = config::load(options.config_path.as_deref())?;
     let trace = Trace::open(options.trace_path.as_deref())?;
     if trace.enabled() {
@@ -788,6 +829,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             automatic = value["automatic_menu"] == true;
                             adapter_status = json!({"shell_version":value["shell_version"],"psreadline_version":value["psreadline"],
                             "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],
+                            "terminal_restore":value["terminal_restore"],
                             "session_commands":{"source":"editor","count":0,"complete":false,"error":null},
                             "system_commands":{"source":"system module export metadata","count":0,"error":null},
                             "transport":"pipe","host_mode":"direct","automatic_menu":automatic && settings.completion.auto_trigger,
@@ -818,6 +860,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             session.visible.clear();
                             session.last_completion = None;
                             session.selected_id = None;
+                            session.selection.reset();
                             session.accepting = false;
                             session.ui = None;
                             active_query = None;
@@ -1181,6 +1224,54 @@ pub fn run(options: RunOptions) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn automatic_selection_follows_late_best_candidate() {
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":1,"line":"car","cursor":3}))
+            .unwrap();
+        let completion = |names: &[&str], incomplete| Completion {
+            replace_end: 3,
+            incomplete,
+            candidates: names
+                .iter()
+                .map(|name| Candidate {
+                    id: (*name).into(),
+                    label: (*name).into(),
+                    insert_text: (*name).into(),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let config = Config::default();
+        let early = session.render(completion(&["gcc-ar"], true), &config, "token");
+        session
+            .navigate(
+                &json!({"revision":2,"line":"car","cursor":3,
+            "frame_id":early["frame_id"],"candidate_id":"gcc-ar","key":"F1"}),
+                &config,
+                "token",
+            )
+            .unwrap();
+        session
+            .layout(
+                &json!({"revision":3,"line":"car","cursor":3,"width":40,"rows":12}),
+                &config,
+                "token",
+            )
+            .unwrap();
+        let frame = session.render(completion(&["cargo", "gcc-ar"], false), &config, "token");
+        assert_eq!(frame["candidate_id"], "cargo");
+        let request = json!({"revision":3,"line":"car","cursor":3,
+            "frame_id":frame["frame_id"],"candidate_id":"cargo"});
+        session.render(completion(&["car-new"], false), &config, "token");
+        assert_eq!(session.accept(&request, "token").unwrap()["text"], "cargo");
+        session
+            .query(&json!({"revision":4,"line":"new","cursor":3}))
+            .unwrap();
+        assert!(session.accept(&request, "token").is_none());
+    }
     #[test]
     fn command_batches_reject_old_prompts_wrong_snapshots_gaps_and_completed_replays() {
         let value = json!({"session":10,"snapshot":"current","offset":64});

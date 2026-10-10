@@ -1,6 +1,6 @@
 [package]
 name = "blueberry"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2024"
 rust-version = "1.94"
 description = "A native, low-latency completion host for PowerShell"
@@ -24,6 +24,9 @@ notify = "8.2"
 
 [dev-dependencies]
 tempfile = "3"
+
+[patch.crates-io]
+vt100 = { path = "vendor/vt100" }
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }

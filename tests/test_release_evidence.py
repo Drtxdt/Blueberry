@@ -365,7 +365,7 @@ esac
     def test_performance_deferral_preserves_functional_and_identity_gates(self):
         self.evidence["performance_waiver"] = {
             "version": validator.VERSION, "status": "deferred_by_user", "passed": False,
-            "authorization": "如果没有bug先直接发版吧，性能以后再优化",
+            "authorization": validator.PERFORMANCE_AUTHORIZATION.get(validator.VERSION, "如果没有bug先直接发版吧，性能以后再优化"),
             "limitations": "Startup target missed; full performance matrix deferred.",
         }
         for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
@@ -409,13 +409,22 @@ esac
             "authorization": "本次也免除人工检查，按自动回归结果发布",
         }
         save()
+        if validator.VERSION not in validator.TERMINAL_WAIVERS:
+            with self.assertRaisesRegex(ValueError, "manual terminal waiver"):
+                validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+            del manual["windows_terminal_waiver"]
+            manual["windows_terminal"] = {task: True for task in validator.TERMINAL_TASKS}
+            save()
         self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
         manual["installation"]["rollback"] = False
         save()
         with self.assertRaisesRegex(ValueError, "installation"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
         manual["installation"]["rollback"] = True
-        manual["windows_terminal_waiver"]["executed"] = True
+        manual["windows_terminal_waiver"] = {
+            "version": validator.VERSION, "status": "waived_by_user", "executed": True, "passed": False,
+            "authorization": "本次也免除人工检查，按自动回归结果发布",
+        }
         save()
         with self.assertRaisesRegex(ValueError, "non-execution"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)

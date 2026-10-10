@@ -1,4 +1,5 @@
 pub mod beta_metrics;
+mod bounded_process;
 pub mod cache_writer;
 pub mod completion;
 pub mod config;
@@ -26,6 +27,7 @@ pub mod providers;
 pub mod pty;
 pub mod ranking;
 pub mod reload;
+mod selection;
 pub mod settings;
 pub mod setup;
 pub mod sources;
