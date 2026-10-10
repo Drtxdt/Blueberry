@@ -55,7 +55,7 @@ jobs:
       - run: cargo build --locked
       - run: cargo clippy --all-targets --locked -- -D warnings
       - name: Core tests (no interactive shell)
-        run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge -- --test-threads=1
+        run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge --test terminal_rectangles -- --test-threads=1
       - run: cargo run --locked -- --version
       - run: cargo run --locked -- specs check
       - name: Repeat concurrent favorites writers

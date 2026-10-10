@@ -101,6 +101,7 @@ impl<CB: crate::callbacks::Callbacks> vte::Perform for WrappedScreen<CB> {
             );
         };
         match intermediates.first() {
+            Some(b'$') if intermediates.len() == 1 && c == 'v' => self.screen.deccra(params),
             None => match c {
                 '@' => self.screen.ich(canonicalize_params_1(params, 1)),
                 'A' => self.screen.cuu(canonicalize_params_1(params, 1)),

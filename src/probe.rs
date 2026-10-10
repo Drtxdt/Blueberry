@@ -196,6 +196,9 @@ impl Harness {
     pub fn contents(&self) -> String {
         self.screen.screen().contents()
     }
+    pub fn screen_snapshot(&self) -> vt100::Screen {
+        self.screen.screen().clone()
+    }
     /// Arrival of the bytes that most recently changed the VT observation.
     /// This excludes test-thread scheduling and is not a physical pixel time.
     pub fn last_output_arrival(&self) -> Option<Instant> {

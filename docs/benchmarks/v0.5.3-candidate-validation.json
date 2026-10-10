@@ -13,7 +13,24 @@
   "package_sha256": "04D608046CC55FAE96C96FBDA5FFD73425C22E7580D9391FB5EA4A9D3ECBA348",
   "executable_sha256": "B9EE662F4AB53D4C6DCC445293D911872699DB751F24228C14F641B4941993FE",
   "automated_candidate_checks": "passed",
-  "manual_acceptance": "not_executed",
+  "manual_acceptance": "partial_failed",
+  "manual_checks": [
+    {
+      "date": "2026-10-10",
+      "source": "user_report",
+      "terminal": "Windows Terminal (version not provided)",
+      "shell": "PowerShell 7.6.6",
+      "check": "foreground_ctrl_c_preserves_blueberry_and_starship",
+      "status": "passed"
+    },
+    {
+      "date": "2026-10-10",
+      "source": "user_report",
+      "check": "above_menu_preserves_historical_prompt",
+      "status": "failed",
+      "detail": "Historical Starship prompt covered by the menu changes color or characters after Escape, without resizing."
+    }
+  ],
   "external_trials": "not_executed",
   "formal_performance": "not_executed",
   "local_raw_location": "artifacts/v053-candidate-793c458",

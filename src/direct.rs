@@ -829,6 +829,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             automatic = value["automatic_menu"] == true;
                             adapter_status = json!({"shell_version":value["shell_version"],"psreadline_version":value["psreadline"],
                             "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],
+                            "terminal_restore":value["terminal_restore"],
                             "session_commands":{"source":"editor","count":0,"complete":false,"error":null},
                             "system_commands":{"source":"system module export metadata","count":0,"error":null},
                             "transport":"pipe","host_mode":"direct","automatic_menu":automatic && settings.completion.auto_trigger,

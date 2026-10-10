@@ -55,6 +55,7 @@ pub enum MouseProtocolEncoding {
 pub struct Screen {
     grid: crate::grid::Grid,
     alternate_grid: crate::grid::Grid,
+    rectangle_pages: std::collections::BTreeMap<u16, crate::grid::Grid>,
 
     attrs: crate::attrs::Attrs,
     saved_attrs: crate::attrs::Attrs,
@@ -74,6 +75,7 @@ impl Screen {
         Self {
             grid,
             alternate_grid: crate::grid::Grid::new(size, 0),
+            rectangle_pages: std::collections::BTreeMap::new(),
 
             attrs: crate::attrs::Attrs::default(),
             saved_attrs: crate::attrs::Attrs::default(),
@@ -645,6 +647,91 @@ impl Screen {
             &mut self.alternate_grid
         } else {
             &mut self.grid
+        }
+    }
+
+    // DECCRA: snapshot before writing so overlapping copies are well defined.
+    // Pages other than 1 are off-screen storage; alternate screens have one page.
+    pub(crate) fn deccra(&mut self, params: &vte::Params) {
+        let values: Vec<u16> = params.iter().map(|p| p[0]).collect();
+        let arg = |n: usize, default| {
+            values
+                .get(n)
+                .copied()
+                .filter(|v| *v != 0)
+                .unwrap_or(default)
+        };
+        let size = self.grid().size();
+        let top = arg(0, 1) - 1;
+        let left = arg(1, 1) - 1;
+        let bottom = arg(2, size.rows).min(size.rows);
+        let right = arg(3, size.cols).min(size.cols);
+        let page = |n| {
+            if self.mode(MODE_ALTERNATE_SCREEN) {
+                1
+            } else {
+                arg(n, 1).min(6)
+            }
+        };
+        let source_page = page(4);
+        let target_page = page(7);
+        let target_top = arg(5, 1) - 1;
+        let target_left = arg(6, 1) - 1;
+        if top >= bottom || left >= right || target_top >= size.rows || target_left >= size.cols {
+            return;
+        }
+        for page in [source_page, target_page] {
+            if page != 1 {
+                let grid = self.rectangle_pages.entry(page).or_insert_with(|| {
+                    let mut grid = crate::grid::Grid::new(size, 0);
+                    grid.allocate_rows();
+                    grid
+                });
+                grid.set_size(size);
+            }
+        }
+        let source = if source_page == 1 {
+            self.grid()
+        } else {
+            &self.rectangle_pages[&source_page]
+        };
+        let height = (bottom - top).min(size.rows - target_top);
+        let width = (right - left).min(size.cols - target_left);
+        let mut cells = Vec::with_capacity(usize::from(height) * usize::from(width));
+        for row in 0..height {
+            for col in 0..width {
+                cells.push(
+                    source
+                        .drawing_cell(crate::grid::Pos {
+                            row: top + row,
+                            col: left + col,
+                        })
+                        .unwrap()
+                        .clone(),
+                );
+            }
+        }
+        let target = if target_page == 1 {
+            self.grid_mut()
+        } else {
+            self.rectangle_pages.get_mut(&target_page).unwrap()
+        };
+        for row in 0..height {
+            let target_row = target.drawing_row_mut(target_top + row).unwrap();
+            for col in 0..width {
+                let attrs = *target_row.get(target_left + col).unwrap().attrs();
+                target_row.erase(target_left + col, attrs);
+            }
+            for col in 0..width {
+                let mut cell =
+                    cells[usize::from(row) * usize::from(width) + usize::from(col)].clone();
+                if (col == 0 && cell.is_wide_continuation())
+                    || (col + 1 == width && cell.is_wide())
+                {
+                    cell.clear(*cell.attrs());
+                }
+                *target_row.get_mut(target_left + col).unwrap() = cell;
+            }
         }
     }
 
