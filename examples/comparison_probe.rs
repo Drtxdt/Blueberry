@@ -55,6 +55,41 @@ fn prompt(screen: &str) -> bool {
         .lines()
         .any(|line| line.trim_end().ends_with(['>', '$', '', '❯', '❱', 'λ']))
 }
+fn input_echo(screen: &str, input: &str) -> bool {
+    screen
+        .lines()
+        .any(|row| row.trim_end().strip_suffix(input).is_some_and(prompt))
+}
+
+fn adapter_identity(adapter: &Value) -> Value {
+    let mut identity = adapter.clone();
+    if let Some(fields) = identity.as_object_mut() {
+        fields.remove("session_commands");
+        fields.remove("system_commands");
+    }
+    identity
+}
+
+#[test]
+fn menu_candidate_is_not_input_echo() {
+    assert!(!input_echo("❯\n│› ⌘ ssbeta-root-0", "ssbeta-root-0"));
+    assert!(input_echo("❯ ssbeta-root-0", "ssbeta-root-0"));
+    assert!(input_echo(
+        "PS C:\\work> git switch test",
+        "git switch test"
+    ));
+}
+
+#[test]
+fn command_refresh_does_not_change_adapter_identity() {
+    let before = json!({"editor_mode":"editor_hooks_v1","session_commands":{"session":1},"system_commands":{"count":0}});
+    let mut after = before.clone();
+    after["session_commands"]["session"] = json!(2);
+    after["system_commands"]["count"] = json!(100);
+    assert_eq!(adapter_identity(&before), adapter_identity(&after));
+    after["editor_mode"] = json!("legacy");
+    assert_ne!(adapter_identity(&before), adapter_identity(&after));
+}
 fn menu(screen: &str, query: &Query, style: &str) -> bool {
     if style == "plain" {
         return true;
@@ -93,8 +128,27 @@ fn ms(h: &Harness, start: Instant) -> Result<f64> {
     Ok(arrival.duration_since(start).as_secs_f64() * 1000.0)
 }
 fn clear(h: &mut Harness, line: &str) -> Result<()> {
-    h.send(b"\x01\x7f")?;
-    wait(h, |screen| !screen.contains(line) && !screen.contains('│'))
+    // Cancel the unexecuted query before clearing stale renderer cells. This
+    // setup work is outside every timed interval and applies to all products.
+    h.send(b"\x03")?;
+    // Some hosts consume the first Ctrl+C to dismiss their menu. A second
+    // Ctrl+C cancels the edit buffer; it never submits the measured command.
+    let until = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < until {
+        let _ = h.pump(Duration::from_millis(25));
+    }
+    h.send(b"\x03")?;
+    let until = Instant::now() + Duration::from_millis(500);
+    while Instant::now() < until {
+        let _ = h.pump(Duration::from_millis(25));
+    }
+    h.send(b"Clear-Host\r")?;
+    wait(h, |screen| {
+        prompt(screen)
+            && !screen.contains(line)
+            && !screen.contains('│')
+            && !screen.contains("Clear-Host")
+    })
 }
 fn run(session: &Session, result: &mut Value) -> Result<()> {
     ensure!(
@@ -266,7 +320,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 let screen = h.viewport_contents();
                 if h.last_output_arrival().is_some_and(|at| at >= start) {
                     let at = ms(&h, start)?;
-                    if echo.is_none() && screen.contains(&query.line) {
+                    if echo.is_none() && input_echo(&screen, &query.line) {
                         echo = Some(at);
                     }
                     if last_observed != h.last_output_arrival() {
@@ -288,8 +342,9 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         }
         if let Some(path) = adapter_path {
             let adapter: Value = serde_json::from_slice(&fs::read(path)?)?;
+            result["adapter_final"] = adapter.clone();
             ensure!(
-                adapter == result["adapter"],
+                adapter_identity(&adapter) == adapter_identity(&result["adapter"]),
                 "adapter mode changed during comparison"
             );
         }
