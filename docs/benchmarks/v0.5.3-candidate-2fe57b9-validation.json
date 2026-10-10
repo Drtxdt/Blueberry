@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "kind": "candidate-validation",
+  "date": "2026-10-10",
+  "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+  "ci": {
+    "repository": "Drtxdt/Blueberry",
+    "run_id": 38054650748,
+    "attempt": 1,
+    "artifact_id": 11672003011,
+    "artifact_sha256": "E1646C08B3BBDB78112711A781F1FC695C6998C95CE9DC84E4B422C258617F33",
+    "status": "success",
+    "artifact_expires_at": "2027-01-08T13:09:36Z"
+  },
+  "package_sha256": "F4218414D8DB77B80984A1169101B598FFE6262E2DE762B49D540C97E33C4CA9",
+  "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+  "test_executable_sha256": "F3AC1429B4971F486D13163007C755A3C2045E3E862BBC14F5C36D1AA4C52A81",
+  "automated_candidate_checks": "passed",
+  "manual_acceptance": "not_executed",
+  "manual_checks": [],
+  "external_trials": "not_executed",
+  "formal_performance": "not_executed_for_this_candidate",
+  "performance_progress": "docs/benchmarks/v0.5.3-performance-progress.json",
+  "local_raw_location": "artifacts/v053-candidate-2fe57b9",
+  "local_raw_uploaded": false,
+  "known_limitations": [
+    "Full truecolor historical restoration during resize remains unresolved.",
+    "Unidentified terminals and VS Code use legacy cell restoration.",
+    "Physical screen manual validation pending."
+  ],
+  "prior_candidate_manual_results": "docs/benchmarks/v0.5.3-candidate-validation.json",
+  "checks": [
+    {
+      "name": "ps51-200-direct_above_menu_preserves_truecolor_prompt_cells",
+      "status": "passed"
+    },
+    {
+      "name": "ps51-200-direct_ctrl_c_during_native_process_preserves_session_and_prompt",
+      "status": "passed"
+    },
+    {
+      "name": "ps51-245-direct_above_menu_preserves_truecolor_prompt_cells",
+      "status": "passed"
+    },
+    {
+      "name": "ps51-245-direct_ctrl_c_during_native_process_preserves_session_and_prompt",
+      "status": "passed"
+    },
+    {
+      "name": "ps7-245-direct_above_menu_preserves_truecolor_prompt_cells",
+      "status": "passed"
+    },
+    {
+      "name": "ps7-245-direct_ctrl_c_during_native_process_preserves_session_and_prompt",
+      "status": "passed"
+    },
+    {
+      "name": "public_v052_upgrade_rollback_and_failed_upgrade_recovery",
+      "status": "passed"
+    },
+    {
+      "name": "ci_terminal_matrix_install_maintenance_download",
+      "status": "passed"
+    }
+  ],
+  "files": [
+    {
+      "path": "validation/checks.json",
+      "sha256": "13E3C1D5CBC1F137DCB822BC9B6B7C15639C2947ADE66E23FB604248C782B012",
+      "size": 2084
+    },
+    {
+      "path": "validation/doctor.json",
+      "sha256": "FCB660ED8E0CB9223EB25E8FDDFAEB8801192A6F27D9D273B51719F0A90A0B5C",
+      "size": 32672
+    },
+    {
+      "path": "validation/ps51-200-direct_above_menu_preserves_truecolor_prompt_cells.log",
+      "sha256": "2C4B898289A78A26010DBA1B4B1C46B4120C300D9B8B670C69DE1A79773E1522",
+      "size": 182
+    },
+    {
+      "path": "validation/ps51-200-direct_ctrl_c_during_native_process_preserves_session_and_prompt.log",
+      "sha256": "67A499FE1B5327926D9ED3E39ED69D20AD58E6468A917C27B473974A1972352C",
+      "size": 196
+    },
+    {
+      "path": "validation/ps51-245-direct_above_menu_preserves_truecolor_prompt_cells.log",
+      "sha256": "37F44460160FC9C48597B8B4C698388CA89171CE88EA5294D6478C1973AF943E",
+      "size": 182
+    },
+    {
+      "path": "validation/ps51-245-direct_ctrl_c_during_native_process_preserves_session_and_prompt.log",
+      "sha256": "B8ABA5E071139288B8D82B68AC05966EA720188DD85C41196B34186B74D141D7",
+      "size": 196
+    },
+    {
+      "path": "validation/ps7-245-direct_above_menu_preserves_truecolor_prompt_cells.log",
+      "sha256": "A06479A731753198619E0A2D2DF58D81D33C108B794D90BCA8AF30B43091B73B",
+      "size": 182
+    },
+    {
+      "path": "validation/ps7-245-direct_ctrl_c_during_native_process_preserves_session_and_prompt.log",
+      "sha256": "3B1C2BA2CE4D6A8865D01F1E3739161870FA64365CE3FCE268E34F3CF356E004",
+      "size": 196
+    },
+    {
+      "path": "upgrade-rollback.log",
+      "sha256": "7E492EA94540A533E05620D5EC31FBF4C69DFC70B4672C356D996185955478E5",
+      "size": 11274
+    }
+  ]
+}

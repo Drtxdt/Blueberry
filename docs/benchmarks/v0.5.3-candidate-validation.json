@@ -32,7 +32,7 @@
     }
   ],
   "external_trials": "not_executed",
-  "formal_performance": "not_executed",
+  "formal_performance": "interrupted_incomplete",
   "local_raw_location": "artifacts/v053-candidate-793c458",
   "local_raw_uploaded": false,
   "files": [
