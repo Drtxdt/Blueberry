@@ -161,6 +161,7 @@ def run(options):
             process = subprocess.run([plan['probe'],'--session',str(folder/'session.json'),'--output',str(folder/'result.json')],
                 stdout=log,stderr=subprocess.STDOUT,timeout=120+25*len(queries))
         value = read(folder/'result.json')
+        assert value.get('diagnostic_only') is not True, 'Diagnostic editor hooks cannot qualify as timing samples'
         runtime = value.get('probe_conpty', {})
         assert runtime.get('mode') == 'pinned' and runtime.get('sha256') == build['conpty']['sha256'] and runtime.get('files') == build['conpty']['files'], f'{name}: ConPTY identity mismatch'
         report.setdefault('probe_conpty', runtime)

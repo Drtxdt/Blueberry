@@ -353,6 +353,17 @@ jobs:
       - name: Fetch locked sources for offline license collection
         run: cargo fetch --locked --target x86_64-pc-windows-msvc
       - run: cargo build --release --locked
+      - name: Build frozen benchmark probes
+        run: cargo build --release --locked --example comparison_probe --example console_attributes_probe
+      - name: Preserve benchmark probes separately from the install package
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-benchmark-probes-windows-x64
+          path: |
+            target/release/examples/comparison_probe.exe
+            target/release/examples/console_attributes_probe.exe
+          if-no-files-found: error
       - name: Package and validate installation
         shell: pwsh
         run: |

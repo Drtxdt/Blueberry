@@ -34,6 +34,9 @@ struct Session {
     resource_sampler: Option<PathBuf>,
     #[serde(default)]
     resource_output: Option<PathBuf>,
+    // Independent diagnostic only. Never enable this hook in formal timing.
+    #[serde(default)]
+    diagnostic_buffer_path: Option<PathBuf>,
     #[serde(default)]
     data_dir: Option<PathBuf>,
     #[serde(default)]
@@ -232,6 +235,21 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 path.to_string_lossy().replace('\'', "''")
             );
             fs::write(&script, source)?;
+            if let Some(buffer_path) = &session.diagnostic_buffer_path {
+                ensure!(!buffer_path.exists(), "diagnostic buffer log must be new");
+                ensure!(
+                    session.style == "inshellisense",
+                    "buffer diagnostic is comparator-only"
+                );
+                use std::io::Write;
+                let mut script_file = fs::OpenOptions::new().append(true).open(&script)?;
+                writeln!(
+                    script_file,
+                    "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ param($key,$arg) $line=$null; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); [IO.File]::AppendAllText('{}',((@{{line=$line;cursor=$cursor;qpc=[Diagnostics.Stopwatch]::GetTimestamp()}}|ConvertTo-Json -Compress)+[Environment]::NewLine),[Text.UTF8Encoding]::new($false)) }}",
+                    buffer_path.to_string_lossy().replace('\'', "''")
+                )?;
+                result["diagnostic_only"] = json!(true);
+            }
             // Setup is outside timing. Keep its input short, and let an
             // external comparator finish processing the command before
             // submitting it. The metadata file remains the authority.
@@ -365,6 +383,19 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 }
                 if start.elapsed() >= TIMEOUT {
                     result["queries"].as_array_mut().unwrap().push(json!({"line":query.line,"expected":query.expected,"warmup":query.warmup,"input_echo":echo,"menu":null,"failed":true,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,"observations":observations}));
+                    if let Some(path) = &session.diagnostic_buffer_path {
+                        h.send(b"\x1b[24~")?;
+                        let deadline = Instant::now() + Duration::from_secs(3);
+                        while !path.is_file() && Instant::now() < deadline {
+                            let _ = h.pump(Duration::from_millis(25));
+                        }
+                        result["diagnostic_buffer"] = match fs::read_to_string(path) {
+                            Ok(text) => json!({"observed_after_timing":true,"raw":text}),
+                            Err(error) => {
+                                json!({"observed_after_timing":true,"error":error.to_string()})
+                            }
+                        };
+                    }
                     bail!("menu timeout for {}", query.line);
                 }
                 let _ = h.pump(Duration::from_millis(25));

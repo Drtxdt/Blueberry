@@ -106,6 +106,7 @@ def run(options):
                                              '--output', str(folder / 'result.json')], env=environment,
                                             stdout=log, stderr=subprocess.STDOUT, timeout=150)
                 value = read(folder / 'result.json')
+                assert value.get('diagnostic_only') is not True, 'Diagnostic editor hooks cannot qualify as resource samples'
                 assert result.returncode == 0 and value['passed'] is True, 'Resource session failed'
                 actual = value['actual_shell']
                 assert actual['psreadline'] == plan['psreadline_version'], 'Resource editor version mismatch'
