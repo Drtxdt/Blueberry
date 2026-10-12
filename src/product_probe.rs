@@ -320,6 +320,12 @@ pub fn run_with_trace(
         .transpose()?;
     let trace_directory = trace_path.as_deref();
     let identity = metrics::build_identity(executable)?;
+    ensure!(
+        trace_directory.is_some()
+            || (!cfg!(feature = "allocation-diagnostics")
+                && identity["allocation_diagnostics"] != true),
+        "allocation diagnostics require a separate traced batch, not formal timing"
+    );
     let executable_hash = metrics::executable_sha256(executable)?;
     let root =
         std::env::temp_dir().join(format!("blueberry-product-probe-{}", uuid::Uuid::new_v4()));

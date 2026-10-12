@@ -6,6 +6,10 @@ rust-version = "1.94"
 description = "A native, low-latency completion host for PowerShell"
 license = "MIT"
 
+[features]
+# Separate diagnostic build; never enabled in formal timing or install packages.
+allocation-diagnostics = []
+
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }

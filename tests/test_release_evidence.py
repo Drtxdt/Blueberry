@@ -382,12 +382,14 @@ esac
 
     def test_wrong_frozen_build_and_missing_private_editor_matrix_block_release(self):
         original = json.loads(self.external_manifest.read_text(encoding='utf-8'))
-        for mutation, error in [('commit', 'frozen release source'), ('editors', 'DLL matrix')]:
+        for mutation, error in [('commit', 'frozen release source'), ('editors', 'DLL matrix'), ('allocation', 'diagnostic executable')]:
             manifest = json.loads(json.dumps(original))
             if mutation == 'commit':
                 manifest['build']['commit'] = 'b'*40
-            else:
+            elif mutation == 'editors':
                 manifest['build']['private_editors']['files'].pop()
+            else:
+                manifest['build']['allocation_diagnostics'] = True
             self.evidence['build_identity'] = manifest['build']
             raw = json.dumps(manifest)
             with zipfile.ZipFile(self.package, 'w') as archive:

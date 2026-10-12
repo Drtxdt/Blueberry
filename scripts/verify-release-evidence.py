@@ -552,6 +552,7 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         build = manifest.get("build", {})
         require(build.get("commit") == commit and build.get("dirty") is False
                 and build.get("profile") == "release", "package build is not the frozen release source")
+        require(build.get("allocation_diagnostics") is not True, "allocation diagnostic executable cannot be released")
         require(evidence.get("build_identity") == build, "package build/private dependency identity differs from measured EXE")
         editors = build.get("private_editors", {})
         pinned_editors = read_json(Path(__file__).resolve().parents[1] / "vendor/psreadline/upstream.json")

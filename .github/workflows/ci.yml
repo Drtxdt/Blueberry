@@ -54,6 +54,11 @@ jobs:
           python scripts/prepare-conpty.py
       - run: cargo build --locked
       - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Validate optional Rust allocation diagnostics
+        if: runner.os == 'Linux'
+        run: |
+          cargo clippy --lib --features allocation-diagnostics --locked -- -D warnings
+          cargo test --lib --features allocation-diagnostics --locked allocation_diagnostics::tests
       - name: Core tests (no interactive shell)
         run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge --test terminal_rectangles -- --test-threads=1
       - run: cargo run --locked -- --version
@@ -386,4 +391,15 @@ jobs:
             dist/ci/*.sha256
             dist/ci/*-release.json
             install.ps1
+          if-no-files-found: error
+      - name: Build a separate allocation diagnostic executable
+        env:
+          CARGO_TARGET_DIR: target/allocation-diagnostic
+        run: cargo build --release --locked --features allocation-diagnostics
+      - name: Preserve allocation diagnostics outside the install package
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-allocation-diagnostic-windows-x64
+          path: target/allocation-diagnostic/release/blueberry.exe
           if-no-files-found: error

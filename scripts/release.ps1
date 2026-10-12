@@ -477,6 +477,7 @@ try {
         $manifestFiles.Add([ordered]@{ path = $relative; sha256 = Get-Sha256 $file.FullName; bytes = $file.Length })
     }
     $buildIdentity = (& (Join-Path $stagePayload 'blueberry.exe') doctor --json | ConvertFrom-Json).build
+    if ($buildIdentity.allocation_diagnostics) { throw 'Allocation diagnostic executable cannot be an install package' }
     if ($LASTEXITCODE -ne 0 -or -not $buildIdentity.private_editors) { throw 'Executable has no private editor build identity' }
     $conpty = Get-Content -LiteralPath (Join-Path $repoRoot 'vendor/conpty/upstream.json') -Raw | ConvertFrom-Json
     if (-not $buildIdentity.conpty -or $buildIdentity.conpty.sha256 -ne $conpty.sha256) { throw 'Executable has no matching pinned ConPTY identity' }

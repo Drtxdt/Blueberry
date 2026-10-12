@@ -44,6 +44,7 @@ def run(options):
                    ('BLUEBERRY_DIRECT_TRACE', 'BLUEBERRY_TEST_FRAME_DELAY_MS', 'BLUEBERRY_TEST_DISABLE_PREJIT')), 'Diagnostic environment'
     candidate = plan['modes']['candidate']['program']
     build = json.loads(subprocess.check_output([candidate, 'doctor', '--json']))['build']
+    assert build.get('allocation_diagnostics') is not True, 'Allocation diagnostics cannot qualify as formal resources'
     assert not options.formal or (build['dirty'] is False and build['profile'] == 'release'), 'Unfrozen candidate'
     profile_paths = json.loads(subprocess.check_output([plan['shell'], '-NoProfile', '-NonInteractive', '-Command',
         '[Console]::WriteLine((@($PROFILE.AllUsersAllHosts,$PROFILE.AllUsersCurrentHost,$PROFILE.CurrentUserAllHosts,$PROFILE.CurrentUserCurrentHost)|ConvertTo-Json -Compress))'], env=environment))

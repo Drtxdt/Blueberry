@@ -470,8 +470,11 @@ namespace Blueberry.Direct {
                     var record = commandEnumerator.Current;
                     batch.Add(new Dictionary<string,object> {{"name",record[0]},{"kind",record[1]},{"definition",record[2]}});
                 } while (batch.Count < 64 && Stopwatch.GetTimestamp()-start < Stopwatch.Frequency/500);
+                if(diagnostic) TraceStage("direct_session_command_batch",Stopwatch.GetTimestamp()-start,batch.Count);
+                long sending=diagnostic ? Stopwatch.GetTimestamp() : 0;
                 Send(new Dictionary<string,object> {{"event","commands"},{"session",commandSession},
                     {"snapshot",commandSnapshot},{"offset",commandOffset},{"complete",complete},{"commands",batch}});
+                if(diagnostic) TraceStage("direct_session_command_send",Stopwatch.GetTimestamp()-sending,batch.Count);
                 commandOffset += batch.Count;
                 if (complete) StopCommands(); else requestEditorRefresh();
             } catch (Exception error) { CommandError(error); }

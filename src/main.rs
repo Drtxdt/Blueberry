@@ -778,6 +778,7 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         "commit":env!("BLUEBERRY_BUILD_COMMIT"),
         "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0),
         "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true",
+        "allocation_diagnostics":cfg!(feature="allocation-diagnostics"),
         "default_host_mode": if cfg!(windows) { "direct" } else { "nested" }
     });
     #[cfg(windows)]

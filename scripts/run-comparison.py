@@ -102,6 +102,7 @@ def run(options):
     assert set(plan['modes']) == set(MODES), 'Four modes required'
     assert not options.formal or (options.samples >= 300 and options.startups >= 30), 'Formal sample minimums not met'
     build = json.loads(subprocess.check_output([plan['modes']['candidate']['program'], 'doctor', '--json']))['build']
+    assert build.get('allocation_diagnostics') is not True, 'Allocation diagnostics cannot qualify as comparison timing'
     assert not options.formal or (not build['dirty'] and build['default_host_mode'] == 'direct' and build['profile'] == 'release'), 'Unfrozen candidate'
     env = dict(os.environ, **plan['environment'])
     env['GIT_OPTIONAL_LOCKS'] = '0'

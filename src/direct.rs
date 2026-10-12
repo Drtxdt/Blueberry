@@ -756,6 +756,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     "direct_bridge_initialization"
                                 }
                                 Some("direct_readline_begin") => "direct_readline_begin",
+                                Some("direct_session_command_batch") => {
+                                    "direct_session_command_batch"
+                                }
+                                Some("direct_session_command_send") => {
+                                    "direct_session_command_send"
+                                }
                                 Some("direct_background_jit") => "direct_background_jit",
                                 Some("direct_bridge_jit") => "direct_bridge_jit",
                                 Some("direct_background_jit_failed") => {
@@ -1140,11 +1146,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     })
                 {
                     let rendered = Instant::now();
+                    let allocated = crate::allocation_diagnostics::snapshot();
                     let frame = session.render(completion.clone(), &settings, &token);
+                    let render_elapsed = rendered.elapsed();
+                    trace.allocations("direct_menu_allocations", Some(session.revision), allocated);
                     trace.event(
                         "direct_menu_render",
                         Some(session.revision),
-                        Some(rendered.elapsed()),
+                        Some(render_elapsed),
                         frame["lines"].as_array().map(Vec::len),
                     );
                     let output = Instant::now();
@@ -1156,7 +1165,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             crate::latency_layers::qpc()?,
                         );
                     }
+                    let allocated = crate::allocation_diagnostics::snapshot();
                     pipe.write_json(&frame)?;
+                    trace.allocations(
+                        "direct_frame_allocations",
+                        Some(session.revision),
+                        allocated,
+                    );
                     if trace.enabled() {
                         trace.point(
                             "direct_frame_sent",

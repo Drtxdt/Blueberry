@@ -344,6 +344,12 @@ pub fn run_traced(
     trace_directory: Option<&Path>,
 ) -> Result<Value> {
     let identity = metrics::build_identity(executable)?;
+    ensure!(
+        trace_directory.is_some()
+            || (!cfg!(feature = "allocation-diagnostics")
+                && identity["allocation_diagnostics"] != true),
+        "allocation diagnostics require a separate traced batch, not formal timing"
+    );
     #[cfg(windows)]
     let probe_runtime_prepare_ms = {
         let start = Instant::now();

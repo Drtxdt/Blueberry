@@ -1,3 +1,4 @@
+pub mod allocation_diagnostics;
 pub mod beta_metrics;
 mod bounded_process;
 pub mod cache_writer;

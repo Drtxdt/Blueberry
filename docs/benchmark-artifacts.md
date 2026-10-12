@@ -58,3 +58,11 @@ Git 中保留报告摘要、统计口径和 SHA-256。发布证据 schema 2 可�
 新增、PID 复用、计数失败或区间不足均保留原始记录并使采集失败，不能算成零 CPU。
 `resource-statistics.py` 从全部数组复算内存、峰值和单核 CPU，发布检查重复复算并
 拒绝重复进程会话或重复原始报告。schema 1 历史记录保留，但不代替本轮正式资源证据。
+
+Rust 分配诊断使用独立 `--features allocation-diagnostics` 构建及 trace 批次。
+`direct_menu_allocations` 记录渲染及候选快照复制的当前线程申请次数和申请字节数；
+`direct_frame_allocations` 记录帧序列化／发送的申请。计数不是驻留堆大小、复制字节
+或托管分配，不能据此推断 C# 堆。其他线程的分配单独归属，不混进当前阶段。
+默认构建不使用计数分配器；doctor 的 `allocation_diagnostics` 标识诊断构建。
+正式探针、安装包组装和发布证据均拒绝该构建。CI 单独保存诊断 EXE 和基准探针，
+不得替换原始安装包。共享候选存储仍须根据独立分配记录及正常构建的 A/B 决定。
