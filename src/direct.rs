@@ -841,6 +841,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             }
                             status_writer.update(adapter_status.clone());
                             let system_tx = tx.clone();
+                            let launch_started = Instant::now();
                             match crate::system_commands::start(&options.shell, move |result| {
                                 let _ = system_tx.send(HostEvent::SystemCommands(1, result));
                             }) {
@@ -850,6 +851,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     status_writer.update(adapter_status.clone());
                                 }
                             }
+                            trace.event(
+                                "direct_system_discovery_launch",
+                                None,
+                                Some(launch_started.elapsed()),
+                                None,
+                            );
                         }
                         Some("begin" | "end") if ready => {
                             let revision = value["revision"]
