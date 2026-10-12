@@ -24,6 +24,23 @@ Git 中保留报告摘要、统计口径和 SHA-256。发布证据 schema 2 可�
 非零退出码。身份不符、采集失败、样本不足、统计错误立即中止，不能算作完整慢样本。
 正式批次不跨中断续跑；保留失败批次并使用新目录重测，不删掉慢样本。
 
+## 采集进程归属与异常终止
+
+`python scripts/run-benchmark-batch.py --plan <plan.json> --output <新的批次目录>`
+串行运行冻结任务。计划 schema 1 的 `tasks` 每项包含 `name`、`argv`、`cwd`、
+`timeout_seconds`、`report` 和 `completion_field`；`accepted_exit_codes` 默认 `[0]`。
+`dependencies` 保存各文件的 `path` 与 `sha256`，采集前后均验证。
+示例：矩阵任务的完成字段为 `measurement_complete`，接受 `[0,1]`，因此完整采样后的
+性能超标可以进入下一项；身份失败、缺报告、超时和不完整采样立即停止整个批次。
+
+协调器先将等待输入的工作进程加入 Windows Job，再允许它启动探针；协调器退出、
+任务超时或失败时清理该任务子进程树。JSON 状态以临时文件原子替换，记录当前组、
+日志、报告、退出码、协调器／工作进程 PID 和创建时间，避免把复用 PID 当成原任务。
+突然断电或外部终止留下的 running 状态使用
+`python scripts/run-benchmark-batch.py --inspect <批次目录>` 核对：原协调器已不在时
+记录 interrupted，保留原始报告；不能续写正式批次或自动宣称数据完整。
+批次完成只表示计划内所有任务有效完成，性能通过仍以各正式报告为准。
+
 四方对照 `scripts/run-comparison.py` 的 `measurement_complete` 只表示采集有效且完整，
 旧 `passed` 字段作为该含义的兼容别名保留。`performance_passed` 为 null，性能门槛由
 独立 direct 正式矩阵验收，不能把四方对照采集成功解释为性能达标。采集器、计划文件、

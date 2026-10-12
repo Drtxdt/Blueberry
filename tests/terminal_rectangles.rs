@@ -58,3 +58,23 @@ fn same_coordinate_shadow_copy_is_harmless_when_alternate_pages_alias() {
         }
     }
 }
+
+#[test]
+fn background_page_access_after_shrink_discards_clipped_history() {
+    // Match Windows Terminal's PageManager: an inactive page is resized
+    // traditionally when accessed, not reflowed with the visible buffer.
+    let mut parser = vt100::Parser::new(8, 80, 0);
+    parser
+        .process(b"\x1b[38;2;123;45;67mKEPT\x1b[1;65HRIGHT-HISTORY\x1b[7;1HBOTTOM-HISTORY\x1b[0m");
+    let before = parser.screen().clone();
+    parser.process(b"\x1b[1;1;8;80;1;1;1;6$v");
+    parser.screen_mut().set_size(3, 40);
+    // Access during shrink is the destructive operation. Growing again
+    // cannot recover cells already discarded from the background page.
+    parser.process(b"\x1b[1;1;3;40;6;1;1;1$v");
+    assert_eq!(parser.screen().cell(0, 0), before.cell(0, 0));
+    parser.screen_mut().set_size(8, 80);
+    parser.process(b"\x1b[1;1;8;80;6;1;1;1$v");
+    assert!(!parser.screen().contents().contains("RIGHT-HISTORY"));
+    assert!(!parser.screen().contents().contains("BOTTOM-HISTORY"));
+}

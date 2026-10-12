@@ -1562,6 +1562,89 @@ fn direct_above_menu_preserves_truecolor_prompt_cells() -> Result<()> {
 }
 
 #[test]
+#[ignore = "known release blocker: resized overlays quantize historical RGB; run explicitly against the frozen CI EXE"]
+fn direct_above_menu_resize_preserves_truecolor_history() -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let dir = tempfile::Builder::new()
+        .prefix("direct-resize-prompt-colors-")
+        .tempdir_in(evidence)?;
+    let setup = dir.path().join("setup.ps1");
+    std::fs::write(
+        &setup,
+        format!(
+            "\u{feff}1..40 | ForEach-Object {{ 'COLOR-SENTINEL' }}; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145mRGB-PROMPT-中🚀é{}${{e}}[0m`r`n\"); function global:prompt {{ 'BB> ' }}\r\n",
+            "x".repeat(55)
+        ),
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut h = start_delayed_executable_with_pages(dir.path(), 0, &executable, true)?;
+    let result = (|| -> Result<()> {
+        h.send_text(&format!(
+            ". '{}'\r",
+            setup.display().to_string().replace('\'', "''")
+        ))?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        h.wait_text("RGB-PROMPT-中🚀é", TIMEOUT)?;
+        let before = h.screen_snapshot();
+        let row = (0..before.size().0)
+            .find(|row| {
+                before
+                    .rows(0, before.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("original history row missing")?;
+        ensure!(
+            before.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67),
+            "fixture lacks truecolor"
+        );
+        h.send(b"git sw")?;
+        h.wait_text("switch", TIMEOUT)?;
+        h.resize(12, 40)?;
+        let until = std::time::Instant::now() + Duration::from_millis(500);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+        let until = std::time::Instant::now() + Duration::from_millis(400);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        let after = h.screen_snapshot();
+        let row = (0..after.size().0)
+            .find(|row| {
+                after
+                    .rows(0, after.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("history disappeared after menu resize and Esc")?;
+        ensure!(
+            after.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67)
+                && after.cell(row, 0).unwrap().bgcolor() == vt100::Color::Rgb(23, 89, 145),
+            "resized history lost full RGB attributes: {:?}",
+            after.cell(row, 0)
+        );
+        ensure!(
+            after.contents().contains("中🚀é"),
+            "resized history lost Unicode"
+        );
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error)
+            .with_context(|| format!("resize prompt colors: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+#[test]
 fn direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let mut harness = start(dir.path())?;

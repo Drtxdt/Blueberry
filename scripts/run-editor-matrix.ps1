@@ -72,7 +72,10 @@ function Assert-EditorIdentity($Report, [int]$Count, [string]$DllHash, [string]$
 }
 foreach($name in @('BLUEBERRY_NO_HISTORY','BLUEBERRY_TEST_PSREADLINE_MODULE','BLUEBERRY_BENCH_EVIDENCE')) { $saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process') }
 function Save-State {
-    $manifest | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath (Join-Path $out 'matrix.json') -Encoding utf8
+    $path=Join-Path $out 'matrix.json'
+    $temporary=Join-Path $out 'matrix.json.tmp'
+    $manifest | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $temporary -Encoding utf8
+    [IO.File]::Move($temporary,$path,$true)
 }
 function Read-ProbeReport([string]$Path, [string]$Name) {
     $report=Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
@@ -95,9 +98,12 @@ function Invoke-Probe([string]$Name,[string[]]$Arguments) {
         $log=Join-Path $out ($Name+'-attempt-'+$attempt+'.log')
     }
     $env:BLUEBERRY_BENCH_EVIDENCE=Join-Path $out ('raw-'+$Name+'-attempt-'+$attempt)
+    $manifest['active_group']=@{name=$Name;started_at_utc=[DateTime]::UtcNow.ToString('o');report=$json;log=$log}
+    Save-State
     & $Probe @Arguments --host-executable $Executable --output $json *> $log
     $exitCode=$LASTEXITCODE
     $manifest.results+=@{name=$Name;exit_code=$exitCode;report=$json;log=$log}
+    $manifest['active_group']=$null
     Save-State
     if($exitCode -ne 0) { throw "$Name failed; raw evidence and log retained at $out" }
     Read-ProbeReport $json $Name
