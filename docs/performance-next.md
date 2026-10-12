@@ -19,8 +19,15 @@ max(5 MiB, 10%) 或空闲 CPU 增加超过 0.1 个百分点；CPU 使用单核�
 固定 `2fe57b9eada4a868f2d5cd9218b546342cd43c67` CI 原包为优化前基线，EXE SHA-256
 `99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC`。
 2026-10-10 正式矩阵只完成两份报告，进程已退出；资源队列也未执行，原始记录保留。
-新的独立批次位于 `artifacts/perf-baseline-2fe57b9-20261012/`，通过归属协调器先做
-3 样本／2 对启动预检，再串行采集正式矩阵。当前采集中，尚不能判为完整或通过。
+`artifacts/perf-baseline-2fe57b9-20261012/` 预检完整，正式批次在 path 的缓存命中
+检查时无效中止：命令数组未变化，但 System32 目录时间戳变化触发了缓存重建。
+这是夹具环境不稳定，不能用作性能不达标的结论。全部原始记录保留。
+
+`scripts/snapshot-benchmark-path.py` 固定 System32 和临时 Codex PATH 目录中的实际
+命令文件字节，保留名称、数量及 PATH 优先级；其他目录仍使用原位置。快照保存在
+`artifacts/perf-path-snapshot-20261012/`，只发布清单与 SHA-256，不发布复制的系统 EXE。
+首次快照预检因 Git 对过长夹具路径报错而中止，记录亦保留。采用较短的新证据目录
+`artifacts/pb2-fp-1012/` 后，九份预检报告完整，正式矩阵正在采集，尚未完整或通过。
 
 - 基线和最终候选：PS5.1／2.0.0、PS5.1／2.4.5、PS7／2.4.5，每组合 30 对启动，
   六场景 × miss／hit × 说明开关每组 300 个热态样本。四方对照与 nested 单独留证。
@@ -33,6 +40,11 @@ max(5 MiB, 10%) 或空闲 CPU 增加超过 0.1 个百分点；CPU 使用单核�
 约 2 ms。QPC 阶段时间和日志接收时间必须分开，不能将 queued trace 的接收延迟
 误认为对应阶段的执行耗时。屏幕像素可见时间未测。
 
+第一轮候选 `ef2e6b6` 将系统命令元数据 helper 的进程创建移出 direct 分派线程，
+保留取消、超时和进程树清理语义。CI run `38264480753` 成功；原包已按 artifact
+`11756420417` 下载并验证摘要，保存于 `artifacts/r1-ci/`。同条件 A/B 尚未执行，
+不能据此宣称提速或完成第一轮。
+
 ## 缩放发布阻塞
 
 普通 Esc 关闭菜单的历史 RGB／Unicode 恢复已获用户验证；缩放后的恢复仍走
@@ -44,6 +56,17 @@ Windows Terminal 的 `PageManager::Get` 会将后台页调整到当前可见尺�
 不能把后台页看作跨缩放的完整富文本存储。来源：
 [PageManager.cpp](https://github.com/microsoft/terminal/blob/main/src/terminal/adapter/PageManager.cpp)、
 [TextBuffer::ResizeTraditional](https://github.com/microsoft/terminal/blob/main/src/buffer/out/textBuffer.cpp)。
+
+用户本机 Windows Terminal 的只读 UIA 诊断确认前景色、背景色 RGB、中文、emoji、
+组合字符及软折行文本可读。记录位于 `artifacts/console-attributes-capability-20261012/`。
+初版 `supported=false` 源于 FindText 返回范围多一个空格；schema 2 分别报告 RGB、
+标记前缀完整性与范围精确性，原记录不覆盖。实测宽字符矩形宽度多算一列，需使用
+相邻字符起点核对；逐字符 181 个标记约 154 ms，不能放到每次按键的计时路径中。
+目前只验证接口能力，尚未实现或验收跨缩放恢复，也未测屏幕像素显示时间。
+
+发布证据检查新增最终 ZIP 身份、三组合 direct/nested 的逐项人工记录、连续缩放、
+历史 RGB、pip/npm Ctrl+C 及 VS Code/PS7 direct 检查。0.5.3 性能延期也须保留完整
+正式矩阵、三轮诊断和独立 A/B；旧的“修复先交付”空性能记录不再满足本轮计划。
 
 恢复须保留原位置覆盖、完整字符与属性，并正确处理换行；滚动腾空白方案未获用户接受。
 如果现有接口无法满足，提交复现及限制证据，发布继续阻塞，不以忽略回归表示通过。
