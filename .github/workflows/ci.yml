@@ -4,11 +4,54 @@ on:
     branches: ['**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      evidence_manifest:
+        description: Sealed local raw-evidence manifest basename; empty runs normal CI
+        type: string
+        default: ''
+      evidence_manifest_sha256:
+        description: SHA-256 of the sealed upload manifest
+        type: string
+        default: ''
+      evidence_runner_label:
+        description: Unique label of the one-job evidence upload runner
+        type: string
+        default: ''
+      evidence_name:
+        description: Immutable raw-evidence artifact name
+        type: string
+        default: ''
   workflow_call:
 permissions:
   contents: read
 jobs:
+  evidence-upload:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.evidence_manifest != '' && github.actor == github.repository_owner }}
+    runs-on: [self-hosted, Windows, X64, '${{ inputs.evidence_runner_label }}']
+    timeout-minutes: 20
+    env:
+      EVIDENCE_MANIFEST: ${{ inputs.evidence_manifest }}
+      EVIDENCE_MANIFEST_SHA256: ${{ inputs.evidence_manifest_sha256 }}
+      EVIDENCE_NAME: ${{ inputs.evidence_name }}
+      EVIDENCE_RUNNER_LABEL: ${{ inputs.evidence_runner_label }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sealed local evidence
+        id: verify
+        shell: pwsh
+        run: python scripts/verify-evidence-upload.py
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: ${{ inputs.evidence_name }}
+          path: ${{ steps.verify.outputs.path }}
+          retention-days: 90
+          if-no-files-found: error
+      - name: Recheck evidence after upload
+        shell: pwsh
+        run: python scripts/verify-evidence-upload.py
   format:
+    if: ${{ !inputs.evidence_manifest }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +67,7 @@ jobs:
           BENCHMARK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
+    if: ${{ !inputs.evidence_manifest }}
     name: Core / ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -80,6 +124,7 @@ jobs:
           path: target/store-evidence
           if-no-files-found: ignore
   powershell-51:
+    if: ${{ !inputs.evidence_manifest }}
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
     strategy:
@@ -198,6 +243,7 @@ jobs:
             target/input-protocol-evidence
           if-no-files-found: ignore
   powershell-7:
+    if: ${{ !inputs.evidence_manifest }}
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
     strategy:
@@ -279,6 +325,7 @@ jobs:
             target/input-protocol-evidence
           if-no-files-found: ignore
   native-mouse:
+    if: ${{ !inputs.evidence_manifest }}
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
     env:
@@ -336,6 +383,7 @@ jobs:
           path: target/input-protocol-evidence
           if-no-files-found: ignore
   package:
+    if: ${{ !inputs.evidence_manifest }}
     needs: [format, core, powershell-51, powershell-7, native-mouse]
     runs-on: windows-2022
     steps:

@@ -516,7 +516,7 @@ def check_performance_waiver(evidence, root, commit):
                 "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
                 "PowerShell 7 / PSReadLine 2.4.5 / pipe", "package"}
     require(isinstance(jobs, list) and required <= {job.get("name") for job in jobs}
-            and all(job.get("conclusion") == "success" for job in jobs),
+            and all(job.get("conclusion") == ("skipped" if job.get("name") == "evidence-upload" else "success") for job in jobs),
             "functional and package CI matrix incomplete or failed")
 
 

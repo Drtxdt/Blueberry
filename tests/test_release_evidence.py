@@ -457,6 +457,15 @@ esac
             self.evidence["performance_waiver"]["measurement_complete"] = True
             save()
         self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        data["jobs"].append({"name": "evidence-upload", "conclusion": "skipped"})
+        save()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        data["jobs"][-1]["conclusion"] = "failure"
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        data["jobs"].pop()
+        save()
         validator.bundle(self.evidence_path, self.root / "evidence.zip")
         with zipfile.ZipFile(self.root / "evidence.zip") as archive:
             self.assertIn(path.name, archive.namelist())
