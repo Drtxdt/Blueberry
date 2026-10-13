@@ -1045,6 +1045,13 @@ struct State {
     event_tx: SyncSender<HostEvent>,
     form_values_request: u64,
     interaction_mode: InteractionMode,
+    native_deletes: BTreeMap<String, bool>,
+    native_history_up: bool,
+    pending_history_edit: Option<u64>,
+    history_edit_started: Option<Instant>,
+    history_keys: Vec<Event>,
+    native_delete_sequence: u64,
+    pending_history_paste: Option<(String, u64)>,
     hub_form: Option<crate::hub::TemplateForm>,
     hub_form_project: bool,
     hub_templates: BTreeMap<String, crate::hub::CommandTemplate>,
@@ -1190,8 +1197,7 @@ impl State {
                 self.invalidate();
                 self.dirty = self.prompt;
                 self.explicit = true;
-                self.dismissed = false;
-                self.interaction_mode = InteractionMode::Completion;
+                self.dismissed = self.interaction_mode == InteractionMode::History;
             }
             Err(error) => {
                 self.diagnostic = Some(format!("配置无效，保留上次有效设置：{error}"));
@@ -1276,6 +1282,12 @@ impl State {
                 self.metadata_ready = value["capabilities"]["command_metadata"] == true;
                 self.history_ready = value["capabilities"]["history"] == true;
                 self.paste_ready = value["key_handlers"]["paste"] == true;
+                self.native_deletes =
+                    serde_json::from_value(value["capabilities"]["native_deletes"].clone())
+                        .unwrap_or_default();
+                self.native_history_up = value["capabilities"]["native_history_up"]
+                    .as_bool()
+                    .unwrap_or(true);
                 self.ready = value["ready"] == true
                     && value["psreadline"] == true
                     && value["key_handlers"]["buffer"] == true
@@ -1288,6 +1300,10 @@ impl State {
             "prompt_start" => {
                 self.notification = None;
                 self.interaction_mode = InteractionMode::Completion;
+                self.pending_history_edit = None;
+                self.history_edit_started = None;
+                self.pending_history_paste = None;
+                self.history_keys.clear();
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -1348,6 +1364,10 @@ impl State {
             }
             "execute" => {
                 self.interaction_mode = InteractionMode::Completion;
+                self.pending_history_edit = None;
+                self.history_edit_started = None;
+                self.pending_history_paste = None;
+                self.history_keys.clear();
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -1375,6 +1395,37 @@ impl State {
                     worker.update(|w| w.commands = Some(commands));
                     self.commands_pending = !complete;
                     self.schedule_metadata();
+                }
+            }
+            "paste_result" => {
+                if self
+                    .pending_history_paste
+                    .as_ref()
+                    .is_some_and(|(id, revision)| {
+                        value["request_id"].as_str() == Some(id.as_str())
+                            && *revision == self.revision
+                    })
+                {
+                    self.pending_history_paste = None;
+                    if value["applied"] == true && value["changed"] == true {
+                        self.interaction_mode = InteractionMode::Completion;
+                        self.dismissed = false;
+                    }
+                }
+            }
+            "native_edit" => {
+                if value["sequence"].as_u64() != Some(self.native_delete_sequence) {
+                    return Ok(());
+                }
+                if self.pending_history_edit.take() == Some(self.revision)
+                    && self.interaction_mode == InteractionMode::History
+                    && value["changed"] == true
+                {
+                    self.interaction_mode = InteractionMode::Completion;
+                    self.dismissed = false;
+                    let mut confirmed = value;
+                    confirmed["event"] = json!("buffer");
+                    self.message(confirmed, _writer, worker)?;
                 }
             }
             "buffer" => {
@@ -1674,6 +1725,11 @@ impl State {
     }
 
     fn query(&mut self, writer: &mut impl Write) -> Result<()> {
+        // Metadata/enumerator keys also interrupt PSReadLine's consecutive
+        // history cursor. Defer every automatic protocol key until editing.
+        if self.interaction_mode == InteractionMode::History && self.hub_query.is_none() {
+            return Ok(());
+        }
         if self.history_pending
             && self.history_ready
             && self.ready
@@ -1822,6 +1878,18 @@ impl State {
         master: &dyn portable_pty::MasterPty,
         worker: &Worker,
     ) -> Result<()> {
+        if self.pending_history_edit.is_some() || self.pending_history_paste.is_some() {
+            let cancel = matches!(&event, Event::Key(key) if key.code == crossterm::event::KeyCode::Char('c')
+                && key.modifiers == crossterm::event::KeyModifiers::CONTROL);
+            if cancel {
+                self.pending_history_edit = None;
+                self.pending_history_paste = None;
+                self.history_keys.clear();
+            } else {
+                self.history_keys.push(event);
+                return Ok(());
+            }
+        }
         if self.hub_query.is_some() {
             if matches!(&event,Event::Key(key) if key.kind==crossterm::event::KeyEventKind::Release)
             {
@@ -2039,62 +2107,44 @@ impl State {
             }
         }
         if self.interaction_mode == InteractionMode::History {
-            if let Event::Key(key) = &event
-                && key.kind != crossterm::event::KeyEventKind::Release
-                && key.modifiers.is_empty()
-                && key.code == crossterm::event::KeyCode::Esc
+            let literal_edit = matches!(&event, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release
+                    && matches!(key.code, crossterm::event::KeyCode::Char(_))
+                    && !key.modifiers.intersects(crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT));
+            if !literal_edit
+                && !matches!(&event, Event::Paste(_))
+                && let Some(bytes) =
+                    input::native_bytes(event.clone(), self.parser.screen().application_cursor())
             {
-                self.interaction_mode = InteractionMode::Completion;
+                let observed_delete = self.native_deletes.iter().any(|(chord, enabled)| {
+                    *enabled && input::matches_native_delete(chord, &event)
+                });
+                if observed_delete {
+                    self.native_delete_sequence += 1;
+                }
                 self.invalidate();
-                self.dismissed = false;
-                self.explicit = true;
-                self.dirty = self.prompt;
+                self.pending_history_edit = observed_delete.then_some(self.revision);
+                self.history_edit_started = observed_delete.then(Instant::now);
+                self.dismissed = true;
+                self.dirty = false;
                 worker.update(|work| {
                     work.cancel = true;
                     work.query = None;
                 });
-                return Ok(());
-            }
-            if let Event::Key(key) = &event
-                && key.kind != crossterm::event::KeyEventKind::Release
-                && key.modifiers.is_empty()
-                && matches!(
-                    key.code,
-                    crossterm::event::KeyCode::Up | crossterm::event::KeyCode::Down
-                )
-            {
-                let bytes = match key.code {
-                    crossterm::event::KeyCode::Up if self.parser.screen().application_cursor() => {
-                        b"\x1bOA".as_slice()
-                    }
-                    crossterm::event::KeyCode::Up => b"\x1b[A".as_slice(),
-                    crossterm::event::KeyCode::Down
-                        if self.parser.screen().application_cursor() =>
-                    {
-                        b"\x1bOB".as_slice()
-                    }
-                    crossterm::event::KeyCode::Down => b"\x1b[B".as_slice(),
-                    _ => unreachable!(),
-                };
-                self.invalidate();
-                self.dismissed = true;
-                // A private buffer-query key is itself a PSReadLine handler
-                // and breaks its consecutive history cursor.  Keep history
-                // navigation entirely inside PSReadLine until another input
-                // leaves this mode.
-                self.dirty = false;
-                writer.write_all(bytes)?;
+                if bytes
+                    .iter()
+                    .any(|byte| matches!(byte, 3 | 4 | b'\r' | b'\n'))
+                {
+                    self.prompt = false;
+                }
+                writer.write_all(&bytes)?;
                 writer.flush()?;
                 return Ok(());
             }
-            let editing_event = match &event {
-                Event::Paste(_) => true,
-                Event::Key(key) => key.kind != crossterm::event::KeyEventKind::Release,
-                _ => false,
-            };
-            if editing_event {
+            if literal_edit {
                 self.interaction_mode = InteractionMode::Completion;
                 self.dismissed = false;
+            } else if matches!(&event, Event::Paste(text) if text.is_empty()) {
+                return Ok(());
             }
         }
         if let Event::Mouse(mouse) = event {
@@ -2194,8 +2244,12 @@ impl State {
             std::fs::write(&temporary, payload)?;
             std::fs::rename(&temporary, &pending)?;
             self.invalidate();
-            self.dismissed = false;
-            self.dirty = true;
+            self.dismissed = self.interaction_mode == InteractionMode::History;
+            self.dirty = !self.dismissed;
+            if self.dismissed {
+                self.pending_history_paste = Some((id, self.revision));
+                self.history_edit_started = Some(Instant::now());
+            }
             writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'p'))?;
             writer.flush()?;
             return Ok(());
@@ -2294,6 +2348,10 @@ impl State {
         } else {
             None
         };
+        let observed_delete = self
+            .native_deletes
+            .iter()
+            .any(|(chord, enabled)| *enabled && input::matches_native_delete(chord, &event));
         let Some(input) = configured
             .or_else(|| input::translate(event, self.parser.screen().application_cursor()))
         else {
@@ -2308,6 +2366,7 @@ impl State {
                     && shown.cursor == self.cursor
             });
         let starts_history_navigation = !visible
+            && self.native_history_up
             && self.config.completion.up_arrow_history
             && matches!(&input, Input::Previous | Input::Next);
         if starts_history_navigation {
@@ -2503,11 +2562,15 @@ impl State {
             Input::Bytes(bytes) => bytes,
         };
         self.invalidate();
-        self.interaction_mode = if starts_history_navigation {
-            InteractionMode::History
-        } else {
-            InteractionMode::Completion
-        };
+        if observed_delete {
+            self.native_delete_sequence += 1;
+        }
+        self.interaction_mode =
+            if starts_history_navigation || self.interaction_mode == InteractionMode::History {
+                InteractionMode::History
+            } else {
+                InteractionMode::Completion
+            };
         self.dismissed = starts_history_navigation;
         // After submitting a line the next input may belong to a native program.
         // Do not inject a PSReadLine chord until the next prompt marker.
@@ -2644,6 +2707,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         );
     }
     env.extend(pty::key_environment(&config.keys));
+    env.insert("BLUEBERRY_OBSERVE_NATIVE_EDITS".into(), "1".into());
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let mut raw = RawMode::enable()
         .context("Blueberry run requires an interactive terminal. Use 'complete' for scripts.")?;
@@ -2866,6 +2930,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
         event_tx: tx.clone(),
         form_values_request: 0,
         interaction_mode: InteractionMode::Completion,
+        native_deletes: BTreeMap::new(),
+        native_history_up: true,
+        pending_history_edit: None,
+        history_edit_started: None,
+        history_keys: Vec::new(),
+        native_delete_sequence: 0,
+        pending_history_paste: None,
         hub_form: None,
         hub_form_project: false,
         hub_templates: BTreeMap::new(),
@@ -2883,6 +2954,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
         let event = if exit_code.is_some() {
             match rx.recv_timeout(std::time::Duration::from_millis(100)) {
                 Ok(e) => e,
+                Err(_) => break,
+            }
+        } else if state.pending_history_edit.is_some() || state.pending_history_paste.is_some() {
+            match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(event) => event,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    state.pending_history_edit = None;
+                    state.pending_history_paste = None;
+                    HostEvent::Diagnostic("原生编辑确认超时，保留历史浏览；请检查桥接状态".into())
+                }
                 Err(_) => break,
             }
         } else {
@@ -3154,6 +3235,25 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
                 last_probe_request_state = value;
             }
+        }
+        if (state.pending_history_edit.is_some() || state.pending_history_paste.is_some())
+            && state
+                .history_edit_started
+                .is_some_and(|started| started.elapsed() >= std::time::Duration::from_secs(2))
+        {
+            state.pending_history_edit = None;
+            state.pending_history_paste = None;
+            state.diagnostic = Some("原生编辑确认超时，保留历史浏览；请检查桥接状态".into());
+        }
+        if state.pending_history_edit.is_none()
+            && state.pending_history_paste.is_none()
+            && !state.history_keys.is_empty()
+        {
+            let keys = std::mem::take(&mut state.history_keys);
+            for key in keys {
+                state.input(key, &mut writer, master.as_ref(), &worker)?;
+            }
+            ui_dirty = true;
         }
         if std::mem::take(&mut state.repaint) {
             frame.extend_from_slice(b"\x1b[2J\x1b[H");

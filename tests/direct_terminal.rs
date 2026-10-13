@@ -509,6 +509,135 @@ fn wait_editor_begin(h: &mut Harness, directory: &std::path::Path, count: usize)
 }
 
 #[test]
+fn direct_empty_up_keeps_native_history_until_a_real_edit() -> Result<()> {
+    for delay in [0, 40] {
+        let dir = tempfile::tempdir()?;
+        let mut h = start_with_delay(dir.path(), delay)?;
+        let result = (|| -> Result<()> {
+            h.send(b"function global:TabExpansion2 { param($inputScript,$cursorColumn,$options) $m=[Collections.ObjectModel.Collection[Management.Automation.CompletionResult]]::new(); $m.Add([Management.Automation.CompletionResult]::new('git status','git status','Command','fixture')); [Management.Automation.CommandCompletion]::new($m,0,0,$inputScript.Length) }; [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git sw'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st')\r")?;
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+            for (key, expected) in [
+                (b"\x1b[A".as_slice(), "git st"),
+                (b"\x1b[A".as_slice(), "git sw"),
+                (b"\x1b[B".as_slice(), "git st"),
+            ] {
+                h.send(key)?;
+                let deadline = std::time::Instant::now() + TIMEOUT;
+                loop {
+                    let _ = h.pump(Duration::from_millis(10));
+                    let screen = h.screen_snapshot();
+                    let row = screen
+                        .rows(0, screen.size().1)
+                        .nth(screen.cursor_position().0 as usize)
+                        .unwrap_or_default();
+                    if row.contains(expected) {
+                        break;
+                    }
+                    ensure!(
+                        std::time::Instant::now() < deadline,
+                        "native history did not reach {expected}"
+                    );
+                }
+                let _ = h.pump(Duration::from_millis(350));
+                ensure!(
+                    !h.screen_snapshot().contents().contains("› "),
+                    "history recall reopened Blueberry completion"
+                );
+            }
+            for key in [
+                b"\x1b[D".as_slice(),
+                b"\x1b[H",
+                b"\x7f",
+                b"\t",
+                b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_",
+            ] {
+                h.send(key)?;
+                let until = std::time::Instant::now() + Duration::from_millis(350);
+                while std::time::Instant::now() < until {
+                    let _ = h.pump(Duration::from_millis(10));
+                }
+                if key == b"\t" {
+                    let until = std::time::Instant::now() + TIMEOUT;
+                    loop {
+                        let screen = h.screen_snapshot();
+                        let row = screen
+                            .rows(0, screen.size().1)
+                            .nth(screen.cursor_position().0 as usize)
+                            .unwrap_or_default();
+                        if row.contains("git status") {
+                            break;
+                        }
+                        ensure!(
+                            std::time::Instant::now() < until,
+                            "native Tab did not complete the fixture"
+                        );
+                        let _ = h.pump(Duration::from_millis(10));
+                    }
+                }
+                ensure!(
+                    !h.screen_snapshot().contents().contains("› "),
+                    "native history key reopened completion: {key:?}"
+                );
+            }
+            h.send(b"\x03")?;
+            h.wait_text("^C", TIMEOUT)?;
+            wait_editor_begin(&mut h, dir.path(), 3)?;
+            h.send(b"\x1b[A")?;
+            let _ = h.pump(Duration::from_millis(350));
+            h.send(b"\x1b[F\x7f")?;
+            h.wait_text("› ", TIMEOUT)?;
+            h.send(b"\x03")?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error)
+                .with_context(|| format!("native history regression: {}", dir.keep().display()));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_history_respects_disabled_policy_and_custom_up_binding() -> Result<()> {
+    for custom in [false, true] {
+        let dir = tempfile::tempdir()?;
+        if !custom {
+            std::fs::write(
+                dir.path().join("config.toml"),
+                "[completion]\nup_arrow_history = false\n",
+            )?;
+        }
+        let mut h = start(dir.path())?;
+        let result = (|| -> Result<()> {
+            if custom {
+                h.send(b"Set-PSReadLineKeyHandler -Chord UpArrow -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('git st') }\r")?;
+            } else {
+                h.send(b"[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st')\r")?;
+            }
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+            h.send(b"\x1b[A")?;
+            h.wait_text("› ", TIMEOUT)?;
+            ensure!(
+                h.screen_snapshot().contents().contains("git st"),
+                "Up binding text changed"
+            );
+            h.send(b"\x03")?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error).with_context(|| {
+                format!("history policy/custom binding: {}", dir.keep().display())
+            });
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() -> Result<()> {
     for delay in [0, 3, 5, 10, 40, 100] {
         let dir = tempfile::tempdir()?;

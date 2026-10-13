@@ -54,6 +54,10 @@ $blueberryStateDefaults = [ordered]@{
     BLUEBERRY_READLINE_WRAPPED    = $false
     BLUEBERRY_PSREADLINE_AVAILABLE = $false
     BLUEBERRY_KEY_HANDLERS        = [ordered]@{ buffer = $false; apply = $false; commands = $false; native = $false; paste = $false; enter = $false; shift_enter = $false }
+    BLUEBERRY_NATIVE_DELETES = $null
+    BLUEBERRY_NATIVE_HISTORY_UP = $false
+    BLUEBERRY_NATIVE_DELETE_ACTIONS = $null
+    BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
     BLUEBERRY_CAPABILITIES_REFRESHED = $false
     BLUEBERRY_COMMAND_SNAPSHOT_ID = $null
     BLUEBERRY_COMMAND_SNAPSHOT = $null
@@ -1893,12 +1897,14 @@ function Send-BlueberryPasteResult {
         [string]$RequestId,
 
         [Parameter(Mandatory = $true)]
-        [bool]$Applied
+        [bool]$Applied,
+        [bool]$Changed = $false
     )
 
     Send-BlueberryEvent -Event 'paste_result' -Data ([ordered]@{
         request_id = $RequestId
         applied    = [bool]$Applied
+        changed    = [bool]$Changed
     })
 }
 
@@ -1982,8 +1988,11 @@ function Invoke-BlueberryPasteKeyHandler {
 
         $requestId = [string]$paste.id
         $applied = $false
+        $changed = $false
         $applyError = $null
         try {
+            $beforePaste = $null; $pasteCursor = 0
+            [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$beforePaste, [ref]$pasteCursor)
             $selectionStart = 0
             $selectionLength = 0
             [Microsoft.PowerShell.PSConsoleReadLine]::GetSelectionState(
@@ -1998,10 +2007,13 @@ function Invoke-BlueberryPasteKeyHandler {
                 [Microsoft.PowerShell.PSConsoleReadLine]::Insert([string]$paste.text)
             }
             $applied = $true
+            $afterPaste = $null
+            [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$afterPaste, [ref]$pasteCursor)
+            $changed = ($beforePaste -cne $afterPaste)
         } catch {
             $applyError = $_
         }
-        Send-BlueberryPasteResult -RequestId $requestId -Applied $applied
+        Send-BlueberryPasteResult -RequestId $requestId -Applied $applied -Changed $changed
         Send-BlueberryBuffer
         if ($null -ne $applyError) {
             Send-BlueberryPasteError -Code 'paste_failed' `
@@ -2678,7 +2690,20 @@ function Invoke-BlueberryNativeKeyHandler {
             try { $page = Get-BlueberryCommandMetadata -Name $request.command } catch { }
             finally { $global:LASTEXITCODE = $savedLastExitCode }
             Send-BlueberryEvent -Event 'command_metadata' -Data @{ request_id = [string]$request.id; command = [string]$request.command; page = $page }
-        } else { Get-BlueberryNativeCompletion -RequestId ([string]$request.id) }
+        } else {
+            # Only actual native completion may execute a user expansion or
+            # external program. Read-only metadata/history keep native Ctrl+C.
+            $restoreMode = $false; $savedControlCMode = $false
+            if (Test-BlueberryInteractiveHost) {
+                try {
+                    $savedControlCMode = [Console]::TreatControlCAsInput
+                    [Console]::TreatControlCAsInput = $false
+                    $restoreMode = $true
+                } catch { }
+            }
+            try { Get-BlueberryNativeCompletion -RequestId ([string]$request.id) }
+            finally { if ($restoreMode) { [Console]::TreatControlCAsInput = $savedControlCMode } }
+        }
     }
 }
 
@@ -2703,6 +2728,47 @@ function Test-BlueberryInteractiveHost {
         return ($Host.Name -eq 'ConsoleHost')
     } catch {
         return $false
+    }
+}
+
+function Invoke-BlueberryObservedNativeDelete {
+    param($Key, $Arg)
+    $chord = ''
+    if (($Key.Modifiers -band [ConsoleModifiers]::Control) -ne 0) { $chord += 'Ctrl+' }
+    if (($Key.Modifiers -band [ConsoleModifiers]::Alt) -ne 0) { $chord += 'Alt+' }
+    if (($Key.Modifiers -band [ConsoleModifiers]::Shift) -ne 0) { $chord += 'Shift+' }
+    $chord += [string]$Key.Key
+    $before = $null; $cursor = 0
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$before, [ref]$cursor)
+    $script:BLUEBERRY_NATIVE_DELETE_ACTIONS[$chord].Invoke($Key, $Arg)
+    $after = $null
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$after, [ref]$cursor)
+    $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE++
+    Send-BlueberryEvent -Event 'native_edit' -Data ([ordered]@{
+        line = [string]$after; cursor = [int]$cursor; changed = ($before -cne $after); sequence = $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE
+    })
+}
+
+function Register-BlueberryNativeDeleteObservers {
+    param($KeySnapshot)
+    $script:BLUEBERRY_NATIVE_DELETES = @{}
+    $script:BLUEBERRY_NATIVE_DELETE_ACTIONS = @{}
+    $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
+    foreach ($chord in @('Backspace', 'Delete', 'Ctrl+Backspace', 'Ctrl+Delete', 'Ctrl+w', 'Ctrl+u', 'Ctrl+k')) {
+        $bindings = @(Get-BlueberryKeyBinding -Chord $chord -Snapshot $KeySnapshot)
+        if ($bindings.Count -ne 1) { continue }
+        $name = [string]$bindings[0].Function
+        if ($name -notmatch '^(BackwardDelete|Delete|BackwardKill|Kill)') { continue }
+        $method = [Microsoft.PowerShell.PSConsoleReadLine].GetMethod($name, [type[]]@([Nullable[ConsoleKeyInfo]], [object]))
+        if ($null -eq $method) { continue }
+        $nativeAction = [Delegate]::CreateDelegate([Action[Nullable[ConsoleKeyInfo],object]], $method)
+        $script:BLUEBERRY_NATIVE_DELETE_ACTIONS[$chord] = $nativeAction
+        # A native deletion cannot launch a program. Keep the editor's input
+        # mode, as for the buffer callback, so an immediate Ctrl+C stays native.
+        $observerAction = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeDelete}
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($chord), $observerAction,
+            'BlueberryNativeDelete', 'Delegate the original native deletion and report its confirmed result')
+        $script:BLUEBERRY_NATIVE_DELETES[$chord] = $true
     }
 }
 
@@ -3028,9 +3094,10 @@ function Register-BlueberryKeyHandler {
     }
 
     try {
-        if ($Name -eq 'buffer') {
-            # This callback only reads the editor and emits a protocol reply;
-            # it cannot run an external program. The ScriptBlock overload
+        if ($Name -in @('buffer', 'commands', 'apply', 'paste', 'native')) {
+            # Read-only and literal-edit callbacks keep the editor input mode.
+            # The native handler manages its external-expansion branch itself.
+            # The ScriptBlock overload
             # temporarily enables processed input, so Ctrl+C arriving after
             # that reply can interrupt the callback instead of CancelLine.
             # Keep the editor's native input mode until this handler returns.
@@ -3078,6 +3145,10 @@ function Send-BlueberryCapabilities {
         manual_native     = $true
         command_metadata  = [bool]$script:BLUEBERRY_KEY_HANDLERS.native
         history           = [bool]$script:BLUEBERRY_KEY_HANDLERS.native
+    }
+    if ($null -ne $script:BLUEBERRY_NATIVE_DELETES) {
+        $capabilityMap.native_deletes = $script:BLUEBERRY_NATIVE_DELETES
+        $capabilityMap.native_history_up = [bool]$script:BLUEBERRY_NATIVE_HISTORY_UP
     }
     # Keep the field absent when the host did not opt into public-key
     # arbitration, preserving the alpha protocol shape for existing launchers.
@@ -3281,6 +3352,12 @@ function Initialize-BlueberryReadLine {
     # Public host shortcuts are configured outside the protocol chord. Inspect
     # their current PSReadLine owners before the host starts intercepting them;
     # this also leaves an explicit diagnostic for a user ScriptBlock binding.
+    if ($env:BLUEBERRY_OBSERVE_NATIVE_EDITS -eq '1') {
+        $upBinding = @(Get-BlueberryKeyBinding -Chord 'UpArrow' -Snapshot $keySnapshot)
+        $script:BLUEBERRY_NATIVE_HISTORY_UP = ($upBinding.Count -eq 1 -and
+            [string]$upBinding[0].Function -in @('PreviousHistory', 'HistorySearchBackward'))
+        Register-BlueberryNativeDeleteObservers -KeySnapshot $keySnapshot
+    }
     $publicKeyTimer = $null
     if ($script:BLUEBERRY_TRACE_ENABLED) {
         $publicKeyTimer = [Diagnostics.Stopwatch]::StartNew()

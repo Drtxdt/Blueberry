@@ -768,6 +768,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     "direct_background_jit_failed"
                                 }
                                 Some("direct_binding_audit") => "direct_binding_audit",
+                                Some("direct_history_enter") => "direct_history_enter",
+                                Some("direct_history_native_key") => "direct_history_native_key",
                                 Some("direct_response_wait") => "direct_response_wait",
                                 Some("direct_original_edit") => "direct_original_edit",
                                 Some("direct_confirmed_query_send") => {
@@ -831,7 +833,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 .all(|name| capabilities.iter().any(|item| item == name)),
                                 "incompatible direct capabilities"
                             );
-                            pipe.write_json(&json!({"kind":"hello","token":token,"protocol":1,"host_mode":"direct","transport":"pipe","capabilities":capabilities}))?;
+                            pipe.write_json(&json!({"kind":"hello","token":token,"protocol":1,"host_mode":"direct","transport":"pipe","capabilities":capabilities,"up_arrow_history":settings.completion.up_arrow_history}))?;
                             automatic = value["automatic_menu"] == true;
                             adapter_status = json!({"shell_version":value["shell_version"],"psreadline_version":value["psreadline"],
                             "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],

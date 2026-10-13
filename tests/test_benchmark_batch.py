@@ -82,6 +82,8 @@ class BatchTests(unittest.TestCase):
             receipt = BATCH.inspect(root / "batch")
             self.assertEqual(receipt["status"], "interrupted")
             self.assertFalse(receipt["measurement_complete"])
+            self.assertEqual(receipt["results"][0]["status"], "interrupted")
+            self.assertFalse(receipt["results"][0]["worker_alive"])
 
     def test_inspection_reconciles_dead_owner_without_replacing_reports(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -101,6 +103,19 @@ class BatchTests(unittest.TestCase):
             identity["created"] = 0
             BATCH.write(root / "batch.json", dict(status="running", owner=identity, measurement_complete=False))
             self.assertEqual(BATCH.inspect(root)["status"], "interrupted")
+
+    def test_inspection_reconciles_legacy_interrupted_child(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            completed = dict(status="completed", report_sha256="retained")
+            BATCH.write(root / "batch.json", dict(status="interrupted", owner=dict(pid=4294967, created=0),
+                        interrupted_at_utc="retained-time", measurement_complete=False,
+                        results=[completed, dict(status="running", worker=dict(pid=4294966, created=0))]))
+            receipt = BATCH.inspect(root)
+            self.assertEqual(receipt["results"][0], completed)
+            self.assertEqual(receipt["results"][1]["status"], "interrupted")
+            self.assertEqual(receipt["results"][1]["stopped_at_utc"], "retained-time")
+            self.assertFalse(receipt["results"][1]["worker_alive"])
 
     def test_wrong_dependency_is_rejected_before_spawn(self):
         with tempfile.TemporaryDirectory() as tmp:

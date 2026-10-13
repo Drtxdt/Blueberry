@@ -41,7 +41,7 @@ CURRENT_RELEASES = {"0.5.3", "0.6.0"}
 CURRENT_TERMINAL_TASKS = TERMINAL_TASKS | {
     "unicode", "right_text", "line_wrap", "multiline_paste", "small_window",
     "live_resize", "history_rgb", "history_attributes", "alt_screen", "ctrl_c_pip", "ctrl_c_npm",
-    "undo_redo", "bridge_recovery",
+    "undo_redo", "bridge_recovery", "history_browsing",
 }
 VSCODE_TASKS = {"startup", "input", "menu", "tab", "ctrl_c"}
 USER_TASKS = {"install", "explain", "project_parameters", "template", "exit_restore"}

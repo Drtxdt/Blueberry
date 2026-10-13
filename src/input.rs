@@ -205,6 +205,49 @@ pub fn mouse_bytes(event: crossterm::event::MouseEvent, screen: &vt100::Screen) 
     }
 }
 
+pub fn native_bytes(event: Event, application_cursor: bool) -> Option<Vec<u8>> {
+    match translate(event, application_cursor)? {
+        Input::Bytes(bytes) => Some(bytes),
+        Input::Tab => Some(vec![b'\t']),
+        Input::BackTab => Some(b"\x1b[Z".to_vec()),
+        Input::Previous => Some(
+            if application_cursor {
+                b"\x1bOA"
+            } else {
+                b"\x1b[A"
+            }
+            .to_vec(),
+        ),
+        Input::Next => Some(
+            if application_cursor {
+                b"\x1bOB"
+            } else {
+                b"\x1b[B"
+            }
+            .to_vec(),
+        ),
+        Input::Dismiss => Some(vec![0x1b]),
+        _ => None,
+    }
+}
+
+pub fn matches_native_delete(chord: &str, event: &Event) -> bool {
+    let Event::Key(key) = event else {
+        return false;
+    };
+    let (name, modifiers) = match chord.get(..5) {
+        Some(prefix) if prefix.eq_ignore_ascii_case("ctrl+") => (&chord[5..], Mod::CONTROL),
+        _ => (chord, Mod::NONE),
+    };
+    let code = match name {
+        _ if name.eq_ignore_ascii_case("backspace") => KeyCode::Backspace,
+        _ if name.eq_ignore_ascii_case("delete") => KeyCode::Delete,
+        _ if name.len() == 1 => KeyCode::Char(name.chars().next().unwrap().to_ascii_lowercase()),
+        _ => return false,
+    };
+    key.kind != KeyEventKind::Release && key.code == code && key.modifiers == modifiers
+}
+
 pub fn translate(event: Event, application_cursor: bool) -> Option<Input> {
     match event {
         Event::Resize(w, h) => Some(Input::Resize(w, h)),
@@ -306,6 +349,27 @@ pub fn translate(event: Event, application_cursor: bool) -> Option<Input> {
 mod tests {
     use super::*;
     use crossterm::event::KeyEvent;
+    #[test]
+    fn native_history_keys_and_delete_ack_bindings_keep_modifiers() {
+        for (code, modifiers, bytes) in [
+            (KeyCode::Tab, Mod::NONE, b"\t".as_slice()),
+            (KeyCode::Esc, Mod::NONE, b"\x1b".as_slice()),
+            (KeyCode::Left, Mod::NONE, b"\x1b[D".as_slice()),
+            (KeyCode::Up, Mod::NONE, b"\x1b[A".as_slice()),
+        ] {
+            assert_eq!(
+                native_bytes(Event::Key(KeyEvent::new(code, modifiers)), false).unwrap(),
+                bytes
+            );
+        }
+        let plain = Event::Key(KeyEvent::new(KeyCode::Backspace, Mod::NONE));
+        let ctrl = Event::Key(KeyEvent::new(KeyCode::Backspace, Mod::CONTROL));
+        assert!(matches_native_delete("Backspace", &plain));
+        assert!(matches_native_delete("CTRL+BACKSPACE", &ctrl));
+        assert!(!matches_native_delete("Backspace", &ctrl));
+        assert!(!matches_native_delete("Ctrl+Backspace", &plain));
+        assert!(!matches_native_delete("Delete", &plain));
+    }
     #[test]
     fn unicode_and_ctrl_c_are_forwarded() {
         let check = |code, mods, expected: &[u8]| match translate(

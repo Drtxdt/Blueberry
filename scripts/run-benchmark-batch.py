@@ -131,11 +131,17 @@ def validate(plan):
 def inspect(folder):
     path = Path(folder) / "batch.json"
     receipt = read(path)
-    if receipt["status"] == "running":
+    if receipt["status"] in ("running", "interrupted"):
         owner = receipt["owner"]
         if process_identity(owner["pid"]) != owner:
-            receipt.update(status="interrupted", measurement_complete=False, interrupted_at_utc=now(),
-                           interruption="Coordinator identity is no longer alive; retained reports are not a complete batch.")
+            if receipt["status"] == "running":
+                receipt.update(status="interrupted", measurement_complete=False, interrupted_at_utc=now(),
+                               interruption="Coordinator identity is no longer alive; retained reports are not a complete batch.")
+            for entry in receipt.get("results", []):
+                if entry.get("status") == "running":
+                    worker = entry.get("worker")
+                    entry.update(status="interrupted", stopped_at_utc=receipt["interrupted_at_utc"],
+                                 worker_alive=bool(worker and process_identity(worker["pid"]) == worker))
             write(path, receipt)
     return receipt
 

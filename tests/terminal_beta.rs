@@ -923,6 +923,72 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
 }
 
 #[test]
+fn terminal_history_native_keys_wait_for_actual_deletion() -> Result<()> {
+    let mut host = start_host()?;
+    send_command(
+        &mut host.harness,
+        "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git sw'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output HISTORY_SEEDED",
+        "HISTORY_SEEDED",
+    )?;
+    for (key, expected) in [
+        (b"\x1b[A".as_slice(), "git st"),
+        (b"\x1b[A".as_slice(), "git sw"),
+        (b"\x1b[B".as_slice(), "git st"),
+    ] {
+        host.harness.send(key)?;
+        let deadline = Instant::now() + PTY_TIMEOUT;
+        loop {
+            let screen = host.harness.screen_snapshot();
+            let row = screen
+                .rows(0, screen.size().1)
+                .nth(screen.cursor_position().0 as usize)
+                .unwrap_or_default();
+            if row.contains(expected) {
+                break;
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "history did not reach {expected}"
+            );
+            let _ = host.harness.pump(Duration::from_millis(10));
+        }
+        let until = Instant::now() + Duration::from_millis(300);
+        while Instant::now() < until {
+            let _ = host.harness.pump(Duration::from_millis(10));
+        }
+        ensure!(
+            !host.harness.viewport_contents().contains("› "),
+            "history navigation reopened completion"
+        );
+    }
+    for key in [b"\x1b[D".as_slice(), b"\x1b[H", b"\x7f", b"\t", b"\x1b"] {
+        host.harness.send(key)?;
+        let until = Instant::now() + Duration::from_millis(300);
+        while Instant::now() < until {
+            let _ = host.harness.pump(Duration::from_millis(10));
+        }
+        ensure!(
+            !host.harness.viewport_contents().contains("› "),
+            "native key reopened completion: {key:?}"
+        );
+    }
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(300);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    host.harness.send(b"\x1b[F\x7f")?;
+    wait_until(
+        &mut host.harness,
+        "completion after actual deletion",
+        PTY_TIMEOUT,
+        |screen| screen.contains("› "),
+    )?;
+    cancel_to_prompt(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
 fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<()> {
     let mut host = start_host()?;
     send_command(
@@ -949,11 +1015,25 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         PTY_TIMEOUT,
         |screen| screen.contains("Write-Output SS_UP_HISTORY"),
     )?;
-    let history = request_buffer(&mut host.harness, "Write-Output SS_UP_HISTORY")?;
-    ensure!(
-        history["line"] == "Write-Output SS_UP_HISTORY",
-        "history mode did not reach PSReadLine history: {history}"
-    );
+    // Inspect the terminal without injecting a buffer-query key, which would
+    // break PSReadLine's consecutive history cursor and is intentionally native
+    // while history browsing is active.
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let screen = host.harness.screen_snapshot();
+        let row = screen
+            .rows(0, screen.size().1)
+            .nth(screen.cursor_position().0 as usize)
+            .unwrap_or_default();
+        if row.contains("Write-Output SS_UP_HISTORY") {
+            break;
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "native history cursor did not reach the recalled command"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    }
     clear_line(&mut host.harness)?;
     let pasted = "Write-Output '粘贴😀 与空格'";
     host.harness
