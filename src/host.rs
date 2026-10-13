@@ -2144,8 +2144,10 @@ impl State {
             // ordinary edit handlers. Do not inject queries or await deletion
             // acknowledgements while it owns the keyboard.
             if self.native_search_active
-                && let Some(bytes) =
-                    input::native_bytes(event.clone(), self.parser.screen().application_cursor())
+                && let Some(bytes) = input::native_editor_bytes(
+                    event.clone(),
+                    self.parser.screen().application_cursor(),
+                )
             {
                 let inner_backspace = matches!(&event, Event::Key(key)
                     if key.code == crossterm::event::KeyCode::Backspace
@@ -2169,8 +2171,10 @@ impl State {
                     && !key.modifiers.intersects(crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT));
             if !literal_edit
                 && !matches!(&event, Event::Paste(_))
-                && let Some(bytes) =
-                    input::native_bytes(event.clone(), self.parser.screen().application_cursor())
+                && let Some(bytes) = input::native_editor_bytes(
+                    event.clone(),
+                    self.parser.screen().application_cursor(),
+                )
             {
                 let observed_delete = self.native_deletes.iter().any(|(chord, enabled)| {
                     *enabled && input::matches_native_delete(chord, &event)

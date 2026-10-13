@@ -231,6 +231,19 @@ pub fn native_bytes(event: Event, application_cursor: bool) -> Option<Vec<u8>> {
     }
 }
 
+/// Native editor delegation must deliver a standalone Escape key. A lone VT
+/// ESC byte can remain an incomplete prefix until another key arrives; history
+/// browsing deliberately does not send a private query chord to complete it.
+pub fn native_editor_bytes(event: Event, application_cursor: bool) -> Option<Vec<u8>> {
+    #[cfg(windows)]
+    if matches!(&event, Event::Key(key) if key.kind != KeyEventKind::Release
+        && key.code == KeyCode::Esc && key.modifiers.is_empty())
+    {
+        return Some(windows_key_record(0x1b, 0x1b, 0));
+    }
+    native_bytes(event, application_cursor)
+}
+
 pub fn matches_native_delete(chord: &str, event: &Event) -> bool {
     let Event::Key(key) = event else {
         return false;
@@ -349,6 +362,19 @@ pub fn translate(event: Event, application_cursor: bool) -> Option<Input> {
 mod tests {
     use super::*;
     use crossterm::event::KeyEvent;
+    #[cfg(windows)]
+    #[test]
+    fn native_editor_escape_is_a_complete_key_record() {
+        let escape = Event::Key(KeyEvent::new(KeyCode::Esc, Mod::NONE));
+        let records = native_editor_bytes(escape, false).unwrap();
+        assert!(records.starts_with(b"\x1b[27;"));
+        assert_eq!(
+            records.windows(2).filter(|bytes| *bytes == b"1_").count(),
+            2
+        );
+        let tab = Event::Key(KeyEvent::new(KeyCode::Tab, Mod::NONE));
+        assert_eq!(native_editor_bytes(tab, false).unwrap(), b"\t");
+    }
     #[test]
     fn native_history_keys_and_delete_ack_bindings_keep_modifiers() {
         for (code, modifiers, bytes) in [

@@ -925,6 +925,24 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
 #[test]
 fn terminal_history_search_stays_native_until_a_real_edit() -> Result<()> {
     let mut host = start_host()?;
+    let wait_history_row = |harness: &mut Harness, expected: &str| -> Result<()> {
+        let deadline = Instant::now() + PTY_TIMEOUT;
+        loop {
+            let screen = harness.screen_snapshot();
+            let row = screen
+                .rows(0, screen.size().1)
+                .nth(screen.cursor_position().0 as usize)
+                .unwrap_or_default();
+            if row.contains(expected) && harness.viewport_contents().contains("switch_") {
+                return Ok(());
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "native search did not reach {expected}"
+            );
+            let _ = harness.pump(Duration::from_millis(10));
+        }
+    };
     send_command(
         &mut host.harness,
         "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git switch main'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git switch dev'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git status'); Write-Output SEARCH_HISTORY_SEEDED",
@@ -939,21 +957,11 @@ fn terminal_history_search_stays_native_until_a_real_edit() -> Result<()> {
     let started = host.harness.event("native_search", PTY_TIMEOUT)?;
     ensure!(started["active"] == true, "native search did not start");
     host.harness.send_text("switch")?;
-    wait_until(
-        &mut host.harness,
-        "native reverse search",
-        PTY_TIMEOUT,
-        |screen| screen.contains("git switch dev") && screen.contains("switch_"),
-    )?;
+    wait_history_row(&mut host.harness, "git switch dev")?;
     host.harness.send(b"\x7f")?;
     host.harness.send_text("h")?;
     host.harness.send(b"\x12")?;
-    wait_until(
-        &mut host.harness,
-        "continued reverse search",
-        PTY_TIMEOUT,
-        |screen| screen.contains("git switch main") && screen.contains("switch_"),
-    )?;
+    wait_history_row(&mut host.harness, "git switch main")?;
     let until = Instant::now() + Duration::from_millis(350);
     while Instant::now() < until {
         let _ = host.harness.pump(Duration::from_millis(10));
