@@ -998,6 +998,86 @@ fn terminal_history_search_stays_native_until_a_real_edit() -> Result<()> {
 }
 
 #[test]
+fn terminal_history_search_exit_serializes_following_typing_and_delete() -> Result<()> {
+    for burst in [b"\x07git s".as_slice(), b"\x1b\x7ft"] {
+        let mut host = start_host()?;
+        send_command(
+            &mut host.harness,
+            "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output SEARCH_BURST_SEEDED",
+            "SEARCH_BURST_SEEDED",
+        )?;
+        // Search entry and its first query also arrive in one burst.
+        host.harness.send(b"\x1b[A\x12git st")?;
+        let started = host.harness.event("native_search", PTY_TIMEOUT)?;
+        ensure!(started["active"] == true, "native search did not start");
+        wait_until(
+            &mut host.harness,
+            "burst search query",
+            PTY_TIMEOUT,
+            |screen| screen.contains("git st_"),
+        )?;
+        host.harness.send(burst)?;
+        let ended = host.harness.event("native_search", PTY_TIMEOUT)?;
+        ensure!(ended["active"] == false, "native search did not finish");
+        wait_until(
+            &mut host.harness,
+            "completion after search exit burst",
+            PTY_TIMEOUT,
+            |screen| screen.contains("› "),
+        )?;
+        let expected = if burst[0] == 7 { "git s" } else { "git st" };
+        read_real_buffer(
+            &mut host.harness,
+            "post-search burst buffer",
+            expected,
+            None,
+        )?;
+        cancel_to_prompt(&mut host.harness)?;
+        host.harness.finish(PTY_TIMEOUT)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn terminal_history_keeps_workbench_shortcut_available() -> Result<()> {
+    let mut host = start_host()?;
+    let path = host.data_dir.path().join("Blueberry/commands.toml");
+    fs::create_dir_all(path.parent().context("commands directory")?)?;
+    fs::write(
+        &path,
+        "schema_version = 2\n[[favorites]]\nname = 'History Workbench'\ncommand = 'git status'\n",
+    )?;
+    send_command(
+        &mut host.harness,
+        "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output WORKBENCH_HISTORY_SEEDED",
+        "WORKBENCH_HISTORY_SEEDED",
+    )?;
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    host.harness.send(ctrl_alt_space_records())?;
+    wait_until(
+        &mut host.harness,
+        "workbench during history browsing",
+        PTY_TIMEOUT,
+        |screen| screen.contains("History Workbench"),
+    )?;
+    host.harness.send(ctrl_alt_space_records())?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !host.harness.viewport_contents().contains("› "),
+        "workbench dismissal reopened completion"
+    );
+    cancel_to_prompt(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
 fn terminal_history_native_keys_wait_for_actual_deletion() -> Result<()> {
     let mut host = start_host()?;
     send_command(

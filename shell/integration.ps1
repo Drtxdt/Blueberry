@@ -60,6 +60,7 @@ $blueberryStateDefaults = [ordered]@{
     BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
     BLUEBERRY_NATIVE_SEARCHES = $null
     BLUEBERRY_NATIVE_SEARCH_ACTIONS = $null
+    BLUEBERRY_NATIVE_SEARCH_CONTINUES = $null
     BLUEBERRY_CAPABILITIES_REFRESHED = $false
     BLUEBERRY_COMMAND_SNAPSHOT_ID = $null
     BLUEBERRY_COMMAND_SNAPSHOT = $null
@@ -2789,14 +2790,23 @@ function Invoke-BlueberryObservedNativeSearch {
         [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($searchChord), $action,
             $action.Method.Name, $action.Method.Name)
     }
+    foreach ($deleteChord in $script:BLUEBERRY_NATIVE_DELETE_ACTIONS.Keys) {
+        $action = $script:BLUEBERRY_NATIVE_DELETE_ACTIONS[$deleteChord]
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($deleteChord), $action,
+            $action.Method.Name, $action.Method.Name)
+    }
     Send-BlueberryEvent -Event 'native_search' -Data @{ active = $true }
     try { $nativeAction.Invoke($Key, $Arg) }
     finally {
         foreach ($searchChord in $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS.Keys) {
-            $action = $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$searchChord]
             $observer = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeSearch}
             [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($searchChord), $observer,
                 'BlueberryNativeSearch', 'Delegate native history search without completion queries')
+        }
+        foreach ($deleteChord in $script:BLUEBERRY_NATIVE_DELETE_ACTIONS.Keys) {
+            $observer = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeDelete}
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($deleteChord), $observer,
+                'BlueberryNativeDelete', 'Delegate the original native deletion and report its confirmed result')
         }
         Send-BlueberryEvent -Event 'native_search' -Data @{ active = $false }
     }
@@ -2809,7 +2819,13 @@ function Register-BlueberryNativeDeleteObservers {
     $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
     $script:BLUEBERRY_NATIVE_SEARCHES = @{}
     $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS = @{}
+    $script:BLUEBERRY_NATIVE_SEARCH_CONTINUES = @{}
     $nativeActions = Get-BlueberryNativeActions
+    foreach ($chord in $nativeActions.Keys) {
+        if ($nativeActions[$chord].Method.Name -in @('BackwardDeleteChar', 'ReverseSearchHistory', 'ForwardSearchHistory')) {
+            $script:BLUEBERRY_NATIVE_SEARCH_CONTINUES[$chord] = $true
+        }
+    }
     $upAction = $nativeActions['UpArrow']
     $script:BLUEBERRY_NATIVE_HISTORY_UP = ($null -ne $upAction -and
         $upAction.Method.Name -in @('PreviousHistory', 'HistorySearchBackward'))
@@ -3217,6 +3233,7 @@ function Send-BlueberryCapabilities {
         $capabilityMap.native_deletes = $script:BLUEBERRY_NATIVE_DELETES
         $capabilityMap.native_history_up = [bool]$script:BLUEBERRY_NATIVE_HISTORY_UP
         $capabilityMap.native_searches = $script:BLUEBERRY_NATIVE_SEARCHES
+        $capabilityMap.native_search_continues = $script:BLUEBERRY_NATIVE_SEARCH_CONTINUES
     }
     # Keep the field absent when the host did not opt into public-key
     # arbitration, preserving the alpha protocol shape for existing launchers.

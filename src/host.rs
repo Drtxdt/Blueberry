@@ -1049,6 +1049,8 @@ struct State {
     native_history_up: bool,
     native_searches: BTreeMap<String, bool>,
     native_search_active: bool,
+    native_search_continues: BTreeMap<String, bool>,
+    pending_native_search_end: bool,
     pending_history_edit: Option<u64>,
     history_edit_started: Option<Instant>,
     history_keys: Vec<Event>,
@@ -1293,6 +1295,10 @@ impl State {
                 self.native_searches =
                     serde_json::from_value(value["capabilities"]["native_searches"].clone())
                         .unwrap_or_default();
+                self.native_search_continues = serde_json::from_value(
+                    value["capabilities"]["native_search_continues"].clone(),
+                )
+                .unwrap_or_default();
                 self.ready = value["ready"] == true
                     && value["psreadline"] == true
                     && value["key_handlers"]["buffer"] == true
@@ -1304,6 +1310,7 @@ impl State {
             }
             "prompt_start" => {
                 self.native_search_active = false;
+                self.pending_native_search_end = false;
                 self.notification = None;
                 self.interaction_mode = InteractionMode::Completion;
                 self.pending_history_edit = None;
@@ -1369,6 +1376,8 @@ impl State {
                 }
             }
             "execute" => {
+                self.native_search_active = false;
+                self.pending_native_search_end = false;
                 self.interaction_mode = InteractionMode::Completion;
                 self.pending_history_edit = None;
                 self.history_edit_started = None;
@@ -1421,6 +1430,9 @@ impl State {
             }
             "native_search" => {
                 self.native_search_active = value["active"] == true;
+                if !self.native_search_active {
+                    self.pending_native_search_end = false;
+                }
                 if self.native_search_active {
                     self.interaction_mode = InteractionMode::History;
                     self.invalidate();
@@ -1904,12 +1916,16 @@ impl State {
         master: &dyn portable_pty::MasterPty,
         worker: &Worker,
     ) -> Result<()> {
-        if self.pending_history_edit.is_some() || self.pending_history_paste.is_some() {
+        if self.pending_history_edit.is_some()
+            || self.pending_history_paste.is_some()
+            || self.pending_native_search_end
+        {
             let cancel = matches!(&event, Event::Key(key) if key.code == crossterm::event::KeyCode::Char('c')
                 && key.modifiers == crossterm::event::KeyModifiers::CONTROL);
             if cancel {
                 self.pending_history_edit = None;
                 self.pending_history_paste = None;
+                self.pending_native_search_end = false;
                 self.history_keys.clear();
             } else {
                 self.history_keys.push(event);
@@ -2132,14 +2148,29 @@ impl State {
                 _ => return Ok(()),
             }
         }
-        if self.interaction_mode == InteractionMode::History {
-            if self
+        let workbench_shortcut = self.prompt
+            && self.ready
+            && input::configured(&event, &self.config.keys)
+                .is_some_and(|input| matches!(input, Input::Hub));
+        if !workbench_shortcut
+            && self.prompt
+            && self.ready
+            && self
                 .native_searches
                 .iter()
                 .any(|(chord, enabled)| *enabled && input::matches_native_delete(chord, &event))
-            {
-                self.native_search_active = true;
-            }
+        {
+            self.interaction_mode = InteractionMode::History;
+            self.native_search_active = true;
+            self.invalidate();
+            self.dismissed = true;
+            self.dirty = false;
+            worker.update(|work| {
+                work.cancel = true;
+                work.query = None;
+            });
+        }
+        if self.interaction_mode == InteractionMode::History && !workbench_shortcut {
             // The native search loop consumes its own input; it does not run
             // ordinary edit handlers. Do not inject queries or await deletion
             // acknowledgements while it owns the keyboard.
@@ -2149,10 +2180,16 @@ impl State {
                     self.parser.screen().application_cursor(),
                 )
             {
-                let inner_backspace = matches!(&event, Event::Key(key)
-                    if key.code == crossterm::event::KeyCode::Backspace
-                        && key.modifiers.is_empty());
-                let outer_delete = !inner_backspace
+                let continues = matches!(&event, Event::Paste(_))
+                    || matches!(&event, Event::Key(key)
+                        if (matches!(key.code, crossterm::event::KeyCode::Char(_))
+                            && !key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL))
+                            || (key.code == crossterm::event::KeyCode::Backspace && key.modifiers.is_empty())
+                            || (key.code == crossterm::event::KeyCode::Char('h') && key.modifiers == crossterm::event::KeyModifiers::CONTROL))
+                    || self.native_search_continues.iter().any(|(chord, enabled)| {
+                        *enabled && input::matches_native_delete(chord, &event)
+                    });
+                let outer_delete = !continues
                     && self.native_deletes.iter().any(|(chord, enabled)| {
                         *enabled && input::matches_native_delete(chord, &event)
                     });
@@ -2160,6 +2197,10 @@ impl State {
                     self.native_delete_sequence += 1;
                     self.invalidate();
                     self.pending_history_edit = Some(self.revision);
+                    self.history_edit_started = Some(Instant::now());
+                }
+                if !continues {
+                    self.pending_native_search_end = true;
                     self.history_edit_started = Some(Instant::now());
                 }
                 writer.write_all(&bytes)?;
@@ -2995,6 +3036,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
         native_history_up: true,
         native_searches: BTreeMap::new(),
         native_search_active: false,
+        native_search_continues: BTreeMap::new(),
+        pending_native_search_end: false,
         pending_history_edit: None,
         history_edit_started: None,
         history_keys: Vec::new(),
@@ -3019,12 +3062,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 Ok(e) => e,
                 Err(_) => break,
             }
-        } else if state.pending_history_edit.is_some() || state.pending_history_paste.is_some() {
+        } else if state.pending_history_edit.is_some()
+            || state.pending_history_paste.is_some()
+            || state.pending_native_search_end
+        {
             match rx.recv_timeout(std::time::Duration::from_secs(2)) {
                 Ok(event) => event,
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                     state.pending_history_edit = None;
                     state.pending_history_paste = None;
+                    state.pending_native_search_end = false;
                     HostEvent::Diagnostic("原生编辑确认超时，保留历史浏览；请检查桥接状态".into())
                 }
                 Err(_) => break,
@@ -3299,17 +3346,21 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 last_probe_request_state = value;
             }
         }
-        if (state.pending_history_edit.is_some() || state.pending_history_paste.is_some())
+        if (state.pending_history_edit.is_some()
+            || state.pending_history_paste.is_some()
+            || state.pending_native_search_end)
             && state
                 .history_edit_started
                 .is_some_and(|started| started.elapsed() >= std::time::Duration::from_secs(2))
         {
             state.pending_history_edit = None;
             state.pending_history_paste = None;
+            state.pending_native_search_end = false;
             state.diagnostic = Some("原生编辑确认超时，保留历史浏览；请检查桥接状态".into());
         }
         if state.pending_history_edit.is_none()
             && state.pending_history_paste.is_none()
+            && !state.pending_native_search_end
             && !state.history_keys.is_empty()
         {
             let keys = std::mem::take(&mut state.history_keys);
