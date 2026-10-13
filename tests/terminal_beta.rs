@@ -999,7 +999,10 @@ fn terminal_history_search_stays_native_until_a_real_edit() -> Result<()> {
 
 #[test]
 fn terminal_history_search_exit_serializes_following_typing_and_delete() -> Result<()> {
-    for burst in [b"\x07git s".as_slice(), b"\x1b\x7ft"] {
+    for burst in [
+        b"\x07git s".as_slice(),
+        b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_\x7ft",
+    ] {
         let mut host = start_host()?;
         send_command(
             &mut host.harness,
