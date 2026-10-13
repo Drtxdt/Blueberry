@@ -1140,17 +1140,22 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 other => completion_event = other,
             }
             if let Some(event) = completion_event {
-                if let HostEvent::Completion(revision, completion, _) = event
+                if let HostEvent::Completion(revision, _, _) = &event
                     && ready
                     && automatic
                     && session.ui.is_none()
                     && !session.accepting
                     && active_query.as_ref().is_some_and(|query| {
-                        query.revision == revision
+                        query.revision == *revision
                             && query.line == session.line
                             && query.cursor == session.cursor
                     })
                 {
+                    // Move only after the guarded completion arm is selected;
+                    // the other event variants remain available to their arms.
+                    let HostEvent::Completion(_, completion, _) = event else {
+                        unreachable!("completion event confirmed above")
+                    };
                     let rendered = Instant::now();
                     let allocated = crate::allocation_diagnostics::snapshot();
                     let frame = session.render(completion, &settings, &token);

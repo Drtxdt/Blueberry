@@ -639,8 +639,13 @@ fn direct_history_respects_disabled_policy_and_custom_up_binding() -> Result<()>
 
 #[test]
 fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
     for delay in [0, 3, 5, 10, 40, 100] {
-        let dir = tempfile::tempdir()?;
+        let dir = tempfile::Builder::new()
+            .prefix("direct-wake-")
+            .tempdir_in(&evidence)?;
         let mut h = start_with_delay(dir.path(), delay)?;
         h.wait_text("PS ", TIMEOUT)?;
         h.send(b"if ([Blueberry.Direct.Bridge]::EditorHooks -and @(Get-PSReadLineKeyHandler).Count -lt 1000) { Write-Output 'HOOKS-VERIFIED' }\r")?;
@@ -674,16 +679,15 @@ fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() ->
             .filter(|event| event["event"] == "direct_frame_to_paint")
             .filter_map(|event| event["duration_ms"].as_f64())
             .collect();
-        ensure!(
-            !waits.is_empty(),
-            "missing receive-to-paint spans for delay {delay}"
-        );
         // This is a liveness regression with generous CI scheduling tolerance.
         // The stricter 5 ms P95 belongs to the isolated performance measurement.
-        ensure!(
-            waits.iter().all(|wait| *wait < 200.0),
-            "late frame waited on idle polling: {waits:?}"
-        );
+        if waits.is_empty() || waits.iter().any(|wait| *wait >= 200.0) {
+            let retained = dir.keep();
+            anyhow::bail!(
+                "receive-to-paint regression at delay {delay} ms: {waits:?}; all trace events retained at {}",
+                retained.display()
+            );
+        }
         eprintln!("frame delay {delay} ms: receive-to-paint {waits:?}");
     }
     Ok(())
