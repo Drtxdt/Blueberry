@@ -281,6 +281,8 @@ esac
                 scenarios = []
                 for name in validator.SCENARIOS:
                     measurement = {
+                        "input_echo": statistics(1.0, 300), "first_menu": statistics(3.0, 300), "first_candidate_menu": statistics(5.0, 300),
+                        "complete_candidate_menu": statistics(10.0, 300),
                         "shell_versions": [shell_version] * 30,
                         "psreadline_versions": [psreadline] * 30,
                         "actual_transport": [transport] * 30,
@@ -301,6 +303,7 @@ esac
                 hot = {
                     "probe_conpty": self.runtime, "product_conpty": self.conpty,
                     "schema": 2,
+                    "candidate_stage_schema": 1,
                     "source_commit": self.commit, **environment,
                     "source_dirty": False,
                     "host_mode": "direct", "os_cache_cleared": False,

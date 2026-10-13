@@ -44,7 +44,8 @@ if($args[0] -eq 'product-probe') {
     $report.shell_versions=@($shellVersion,$shellVersion)
 } else {
     $report.transport_degraded=$false
-    $session=@{editors=@($editor);psreadline_versions=@($version);shell_versions=@($shellVersion)}
+    $report.candidate_stage_schema=1
+    $session=@{editors=@($editor);psreadline_versions=@($version);shell_versions=@($shellVersion);input_echo=@{samples=@(1,1);median=1;p95=1};first_menu=@{samples=@(2,2);median=2;p95=2};first_candidate_menu=@{samples=@(2,2);median=2;p95=2};complete_candidate_menu=$stats}
     $report.scenarios=@(foreach($name in @('root','git','cargo','js','path','fuzzy')) {
         @{name=$name;cache_miss=$session;cache_hit=$session;acceptance=@{cache_miss=@{observed_samples=2;expected_samples=2;statistics=$stats;status='failed'};cache_hit=@{observed_samples=2;expected_samples=2;statistics=$stats;status='failed'}}}
     })
@@ -109,6 +110,11 @@ $report|ConvertTo-Json -Depth 20|Set-Content -LiteralPath $output -Encoding utf8
                 self.assertFalse(result['measurement_complete'])
                 self.assertEqual(len(result['results']), 2)
                 self.assertIn(message, result['gate_error'])
+
+    def test_fast_first_candidate_cannot_replace_complete_timing(self):
+        result = self.run_matrix(corrupt="if($args[0] -eq 'beta-probe') { $session.complete_candidate_menu=@{samples=@(70,70);median=70;p95=70} }")
+        self.assertFalse(result['measurement_complete'])
+        self.assertIn('gate is not based on complete candidates', result['gate_error'])
 
 
 if __name__ == '__main__':

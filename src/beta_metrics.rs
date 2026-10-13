@@ -176,8 +176,10 @@ struct Measurements {
     input_echo: Vec<f64>,
     first_menu: Vec<f64>,
     first_candidate_menu: Vec<f64>,
+    complete_candidate_menu: Vec<f64>,
     dynamic_complete_menu: Vec<f64>,
     eligible_first_candidate_menu: Vec<f64>,
+    eligible_complete_candidate_menu: Vec<f64>,
     eligible_dynamic_complete_menu: Vec<f64>,
     memory_prompt: Vec<u64>,
     memory_menu: Vec<u64>,
@@ -196,6 +198,7 @@ struct Observation {
     input_echo: f64,
     first_menu: f64,
     first_candidate_menu: f64,
+    complete_candidate_menu: f64,
     dynamic_complete_menu: Option<f64>,
     input_qpc: Option<i64>,
     menu_arrival_qpc: Option<i64>,
@@ -209,9 +212,13 @@ impl Measurements {
         self.first_menu.push(observation.first_menu);
         self.first_candidate_menu
             .push(observation.first_candidate_menu);
+        self.complete_candidate_menu
+            .push(observation.complete_candidate_menu);
         if transport_valid {
             self.eligible_first_candidate_menu
                 .push(observation.first_candidate_menu);
+            self.eligible_complete_candidate_menu
+                .push(observation.complete_candidate_menu);
         } else {
             self.transport_ineligible_hot_queries += 1;
         }
@@ -242,8 +249,10 @@ impl Measurements {
             "input_echo": f64_stats(&self.input_echo, "ms"),
             "first_menu": f64_stats(&self.first_menu, "ms"),
             "first_candidate_menu": f64_stats(&self.first_candidate_menu, "ms"),
+            "complete_candidate_menu": f64_stats(&self.complete_candidate_menu, "ms"),
             "dynamic_complete_menu": f64_stats(&self.dynamic_complete_menu, "ms"),
             "transport_eligible_first_candidate_menu": f64_stats(&self.eligible_first_candidate_menu, "ms"),
+            "transport_eligible_complete_candidate_menu": f64_stats(&self.eligible_complete_candidate_menu, "ms"),
             "transport_eligible_dynamic_complete_menu": f64_stats(&self.eligible_dynamic_complete_menu, "ms"),
             "memory_prompt": u64_stats(&self.memory_prompt, "bytes"),
             "memory_menu": u64_stats(&self.memory_menu, "bytes"),
@@ -259,12 +268,8 @@ impl Measurements {
         })
     }
 
-    fn acceptance_values(&self, dynamic: bool) -> &[f64] {
-        if dynamic {
-            &self.eligible_dynamic_complete_menu
-        } else {
-            &self.eligible_first_candidate_menu
-        }
+    fn acceptance_values(&self, _dynamic: bool) -> &[f64] {
+        &self.eligible_complete_candidate_menu
     }
 
     fn acceptance_report(&self, expected_queries: usize, dynamic: bool) -> Value {
@@ -281,7 +286,7 @@ impl Measurements {
             "failed"
         };
         json!({
-            "metric": if dynamic { "dynamic_complete_menu" } else { "first_candidate_menu" },
+            "metric": "complete_candidate_menu",
             "statistics": statistics,
             "expected_samples": expected_queries,
             "observed_samples": values.len(),
@@ -566,7 +571,7 @@ pub fn run_traced(
             "observation": "只读取 Harness 的 viewport 行；输入回显和带候选图标的真实菜单行分别确认",
             "dynamic": "计时前确认无旧输入/菜单；动态结果须出现目标候选和完整可见的 F1 状态行且无加载标记。诊断替代或裁切状态行不算完成；静态场景不计作动态完成",
             "ordering": "每场景每种 cache 模式使用 0..9 循环的十个唯一夹具候选",
-            "initial_query": "每个 session 的首个查询单独等待完整动态结果；它不进入热态菜单统计。静态场景的首个查询只等待首个可用候选",
+            "initial_query": "每个 session 的首个查询单独等待目标候选和完整状态；它不进入热态菜单统计",
             "cache": "每个 session pair 先在全新空 data 目录测量 miss，再复用同一份已验证 complete=true 的 commands.json 测量 hit；hit 后检查文件时间未改变",
             "transport": "每个 host 读取新建 session 的 adapter.json；只有与请求 transport 相同的热态样本进入验收统计，降级样本只保留为诊断",
             "memory": "Windows 采样 Blueberry host working set；其他平台报告 unavailable",
@@ -584,6 +589,14 @@ pub fn run_traced(
             "paths": fixtures.paths,
             "throughput_bytes": OUTPUT_BYTES,
         },
+    });
+    report["candidate_stage_schema"] = json!(1);
+    report["observed_stages"] = json!({
+        "input_echo": "probe_model",
+        "first_candidate": "first_menu_in_probe_model",
+        "first_expected_candidate": "first_expected_candidate_in_probe_model",
+        "complete_candidates": "expected_candidate_and_complete_status_in_probe_model",
+        "screen_pixels": "not_measured"
     });
     report["private_editors"] = identity["private_editors"].clone();
     #[cfg(windows)]
@@ -778,6 +791,12 @@ fn append_measurements(target: &mut Measurements, mut source: Measurements) {
         .eligible_first_candidate_menu
         .append(&mut source.eligible_first_candidate_menu);
     target
+        .complete_candidate_menu
+        .append(&mut source.complete_candidate_menu);
+    target
+        .eligible_complete_candidate_menu
+        .append(&mut source.eligible_complete_candidate_menu);
+    target
         .eligible_dynamic_complete_menu
         .append(&mut source.eligible_dynamic_complete_menu);
     target.memory_prompt.append(&mut source.memory_prompt);
@@ -866,9 +885,7 @@ fn measure_session(
         -2,
     )
     .with_context(|| format!("{} 场景首次查询未完成", kind.name()))?;
-    let initial_query = first_observation
-        .dynamic_complete_menu
-        .unwrap_or(first_observation.first_candidate_menu);
+    let initial_query = first_observation.complete_candidate_menu;
     measurements.first_query.push(initial_query);
     if kind.dynamic() {
         measurements.first_dynamic_query.push(initial_query);
@@ -982,10 +999,7 @@ fn observe_query(
             if first_menu.is_none() && has_menu_row(&screen) {
                 first_menu = observed;
             }
-            if first_candidate_menu.is_none()
-                && has_expected_menu_row(&screen, expected)
-                && (dynamic || has_complete_status(&screen))
-            {
+            if first_candidate_menu.is_none() && has_expected_menu_row(&screen, expected) {
                 first_candidate_menu = observed;
             }
             if dynamic {
@@ -1008,6 +1022,8 @@ fn observe_query(
                 input_echo,
                 first_menu,
                 first_candidate_menu,
+                complete_candidate_menu: dynamic_complete_menu
+                    .context("complete candidate menu missing")?,
                 dynamic_complete_menu: if dynamic { dynamic_complete_menu } else { None },
                 input_qpc,
                 menu_arrival_qpc: harness.last_output_qpc(),
@@ -1699,4 +1715,41 @@ fn verify_complete_cache(data_dir: &Path) -> Result<bool> {
         path.display()
     );
     Ok(true)
+}
+
+#[cfg(test)]
+mod stage_tests {
+    use super::*;
+
+    #[test]
+    fn fast_partial_static_candidate_cannot_hide_slow_complete_menu() {
+        let mut values = Measurements::default();
+        values.record(
+            Observation {
+                input_echo: 1.0,
+                first_menu: 2.0,
+                first_candidate_menu: 3.0,
+                complete_candidate_menu: 25.0,
+                dynamic_complete_menu: None,
+                input_qpc: None,
+                menu_arrival_qpc: None,
+            },
+            false,
+            true,
+        );
+        assert_eq!(values.acceptance_report(1, false)["status"], "failed");
+        assert_eq!(
+            values.acceptance_report(1, false)["statistics"]["p95"],
+            25.0
+        );
+        let mut merged = Measurements::default();
+        append_measurements(&mut merged, values);
+        let report = merged.report(1, 1);
+        assert_eq!(report["first_candidate_menu"]["samples"], json!([3.0]));
+        assert_eq!(report["complete_candidate_menu"]["samples"], json!([25.0]));
+        assert_eq!(
+            merged.acceptance_report(1, false)["statistics"]["samples"],
+            json!([25.0])
+        );
+    }
 }

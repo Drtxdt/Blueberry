@@ -30,6 +30,7 @@ if ($LASTEXITCODE -ne 0 -or -not $identity.build.private_editors) { throw 'Missi
 if (-not $identity.build.conpty) { throw 'Missing pinned ConPTY build identity' }
 if ($Formal -and ($identity.build.dirty -or $identity.build.profile -ne 'release' -or $identity.build.commit -notmatch '^[0-9a-fA-F]{40}$')) { throw 'Formal qualification requires a clean release CI candidate' }
 if ($Formal -and ($env:BLUEBERRY_TEST_DISABLE_PREJIT -or $env:BLUEBERRY_TEST_FRAME_DELAY_MS -or $env:BLUEBERRY_DIRECT_TRACE)) { throw 'Formal qualification forbids diagnostic timing overrides.' }
+if ($identity.build.allocation_diagnostics) { throw 'Formal matrix cannot use an allocation diagnostic executable.' }
 if ($Resume) {
     if ($Formal) { throw 'Formal batches cannot resume across an interruption; retain the interrupted batch and use a new directory.' }
     $out=(Resolve-Path -LiteralPath $OutputDirectory).Path
@@ -134,6 +135,7 @@ try {
             if(-not $descriptions) { $arguments+='--no-descriptions' }
             $hot=Invoke-Probe ($name+'-hot-descriptions-'+$descriptions.ToString().ToLowerInvariant()) $arguments
             if($hot.transport_degraded) { throw "$name transport degraded" }
+            if($Formal -and $hot.candidate_stage_schema -ne 1) { throw "$name first/complete candidate stage observations are missing" }
             $scenarioNames=@($hot.scenarios | ForEach-Object { $_.name } | Sort-Object)
             if(($scenarioNames -join ',') -ne 'cargo,fuzzy,git,js,path,root') { throw "$name scenario matrix incomplete" }
             foreach($scenario in $hot.scenarios) {
@@ -143,6 +145,19 @@ try {
                     if($acceptance.observed_samples -ne $Samples -or $acceptance.expected_samples -ne $Samples) { throw "$name observed samples incomplete" }
                     Assert-Statistics $acceptance.statistics $Samples "$name/$($scenario.name)/$cache"
                     if (@($acceptance.statistics.samples | Where-Object { $_ -lt 0 }).Count) { throw "$name negative hot latency" }
+                    if($hot.candidate_stage_schema -eq 1) {
+                        foreach($stage in @('input_echo','first_menu','first_candidate_menu','complete_candidate_menu')) {
+                            Assert-Statistics $scenario.$cache.$stage $Samples "$name/$($scenario.name)/$cache/$stage"
+                        }
+                        if (($acceptance.statistics.samples -join ',') -ne ($scenario.$cache.complete_candidate_menu.samples -join ',')) { throw "$name gate is not based on complete candidates" }
+                        for($sample=0;$sample -lt $Samples;$sample++) {
+                            $echo=$scenario.$cache.input_echo.samples[$sample]
+                            $menu=$scenario.$cache.first_menu.samples[$sample]
+                            $first=$scenario.$cache.first_candidate_menu.samples[$sample]
+                            $complete=$scenario.$cache.complete_candidate_menu.samples[$sample]
+                            if($echo -lt 0 -or $menu -lt $echo -or $first -lt $menu -or $complete -lt $first) { throw "$name candidate stage timing order is invalid" }
+                        }
+                    }
                     if ($acceptance.status -notin @('passed','failed')) { throw "$name ineligible acceptance status" }
                     if($acceptance.statistics.p95 -gt 20) {
                         if ($acceptance.status -eq 'passed') { throw "$name inconsistent acceptance status" }

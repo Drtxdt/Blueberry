@@ -179,6 +179,8 @@ def check_hot(path, executable_hash, profile, variant, enforce_gate=True):
     shell_major, psreadline = check_identity(report, executable_hash, profile)
     transport, descriptions = VARIANTS[variant]
     require(report.get("schema") == 2 and report.get("host_mode") == "direct", f"{profile}/{variant}: formal hot matrix must use direct host")
+    if VERSION in CURRENT_RELEASES:
+        require(report.get("candidate_stage_schema") == 1, f"{profile}/{variant}: first/complete candidate measurements missing")
     require(report.get("transport") == transport and report.get("descriptions") is descriptions, f"{profile}/{variant}: wrong variant")
     require(report.get("trace") == "disabled" and report.get("profile_mode") == "preserved", f"{profile}/{variant}: trace or profile mismatch")
     require(report.get("transport_degraded") is False, f"{profile}/{variant}: transport degraded")
@@ -204,9 +206,17 @@ def check_hot(path, executable_hash, profile, variant, enforce_gate=True):
             require(acceptance.get("status") in ("passed", "failed"), f"{label}: acceptance invalid or incomplete")
             require(acceptance.get("observed_samples") == count and acceptance.get("expected_samples") == count, f"{label}: sample count mismatch")
             _, p95 = samples(acceptance.get("statistics"), count, label)
-            missed |= p95 > 20.0
             if enforce_gate:
                 require(p95 <= 20.0, f"{label}: P95 {p95:.3f} ms exceeds 20 ms")
+            if report.get("candidate_stage_schema") == 1:
+                for stage in ("input_echo", "first_menu", "first_candidate_menu", "complete_candidate_menu"):
+                    samples(measurement.get(stage), count, f"{label}/{stage}")
+                require(acceptance["statistics"]["samples"] == measurement["complete_candidate_menu"]["samples"],
+                        f"{label}: gate is not based on complete candidates")
+                require(all(0 <= echo <= menu <= first <= complete for echo, menu, first, complete in zip(
+                    measurement["input_echo"]["samples"], measurement["first_menu"]["samples"], measurement["first_candidate_menu"]["samples"],
+                    measurement["complete_candidate_menu"]["samples"])), f"{label}: invalid candidate stage timing order")
+            missed |= p95 > 20.0
             require(acceptance["status"] == ("failed" if p95 > 20.0 else "passed"), f"{label}: acceptance disagrees with raw statistics")
     require(report["target"]["status"] == ("failed" if missed else "passed"), f"{profile}/{variant}: target disagrees with raw statistics")
     return missed
