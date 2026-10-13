@@ -61,6 +61,9 @@ jobs:
           cargo test --lib --features allocation-diagnostics --locked allocation_diagnostics::tests
       - name: Core tests (no interactive shell)
         run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge --test terminal_rectangles -- --test-threads=1
+      - name: Resource sampler initialization regression
+        if: runner.os == 'Windows'
+        run: python -m unittest discover -s tests -p 'test_resource*.py'
       - run: cargo run --locked -- --version
       - run: cargo run --locked -- specs check
       - name: Repeat concurrent favorites writers

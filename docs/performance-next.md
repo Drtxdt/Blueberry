@@ -54,6 +54,14 @@ interrupted。保留五份完整有效报告：两份 30 对启动、三份热�
 `11756420417` 下载并验证摘要，保存于 `artifacts/r1-ci/`。同条件 A/B 尚未执行，
 不能据此宣称提速或完成第一轮。
 
+2026-10-13 的 PS7 四方资源预检全部完成，各模式各一个独立会话，属于预检。
+PS5.1／2.0.0 预检中 direct 的初始化辅助进程在第一次快照期间退出，正确判为
+无效，原始记录保留于 `artifacts/rp1013/`。采集器新增最多 30 秒的进程树稳定等待，
+保留全部初始化快照；正式 30 秒区间一旦开始，不删除样本或重启计时。
+系统线程性能计数器每次查询约 11 秒，服务端过滤也未改善，现移入独立
+`-IncludeThreadCounters` 诊断，不能计正式资源验收。正式批次记录进程树内存、
+CPU、线程数量与句柄数量，线程上下文切换计数明确未测；真实子进程退出回归覆盖此路径。
+
 ## 缩放发布阻塞
 
 普通 Esc 关闭菜单的历史 RGB／Unicode 恢复已获用户验证；缩放后的恢复仍走
@@ -65,6 +73,14 @@ Windows Terminal 的 `PageManager::Get` 会将后台页调整到当前可见尺�
 不能把后台页看作跨缩放的完整富文本存储。来源：
 [PageManager.cpp](https://github.com/microsoft/terminal/blob/main/src/terminal/adapter/PageManager.cpp)、
 [TextBuffer::ResizeTraditional](https://github.com/microsoft/terminal/blob/main/src/buffer/out/textBuffer.cpp)。
+
+2026-10-13 本机已安装 Microsoft.WindowsTerminal 1.24.12741.0；复核对应发布标签
+[v1.24.12741.0](https://github.com/microsoft/terminal/releases/tag/v1.24.12741.0) 的
+[PageManager](https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/terminal/adapter/PageManager.cpp)
+仍使用上述后台页缩放路径。该版本的
+[UIA 文本属性实现](https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/types/UiaTextRangeBase.cpp)
+只提供部分格式属性；未知属性返回不支持。因此 RGB 可读不能单独证明全部终端属性
+可以完整往返，也不能替代对自己的终端窗格及软／硬换行边界的验证。
 
 用户本机 Windows Terminal 的只读 UIA 诊断确认前景色、背景色 RGB、中文、emoji、
 组合字符及软折行文本可读。记录位于 `artifacts/console-attributes-capability-20261012/`。

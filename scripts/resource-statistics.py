@@ -13,7 +13,9 @@ def finite(value):
 
 def summarize(report, minimum_seconds=30):
     assert report.get('schema') == 2 and report.get('measurement_complete') is True, 'Resource collection incomplete'
+    assert report.get('diagnostic_only') is not True, 'Thread-counter diagnostics cannot qualify as formal resources'
     assert report.get('collection_errors') == [], 'Resource collection has errors'
+    assert report.get('warmup_complete', True) is True, 'Resource initialization did not settle'
     frequency = finite(report['qpc_frequency'])
     assert frequency > 0
     samples = report['samples']

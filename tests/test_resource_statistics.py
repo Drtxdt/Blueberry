@@ -23,7 +23,7 @@ class ResourceStatisticsTests(unittest.TestCase):
         self.assertEqual(len(result['working_set_bytes']['samples']), 31)
 
     def test_invalid_or_changed_tree_cannot_be_a_zero_cpu_sample(self):
-        for change in ('missing', 'recycled', 'counter', 'nonfinite', 'short', 'delta', 'duplicate', 'incomplete'):
+        for change in ('missing', 'recycled', 'counter', 'nonfinite', 'short', 'delta', 'duplicate', 'incomplete', 'unsettled', 'diagnostic'):
             with self.subTest(change=change):
                 report = copy.deepcopy(self.report)
                 if change == 'missing': report['samples'][5]['processes'] = []
@@ -34,6 +34,8 @@ class ResourceStatisticsTests(unittest.TestCase):
                 if change == 'delta': report['deltas'][0]['cpu_percent_one_core'] = 0
                 if change == 'duplicate': report['samples'][5]['processes'] *= 2
                 if change == 'incomplete': report['measurement_complete'] = False
+                if change == 'unsettled': report['warmup_complete'] = False
+                if change == 'diagnostic': report['diagnostic_only'] = True
                 with self.assertRaises(AssertionError): RESOURCES.summarize(report)
 
 
