@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import math
 from pathlib import Path
 import unittest
 
@@ -21,6 +22,17 @@ class ResourceStatisticsTests(unittest.TestCase):
         self.assertAlmostEqual(result['cpu_percent_one_core'], .1)
         self.assertEqual(result['working_set_bytes']['peak'], 31744)
         self.assertEqual(len(result['working_set_bytes']['samples']), 31)
+
+    def test_legacy_probe_roundtrip_does_not_allow_changed_raw_measurements(self):
+        original = {'cpu': [0.051685853955233764], 'pid': 123, 'sha256': 'raw-digest'}
+        encoded = copy.deepcopy(original)
+        encoded['cpu'][0] = math.nextafter(original['cpu'][0], 0)
+        self.assertTrue(RESOURCES.snapshots_match(original, encoded))
+        for changed in ({**encoded, 'pid': 124}, {**encoded, 'pid': 123.0},
+                        {**encoded, 'sha256': 'other'}, {**encoded, 'cpu': [0.051685854]},
+                        {**encoded, 'cpu': []}, {**encoded, 'cpu': [float('nan')]}):
+            with self.subTest(changed=changed):
+                self.assertFalse(RESOURCES.snapshots_match(original, changed))
 
     def test_invalid_or_changed_tree_cannot_be_a_zero_cpu_sample(self):
         for change in ('missing', 'recycled', 'counter', 'nonfinite', 'short', 'delta', 'duplicate', 'incomplete', 'unsettled', 'diagnostic'):

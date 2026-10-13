@@ -6,6 +6,24 @@ from pathlib import Path
 import statistics
 
 
+def snapshots_match(original, encoded):
+    """Legacy probes reserialize f64s; allow only a single representable step.
+
+    All integer counters, identities, keys and array lengths stay exact. The
+    original file remains authoritative for statistics and its byte digest.
+    """
+    if type(original) is not type(encoded):
+        return False
+    if isinstance(original, dict):
+        return original.keys() == encoded.keys() and all(snapshots_match(value, encoded[key])
+                                                        for key, value in original.items())
+    if isinstance(original, list):
+        return len(original) == len(encoded) and all(snapshots_match(a, b) for a, b in zip(original, encoded))
+    if isinstance(original, float):
+        return math.isfinite(original) and math.isfinite(encoded) and abs(original - encoded) <= math.ulp(original)
+    return original == encoded
+
+
 def finite(value):
     assert type(value) in (int, float) and math.isfinite(value) and value >= 0, 'Invalid resource sample'
     return value

@@ -347,7 +347,10 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 .arg(output)
                 .status()?;
             ensure!(status.success(), "resource sampler failed");
-            result["resources"] = serde_json::from_slice(&fs::read(output)?)?;
+            let raw_resources = fs::read(output)?;
+            result["resource_report_sha256"] =
+                json!(format!("{:X}", Sha256::digest(&raw_resources)));
+            result["resources"] = serde_json::from_slice(&raw_resources)?;
         }
         for query in &session.queries {
             ensure!(

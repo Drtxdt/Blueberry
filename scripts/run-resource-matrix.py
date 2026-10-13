@@ -125,7 +125,9 @@ def run(options):
                 for field in ('package', 'version', 'sha256', 'files'):
                     assert runtime.get(field) == build['conpty'].get(field), 'Resource probe ConPTY identity mismatch'
                 raw = read(folder / 'raw-resources.json')
-                assert value['resources'] == raw, 'Raw resource snapshot mismatch'
+                if 'resource_report_sha256' in value:
+                    assert value['resource_report_sha256'] == sha(folder / 'raw-resources.json'), 'Raw resource digest mismatch'
+                assert RESOURCES.snapshots_match(raw, value['resources']), 'Raw resource snapshot mismatch'
                 summary = RESOURCES.summarize(raw)
                 entry.update(status='completed', summary=summary, actual_shell=actual, program_sha256=sha(spec['program']),
                              report_sha256=sha(folder / 'result.json'),
