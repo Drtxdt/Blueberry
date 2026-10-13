@@ -73,9 +73,9 @@ struct Session {
     width: u16,
     rows: usize,
     available_rows: Option<usize>,
-    last_completion: Option<Completion>,
+    last_completion: Option<Arc<Completion>>,
     frame: u64,
-    visible: std::collections::VecDeque<(u64, String, Candidate, Completion)>,
+    visible: std::collections::VecDeque<(u64, String, Candidate, Arc<Completion>)>,
     accepting: bool,
     selected: usize,
     selected_id: Option<String>,
@@ -167,7 +167,7 @@ impl Session {
         self.revision = revision;
         self.geometry(value);
         Some(match self.last_completion.clone() {
-            Some(completion) => self.render(completion, settings, token),
+            Some(completion) => self.render((*completion).clone(), settings, token),
             None => self.clear_frame(token),
         })
     }
@@ -175,7 +175,7 @@ impl Session {
         self.frame += 1;
         if self.ui.is_none() {
             self.selected = self.selection.refresh(
-                self.last_completion.as_ref(),
+                self.last_completion.as_deref(),
                 self.selected,
                 &mut completion,
             );
@@ -190,6 +190,10 @@ impl Session {
         self.selected = self
             .selected
             .min(completion.candidates.len().saturating_sub(1));
+        // Visible-frame validation and later layout reuse the same immutable
+        // snapshot. Keep candidate strings once, after selection has resolved
+        // any incomplete refresh; accepted frames never observe later mutation.
+        let completion = Arc::new(completion);
         let candidate = completion.candidates.get(self.selected);
         let id = candidate
             .map(|c| c.identity().to_owned())
@@ -498,7 +502,7 @@ impl Session {
         // Navigation refers to a displayed snapshot, which may precede the
         // most recent asynchronous result.
         self.last_completion = Some(completion.clone());
-        Ok(self.render(completion, settings, token))
+        Ok(self.render((*completion).clone(), settings, token))
     }
 }
 
@@ -1136,20 +1140,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 other => completion_event = other,
             }
             if let Some(event) = completion_event {
-                if let HostEvent::Completion(revision, completion, _) = &event
+                if let HostEvent::Completion(revision, completion, _) = event
                     && ready
                     && automatic
                     && session.ui.is_none()
                     && !session.accepting
                     && active_query.as_ref().is_some_and(|query| {
-                        query.revision == *revision
+                        query.revision == revision
                             && query.line == session.line
                             && query.cursor == session.cursor
                     })
                 {
                     let rendered = Instant::now();
                     let allocated = crate::allocation_diagnostics::snapshot();
-                    let frame = session.render(completion.clone(), &settings, &token);
+                    let frame = session.render(completion, &settings, &token);
                     let render_elapsed = rendered.elapsed();
                     trace.allocations("direct_menu_allocations", Some(session.revision), allocated);
                     trace.event(
@@ -1295,6 +1299,29 @@ mod tests {
             .query(&json!({"revision":4,"line":"new","cursor":3}))
             .unwrap();
         assert!(session.accept(&request, "token").is_none());
+    }
+    #[test]
+    fn visible_frame_keeps_its_replacement_when_same_identity_is_refreshed() {
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":1,"line":"git st","cursor":6}))
+            .unwrap();
+        let config = Config::default();
+        let mut snapshot = completion(&["stable-id"], false);
+        snapshot.replace_start = 4;
+        snapshot.replace_end = 6;
+        snapshot.candidates[0].insert_text = "status-before".into();
+        let old = session.render(snapshot.clone(), &config, "token");
+        snapshot.candidates[0].insert_text = "status-after".into();
+        let current = session.render(snapshot, &config, "token");
+        for (frame, text) in [(old, "status-before"), (current, "status-after")] {
+            let request = json!({"revision":1,"line":"git st","cursor":6,
+                "frame_id":frame["frame_id"],"candidate_id":frame["candidate_id"]});
+            let edit = session.accept(&request, "token").unwrap();
+            assert_eq!(edit["text"], text);
+            assert_eq!(edit["start"], 4);
+            assert_eq!(edit["length"], 2);
+        }
     }
     #[test]
     fn command_batches_reject_old_prompts_wrong_snapshots_gaps_and_completed_replays() {

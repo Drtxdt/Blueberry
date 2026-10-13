@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "kind": "history-restoration-interface-analysis",
+  "date": "2026-10-13",
+  "terminal": "Microsoft.WindowsTerminal 1.24.12741.0",
+  "release_blocked": true,
+  "lossless_restore_implemented": false,
+  "scope": "Original-position overlay; all character attributes, hyperlink targets, independent underline colour, and soft/hard line boundaries across continuous resize",
+  "observations": [
+    {
+      "interface": "VT background pages",
+      "method": "source inspection plus retained resize regressions",
+      "limitation": "PageManager retrieves inactive buffers at current visible size using ResizeTraditional; shrinking can discard stored rows and columns before restoration.",
+      "source": "https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/terminal/adapter/PageManager.cpp#L238-L254"
+    },
+    {
+      "interface": "VT DECCRA",
+      "method": "source inspection",
+      "limitation": "Copies OutputCell character/attribute data and image blocks; does not copy source row wrap metadata. Cell preservation alone does not establish lossless reflow.",
+      "source": "https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/terminal/adapter/adaptDispatch.cpp#L1092-L1129",
+      "related_source": "https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/buffer/out/textBuffer.cpp#L667-L696",
+      "native_wrap_round_trip_test": "not executed"
+    },
+    {
+      "interface": "UI Automation TextPattern",
+      "method": "own-marker RGB/glyph probe and source inspection",
+      "limitation": "Only a subset of terminal attributes is available; the implementation provides no hyperlink children/targets or independent underline colour. Own-marker RGB success is not complete-history support.",
+      "source": "https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/types/UiaTextRangeBase.cpp",
+      "local_probe": "artifacts/console-attributes-capability-20261012/windows-terminal-glyphs.json"
+    },
+    {
+      "interface": "VT DECRQCRA checksum",
+      "method": "source inspection",
+      "limitation": "Feature-gated 16-bit checksum; RGB maps to default legacy colours, and only legacy DEC attributes contribute. It cannot establish equality of full attributes, hyperlinks or line boundaries.",
+      "source": "https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/terminal/adapter/adaptDispatch.cpp#L1217-L1280"
+    },
+    {
+      "interface": "Terminal TextBuffer ANSI serialization",
+      "method": "source inspection; native round trip not executed",
+      "limitation": "Serialization includes hyperlink URI and some styles, but the underline-colour branch switches on foreground colour type rather than underline colour type. For a default foreground and RGB underline it emits the underline default reset. The mapping also does not emit every CharacterAttributes flag. This is not an accepted complete-state snapshot.",
+      "source": "https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/buffer/out/textBuffer.cpp#L2651-L2911",
+      "external_snapshot_api_verified": false
+    },
+    {
+      "interface": "ReadConsoleOutputW CHAR_INFO",
+      "method": "existing product implementation and failed RGB/Unicode resize regressions",
+      "limitation": "UTF-16 cell and legacy WORD attributes do not represent the required complete character and attribute state. This remains the fallback after resizing, and is not an accepted solution."
+    }
+  ],
+  "conclusion": "No investigated interface has passed the required lossless resize round trip. This is a limitation of the investigated approaches, not proof that every possible architecture is impossible.",
+  "rejected_changes_remain_rejected": ["scrolling to leave blank space", "partial attribute restoration", "large host rewrite without separate authorization"],
+  "existing_user_acceptance": "Ordinary Esc RGB/character recovery for fixed 2fe57b9 package only; not resize or all-attribute acceptance"
+}
