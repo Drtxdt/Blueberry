@@ -86,17 +86,22 @@ def sha256_zip_member(archive, name):
     return digest.hexdigest().upper()
 
 
-def report_path(root, relative):
-    require(isinstance(relative, str) and relative.endswith(".json"), "report path must be .json")
+def evidence_file_path(root, relative):
+    require(isinstance(relative, str) and bool(relative), "evidence path must be a nonempty string")
     parts = PurePosixPath(relative).parts
     require(
         "\\" not in relative and not PurePosixPath(relative).is_absolute()
-        and all(part not in ("", ".", "..") for part in parts),
+        and all(part not in ("", ".", "..") and ":" not in part for part in parts),
         "report path must be a safe relative POSIX path",
     )
     path = (root / relative).resolve(strict=True)
     require(path.is_relative_to(root), f"report leaves evidence directory: {relative}")
     return path
+
+
+def report_path(root, relative):
+    require(isinstance(relative, str) and relative.endswith(".json"), "report path must be .json")
+    return evidence_file_path(root, relative)
 
 
 def samples(value, count, metric):
@@ -533,7 +538,7 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         require(isinstance(files, dict) and files, "raw artifact file manifest missing")
         for relative, expected in files.items():
             require(HEX64.fullmatch(expected) is not None
-                    and sha256_file(report_path(evidence_path.parent, relative)) == expected.upper(),
+                    and sha256_file(evidence_file_path(evidence_path.parent, relative)) == expected.upper(),
                     "raw artifact member hash mismatch")
     require(evidence.get("schema") == 2 and evidence.get("version") == VERSION, "wrong evidence version/schema")
     require(HEX40.fullmatch(commit) is not None, "--commit must be a 40-character Git SHA")
@@ -687,7 +692,7 @@ def bundle(evidence_path, output_path):
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.write(evidence_path, evidence_path.name)
         for relative in sorted(reports):
-            archive.write(report_path(evidence_path.parent, relative), relative)
+            archive.write(evidence_file_path(evidence_path.parent, relative), relative)
     output_path.with_name(output_path.name + ".sha256").write_text(
         f"{sha256_file(output_path)}  {output_path.name}\n", encoding="utf-8"
     )

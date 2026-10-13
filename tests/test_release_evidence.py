@@ -377,6 +377,28 @@ esac
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash
         )
 
+    def test_raw_artifact_logs_and_binary_records_preserve_bytes(self):
+        records = {"raw/session.log": b"all observations, including slow samples\n",
+                   "raw/diagnostic.zip": b"opaque original diagnostic bytes\x00\xff"}
+        files = {}
+        for name, content in records.items():
+            path = self.root / name
+            path.parent.mkdir(exist_ok=True)
+            path.write_bytes(content)
+            files[name] = validator.sha256_file(path)
+        self.evidence["raw_artifacts"] = [{"run_id": 1, "artifact_id": 2,
+                                           "sha256": "A"*64, "files": files}]
+        self.save_evidence()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        output = self.root / "raw-bundle.zip"
+        validator.bundle(self.evidence_path, output)
+        with zipfile.ZipFile(output) as archive:
+            for name, content in records.items():
+                self.assertEqual(archive.read(name), content)
+        (self.root / "raw/session.log").write_text("changed")
+        with self.assertRaisesRegex(ValueError, "raw artifact member hash"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
     def test_measured_private_dll_identity_mismatch_blocks_release(self):
         self.evidence['build_identity']['private_editors']['files'][0]['sha256'] = 'E'*64
         self.save_evidence()
