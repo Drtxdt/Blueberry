@@ -1564,6 +1564,18 @@ fn direct_above_menu_preserves_truecolor_prompt_cells() -> Result<()> {
 #[test]
 #[ignore = "known release blocker: resized overlays quantize historical RGB; run explicitly against the frozen CI EXE"]
 fn direct_above_menu_resize_preserves_truecolor_history() -> Result<()> {
+    check_above_menu_resized_history(true)
+}
+
+#[test]
+#[ignore = "known release blocker: CHAR_INFO cannot retain combining glyphs and exact history wrapping; run explicitly against the frozen CI EXE"]
+fn direct_above_menu_resize_preserves_unicode_and_wrapped_history() -> Result<()> {
+    // Keep this independent of RGB: a colour assertion must not conceal a
+    // second regression in the character/soft-wrap restoration path.
+    check_above_menu_resized_history(false)
+}
+
+fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
     let evidence =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
     std::fs::create_dir_all(&evidence)?;
@@ -1623,15 +1635,24 @@ fn direct_above_menu_resize_preserves_truecolor_history() -> Result<()> {
                     .is_some_and(|line| line.contains("RGB-PROMPT-"))
             })
             .context("history disappeared after menu resize and Esc")?;
-        ensure!(
-            after.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67)
-                && after.cell(row, 0).unwrap().bgcolor() == vt100::Color::Rgb(23, 89, 145),
-            "resized history lost full RGB attributes: {:?}",
-            after.cell(row, 0)
-        );
+        if check_rgb {
+            ensure!(
+                after.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67)
+                    && after.cell(row, 0).unwrap().bgcolor() == vt100::Color::Rgb(23, 89, 145),
+                "resized history lost full RGB attributes: {:?}",
+                after.cell(row, 0)
+            );
+        }
         ensure!(
             after.contents().contains("中🚀é"),
             "resized history lost Unicode"
+        );
+        let expected = format!("RGB-PROMPT-中🚀é{}", "x".repeat(55));
+        let contents = after.contents();
+        let logical_text = contents.lines().collect::<String>();
+        ensure!(
+            logical_text.contains(&expected),
+            "resized history clipped or changed the wrapped fixture"
         );
         h.finish(TIMEOUT)
     })();

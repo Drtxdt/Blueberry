@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 
 SHELL = shutil.which('pwsh')
@@ -12,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @unittest.skipUnless(SHELL, 'PowerShell 7 is required')
 class MatrixTests(unittest.TestCase):
-    def run_matrix(self, continue_on_failure=True, corrupt=''):
+    def run_matrix(self, continue_on_failure=True, corrupt='', native_json=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             probe = root / 'probe.ps1'
@@ -61,8 +62,24 @@ $report|ConvertTo-Json -Depth 20|Set-Content -LiteralPath $output -Encoding utf8
                 module = directory / 'PSReadLine.psd1'
                 module.write_text('@{}')
                 modules.append(module)
+            runner = ROOT / 'scripts/run-editor-matrix.ps1'
+            if native_json:
+                identity = dict(build=dict(dirty=False, commit='C'*40,
+                    private_editors=dict(patch='test', files=[dict(version=version, path=dll, sha256='A'*64)
+                        for version, dll in [('2.0.0', 'Microsoft.PowerShell.PSReadLine2.dll'),
+                                             ('2.4.5', 'Microsoft.PowerShell.PSReadLine.dll')]]),
+                    conpty=dict(sha256='A'*64)), help_cache=[dict(error='错误："oops" 🚀')])
+                code = 'import sys;sys.stdout.buffer.write(' + repr(json.dumps(identity, ensure_ascii=False)) + '.encode("utf-8"))'
+                source = probe.read_text(encoding='utf-8')
+                line = next(line for line in source.splitlines() if '|ConvertTo-Json -Depth 10' in line)
+                source = source.replace(line, "    & '" + sys.executable.replace("'", "''") + "' -c '" + code.replace("'", "''") + "'")
+                probe.write_text(source, encoding='utf-8')
+                launcher = root / 'gbk-coordinator.ps1'
+                launcher.write_text("[Console]::OutputEncoding=[Text.Encoding]::GetEncoding(936)\ntry { & '" +
+                    str(runner).replace("'", "''") + "' @args } finally { if ([Console]::OutputEncoding.CodePage -ne 936) { throw 'Caller encoding changed' } }\n", encoding='utf-8')
+                runner = launcher
             output = root / 'results'
-            command = [SHELL, '-NoProfile', '-File', str(ROOT / 'scripts/run-editor-matrix.ps1'),
+            command = [SHELL, '-NoProfile', '-File', str(runner),
                        '-Executable', str(probe), '-Probe', str(probe), '-Original200', str(modules[0]),
                        '-Original245', str(modules[1]), '-OutputDirectory', str(output),
                        '-Shell7', 'unused', '-Shell51', 'unused', '-Samples', '2', '-StartupPairs', '2']
@@ -79,6 +96,11 @@ $report|ConvertTo-Json -Depth 20|Set-Content -LiteralPath $output -Encoding utf8
         self.assertFalse(result['automated_performance_passed'])
         self.assertEqual(len(result['results']), 9)
         self.assertEqual(len(result['gate_errors']), 75)
+
+    def test_native_utf8_doctor_is_decoded_in_gbk_coordinator(self):
+        result = self.run_matrix(native_json=True)
+        self.assertTrue(result['measurement_complete'])
+        self.assertEqual(len(result['results']), 9)
 
     def test_default_stops_after_first_threshold_failure(self):
         result = self.run_matrix(False)

@@ -62,6 +62,19 @@ PS5.1／2.0.0 预检中 direct 的初始化辅助进程在第一次快照期间�
 `-IncludeThreadCounters` 诊断，不能计正式资源验收。正式批次记录进程树内存、
 CPU、线程数量与句柄数量，线程上下文切换计数明确未测；真实子进程退出回归覆盖此路径。
 
+后续独立批次 `artifacts/pb2-1013/` 的三组合正式资源采集全部完成：每模式五个
+独立会话，共 60 个；已逐份校验摘要并从全部原始快照复算，摘要见
+[资源基线](benchmarks/v0.6/baseline-resource-2fe57b9-20261013.json)。这只确认资源
+采集完整，尚未完成候选的两次独立 A/B，也不表示整体性能通过。原始记录仍只在
+忽略目录，尚未上传 Actions Artifact 或创建 Release 证据包。
+
+同一队列的延迟预检在测量开始前因隐藏 PowerShell 的 GBK 解码破坏 UTF-8 doctor
+JSON 而停止；已增加原生中文／引号／emoji JSON 与调用者编码恢复的回归。
+延迟矩阵重新使用新目录 `artifacts/pl3-1013/`，不续写无效批次；固定的观察探针
+来自干净 `f2f9e99` release 本机构建，SHA-256
+`9E847A768DB1CB22A85134EB0605A39784BEC34070576F7C7B817C5F62EE71B2`。
+它的来源单独记录，不能称为 CI 原包；宿主仍是原 `2fe57b9` CI 包。
+
 ## 缩放发布阻塞
 
 普通 Esc 关闭菜单的历史 RGB／Unicode 恢复已获用户验证；缩放后的恢复仍走
@@ -88,6 +101,12 @@ Windows Terminal 的 `PageManager::Get` 会将后台页调整到当前可见尺�
 标记前缀完整性与范围精确性，原记录不覆盖。实测宽字符矩形宽度多算一列，需使用
 相邻字符起点核对；逐字符 181 个标记约 154 ms，不能放到每次按键的计时路径中。
 目前只验证接口能力，尚未实现或验收跨缩放恢复，也未测屏幕像素显示时间。
+
+独立 Unicode／折行阻塞回归已对固定 `2fe57b9` EXE 显式执行并失败：
+`resized history lost Unicode`，原始记录保存在
+`target/input-protocol-evidence/direct-resize-prompt-colors-7pUzCo/`。
+它独立于 RGB 断言，避免颜色先失败掩盖 emoji／组合字符丢失；新测试仍明确标为
+已知阻塞，忽略状态不表示通过。
 
 发布证据检查新增最终 ZIP 身份、三组合 direct/nested 的逐项人工记录、连续缩放、
 历史 RGB、pip/npm Ctrl+C 及 VS Code/PS7 direct 检查。0.5.3 性能延期也须保留完整

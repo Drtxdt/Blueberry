@@ -25,7 +25,15 @@ if ($Formal -and ($Samples -lt 300 -or $StartupPairs -lt 30 -or -not $ExpectedEx
 }
 if ($ExpectedExecutableSha256 -and $exeHash -ine $ExpectedExecutableSha256) { throw 'EXE identity mismatch' }
 if ($ExpectedProbeSha256 -and $probeHash -ine $ExpectedProbeSha256) { throw 'Probe identity mismatch' }
-$identity=& $Executable doctor --json | ConvertFrom-Json
+$nativeOutputEncoding=[Console]::OutputEncoding
+try {
+    # A hidden coordinator can inherit CP936. Native JSON is UTF-8;
+    # misdecoding an error string can consume its escaping backslash.
+    [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
+    $identity=& $Executable doctor --json | ConvertFrom-Json
+} finally {
+    [Console]::OutputEncoding=$nativeOutputEncoding
+}
 if ($LASTEXITCODE -ne 0 -or -not $identity.build.private_editors) { throw 'Missing private module build identity' }
 if (-not $identity.build.conpty) { throw 'Missing pinned ConPTY build identity' }
 if ($Formal -and ($identity.build.dirty -or $identity.build.profile -ne 'release' -or $identity.build.commit -notmatch '^[0-9a-fA-F]{40}$')) { throw 'Formal qualification requires a clean release CI candidate' }

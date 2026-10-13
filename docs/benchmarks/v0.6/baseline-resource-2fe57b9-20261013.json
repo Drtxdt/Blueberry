@@ -1,0 +1,850 @@
+{
+  "schema": 1,
+  "scope": "independent_idle_process_tree_resources_only",
+  "baseline_source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+  "baseline_executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+  "measurement_complete": true,
+  "performance_passed": null,
+  "latency_baseline_complete": false,
+  "storage": {
+    "kind": "ignored_local_raw_records",
+    "actions_artifact_status": "not_uploaded",
+    "release_evidence_status": "not_created"
+  },
+  "profiles": {
+    "ps51-2.0.0": {
+      "manifest": "artifacts/pb2-1013/resources-formal-ps51-200/resources.json",
+      "manifest_sha256": "3CAB6D14EB74B72C3971981A80B98F24DCE5D5FF1E48B1A7A519DEBA401B993A",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "probe_sha256": "5567246B68817C035A944BEE4FD260E4AFC6AE438EE86327DCE0D0E33031AD7E",
+      "sampler_sha256": "F215664684D6115DACB5B2D3C00EB85B91E489CA2382BBEA7112730469407615",
+      "profile_sha256": "C6FBE838A0B766996734B5CA266364DE9441EF105AAC657D53E44E2548299E67",
+      "power_policy": "55EA23B8F7FA4AD83040A1C93F8082F24C0B1759E60A0FD14A58123BC2B66288",
+      "terminal_rows": 30,
+      "terminal_columns": 120,
+      "trace": "disabled",
+      "modes": {
+        "plain": {
+          "independent_sessions": 5,
+          "program_sha256": "8BB6FA8C283B4D92120B1EF249A9B311B0F804D4CABBE9981159976C8BE76A5E",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+            "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.0.0",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.051612891462063035
+            ],
+            "working_set_median_bytes": [
+              93483008,
+              93650944.0,
+              93560832.0,
+              93544448,
+              93503488.0
+            ],
+            "private_bytes_median": [
+              72929280,
+              72929280.0,
+              72933376.0,
+              72990720,
+              72708096.0
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.0,
+            "working_set_median_bytes": 93544448,
+            "private_bytes_median": 72929280.0
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/0-plain/raw-resources.json",
+              "sha256": "39FB2E4D178A219694DB323B133CC6E28E0C9051EDF9E04C02AC8D0750662216"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/1-plain/raw-resources.json",
+              "sha256": "68EE47F9E2BC6772160CC356E942C4DD52B3CE1F60D8A195EFE9447C35A73063"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/2-plain/raw-resources.json",
+              "sha256": "EC0358EE2595FAC1998C220B7B2BE407B1EDEA1120266BBF5EC9438BD32A5469"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/3-plain/raw-resources.json",
+              "sha256": "E34AC1F751426C037C4C455FF3BB09F6E74AC813B4FBD7CA4265CA66FF6E8580"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/4-plain/raw-resources.json",
+              "sha256": "DBDB53DB33F7A115EC53265548BBC41DD6B1B1659C19A186AAFBDD7C0AC3630C"
+            }
+          ]
+        },
+        "beta6": {
+          "independent_sessions": 5,
+          "program_sha256": "C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+            "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.0.0",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.3096471495919648,
+              0.0,
+              0.0,
+              0.2585630907858417,
+              0.0
+            ],
+            "working_set_median_bytes": [
+              147546112,
+              147890176.0,
+              208777216.0,
+              147337216.0,
+              147681280.0
+            ],
+            "private_bytes_median": [
+              106819584,
+              106971136.0,
+              167948288.0,
+              106762240.0,
+              106913792.0
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.0,
+            "working_set_median_bytes": 147681280.0,
+            "private_bytes_median": 106913792.0
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/0-beta6/raw-resources.json",
+              "sha256": "33EF4D4EEA7690ED907D1A8994703B1244186DE20E7ED5C2E90E966F1039A9AC"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/1-beta6/raw-resources.json",
+              "sha256": "C2AE3742C2EFE53D2485C9FDA31D234C455173186AC4FB1BDBFBD0235B1DE288"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/2-beta6/raw-resources.json",
+              "sha256": "98557FAFB4D09037173C0A4438196F38B7C52354FDBE5ACC135E6B8FFCAFCEF3"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/3-beta6/raw-resources.json",
+              "sha256": "AF8DE61246064F21F79AFCBBC61D97AFE57651F21387C34892F9762E926FA8BF"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/4-beta6/raw-resources.json",
+              "sha256": "066F3D48517093A6A92970ED20299888691362EB8CD88D1C9EC89435B4CD6A42"
+            }
+          ]
+        },
+        "candidate": {
+          "independent_sessions": 5,
+          "program_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+          "actual_shell": {
+            "dll": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-runtime\\3aaa236a8108d8608d10fe516f2bd46442eed0b97cdb6cd2c8dc9affb90baf34\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+            "dll_sha256": "B4C8850207F566B187BB74479EDABD328AE15221D9F0041A47EECCCA29FB80D4",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.0.0",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.20725953549722456,
+              0.25768148761968507,
+              0.15480372401981113,
+              0.10307877227330646,
+              0.10341710911208579
+            ],
+            "working_set_median_bytes": [
+              120492032.0,
+              119767040.0,
+              119734272.0,
+              120414208.0,
+              120201216.0
+            ],
+            "private_bytes_median": [
+              91381760.0,
+              90689536.0,
+              91037696.0,
+              91488256.0,
+              91242496.0
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.15480372401981113,
+            "working_set_median_bytes": 120201216.0,
+            "private_bytes_median": 91242496.0
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/0-candidate/raw-resources.json",
+              "sha256": "E99F71A619D706864B0580DDFC576E4F8387C99F3CDBDE7DB821149C80B7494A"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/1-candidate/raw-resources.json",
+              "sha256": "54DC49FA0AD21232EDA02CE8C2CE63B49921CAD8B043CA8E719D4D82AE9F6EBC"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/2-candidate/raw-resources.json",
+              "sha256": "7E7CF93F8A442A3149EE74521AC2F0E19572A494B11B2C535B3D9B449FE38518"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/3-candidate/raw-resources.json",
+              "sha256": "8D1658172AFC7E4AE33D9EB356CE43773CF71341906DD23E4B9E7C29C958AB0F"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/4-candidate/raw-resources.json",
+              "sha256": "6B1E37B5A2D500E6A85F40162C4E01CBC4EC0F51162C3CB5E9517E195749B495"
+            }
+          ]
+        },
+        "inshellisense": {
+          "independent_sessions": 5,
+          "program_sha256": "075503ED8DEE2A1A5160125FFA2EFB241986532294CC6128C3CB21196DC3059E",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\Microsoft.PowerShell.PSReadLine2.dll",
+            "dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.0.0",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.05170360225863174,
+              0.0,
+              0.051664148856392325,
+              0.0,
+              0.0
+            ],
+            "working_set_median_bytes": [
+              165961728.0,
+              165593088,
+              165568512.0,
+              165617664.0,
+              165941248.0
+            ],
+            "private_bytes_median": [
+              148025344.0,
+              148537344,
+              148918272.0,
+              147550208.0,
+              148754432.0
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.0,
+            "working_set_median_bytes": 165617664.0,
+            "private_bytes_median": 148537344
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/0-inshellisense/raw-resources.json",
+              "sha256": "EAE1BB46101323F6563597D66FB5299C1212BCF96BA330DA0FFD078D9114C92C"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/1-inshellisense/raw-resources.json",
+              "sha256": "9CD0AEDC821383A5F42EB4C505A9E21840DAA1FAC492195C167335D44323D0C1"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/2-inshellisense/raw-resources.json",
+              "sha256": "E2F487EB837FCEC7356EF06C4B11F9ED9F824DDB5F764F063D4D271381F6DCD7"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/3-inshellisense/raw-resources.json",
+              "sha256": "8798505539B4B686FC463706B9DB46BB0AAACC26DBCC974731B17022C0DF37CA"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-200/4-inshellisense/raw-resources.json",
+              "sha256": "6AF74FC90EB0CDFD5CAAF4B0BBAA6EB57EDB5A70A7FFAC6453128DCFE1F33E76"
+            }
+          ]
+        }
+      }
+    },
+    "ps51-2.4.5": {
+      "manifest": "artifacts/pb2-1013/resources-formal-ps51-245/resources.json",
+      "manifest_sha256": "8D43E390687D78E14B84C30EEA8B66ACF21033C725A502B9D4408DEF4395F4DB",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "probe_sha256": "5567246B68817C035A944BEE4FD260E4AFC6AE438EE86327DCE0D0E33031AD7E",
+      "sampler_sha256": "F215664684D6115DACB5B2D3C00EB85B91E489CA2382BBEA7112730469407615",
+      "profile_sha256": "C6FBE838A0B766996734B5CA266364DE9441EF105AAC657D53E44E2548299E67",
+      "power_policy": "55EA23B8F7FA4AD83040A1C93F8082F24C0B1759E60A0FD14A58123BC2B66288",
+      "terminal_rows": 30,
+      "terminal_columns": 120,
+      "trace": "disabled",
+      "modes": {
+        "plain": {
+          "independent_sessions": 5,
+          "program_sha256": "8BB6FA8C283B4D92120B1EF249A9B311B0F804D4CABBE9981159976C8BE76A5E",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.05147545996972063,
+              0.0,
+              0.10332127955876332,
+              0.0,
+              0.10314589807065581
+            ],
+            "working_set_median_bytes": [
+              94912512,
+              94470144,
+              95006720.0,
+              94961664,
+              94896128.0
+            ],
+            "private_bytes_median": [
+              73920512,
+              73293824,
+              73715712.0,
+              73732096,
+              73740288.0
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.05147545996972063,
+            "working_set_median_bytes": 94912512,
+            "private_bytes_median": 73732096
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/0-plain/raw-resources.json",
+              "sha256": "31E1F86A44360494C07DB4958D44FFAC3A04522D9127C1575BE6646C73EF2E3C"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/1-plain/raw-resources.json",
+              "sha256": "A9B82B1631E72C041D5444F5A66374F400A72C764E0906C61D36849A2A08047D"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/2-plain/raw-resources.json",
+              "sha256": "6FBB9811D26DB0EDCF8D0AB772719C799190A05BA859FBB75BF30AF51A8FB2B6"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/3-plain/raw-resources.json",
+              "sha256": "AC519A2A421978511C845A42E52DB22086D38182BEDC4C8A0438F71DB6D313CC"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/4-plain/raw-resources.json",
+              "sha256": "5E63DC71EBEAA107D041D0A9BB6A30CA3799C79BCC302820E76BFD315DC3F00C"
+            }
+          ]
+        },
+        "beta6": {
+          "independent_sessions": 5,
+          "program_sha256": "C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.0516509552669803,
+              0.0,
+              0.1547380840963244,
+              0.05161130920219734,
+              0.0
+            ],
+            "working_set_median_bytes": [
+              148480000.0,
+              148402176.0,
+              148291584,
+              148492288,
+              148836352
+            ],
+            "private_bytes_median": [
+              107216896.0,
+              107057152.0,
+              107102208,
+              107089920,
+              107544576
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.05161130920219734,
+            "working_set_median_bytes": 148480000.0,
+            "private_bytes_median": 107102208
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/0-beta6/raw-resources.json",
+              "sha256": "F60B0A5FE7443488DED84BA858A122C09F5AE510A0783C36631217CA85412C18"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/1-beta6/raw-resources.json",
+              "sha256": "851DCE979230FA49AAE8EB56941A5996C7AF3EB4D4CEBCBBB1C73FB6137E781A"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/2-beta6/raw-resources.json",
+              "sha256": "660C2D95A2C091AEB741ACD0F5E5EDFDD0009B4B77FA5259BEF12398AF40088C"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/3-beta6/raw-resources.json",
+              "sha256": "BF6A369343ED1E38C97029827BD13190C9179512A8E49AD52A4C03B8D0134B14"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/4-beta6/raw-resources.json",
+              "sha256": "ADC95948AFEEF7CD05F7400DE6366EBE0BA8EC123A769E3A774D51EBF9582791"
+            }
+          ]
+        },
+        "candidate": {
+          "independent_sessions": 5,
+          "program_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+          "actual_shell": {
+            "dll": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-runtime\\331c23da5143f7a649c56c53ef45e9dde5966c1872be8bf33fa8f45c1d2b3061\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "D7F9432107BDAF0296B61A8AAEFFAE4A944471743C15E0618D27B4BC774CBE80",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.0,
+              0.15483986764786903,
+              0.05162312351184989,
+              0.3098279774260426,
+              0.0
+            ],
+            "working_set_median_bytes": [
+              123314176,
+              122245120.0,
+              123031552,
+              121872384,
+              121901056
+            ],
+            "private_bytes_median": [
+              93917184,
+              92848128.0,
+              93388800,
+              92217344,
+              92303360
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.05162312351184989,
+            "working_set_median_bytes": 122245120.0,
+            "private_bytes_median": 92848128.0
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/0-candidate/raw-resources.json",
+              "sha256": "1361C1C991B079781F2419BD8E86CE6B113F28F76CA0AEF6A89FA56F75117A0C"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/1-candidate/raw-resources.json",
+              "sha256": "41DDDD0411EFE4CB5F3C8556F08B9E90F11D668AA98E471ED4D4CF968A55FAE2"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/2-candidate/raw-resources.json",
+              "sha256": "B71729D70A9E95639C0EAE4700D5C9A879327437B3E1EB52876BFF9A2C34B401"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/3-candidate/raw-resources.json",
+              "sha256": "8C32BA52E07A37D7D0D1BC7258FE66A234DDC9FFB86AE59DD508E564C7447A9F"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/4-candidate/raw-resources.json",
+              "sha256": "BA1607393804B33E90AEFBB70A590730258ABCCB6670C373EFC6D6993FF0F0FC"
+            }
+          ]
+        },
+        "inshellisense": {
+          "independent_sessions": 5,
+          "program_sha256": "075503ED8DEE2A1A5160125FFA2EFB241986532294CC6128C3CB21196DC3059E",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+            "profiles": [
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1",
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "5.1.26100.9444"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.0,
+              0.2584702504149444,
+              0.10326571836661498,
+              0.05163616654077797,
+              0.1031712358488806
+            ],
+            "working_set_median_bytes": [
+              166780928.0,
+              167026688,
+              167063552,
+              166752256,
+              166948864
+            ],
+            "private_bytes_median": [
+              148180992.0,
+              148897792,
+              150200320,
+              148606976,
+              149303296
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.1031712358488806,
+            "working_set_median_bytes": 166948864,
+            "private_bytes_median": 148897792
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/0-inshellisense/raw-resources.json",
+              "sha256": "A8FA9DB730A49CCCA7B9D1700404EA05A9EFBF690E1C5BC7855AA00C29D340F6"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/1-inshellisense/raw-resources.json",
+              "sha256": "A165CEC8C0179E4ED22E72C7C4684BA3868131398177DA5EA0E4F071381D3C3C"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/2-inshellisense/raw-resources.json",
+              "sha256": "AAB4A2A3D570A459F9479F7599F74AA64FE414B05E441F3B4420259A6FF42AC8"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/3-inshellisense/raw-resources.json",
+              "sha256": "B47B1637261AC49C4904187AC676DF5F04B3783E4D59E3B66E1E4286CABF00D5"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps51-245/4-inshellisense/raw-resources.json",
+              "sha256": "A55B23CC63FC3160F483B62E4C0F383153135BBC0A93029FD94BF3221C97D16F"
+            }
+          ]
+        }
+      }
+    },
+    "ps7-2.4.5": {
+      "manifest": "artifacts/pb2-1013/resources-formal-ps7-245/resources.json",
+      "manifest_sha256": "2EB45BE1C9A92E954CDAD4B390C5E7E5E4A5050D4AF593EB3FE38210AC66AC2A",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "probe_sha256": "5567246B68817C035A944BEE4FD260E4AFC6AE438EE86327DCE0D0E33031AD7E",
+      "sampler_sha256": "F215664684D6115DACB5B2D3C00EB85B91E489CA2382BBEA7112730469407615",
+      "profile_sha256": "76D0245780D51548D7937811D8C2D5C2AAADB983D57E4755A520B15836AFADD4",
+      "power_policy": "55EA23B8F7FA4AD83040A1C93F8082F24C0B1759E60A0FD14A58123BC2B66288",
+      "terminal_rows": 30,
+      "terminal_columns": 120,
+      "trace": "disabled",
+      "modes": {
+        "plain": {
+          "independent_sessions": 5,
+          "program_sha256": "BFB46AF89433268872DDB43D1CA7A3F433452EE91ED356A9786940F90118E285",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+            "profiles": [
+              "D:\\pwsh\\7\\profile.ps1",
+              "D:\\pwsh\\7\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "7.6.6"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.05169027137782838,
+              0.4130096479582415,
+              0.15504646422516927,
+              0.1549788387678122,
+              0.1549839679954651
+            ],
+            "working_set_median_bytes": [
+              126971904.0,
+              121554944.0,
+              121094144.0,
+              120518656.0,
+              122376192.0
+            ],
+            "private_bytes_median": [
+              54040576.0,
+              50216960.0,
+              49672192.0,
+              49012736.0,
+              50401280.0
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.1549839679954651,
+            "working_set_median_bytes": 121554944.0,
+            "private_bytes_median": 50216960.0
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/0-plain/raw-resources.json",
+              "sha256": "EAD1BCDC4ECDAD7CE3DC40AFC27D21C54A47E0503DDFC03F499B500BE65D4C76"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/1-plain/raw-resources.json",
+              "sha256": "258479597FFC75D8C264512D107CB117F723EEC6B944D0AFF3967F3BA346E7BC"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/2-plain/raw-resources.json",
+              "sha256": "D351BFA18BE7C76BD83CF8A2D316A2FF413F782B30D0FD5458E98F877C453CDB"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/3-plain/raw-resources.json",
+              "sha256": "534CCB79A1DBC5B170F402079B86F2EBE8C4B2CEE58377B584E47037B9B1B6BF"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/4-plain/raw-resources.json",
+              "sha256": "E1A75146650036EE43E1749E2E49E13DF8B6067D4181F19CCA5E6E5EF6C8EEB2"
+            }
+          ]
+        },
+        "beta6": {
+          "independent_sessions": 5,
+          "program_sha256": "C27404F61D5C96AEB2EDF236DC0F25B033A45E50B825E7369D73521C73C7FB86",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+            "profiles": [
+              "D:\\pwsh\\7\\profile.ps1",
+              "D:\\pwsh\\7\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "7.6.6"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.1548104358185409,
+              0.6191326695579513,
+              0.15586815678730506,
+              0.2582931013243584,
+              0.25996453548001136
+            ],
+            "working_set_median_bytes": [
+              190550016,
+              191193088,
+              178671616,
+              173654016.0,
+              172584960
+            ],
+            "private_bytes_median": [
+              96202752,
+              96313344,
+              84643840,
+              82153472.0,
+              79339520
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.2582931013243584,
+            "working_set_median_bytes": 178671616,
+            "private_bytes_median": 84643840
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/0-beta6/raw-resources.json",
+              "sha256": "630A3D8D1DCB7FA7F02C2E474044DABEF8D52462F64B5D6A6F7C0AAFB2B45091"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/1-beta6/raw-resources.json",
+              "sha256": "D8C20262E47FFC423AACBE3214FE8C67E7B03C8F99A098E0BAAF9996507EF597"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/2-beta6/raw-resources.json",
+              "sha256": "F4F792A575DD12A6BD37E59C850EBB6AC8A5759934DB865DAC12B397AA0FF293"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/3-beta6/raw-resources.json",
+              "sha256": "FBD3616D84FD02582F01CAF059D4772612E8AEE92EACC522824EA02D1D748401"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/4-beta6/raw-resources.json",
+              "sha256": "4B0B98B514557011540B5B29D38EEB1EC500BDBEDF9C44F0BC11E0591C22C1B9"
+            }
+          ]
+        },
+        "candidate": {
+          "independent_sessions": 5,
+          "program_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+          "actual_shell": {
+            "dll": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-runtime\\331c23da5143f7a649c56c53ef45e9dde5966c1872be8bf33fa8f45c1d2b3061\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "D7F9432107BDAF0296B61A8AAEFFAE4A944471743C15E0618D27B4BC774CBE80",
+            "profiles": [
+              "D:\\pwsh\\7\\profile.ps1",
+              "D:\\pwsh\\7\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "7.6.6"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.6706149857848277,
+              0.36140092473104346,
+              0.20642229158356173,
+              0.20659030749542623,
+              0.36315918160259725
+            ],
+            "working_set_median_bytes": [
+              151068672,
+              149278720,
+              143990784,
+              150032384.0,
+              145174528
+            ],
+            "private_bytes_median": [
+              69525504,
+              68333568,
+              63000576,
+              68468736.0,
+              64159744
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.36140092473104346,
+            "working_set_median_bytes": 149278720,
+            "private_bytes_median": 68333568
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/0-candidate/raw-resources.json",
+              "sha256": "A1A5F835603603E5780A0B386ED708B8F5075EAEAB99F21483BC23403AA37F26"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/1-candidate/raw-resources.json",
+              "sha256": "00F65BB7BE34C7A38606D3CAFEAA0FD9FA56D6062CD97AAAEB1A71C98099A11D"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/2-candidate/raw-resources.json",
+              "sha256": "A386F45B545DD77684A083ED2C07F46660A885118603FB61436702AB07E8314F"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/3-candidate/raw-resources.json",
+              "sha256": "EBE99C52C9C637542BB2F6F6D257EF23A788489ACD2EB3CFE7BB5521D073A1C3"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/4-candidate/raw-resources.json",
+              "sha256": "A9BD635A11F15B5AB3577E0151BF6EBDC4A5E4E20DD9CF3CE7C0EF8BFFF456F0"
+            }
+          ]
+        },
+        "inshellisense": {
+          "independent_sessions": 5,
+          "program_sha256": "075503ED8DEE2A1A5160125FFA2EFB241986532294CC6128C3CB21196DC3059E",
+          "actual_shell": {
+            "dll": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\Microsoft.PowerShell.PSReadLine.dll",
+            "dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+            "profiles": [
+              "D:\\pwsh\\7\\profile.ps1",
+              "D:\\pwsh\\7\\Microsoft.PowerShell_profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\profile.ps1",
+              "E:\\OpenSource\\shellsense-rs\\target\\inshellisense-0.0.4\\isolated-user\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+            ],
+            "psreadline": "2.4.5",
+            "shell": "7.6.6"
+          },
+          "session_metrics": {
+            "cpu_percent_one_core": [
+              0.25724635995412837,
+              0.10309856382710843,
+              0.1031380761340789,
+              0.1555268509485273,
+              0.25859554032933246
+            ],
+            "working_set_median_bytes": [
+              193196032,
+              195178496,
+              195133440,
+              193056768,
+              195055616
+            ],
+            "private_bytes_median": [
+              125820928,
+              126791680,
+              126545920,
+              124928000,
+              126160896
+            ]
+          },
+          "medians": {
+            "cpu_percent_one_core": 0.1555268509485273,
+            "working_set_median_bytes": 195055616,
+            "private_bytes_median": 126160896
+          },
+          "raw_records": [
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/0-inshellisense/raw-resources.json",
+              "sha256": "C2367E7B1B4C14BCBC0EC8D3C8C0560C0F5A1A04F34F53CE42055CB9731642C2"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/1-inshellisense/raw-resources.json",
+              "sha256": "866B3CA6F4A834FF6344F023AD7B2920B85A5D675A57078191C1B48B98F11B89"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/2-inshellisense/raw-resources.json",
+              "sha256": "59C43DFC30985D252B4C9C43C79D2FCF952F8A2DF2525396FF3805D402FA6C9D"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/3-inshellisense/raw-resources.json",
+              "sha256": "26F245E8995CE8C9F8D863380BA14CE1FE4D42E34BD9F0DDFF92F06B23E99096"
+            },
+            {
+              "report": "artifacts/pb2-1013/resources-formal-ps7-245/4-inshellisense/raw-resources.json",
+              "sha256": "836440E323F8A07BD0A03326D2998225347EF5A0A5C74F1CD736FA3F25243CD7"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
