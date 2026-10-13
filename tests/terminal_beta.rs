@@ -1001,7 +1001,7 @@ fn terminal_history_search_stays_native_until_a_real_edit() -> Result<()> {
 fn terminal_history_search_exit_serializes_following_typing_and_delete() -> Result<()> {
     for burst in [
         b"\x07git s".as_slice(),
-        b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_\x7ft",
+        b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_\x1b[F\x7ft",
     ] {
         let mut host = start_host()?;
         send_command(
@@ -1060,14 +1060,14 @@ fn terminal_history_keeps_workbench_shortcut_available() -> Result<()> {
     while Instant::now() < until {
         let _ = host.harness.pump(Duration::from_millis(10));
     }
-    host.harness.send(ctrl_alt_space_records())?;
+    host.harness.send(b"\x1b[112;7u")?;
     wait_until(
         &mut host.harness,
         "workbench during history browsing",
         PTY_TIMEOUT,
         |screen| screen.contains("History Workbench"),
     )?;
-    host.harness.send(ctrl_alt_space_records())?;
+    host.harness.send(b"\x1b[112;7u")?;
     let until = Instant::now() + Duration::from_millis(350);
     while Instant::now() < until {
         let _ = host.harness.pump(Duration::from_millis(10));
