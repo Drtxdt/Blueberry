@@ -679,6 +679,25 @@ esac
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
     @unittest.skipUnless(validator.VERSION in validator.CURRENT_RELEASES, "Historical terminal policy")
+    def test_rgb_pass_cannot_replace_all_history_attribute_restoration(self):
+        matrix = self.evidence["manual_acceptance"]["windows_terminal_matrix"]
+        for profile in validator.PROFILES:
+            for mode in ("direct", "nested"):
+                tasks = matrix[profile][mode]
+                self.assertTrue(tasks["history_rgb"])
+                self.assertTrue(tasks["live_resize"])
+                for result in (None, False, "not_executed"):
+                    with self.subTest(profile=profile, mode=mode, result=result):
+                        if result is None:
+                            tasks.pop("history_attributes")
+                        else:
+                            tasks["history_attributes"] = result
+                        self.save_evidence()
+                        with self.assertRaisesRegex(ValueError, "incomplete manual resize"):
+                            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+                        tasks["history_attributes"] = True
+
+    @unittest.skipUnless(validator.VERSION in validator.CURRENT_RELEASES, "Historical terminal policy")
     def test_vscode_compatibility_is_independent_of_terminal_acceptance(self):
         self.evidence["manual_acceptance"]["vscode_ps7_direct"]["tasks"]["ctrl_c"] = False
         self.save_evidence()

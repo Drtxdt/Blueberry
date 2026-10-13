@@ -40,7 +40,7 @@ TERMINAL_TASKS = {"ime", "font_zoom", "selection", "paste", "nested_program"}
 CURRENT_RELEASES = {"0.5.3", "0.6.0"}
 CURRENT_TERMINAL_TASKS = TERMINAL_TASKS | {
     "unicode", "right_text", "line_wrap", "multiline_paste", "small_window",
-    "live_resize", "history_rgb", "alt_screen", "ctrl_c_pip", "ctrl_c_npm",
+    "live_resize", "history_rgb", "history_attributes", "alt_screen", "ctrl_c_pip", "ctrl_c_npm",
     "undo_redo", "bridge_recovery",
 }
 VSCODE_TASKS = {"startup", "input", "menu", "tab", "ctrl_c"}
