@@ -58,6 +58,8 @@ $blueberryStateDefaults = [ordered]@{
     BLUEBERRY_NATIVE_HISTORY_UP = $false
     BLUEBERRY_NATIVE_DELETE_ACTIONS = $null
     BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
+    BLUEBERRY_NATIVE_SEARCHES = $null
+    BLUEBERRY_NATIVE_SEARCH_ACTIONS = $null
     BLUEBERRY_CAPABILITIES_REFRESHED = $false
     BLUEBERRY_COMMAND_SNAPSHOT_ID = $null
     BLUEBERRY_COMMAND_SNAPSHOT = $null
@@ -2749,19 +2751,75 @@ function Invoke-BlueberryObservedNativeDelete {
     })
 }
 
+function Get-BlueberryNativeActions {
+    # Public descriptions can be supplied by a user ScriptBlock. Verify the
+    # original delegate, reading the dispatch table without changing it.
+    $actions = @{}
+    try {
+        $api = [Microsoft.PowerShell.PSConsoleReadLine]
+        $flags = [Reflection.BindingFlags]'NonPublic,Instance'
+        $singleton = $api.GetField('_singleton', [Reflection.BindingFlags]'NonPublic,Static').GetValue($null)
+        $table = $api.GetField('_dispatchTable', $flags).GetValue($singleton)
+        foreach ($entry in $table.GetEnumerator()) {
+            $handlerType = $entry.Value.GetType()
+            $action = $handlerType.GetField('Action').GetValue($entry.Value)
+            $scriptBlock = $handlerType.GetField('ScriptBlock').GetValue($entry.Value)
+            if ($null -eq $action -or $null -ne $scriptBlock -or $null -ne $action.Target -or
+                $action.Method.DeclaringType -ne $api) { continue }
+            $keyType = $entry.Key.GetType()
+            $keyFlags = [Reflection.BindingFlags]'Public,NonPublic,Instance'
+            $property = $keyType.GetProperty('KeyStr', $keyFlags)
+            $chord = if ($null -ne $property) { $property.GetValue($entry.Key, $null) }
+                else { $keyType.GetField('KeyStr', $keyFlags).GetValue($entry.Key) }
+            $actions[[string]$chord] = $action
+        }
+    } catch { return @{} }
+    return $actions
+}
+
+function Invoke-BlueberryObservedNativeSearch {
+    param($Key, $Arg)
+    $chord = 'Ctrl+' + [string]$Key.Key
+    $nativeAction = $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$chord]
+    # The inner search loop compares handler delegates to the built-in search
+    # functions. Keep those delegates installed during the native loop so a
+    # second Ctrl+R/Ctrl+S continues the same search rather than restarting it.
+    foreach ($searchChord in $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS.Keys) {
+        $action = $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$searchChord]
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($searchChord), $action,
+            $action.Method.Name, $action.Method.Name)
+    }
+    Send-BlueberryEvent -Event 'native_search' -Data @{ active = $true }
+    try { $nativeAction.Invoke($Key, $Arg) }
+    finally {
+        foreach ($searchChord in $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS.Keys) {
+            $action = $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$searchChord]
+            $observer = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeSearch}
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($searchChord), $observer,
+                'BlueberryNativeSearch', 'Delegate native history search without completion queries')
+        }
+        Send-BlueberryEvent -Event 'native_search' -Data @{ active = $false }
+    }
+}
+
 function Register-BlueberryNativeDeleteObservers {
     param($KeySnapshot)
     $script:BLUEBERRY_NATIVE_DELETES = @{}
     $script:BLUEBERRY_NATIVE_DELETE_ACTIONS = @{}
     $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
+    $script:BLUEBERRY_NATIVE_SEARCHES = @{}
+    $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS = @{}
+    $nativeActions = Get-BlueberryNativeActions
+    $upAction = $nativeActions['UpArrow']
+    $script:BLUEBERRY_NATIVE_HISTORY_UP = ($null -ne $upAction -and
+        $upAction.Method.Name -in @('PreviousHistory', 'HistorySearchBackward'))
     foreach ($chord in @('Backspace', 'Delete', 'Ctrl+Backspace', 'Ctrl+Delete', 'Ctrl+w', 'Ctrl+u', 'Ctrl+k')) {
         $bindings = @(Get-BlueberryKeyBinding -Chord $chord -Snapshot $KeySnapshot)
         if ($bindings.Count -ne 1) { continue }
         $name = [string]$bindings[0].Function
         if ($name -notmatch '^(BackwardDelete|Delete|BackwardKill|Kill)') { continue }
-        $method = [Microsoft.PowerShell.PSConsoleReadLine].GetMethod($name, [type[]]@([Nullable[ConsoleKeyInfo]], [object]))
-        if ($null -eq $method) { continue }
-        $nativeAction = [Delegate]::CreateDelegate([Action[Nullable[ConsoleKeyInfo],object]], $method)
+        $nativeAction = $nativeActions[$chord]
+        if ($null -eq $nativeAction -or $nativeAction.Method.Name -ne $name) { continue }
         $script:BLUEBERRY_NATIVE_DELETE_ACTIONS[$chord] = $nativeAction
         # A native deletion cannot launch a program. Keep the editor's input
         # mode, as for the buffer callback, so an immediate Ctrl+C stays native.
@@ -2769,6 +2827,15 @@ function Register-BlueberryNativeDeleteObservers {
         [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($chord), $observerAction,
             'BlueberryNativeDelete', 'Delegate the original native deletion and report its confirmed result')
         $script:BLUEBERRY_NATIVE_DELETES[$chord] = $true
+    }
+    foreach ($chord in @('Ctrl+r', 'Ctrl+s')) {
+        $nativeAction = $nativeActions[$chord]
+        if ($null -eq $nativeAction -or $nativeAction.Method.Name -notin @('ReverseSearchHistory', 'ForwardSearchHistory')) { continue }
+        $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$chord] = $nativeAction
+        $observerAction = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeSearch}
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($chord), $observerAction,
+            'BlueberryNativeSearch', 'Delegate native history search without completion queries')
+        $script:BLUEBERRY_NATIVE_SEARCHES[$chord] = $true
     }
 }
 
@@ -3149,6 +3216,7 @@ function Send-BlueberryCapabilities {
     if ($null -ne $script:BLUEBERRY_NATIVE_DELETES) {
         $capabilityMap.native_deletes = $script:BLUEBERRY_NATIVE_DELETES
         $capabilityMap.native_history_up = [bool]$script:BLUEBERRY_NATIVE_HISTORY_UP
+        $capabilityMap.native_searches = $script:BLUEBERRY_NATIVE_SEARCHES
     }
     # Keep the field absent when the host did not opt into public-key
     # arbitration, preserving the alpha protocol shape for existing launchers.
@@ -3353,9 +3421,6 @@ function Initialize-BlueberryReadLine {
     # their current PSReadLine owners before the host starts intercepting them;
     # this also leaves an explicit diagnostic for a user ScriptBlock binding.
     if ($env:BLUEBERRY_OBSERVE_NATIVE_EDITS -eq '1') {
-        $upBinding = @(Get-BlueberryKeyBinding -Chord 'UpArrow' -Snapshot $keySnapshot)
-        $script:BLUEBERRY_NATIVE_HISTORY_UP = ($upBinding.Count -eq 1 -and
-            [string]$upBinding[0].Function -in @('PreviousHistory', 'HistorySearchBackward'))
         Register-BlueberryNativeDeleteObservers -KeySnapshot $keySnapshot
     }
     $publicKeyTimer = $null

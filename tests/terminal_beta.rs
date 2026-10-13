@@ -923,6 +923,73 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
 }
 
 #[test]
+fn terminal_history_search_stays_native_until_a_real_edit() -> Result<()> {
+    let mut host = start_host()?;
+    send_command(
+        &mut host.harness,
+        "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git switch main'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git switch dev'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git status'); Write-Output SEARCH_HISTORY_SEEDED",
+        "SEARCH_HISTORY_SEEDED",
+    )?;
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    host.harness.send(b"\x12")?;
+    let started = host.harness.event("native_search", PTY_TIMEOUT)?;
+    ensure!(started["active"] == true, "native search did not start");
+    host.harness.send_text("switch")?;
+    wait_until(
+        &mut host.harness,
+        "native reverse search",
+        PTY_TIMEOUT,
+        |screen| screen.contains("git switch dev") && screen.contains("switch_"),
+    )?;
+    host.harness.send(b"\x7f")?;
+    host.harness.send_text("h")?;
+    host.harness.send(b"\x12")?;
+    wait_until(
+        &mut host.harness,
+        "continued reverse search",
+        PTY_TIMEOUT,
+        |screen| screen.contains("git switch main") && screen.contains("switch_"),
+    )?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !host.harness.viewport_contents().contains("› "),
+        "search reopened completion"
+    );
+    // Ctrl+G aborts the search without executing the recalled command.
+    host.harness.send(b"\x07")?;
+    let ended = host.harness.event("native_search", PTY_TIMEOUT)?;
+    ensure!(
+        ended["active"] == false,
+        "search restarted instead of continuing"
+    );
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !host.harness.viewport_contents().contains("› "),
+        "search exit reopened completion"
+    );
+    host.harness.send(b"\x1b[F\x7f")?;
+    wait_until(
+        &mut host.harness,
+        "completion after post-search deletion",
+        PTY_TIMEOUT,
+        |screen| screen.contains("› "),
+    )?;
+    cancel_to_prompt(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
 fn terminal_history_native_keys_wait_for_actual_deletion() -> Result<()> {
     let mut host = start_host()?;
     send_command(

@@ -374,7 +374,7 @@ namespace Blueberry.Direct {
             if (interaction != "completion") { SendKey(k); return true; }
             if (nativeHistory) {
                 if(diagnostic) TraceStage("direct_history_native_key",0,(int)k.Key);
-                RememberNativeEdit(k,name,nativeLine);
+                RememberNativeEdit(k,name,nativeLine,builtin);
                 return false;
             }
             if (!builtin) { ResetNavigation(); displayed=null; return false; }
@@ -394,10 +394,10 @@ namespace Blueberry.Direct {
             ResetNavigation(); displayed=null;
             return false;
         }
-        static void RememberNativeEdit(ConsoleKeyInfo key, string action, string before) {
+        static void RememberNativeEdit(ConsoleKeyInfo key, string action, string before, bool builtin) {
             // Tab, history recall, undo/redo and RevertLine can change text but
             // do not grant permission to display automatic completion.
-            bool inserting=(action==null || action=="SelfInsert" || action=="Insert")
+            bool inserting=(!builtin || action==null || action=="SelfInsert" || action=="Insert")
                 && !Char.IsControl(key.KeyChar) && key.KeyChar!='\0';
             bool paste=action=="Paste";
             bool deleting=action!=null && (action.StartsWith("Delete",StringComparison.Ordinal)
@@ -549,7 +549,7 @@ namespace Blueberry.Direct {
                     nativeHistory=true; Query("cancel");
                 }
                 if(nativeHistory) {
-                    RememberNativeEdit(key.Value,action,before);
+                    RememberNativeEdit(key.Value,action,before,original.Method.DeclaringType==api);
                     original(key,arg);
                     ConfirmNativeEdit();
                     if(!nativeHistory) Query("query");

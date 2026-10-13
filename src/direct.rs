@@ -1312,10 +1312,17 @@ mod tests {
             .query(&json!({"revision":1,"line":"git st","cursor":6}))
             .unwrap();
         let config = Config::default();
-        let mut snapshot = completion(&["stable-id"], false);
-        snapshot.replace_start = 4;
-        snapshot.replace_end = 6;
-        snapshot.candidates[0].insert_text = "status-before".into();
+        let mut snapshot = Completion {
+            replace_start: 4,
+            replace_end: 6,
+            candidates: vec![Candidate {
+                id: "stable-id".into(),
+                label: "stable-id".into(),
+                insert_text: "status-before".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
         let old = session.render(snapshot.clone(), &config, "token");
         snapshot.candidates[0].insert_text = "status-after".into();
         let current = session.render(snapshot, &config, "token");

@@ -1047,6 +1047,8 @@ struct State {
     interaction_mode: InteractionMode,
     native_deletes: BTreeMap<String, bool>,
     native_history_up: bool,
+    native_searches: BTreeMap<String, bool>,
+    native_search_active: bool,
     pending_history_edit: Option<u64>,
     history_edit_started: Option<Instant>,
     history_keys: Vec<Event>,
@@ -1288,6 +1290,9 @@ impl State {
                 self.native_history_up = value["capabilities"]["native_history_up"]
                     .as_bool()
                     .unwrap_or(true);
+                self.native_searches =
+                    serde_json::from_value(value["capabilities"]["native_searches"].clone())
+                        .unwrap_or_default();
                 self.ready = value["ready"] == true
                     && value["psreadline"] == true
                     && value["key_handlers"]["buffer"] == true
@@ -1298,6 +1303,7 @@ impl State {
                 }
             }
             "prompt_start" => {
+                self.native_search_active = false;
                 self.notification = None;
                 self.interaction_mode = InteractionMode::Completion;
                 self.pending_history_edit = None;
@@ -1413,8 +1419,28 @@ impl State {
                     }
                 }
             }
+            "native_search" => {
+                self.native_search_active = value["active"] == true;
+                if self.native_search_active {
+                    self.interaction_mode = InteractionMode::History;
+                    self.invalidate();
+                    self.dismissed = true;
+                    self.dirty = false;
+                    worker.update(|work| {
+                        work.cancel = true;
+                        work.query = None;
+                    });
+                }
+            }
             "native_edit" => {
                 if value["sequence"].as_u64() != Some(self.native_delete_sequence) {
+                    // Search can return a queued deletion to the outer native
+                    // loop before its completion message reaches the host.
+                    // Keep the stream counter synchronized, without treating
+                    // an unsolicited edit as permission to reopen completion.
+                    if let Some(sequence) = value["sequence"].as_u64() {
+                        self.native_delete_sequence = self.native_delete_sequence.max(sequence);
+                    }
                     return Ok(());
                 }
                 if self.pending_history_edit.take() == Some(self.revision)
@@ -2107,6 +2133,37 @@ impl State {
             }
         }
         if self.interaction_mode == InteractionMode::History {
+            if self
+                .native_searches
+                .iter()
+                .any(|(chord, enabled)| *enabled && input::matches_native_delete(chord, &event))
+            {
+                self.native_search_active = true;
+            }
+            // The native search loop consumes its own input; it does not run
+            // ordinary edit handlers. Do not inject queries or await deletion
+            // acknowledgements while it owns the keyboard.
+            if self.native_search_active
+                && let Some(bytes) =
+                    input::native_bytes(event.clone(), self.parser.screen().application_cursor())
+            {
+                let inner_backspace = matches!(&event, Event::Key(key)
+                    if key.code == crossterm::event::KeyCode::Backspace
+                        && key.modifiers.is_empty());
+                let outer_delete = !inner_backspace
+                    && self.native_deletes.iter().any(|(chord, enabled)| {
+                        *enabled && input::matches_native_delete(chord, &event)
+                    });
+                if outer_delete {
+                    self.native_delete_sequence += 1;
+                    self.invalidate();
+                    self.pending_history_edit = Some(self.revision);
+                    self.history_edit_started = Some(Instant::now());
+                }
+                writer.write_all(&bytes)?;
+                writer.flush()?;
+                return Ok(());
+            }
             let literal_edit = matches!(&event, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release
                     && matches!(key.code, crossterm::event::KeyCode::Char(_))
                     && !key.modifiers.intersects(crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT));
@@ -2932,6 +2989,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
         interaction_mode: InteractionMode::Completion,
         native_deletes: BTreeMap::new(),
         native_history_up: true,
+        native_searches: BTreeMap::new(),
+        native_search_active: false,
         pending_history_edit: None,
         history_edit_started: None,
         history_keys: Vec::new(),
