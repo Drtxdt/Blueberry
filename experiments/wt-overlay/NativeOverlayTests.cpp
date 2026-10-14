@@ -155,4 +155,35 @@ class NativeOverlayTests
         VERIFY_IS_FALSE(snapshot.RestoreBeforeResize(*buffer, 13));
         VERIFY_IS_TRUE(buffer->GetRowByOffset(0).GetText().substr(0, 4) == L"MENU");
     }
+
+    TEST_METHOD(OriginalLogicalRowsRoundTripThroughRepeatedResize)
+    {
+        auto original = Fixture();
+        auto resized = Fixture();
+        for (const auto width : { 13, 40, 9, 24 })
+        {
+            resized = Resize(*resized, width);
+        }
+        // Independent comparison to the original, not to a second invocation
+        // of the same reflow implementation. Any loss remains a release block.
+        Compare(*original, *resized);
+    }
+
+    TEST_METHOD(ColoredTrailingBlankAttributesRoundTrip)
+    {
+        auto original = Fixture();
+        auto resized = Fixture();
+        for (auto* buffer : { original.get(), resized.get() })
+        {
+            for (int x = 20; x < 24; ++x)
+            {
+                // These spaces retain their distinct RGB/underline/link and
+                // latent flags from Fixture; character-only trimming is lossy.
+                buffer->GetMutableRowByOffset(2).ReplaceCharacters(x, 1, L" ");
+            }
+        }
+        resized = Resize(*resized, 13);
+        resized = Resize(*resized, 24);
+        Compare(*original, *resized);
+    }
 };
