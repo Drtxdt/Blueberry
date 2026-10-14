@@ -145,7 +145,97 @@ class NativeOverlayLifecycleTests
         Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
     }
 
+    TEST_METHOD(ValidatedFramePreservesUnicodeRgbAndRestoresBeforeResize)
+    {
+        Terminal reference{ Terminal::TestDummyMarker{} };
+        Terminal overlaid{ Terminal::TestDummyMarker{} };
+        DummyRenderer referenceRenderer{ &reference };
+        DummyRenderer overlayRenderer{ &overlaid };
+        reference.Create({ 40, 12 }, 100, referenceRenderer);
+        overlaid.Create({ 40, 12 }, 100, overlayRenderer);
+        const auto history = L"\x1b[58;2;8;9;10m\x1b[4:3m\x1b]8;id=kept;https://example.invalid/original\x1b\\original history-abcdefghijklmnopqrstuvwxyz\x1b]8;;\x1b\\\x1b[0m\r\n$ ";
+        reference.Write(history);
+        overlaid.Write(history);
+        const auto command = Frame(50, 0, 2, 20, L"\x1b[38;2;17;123;239;48;2;23;45;67;1m\u4e2d\U0001f680e\u0301 menu\x1b[0m\nborder");
+        overlaid.Write(command);
+        const auto& row = overlaid.GetTextBuffer().GetRowByOffset(0);
+        VERIFY_IS_TRUE(row.GlyphAt(0) == L"\u4e2d");
+        VERIFY_IS_TRUE(row.GlyphAt(2) == L"\U0001f680");
+        VERIFY_IS_TRUE(row.GetAttrByColumn(0).GetForeground() == TextColor{ RGB(17, 123, 239) });
+        VERIFY_IS_TRUE(row.GetAttrByColumn(0).GetBackground() == TextColor{ RGB(23, 45, 67) });
+        VERIFY_IS_TRUE(row.GetAttrByColumn(0).IsIntense());
+        VERIFY_IS_TRUE(row.GlyphAt(25) == reference.GetTextBuffer().GetRowByOffset(0).GlyphAt(25));
+        VERIFY_IS_TRUE(overlaid.GetTextBuffer().GetCursor().GetPosition() == reference.GetTextBuffer().GetCursor().GetPosition());
+        VERIFY_IS_TRUE(overlaid.GetTextBuffer().GetCurrentAttributes() == reference.GetTextBuffer().GetCurrentAttributes());
+        VERIFY_SUCCEEDED(reference.UserResize({ 20, 12 }));
+        VERIFY_SUCCEEDED(overlaid.UserResize({ 20, 12 }));
+        Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
+    }
+
+    TEST_METHOD(MalformedFrameCannotEraseCurrentMenuOrExecuteVt)
+    {
+        Terminal term{ Terminal::TestDummyMarker{} };
+        DummyRenderer renderer{ &term };
+        term.Create({ 40, 12 }, 100, renderer);
+        term.Write(L"original history\r\n$ ");
+        term.Write(L"\x1b]7775;draw;51;0;1\x07");
+        for (const auto& command : {
+                 Frame(52, 0, 1, 20, L"\x1b[2J"),
+                 Frame(52, 0, 1, 20, L"\x1b]52;c;payload\x07"),
+                 Frame(52, 0, 1, 20, L"bad\rtext"),
+                 Frame(52, 0, 2, 20, L"wrong row count"),
+                 Frame(52, 0, 1, 2, L"too wide"),
+                 std::wstring{ L"\x1b]7775;frame;52;0;1;20;d800\x07" },
+                 std::wstring{ L"\x1b]7775;frame;52;0;1;20;zzzz\x07" } })
+        {
+            term.Write(command);
+            VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"MENU");
+        }
+        term.Write(Frame(52, 0, 1, 20, L"GOOD"));
+        term.Write(Frame(51, 0, 1, 20, L"OLD"));
+        term.Write(L"\x1b]7775;close;51\x07");
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"GOOD");
+        term.Write(L"\x1b]7775;close;52\x07");
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 16) == L"original history");
+    }
+
+    TEST_METHOD(FragmentedFrameCapabilitiesAndOrdinaryOutput)
+    {
+        Terminal reference{ Terminal::TestDummyMarker{} };
+        Terminal overlaid{ Terminal::TestDummyMarker{} };
+        DummyRenderer referenceRenderer{ &reference };
+        DummyRenderer overlayRenderer{ &overlaid };
+        reference.Create({ 40, 12 }, 100, referenceRenderer);
+        overlaid.Create({ 40, 12 }, 100, overlayRenderer);
+        reference.Write(L"history\r\n$ ");
+        overlaid.Write(L"history\r\n$ ");
+        const auto command = Frame(53, 0, 1, 20, L"\x1b[38;2;1;2;3mmenu\x1b[0m");
+        for (const auto& ch : command) { overlaid.Write({ &ch, 1 }); }
+        std::wstring response;
+        overlaid.SetWriteInputCallback([&](std::wstring_view text) { response.assign(text); });
+        overlaid.Write(L"\x1b]7775;capabilities;987\x07");
+        VERIFY_IS_TRUE(response == L"\x1b]7775;prototype;2;987;menu-sgr-rgb-utf16hex\x07");
+        VERIFY_IS_TRUE(overlaid.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"menu");
+        const auto output = L"\x1b[1;1H\x1b]8;id=new;https://example.invalid/new\x1b\\NEW\x1b]8;;\x1b\\";
+        reference.Write(output);
+        overlaid.Write(output);
+        overlaid.Write(L"\x1b]7775;close;53\x07");
+        Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
+    }
+
 private:
+    static std::wstring Frame(uint64_t generation, unsigned top, unsigned height, unsigned width, std::wstring_view text)
+    {
+        static constexpr wchar_t digits[] = L"0123456789abcdef";
+        std::wstring encoded;
+        for (const auto ch : text)
+        {
+            for (int shift = 12; shift >= 0; shift -= 4) { encoded.push_back(digits[(ch >> shift) & 15]); }
+        }
+        return L"\x1b]7775;frame;" + std::to_wstring(generation) + L";" + std::to_wstring(top) +
+               L";" + std::to_wstring(height) + L";" + std::to_wstring(width) + L";" + encoded + L"\x07";
+    }
+
     static void Compare(const TextBuffer& a, const TextBuffer& b)
     {
         SetVerifyOutput output{ VerifyOutputSettings::LogOnlyFailures };

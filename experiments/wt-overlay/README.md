@@ -70,3 +70,19 @@ nonce 的 ConPTY 回复，读线程结束、模式恢复且 Terminal 正常退�
 只有以上完整性验证及接口集成通过，才可接入 Blueberry。完整历史恢复仍阻塞
 发布。本机未发现注册的 Visual Studio C++ 工具链，故使用自有仓库 Windows
 Actions 执行原生编译，保存日志与测试工件 90 天。
+
+## 后续受限菜单接口
+
+用户随后明确接受将独立便携修改版 Terminal 作为正式依赖；这不豁免发布验收。
+`apply-menu-frame.py` 增加实验 `frame;generation;top;height;width;utf16hex`，
+文本用每个 UTF-16 单元四位十六进制编码。先在独立原生缓冲中完整解析／绘制，
+再保存历史并提交；非法载荷不能擦掉当前菜单。只允许可打印 Unicode、行分隔及
+现有菜单渲染器的 SGR（复位、粗体和 RGB 前／背景），不执行任意 VT、标题、
+剪贴板或光标指令。使用原生字形宽度处理、限制尺寸和载荷，保留覆盖区外字符。
+实验 `capabilities;nonce` 回复版本 2 和 `menu-sgr-rgb-utf16hex`；版本 1 查询
+仍保留。增加 Unicode／RGB／缩放、非法输入原子性、分片／代次／普通输出回归。
+固定源码变换验证通过，原生编译与新增三项测试等待独立 CI，不计作通过。
+
+旧 Rust 构建缓存已按用户要求删除 12 个中间目录，约 6.47 GiB。历史 ZIP、
+EXE、探针、原始测量及 Git 历史保留，清理清单见
+`docs/benchmarks/v0.6/build-cache-cleanup-20261014.json`。

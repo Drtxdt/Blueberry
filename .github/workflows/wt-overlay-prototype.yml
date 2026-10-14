@@ -28,6 +28,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python experiments/wt-overlay/apply-vt-interface.py terminal-prototype
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/wt-overlay/apply-menu-frame.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Restore native dependencies
         shell: pwsh
         working-directory: terminal-prototype
