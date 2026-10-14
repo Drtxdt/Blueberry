@@ -3496,6 +3496,19 @@ pub fn run(options: RunOptions) -> Result<u32> {
         if state.prompt && !frame.is_empty() {
             frame.extend_from_slice(MOUSE_OFF);
         }
+        #[cfg(debug_assertions)]
+        if ui_dirty
+            && state.hub_query.is_some()
+            && let Some(token) = &probe_token
+            && let Some(shown) = &state.presented_candidate
+        {
+            // The marker follows the entire draw. A ConPTY test must not
+            // mistake a partially repainted selector for a completed frame.
+            let value = json!({"event":"hub_presented", "revision":shown.revision,
+                "label":shown.candidate.label, "id":shown.candidate.id,
+                "incomplete":state.completion.incomplete});
+            frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
+        }
         if !frame.is_empty() {
             let started = Instant::now();
             output.write_all(&frame)?;

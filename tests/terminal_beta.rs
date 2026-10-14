@@ -61,7 +61,7 @@ fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_lin
         Some("cargo test -p".len() as u64),
     )?;
     host.harness.send(b"\x1b[112;7u")?;
-    select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    wait_for_presented_hub_candidate(&mut host.harness, "继续填写 Cargo 包")?;
     // Drain late ordinary completion/history replies before accepting. They
     // must not replace the selected hub operation with a normal -p menu.
     let until = Instant::now() + Duration::from_millis(400);
@@ -118,7 +118,7 @@ fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
         Some("cargo test -p".len() as u64),
     )?;
     host.harness.send(b"\x1b[112;7u")?;
-    select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    wait_for_presented_hub_candidate(&mut host.harness, "继续填写 Cargo 包")?;
     host.harness.send_text("\r")?;
     wait_until(
         &mut host.harness,
@@ -520,6 +520,24 @@ fn wait_absent(harness: &mut Harness, path: &Path, description: &str) -> Result<
             );
         }
         let _ = harness.pump(remaining.min(Duration::from_millis(50)));
+    }
+}
+
+fn wait_for_presented_hub_candidate(harness: &mut Harness, label: &str) -> Result<()> {
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let presented = harness.event(
+            "hub_presented",
+            deadline.saturating_duration_since(Instant::now()),
+        )?;
+        if presented["label"].as_str() == Some(label) && presented["incomplete"] == false {
+            ensure!(
+                selected_candidate_line(&harness.viewport_contents())
+                    .is_some_and(|line| candidate_line_has(line, label)),
+                "completed hub frame disagrees with selected candidate: {presented}"
+            );
+            return Ok(());
+        }
     }
 }
 
