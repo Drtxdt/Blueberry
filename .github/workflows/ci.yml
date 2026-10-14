@@ -421,6 +421,18 @@ jobs:
             target/release/examples/comparison_probe.exe
             target/release/examples/console_attributes_probe.exe
           if-no-files-found: error
+      - name: Build a separate allocation diagnostic executable
+        env:
+          CARGO_TARGET_DIR: target/allocation-diagnostic
+        run: cargo build --release --locked --features allocation-diagnostics
+      - name: Preserve allocation diagnostics outside the install package
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-allocation-diagnostic-windows-x64
+          path: target/allocation-diagnostic/release/blueberry.exe
+          if-no-files-found: error
+
       - name: Package and validate installation
         shell: pwsh
         run: |
@@ -443,15 +455,4 @@ jobs:
             dist/ci/*.sha256
             dist/ci/*-release.json
             install.ps1
-          if-no-files-found: error
-      - name: Build a separate allocation diagnostic executable
-        env:
-          CARGO_TARGET_DIR: target/allocation-diagnostic
-        run: cargo build --release --locked --features allocation-diagnostics
-      - name: Preserve allocation diagnostics outside the install package
-        uses: actions/upload-artifact@v4
-        with:
-          retention-days: 90
-          name: blueberry-allocation-diagnostic-windows-x64
-          path: target/allocation-diagnostic/release/blueberry.exe
           if-no-files-found: error

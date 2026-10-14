@@ -39,14 +39,14 @@ jobs:
         working-directory: terminal-prototype
         run: |
           $root = (Get-Location).Path + '\'
-          & msbuild src\buffer\out\ut_textbuffer\TextBuffer.Unit.Tests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:native-build.binlog
+          & msbuild src\buffer\out\ut_textbuffer\TextBuffer.Unit.Tests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:native-build.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Build actual Terminal lifecycle hook and tests
         shell: pwsh
         working-directory: terminal-prototype
         run: |
           $root = (Get-Location).Path + '\'
-          & msbuild src\cascadia\UnitTests_TerminalCore\UnitTests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:lifecycle-build.binlog
+          & msbuild src\cascadia\UnitTests_TerminalCore\UnitTests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:lifecycle-build.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Run native tests without installing Terminal
         shell: pwsh
@@ -79,11 +79,11 @@ jobs:
           $root = (Get-Location).Path + '\'
           # Building an individual GUI project skips solution-only COM header
           # prerequisites and the console host needed by the portable layout.
-          & msbuild src\host\proxy\Host.Proxy.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:proxy-build.binlog
+          & msbuild src\host\proxy\Host.Proxy.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:proxy-build.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          & msbuild src\host\exe\Host.EXE.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:host-build.binlog
+          & msbuild src\host\exe\Host.EXE.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:host-build.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          & msbuild src\cascadia\WindowsTerminal\WindowsTerminal.vcxproj /m '/t:Build;_WTPrepareUnpackagedLayoutForRun' /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:portable-build.binlog
+          & msbuild src\cascadia\WindowsTerminal\WindowsTerminal.vcxproj /m '/t:Build;_WTPrepareUnpackagedLayoutForRun' /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:portable-build.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $layout = Join-Path $root 'bin\x64\Release\WindowsTerminal'
           $settingsModel = Join-Path $layout 'Microsoft.Terminal.Settings.Model.dll'
