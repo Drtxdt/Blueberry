@@ -106,6 +106,23 @@ class NativeOverlayLifecycleTests
         Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
     }
 
+    TEST_METHOD(PrototypeCapabilityReplyPreservesActiveOverlay)
+    {
+        Terminal term{ Terminal::TestDummyMarker{} };
+        DummyRenderer renderer{ &term };
+        term.Create({ 40, 12 }, 100, renderer);
+        std::wstring response;
+        term.SetWriteInputCallback([&](std::wstring_view text) { response.assign(text); });
+        term.Write(L"history\r\n$ ");
+        term.Write(L"\x1b]7775;draw;35;0;1\x07");
+        const std::wstring_view query = L"\x1b]7775;query;123\x07";
+        for (const auto& ch : query) { term.Write({ &ch, 1 }); }
+        VERIFY_IS_TRUE(response == L"\x1b]7775;prototype;1;123;fixed-menu\x07");
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"MENU");
+        term.Write(L"\x1b]7775;close;35\x07");
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 7) == L"history");
+    }
+
 private:
     static void Compare(const TextBuffer& a, const TextBuffer& b)
     {

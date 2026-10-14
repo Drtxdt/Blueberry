@@ -3,6 +3,7 @@
 #include "WexTestClass.h"
 #include "../../inc/consoletaeftemplates.hpp"
 #include "../NativeOverlaySnapshot.hpp"
+#include "../ImageSlice.hpp"
 #include "../../renderer/inc/DummyRenderer.hpp"
 
 using namespace WEX::TestExecution;
@@ -75,6 +76,22 @@ class NativeOverlayTests
                 VERIFY_IS_TRUE(markA->category == markB->category);
                 VERIFY_IS_TRUE(markA->color == markB->color);
                 VERIFY_IS_TRUE(markA->exitCode == markB->exitCode);
+            }
+            const auto imageA = a.GetImageSlice();
+            const auto imageB = b.GetImageSlice();
+            VERIFY_IS_TRUE((imageA != nullptr) == (imageB != nullptr));
+            if (imageA && imageB)
+            {
+                VERIFY_IS_TRUE(imageA->CellSize() == imageB->CellSize());
+                VERIFY_IS_TRUE(imageA->ColumnOffset() == imageB->ColumnOffset());
+                VERIFY_IS_TRUE(imageA->PixelWidth() == imageB->PixelWidth());
+                const auto pixelsA = imageA->Pixels();
+                const auto pixelsB = imageB->Pixels();
+                VERIFY_IS_TRUE(pixelsA.size() == pixelsB.size());
+                if (!pixelsA.empty() && pixelsA.size() == pixelsB.size())
+                {
+                    VERIFY_IS_TRUE(std::memcmp(pixelsA.data(), pixelsB.data(), pixelsA.size_bytes()) == 0);
+                }
             }
             for (int x = 0; x < size.width; ++x)
             {
@@ -186,5 +203,29 @@ class NativeOverlayTests
         resized = Resize(*resized, 13);
         resized = Resize(*resized, 24);
         Compare(*original, *resized);
+    }
+
+    TEST_METHOD(SnapshotRetainsImagesSpecialRenditionAndHiddenColumns)
+    {
+        auto original = Fixture();
+        auto overlaid = Fixture();
+        for (auto* buffer : { original.get(), overlaid.get() })
+        {
+            buffer->GetMutableRowByOffset(0).SetLineRendition(LineRendition::DoubleWidth);
+            buffer->GetMutableRowByOffset(1).SetLineRendition(LineRendition::DoubleHeightTop);
+            buffer->GetMutableRowByOffset(2).SetLineRendition(LineRendition::DoubleHeightBottom);
+            buffer->GetMutableRowByOffset(2).SetDoubleBytePadded(true);
+            auto image = std::make_unique<ImageSlice>(til::size{ 2, 2 });
+            auto pixels = image->MutablePixels(1, 3);
+            for (int i = 0; i < 8; ++i)
+            {
+                pixels[i] = RGBQUAD{ static_cast<BYTE>(i), 123, 239, 255 };
+            }
+            buffer->GetMutableRowByOffset(1).SetImageSlice(std::move(image));
+        }
+        NativeOverlaySnapshot snapshot{ *overlaid, 0, 3, 14 };
+        Cover(*overlaid);
+        VERIFY_IS_TRUE(snapshot.RestoreBeforeResize(*overlaid, 14));
+        Compare(*original, *overlaid);
     }
 };

@@ -53,7 +53,7 @@ replace('src/cascadia/TerminalCore/Terminal.cpp', '''void Terminal::Write(std::w
         THROW_HR(E_FAIL);
     }
     _stateMachine->ProcessString(stringView);
-}''', '''void Terminal::BeforeNativeOverlayMutation()
+}''', r'''void Terminal::BeforeNativeOverlayMutation()
 {
     if (_nativeOverlayPrototype && !EndNativeOverlayPrototype(_nativeOverlayGeneration))
     {
@@ -92,7 +92,15 @@ void Terminal::NativeOverlayPrototype(std::wstring_view command)
         }
         return value;
     };
-    if (parts.size() == 2 && parts[0] == L"close")
+    if (parts.size() == 2 && parts[0] == L"query")
+    {
+        if (const auto nonce = number(parts[1]))
+        {
+            // Advertise the bounded proof only, never production support.
+            ReturnResponse(L"\x1b]7775;prototype;1;" + std::to_wstring(*nonce) + L";fixed-menu\x07");
+        }
+    }
+    else if (parts.size() == 2 && parts[0] == L"close")
     {
         if (const auto generation = number(parts[1]))
         {

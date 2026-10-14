@@ -67,6 +67,16 @@ private:
         source.CopyRow(y, y, target);
         const auto& src = source.GetRowByOffset(y);
         auto& dst = target.GetMutableRowByOffset(y);
+        // CopyRow follows rendered width. Preserve physical columns too: a
+        // double-width/height row can retain hidden character storage there.
+        RowCopyTextFromState text{
+            .source = src,
+            .columnBegin = 0,
+            .columnLimit = til::CoordTypeMax,
+            .sourceColumnBegin = 0,
+            .sourceColumnLimit = src.size(),
+        };
+        dst.CopyTextFrom(text);
         dst.SetDoubleBytePadded(src.WasDoubleBytePadded());
         dst.SetScrollbarData(src.GetScrollbarData());
     }
