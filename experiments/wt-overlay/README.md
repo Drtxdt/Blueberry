@@ -22,9 +22,19 @@ CI 首次测试步骤因选择表达式语法失败，保留日志，不能记�
 内部接口：保存行、绘制固定 MENU、结束恢复；严格递增代次，过期绘制／关闭
 不改当前覆盖。`Terminal::UserResize` 在原生重排前恢复，`Terminal::Write`
 在普通输出（包括写回覆盖行、滚动、切换 Alt Screen）进入解析器前恢复。
-两项原生 TerminalCore 测试比较覆盖与未覆盖会话；本阶段编译与测试待执行。
+两项原生 TerminalCore 测试比较覆盖与未覆盖会话；CI `38518393691` 已编译并
+执行 5 项缓冲测试及 2 项真实入口测试，7/7 通过。首次 Windows 2025 运行缺少
+UWP v143 工具集，失败记录保留；成功批次使用 Windows 2022 / VS 2022。
 调用方必须持有 Terminal 写锁；尚未实现外部 VT 接口、协商、任意菜单载荷、
 锁并发测试或 Blueberry 接入，也不声称已生成可安装 Terminal。
+
+第三阶段 `apply-vt-interface.py` 增加仅实验用途的 OSC 7775 内部接口，用终端
+原有解析器处理分片：`draw;generation;firstRow;exclusiveLastRow` 绘制固定 MENU，
+`close;generation` 完整恢复，BEL 和 ST 均可终止。行号是原生缓冲绝对坐标，
+不是用户可直接使用的产品协议。普通 VT 动作在修改缓冲前恢复；私有旧代次
+关闭不能移除新的覆盖。新增分片、越界整数、旧关闭、普通滚动及 Alt Screen
+原生测试，待编译验证。任意菜单载荷、能力协商、生产接口安全边界及桥接 EOF
+尚未实现，不把固定 MENU 当作完成 Blueberry 集成。
 
 还需验证特殊行
 宽、图片、链接 custom ID 生命周期、ID 回绕／回收、覆盖区外输出、滚动／截断、

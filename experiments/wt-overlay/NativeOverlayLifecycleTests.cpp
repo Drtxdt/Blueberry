@@ -58,6 +58,54 @@ class NativeOverlayLifecycleTests
         Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
     }
 
+    TEST_METHOD(FragmentedPrivateDrawAndStaleClosePreserveCurrentOverlay)
+    {
+        Terminal reference{ Terminal::TestDummyMarker{} };
+        Terminal overlaid{ Terminal::TestDummyMarker{} };
+        DummyRenderer referenceRenderer{ &reference };
+        DummyRenderer overlayRenderer{ &overlaid };
+        reference.Create({ 40, 12 }, 100, referenceRenderer);
+        overlaid.Create({ 40, 12 }, 100, overlayRenderer);
+        const auto history = L"\x1b[38;2;17;123;239mhistory\x1b[0m\r\n$ ";
+        reference.Write(history);
+        overlaid.Write(history);
+        const auto sendChunks = [&](std::wstring_view packet) {
+            for (const auto& ch : packet) { overlaid.Write({ &ch, 1 }); }
+        };
+        sendChunks(L"\x1b]7775;draw;31;0;1\x07");
+        VERIFY_IS_TRUE(overlaid.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"MENU");
+        sendChunks(L"\x1b]7775;draw;32;0;1\x1b\\");
+        sendChunks(L"\x1b]7775;close;31\x07");
+        sendChunks(L"\x1b]7775;draw;18446744073709551616;0;1\x07");
+        VERIFY_IS_TRUE(overlaid.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"MENU");
+        sendChunks(L"\x1b]7775;close;32\x07");
+        Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
+    }
+
+    TEST_METHOD(PrivateOverlayRetiresBeforeScrollingAndAlternateScreen)
+    {
+        Terminal reference{ Terminal::TestDummyMarker{} };
+        Terminal overlaid{ Terminal::TestDummyMarker{} };
+        DummyRenderer referenceRenderer{ &reference };
+        DummyRenderer overlayRenderer{ &overlaid };
+        reference.Create({ 40, 12 }, 100, referenceRenderer);
+        overlaid.Create({ 40, 12 }, 100, overlayRenderer);
+        reference.Write(L"history\r\n$ ");
+        overlaid.Write(L"history\r\n$ ");
+        overlaid.Write(L"\x1b]7775;draw;33;0;1\x07");
+        const auto alternate = L"\x1b[?1049hALT-\u4e2d\U0001f680\x1b[?1049l";
+        reference.Write(alternate);
+        overlaid.Write(alternate);
+        VERIFY_IS_FALSE(overlaid.EndNativeOverlayPrototype(33));
+        Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
+        overlaid.Write(L"\x1b]7775;draw;34;0;1\x07");
+        const auto scroll = L"\x1b[12;1H\r\nNEW OUTPUT";
+        reference.Write(scroll);
+        overlaid.Write(scroll);
+        VERIFY_IS_FALSE(overlaid.EndNativeOverlayPrototype(34));
+        Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
+    }
+
 private:
     static void Compare(const TextBuffer& a, const TextBuffer& b)
     {
