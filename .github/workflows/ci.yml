@@ -47,6 +47,7 @@ jobs:
           path: ${{ steps.verify.outputs.path }}
           retention-days: 90
           if-no-files-found: error
+          include-hidden-files: true
       - name: Recheck evidence after upload
         shell: pwsh
         run: python scripts/verify-evidence-upload.py

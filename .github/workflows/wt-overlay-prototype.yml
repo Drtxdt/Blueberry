@@ -1,0 +1,54 @@
+name: Windows Terminal native overlay prototype
+on:
+  push:
+    branches: ['codex/v053-reliability-performance']
+    paths: ['experiments/wt-overlay/**', '.github/workflows/wt-overlay-prototype.yml']
+permissions:
+  contents: read
+jobs:
+  native-buffer-proof:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: microsoft/terminal
+          ref: 7ff11ee107c984e236960ec948b450ccbc10187b
+          path: terminal-prototype
+          persist-credentials: false
+      - uses: microsoft/setup-msbuild@v2
+      - name: Apply isolated native primitive
+        shell: pwsh
+        run: python experiments/wt-overlay/apply-prototype.py terminal-prototype
+      - name: Restore native dependencies
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          & .\dep\nuget\nuget.exe restore .\dep\nuget\packages.config -PackagesDirectory packages -NonInteractive
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build original Terminal native buffer and prototype tests
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $root = (Get-Location).Path + '\'
+          & msbuild src\buffer\out\ut_textbuffer\TextBuffer.Unit.Tests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:native-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Run native tests without installing Terminal
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $taef = Get-ChildItem packages\Microsoft.Taef.10.93.240607003 -Filter te.exe -Recurse | Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
+          if (!$taef) { throw 'Missing x64 TAEF executable' }
+          & $taef.FullName bin\x64\Release\TextBuffer.Unit.Tests.dll '/select:@Name=*NativeOverlayTests*' /logFile:../native-tests.wtl
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wt-native-overlay-${{ github.sha }}
+          retention-days: 90
+          path: |
+            terminal-prototype/native-build.binlog
+            native-tests.wtl
+            terminal-prototype/bin/x64/Release/TextBuffer.Unit.Tests.dll
+            experiments/wt-overlay/

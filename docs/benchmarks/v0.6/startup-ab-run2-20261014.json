@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "round": 1,
+  "run": 2,
+  "diagnostic_only": true,
+  "measurement_complete": true,
+  "same_conditions": true,
+  "samples_per_product_per_profile": 30,
+  "rows": [
+    {
+      "profile": "ps51-200",
+      "same_conditions": true,
+      "metrics": {
+        "paired_first_input_delta": {
+          "before_p50_ms": 294.21039999999994,
+          "after_p50_ms": 50.946100000000115,
+          "difference_ms": -243.26429999999982,
+          "regression_threshold_ms": 29.421039999999994,
+          "regressed": false
+        },
+        "first_key_echo": {
+          "before_p50_ms": 15.031099999999999,
+          "after_p50_ms": 15.0791,
+          "difference_ms": 0.04800000000000182,
+          "regression_threshold_ms": 1.50311,
+          "regressed": false
+        },
+        "first_static_candidate": {
+          "before_p50_ms": 209.9074,
+          "after_p50_ms": 21.64855,
+          "difference_ms": -188.25885,
+          "regression_threshold_ms": 20.990740000000002,
+          "regressed": false
+        },
+        "first_dynamic_candidate": {
+          "before_p50_ms": 12.73565,
+          "after_p50_ms": 9.013200000000001,
+          "difference_ms": -3.7224499999999985,
+          "regression_threshold_ms": 1.273565,
+          "regressed": false
+        }
+      },
+      "startup_target_passed": false,
+      "raw": {
+        "before": {
+          "path": "artifacts\\r1-ab2-1014\\run2-ps51-200-before\\raw.json",
+          "sha256": "8E872C63C40C51E92F1D1CDE43EE9954F99B102488FD2D070EF3E360EC845CB2"
+        },
+        "after": {
+          "path": "artifacts\\r1-ab2-1014\\run2-ps51-200-after\\raw.json",
+          "sha256": "A38BFCE8662BEF53D7A3F065BAF3AF1331928342B251051AC8B38853C27B3F21"
+        }
+      }
+    },
+    {
+      "profile": "ps51-245",
+      "same_conditions": true,
+      "metrics": {
+        "paired_first_input_delta": {
+          "before_p50_ms": 313.09129999999993,
+          "after_p50_ms": 43.76525000000004,
+          "difference_ms": -269.3260499999999,
+          "regression_threshold_ms": 31.309129999999996,
+          "regressed": false
+        },
+        "first_key_echo": {
+          "before_p50_ms": 18.51755,
+          "after_p50_ms": 18.822650000000003,
+          "difference_ms": 0.30510000000000304,
+          "regression_threshold_ms": 1.851755,
+          "regressed": false
+        },
+        "first_static_candidate": {
+          "before_p50_ms": 206.49020000000002,
+          "after_p50_ms": 25.0053,
+          "difference_ms": -181.4849,
+          "regression_threshold_ms": 20.649020000000004,
+          "regressed": false
+        },
+        "first_dynamic_candidate": {
+          "before_p50_ms": 11.2043,
+          "after_p50_ms": 8.50655,
+          "difference_ms": -2.697749999999999,
+          "regression_threshold_ms": 1.12043,
+          "regressed": false
+        }
+      },
+      "startup_target_passed": true,
+      "raw": {
+        "before": {
+          "path": "artifacts\\r1-ab2-1014\\run2-ps51-245-before\\raw.json",
+          "sha256": "5AE88E331861244C0E2D260132102DA4E4E41F5A5CD8921D285D8D5AE3481FFB"
+        },
+        "after": {
+          "path": "artifacts\\r1-ab2-1014\\run2-ps51-245-after\\raw.json",
+          "sha256": "7CEA58F585E1DE699819583353DC109EE13252360D2EDE4C86E6556B38C7ED99"
+        }
+      }
+    },
+    {
+      "profile": "ps7-245",
+      "same_conditions": true,
+      "metrics": {
+        "paired_first_input_delta": {
+          "before_p50_ms": 12.908700000000067,
+          "after_p50_ms": 18.696649999999977,
+          "difference_ms": 5.78794999999991,
+          "regression_threshold_ms": 1.2908700000000068,
+          "regressed": true
+        },
+        "first_key_echo": {
+          "before_p50_ms": 14.8309,
+          "after_p50_ms": 15.516300000000001,
+          "difference_ms": 0.6854000000000013,
+          "regression_threshold_ms": 1.48309,
+          "regressed": false
+        },
+        "first_static_candidate": {
+          "before_p50_ms": 416.03385,
+          "after_p50_ms": 21.3252,
+          "difference_ms": -394.70865,
+          "regression_threshold_ms": 41.603385,
+          "regressed": false
+        },
+        "first_dynamic_candidate": {
+          "before_p50_ms": 10.0238,
+          "after_p50_ms": 7.50345,
+          "difference_ms": -2.5203499999999996,
+          "regression_threshold_ms": 1.00238,
+          "regressed": false
+        }
+      },
+      "startup_target_passed": true,
+      "raw": {
+        "before": {
+          "path": "artifacts\\r1-ab2-1014\\run2-ps7-245-before\\raw.json",
+          "sha256": "8602F437AA94F70388300D48EE5B78F6C7F7BAB1F6D1F96C71765CB3682CE262"
+        },
+        "after": {
+          "path": "artifacts\\r1-ab2-1014\\run2-ps7-245-after\\raw.json",
+          "sha256": "7D43BD5A8874CA04C849B7B73607138DDA941CB6C360A8ADACBE58225E98B419"
+        }
+      }
+    }
+  ],
+  "outliers_removed": false
+}
