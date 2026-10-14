@@ -77,6 +77,12 @@ jobs:
         working-directory: terminal-prototype
         run: |
           $root = (Get-Location).Path + '\'
+          # Building an individual GUI project skips solution-only COM header
+          # prerequisites and the console host needed by the portable layout.
+          & msbuild src\host\proxy\Host.Proxy.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:proxy-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & msbuild src\host\exe\Host.EXE.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:host-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & msbuild src\cascadia\WindowsTerminal\WindowsTerminal.vcxproj /m '/t:Build;_WTPrepareUnpackagedLayoutForRun' /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:portable-build.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $layout = Join-Path $root 'bin\x64\Release\WindowsTerminal'
@@ -93,4 +99,6 @@ jobs:
           include-hidden-files: true
           path: |
             terminal-prototype/portable-build.binlog
+            terminal-prototype/proxy-build.binlog
+            terminal-prototype/host-build.binlog
             terminal-prototype/bin/x64/Release/WindowsTerminal/

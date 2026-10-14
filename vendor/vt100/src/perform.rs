@@ -130,6 +130,14 @@ impl<CB: crate::callbacks::Callbacks> vte::Perform for WrappedScreen<CB> {
                     params,
                     self.screen.grid().size(),
                 )),
+                // ANSI.SYS cursor save/restore, used by external renderers.
+                // Explicit margin/keyboard parameters remain unhandled.
+                's' if params.iter().eq(std::iter::once(&[0][..])) => {
+                    self.screen.decsc();
+                }
+                'u' if params.iter().eq(std::iter::once(&[0][..])) => {
+                    self.screen.decrc();
+                }
                 't' => {
                     let mut params_iter = params.iter();
                     let op =

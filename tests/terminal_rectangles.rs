@@ -78,3 +78,27 @@ fn background_page_access_after_shrink_discards_clipped_history() {
     assert!(!parser.screen().contents().contains("RIGHT-HISTORY"));
     assert!(!parser.screen().contents().contains("BOTTOM-HISTORY"));
 }
+#[test]
+fn ansi_saved_cursor_restores_prompt_after_menu() {
+    let mut parser = vt100::Parser::new(12, 40, 0);
+    parser.process(b"PS> g\x1b[s\x1b[3;1HMENU\x1b[uit switch topic");
+    assert_eq!(
+        parser.screen().cursor_position(),
+        (0, "PS> git switch topic".len() as u16)
+    );
+    let rows: Vec<_> = parser.screen().rows(0, 40).collect();
+    assert_eq!(rows[0].trim_end(), "PS> git switch topic");
+    assert_eq!(rows[2].trim_end(), "MENU");
+}
+
+#[test]
+fn fragmented_ansi_saved_cursor_preserves_attributes_and_pending_wrap() {
+    let mut parser = vt100::Parser::new(12, 5, 0);
+    for byte in b"\x1b[38;2;17;123;239mABCDE\x1b[s\x1b[4;1H\x1b[31mMENU\x1b[uZ" {
+        parser.process(&[*byte]);
+    }
+    assert_eq!(parser.screen().cursor_position(), (1, 1));
+    let cell = parser.screen().cell(1, 0).unwrap();
+    assert_eq!(cell.contents(), "Z");
+    assert_eq!(cell.fgcolor(), vt100::Color::Rgb(17, 123, 239));
+}
