@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "pr_head_commit": "d2351fb39a220fac80abb7a18d07e2b273d8674f",
+  "run_id": 38532081793,
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38532081793",
+  "functional_ci_complete": true,
+  "successful_jobs": 10,
+  "skipped_jobs": 1,
+  "jobs": [
+    {
+      "id": 115746085346,
+      "name": "Native ConPTY mouse / windows-2025",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085652,
+      "name": "Core / windows-2022",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085736,
+      "name": "Core / ubuntu-24.04",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085746,
+      "name": "Core / macos-15",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085775,
+      "name": "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085819,
+      "name": "format",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085869,
+      "name": "PowerShell 7 / PSReadLine 2.4.5 / pipe",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085876,
+      "name": "PowerShell 7 / PSReadLine 2.4.5 / osc",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746085932,
+      "name": "Windows PowerShell 5.1 / PSReadLine 2.4.5",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 115746087821,
+      "name": "evidence-upload",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 115759535458,
+      "name": "package",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "history_resize_all_attributes_release_gate": "still_blocked",
+  "final_main_package_accepted": false
+}

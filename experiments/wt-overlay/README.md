@@ -30,14 +30,37 @@ UWP v143 工具集，失败记录保留；成功批次使用 Windows 2022 / VS 2
 
 第三阶段 `apply-vt-interface.py` 增加仅实验用途的 OSC 7775 内部接口，用终端
 原有解析器处理分片：`draw;generation;firstRow;exclusiveLastRow` 绘制固定 MENU，
-`close;generation` 完整恢复，BEL 和 ST 均可终止。行号是原生缓冲绝对坐标，
+`close;generation` 完整恢复，BEL 和 ST 均可终止。行号相对于当前可变视口，
 不是用户可直接使用的产品协议。普通 VT 动作在修改缓冲前恢复；私有旧代次
 关闭不能移除新的覆盖。新增分片、越界整数、旧关闭、普通滚动及 Alt Screen
 原生测试，固定 CI `38520012690` 已执行 5 项缓冲和 4 项 TerminalCore 测试，
-9/9 通过。新增物理隐藏列／特殊行宽／图片快照测试及 `query;nonce` 原型回复
-测试待验证。回复明确标为 `prototype;1;nonce;fixed-menu`，不宣称生产支持。
+9/9 通过。后续 CI `38532075621`（提交 `d2351fb`）已执行 6 项缓冲和 6 项
+TerminalCore 测试，12/12 通过，包括物理隐藏列／特殊行宽／图片、原型回复和
+滚动后视口坐标。回复明确标为 `prototype;1;nonce;fixed-menu`，不宣称生产支持。
 任意菜单载荷、真实 ConPTY 输入通道协商、生产接口安全边界及桥接 EOF 尚未
 实现，不把固定 MENU 当作完成 Blueberry 集成。
+
+同一固定 CI 已构建独立便携 GUI，使用 SDK 10.0.22621.0，先生成 Host.Proxy
+头文件并构建 OpenConsole。此前缺生成头文件及 SDK 26100 XAML 编译失败的
+批次保留，不计通过。便携布局包含 `.portable`、许可证及原型说明；不替换
+已安装 Terminal，不等于已授权将其作为 Blueberry 必需依赖发布。
+
+`probe-runtime.py --output <新文件>` 用于独立、无 profile 的原型终端。它仅发出
+带随机 nonce 的能力查询，最多等待 8 秒，取消输入读取并恢复控制台模式，记录
+实际回复，不绘制菜单或修改历史。查询往返不能代替完整恢复、像素或最终包
+人工验收；不得在正式性能计时中运行。
+
+本机已启动固定 CI 便携副本，在专用设置／无 profile 的查询进程中收到正确
+nonce 的 ConPTY 回复，读线程结束、模式恢复且 Terminal 正常退出。无接口的
+独立隐藏控制台也通过超时及取消检查，详见
+`docs/benchmarks/v0.6/wt-independent-runtime-20261014.json`。没有替换用户安装，
+没有修改既有用户设置／profile；真实像素与完整 Blueberry 接入仍未测。
+
+可用 `python experiments/wt-overlay/run-runtime.py --zip <固定原始 ZIP> --output
+<新专用目录>` 复现。入口拒绝错误摘要、重用目录、ZIP 路径穿越／符号链接及
+重复成员，解压全新便携布局并创建仅用于探针的设置，启动、记录并清理自己的
+进程。已通过该入口第二次确认实际回复。安装版 Terminal 的单实例通道不受
+影响：固定源码为无包身份实例按可执行路径计算单实例标识。
 
 还需验证特殊行
 宽、图片、链接 custom ID 生命周期、ID 回绕／回收、覆盖区外输出、滚动／截断、

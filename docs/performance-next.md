@@ -61,7 +61,7 @@ interrupted。保留五份完整有效报告：两份 30 对启动、三份热�
 选择，未扩大为全局候选类型改造。诊断来源、原始摘要与待验条件见
 [快照共享候选](benchmarks/v0.6/snapshot-sharing-candidate.json)。2026-10-14 两批
 独立分配诊断已完成：三组合各批各产品三份 trace，首次菜单线程分配请求均从
-3,637 降到 1,448，请求字节中位数约 155 KiB 降到 45.6 KiB；各产品首次菜单
+3,637 降到 1,448，请求字节中位数约 155.6 kB 降到 45.6 kB；各产品首次菜单
 均 11 行且环境字段匹配。精确字节及全部样本见
 [分配 A/B](benchmarks/v0.6/snapshot-sharing-allocation-ab-20261014.json)。诊断包
 保留实际 dirty 标志，不作正式计时；请求字节不能当作保留堆或整体进程内存。
@@ -208,7 +208,20 @@ Blueberry 接入，不能称为完整接口已通过。原型调查不改变用�
 ConPTY 协商、桥接 EOF 或最终 Blueberry 接入。独立便携 GUI 构建首次缺少解法级
 COM 生成头依赖，失败与原生通过分别留证，见
 [原生坐标／便携构建](benchmarks/v0.6/wt-native-viewport-portable-20261014.json)。
-补齐 Host.Proxy／OpenConsole 构建前置后重新验证；尚未安装或启动用户 Terminal。
+补齐 Host.Proxy／OpenConsole 并固定 SDK 10.0.22621.0 后，CI `38532075621`
+成功构建独立便携 GUI，原生 12 项测试再次全部通过。固定工件 `11880016002`
+下载后的 SHA-256 为 `AA983FF4B99953133D967FD157EDAD5FA1DC55336F8E42A7E0301B6162AE8335`，
+已核对布局、`.portable`、依赖和许可证。独立启动该副本，以工件目录内专用设置
+运行无 shell profile 的查询进程，实际 ConPTY 收到 nonce 匹配的实验回复；进程
+正常退出、控制台模式恢复。另一个不支持接口的隐藏原生控制台验证 8 秒超时、
+读取取消与模式恢复。见 [独立运行证据](benchmarks/v0.6/wt-independent-runtime-20261014.json)。
+原型没有替换用户安装或修改既有设置／profile；任意菜单载荷、桥接 EOF、生产
+能力与 Blueberry 接入仍未完成，屏幕像素未测，完整恢复发布关卡仍阻塞。
+
+CSI s/u 观测器修复后的独立四方对照预检三组合全部完整有效，使用原有夹具、
+产品和重置方式，没有改写 inshellisense 的输入行为。每模式 3 个热态样本、
+2 个启动样本仅作预检，见 [四方预检](benchmarks/v0.6/comparison-csi-pilot-20261014.json)。
+正式批次另行开启；缺少候选能力与采集失败分别记录，不能由这次预检决定版本。
 
 最终选择版本后，使用成功 main CI 的原包重新绑定性能、自动回归、升级回滚与人工结果，
 验证 Release 草稿下载字节一致后才公开。完整证据随 Release 长期保存，Actions 原始工件
