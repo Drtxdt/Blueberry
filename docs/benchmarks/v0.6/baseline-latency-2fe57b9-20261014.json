@@ -670,7 +670,12 @@
     }
   ],
   "storage": {
-    "kind": "ignored_local_raw_records",
-    "actions_artifact_status": "pending upload"
+    "kind": "fixed_actions_artifact_and_ignored_local_raw_records",
+    "actions_artifact_status": "uploaded_and_download_verified",
+    "locator": "raw-baseline-artifact-20261014.json",
+    "run_id": 38517306894,
+    "artifact_id": 11872279995,
+    "retention_days": 90,
+    "release_evidence_status": "not_created"
   }
 }

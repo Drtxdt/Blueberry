@@ -7,7 +7,8 @@ permissions:
   contents: read
 jobs:
   native-buffer-proof:
-    runs-on: windows-2025
+    # The pinned Terminal core still requires the VS 2022 UWP v143 toolset.
+    runs-on: windows-2022
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
