@@ -9,7 +9,7 @@ jobs:
   native-buffer-proof:
     # The pinned Terminal core still requires the VS 2022 UWP v143 toolset.
     runs-on: windows-2022
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -71,3 +71,26 @@ jobs:
             terminal-prototype/bin/x64/Release/TextBuffer.Unit.Tests.dll
             terminal-prototype/bin/x64/Release/UnitTests_TerminalCore/
             experiments/wt-overlay/
+            terminal-prototype/LICENSE
+      - name: Build independent unpackaged Terminal prototype
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $root = (Get-Location).Path + '\'
+          & msbuild src\cascadia\WindowsTerminal\WindowsTerminal.vcxproj /m '/t:Build;_WTPrepareUnpackagedLayoutForRun' /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:portable-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $layout = Join-Path $root 'bin\x64\Release\WindowsTerminal'
+          $settingsModel = Join-Path $layout 'Microsoft.Terminal.Settings.Model.dll'
+          if (!(Test-Path -LiteralPath $settingsModel)) { throw 'Unpackaged prototype layout incomplete' }
+          New-Item -ItemType File -Path (Join-Path $layout '.portable') -Force | Out-Null
+          Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $layout 'TERMINAL-LICENSE.txt')
+          'Independent Blueberry interface prototype. Not an official Microsoft release. Fixed MENU only. Do not install; portable settings remain beside this copy.' | Set-Content -Encoding utf8 (Join-Path $layout 'PROTOTYPE-README.txt')
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wt-independent-portable-${{ github.sha }}
+          retention-days: 90
+          include-hidden-files: true
+          path: |
+            terminal-prototype/portable-build.binlog
+            terminal-prototype/bin/x64/Release/WindowsTerminal/

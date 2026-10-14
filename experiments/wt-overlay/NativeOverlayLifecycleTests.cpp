@@ -123,6 +123,28 @@ class NativeOverlayLifecycleTests
         VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 7) == L"history");
     }
 
+    TEST_METHOD(PrivateCoordinatesFollowViewportAfterHistoryScroll)
+    {
+        Terminal reference{ Terminal::TestDummyMarker{} };
+        Terminal overlaid{ Terminal::TestDummyMarker{} };
+        DummyRenderer referenceRenderer{ &reference };
+        DummyRenderer overlayRenderer{ &overlaid };
+        reference.Create({ 40, 12 }, 100, referenceRenderer);
+        overlaid.Create({ 40, 12 }, 100, overlayRenderer);
+        for (int i = 0; i < 30; ++i)
+        {
+            reference.Write(L"history line\r\n");
+            overlaid.Write(L"history line\r\n");
+        }
+        const auto top = overlaid.GetViewport().Top();
+        VERIFY_IS_TRUE(top > 0);
+        overlaid.Write(L"\x1b]7775;draw;36;0;1\x07");
+        VERIFY_IS_TRUE(overlaid.GetTextBuffer().GetRowByOffset(top).GetText().substr(0, 4) == L"MENU");
+        VERIFY_IS_TRUE(overlaid.GetTextBuffer().GetRowByOffset(0).GetText() == reference.GetTextBuffer().GetRowByOffset(0).GetText());
+        overlaid.Write(L"\x1b]7775;close;36\x07");
+        Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
+    }
+
 private:
     static void Compare(const TextBuffer& a, const TextBuffer& b)
     {

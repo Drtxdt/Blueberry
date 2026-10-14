@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "reports": [
+    {
+      "raw": "artifacts\\is-repeat-diag-20261014\\result.json",
+      "sha256": "CA000540D45F9C0CBE8BE240039643C37D9368A4D35269DFB400EDAEA5FF4C4C",
+      "passed": true,
+      "queries_observed": 4,
+      "error": null,
+      "native_buffer": null,
+      "used_for_formal_statistics": false
+    },
+    {
+      "raw": "artifacts\\is-native-clear-diag-20261014\\result.json",
+      "sha256": "1C2AC6AA3C2558DC106D0E54D6DD64891872B16FD15E8664F1DDF64CC84AFA05",
+      "passed": false,
+      "queries_observed": 4,
+      "error": "menu timeout for git switch ssbeta-git-2",
+      "native_buffer": {
+        "observed_after_timing": true,
+        "raw": "{\"cursor\":23,\"qpc\":45267236228,\"line\":\"git switch ssbeta-git-2\"}\r\n"
+      },
+      "used_for_formal_statistics": false
+    },
+    {
+      "raw": "artifacts\\is-short-prompt-diag-20261014\\result.json",
+      "sha256": "B67F03FA79FC6DFC22B0C2A0799E22884845824C690BCFBE91E083666AF02432",
+      "passed": false,
+      "queries_observed": 10,
+      "error": "menu timeout for git switch ssbeta-git-9",
+      "native_buffer": {
+        "observed_after_timing": true,
+        "raw": "{\"cursor\":23,\"qpc\":50055547672,\"line\":\"git switch ssbeta-git-9\"}\r\n"
+      },
+      "used_for_formal_statistics": false
+    }
+  ],
+  "findings": [
+    "Two failed follow-up sessions retain the entire correct native PSReadLine input after timing",
+    "Input/menu observation failed; do not classify as a valid slow sample or assert actual input corruption",
+    "Native deletion/ClearScreen did not resolve the issue and the code experiment was discarded",
+    "Shorter fixture path did not resolve the issue",
+    "One isolated original reset session passed; root cause not established"
+  ],
+  "four_way_measurement_complete": false
+}

@@ -64,7 +64,7 @@ replace('src/cascadia/TerminalCore/Terminal.cpp', '''void Terminal::Write(std::w
 void Terminal::NativeOverlayPrototype(std::wstring_view command)
 {
     // Bounded proof endpoint: draw;generation;firstRow;exclusiveLastRow,
-    // or close;generation. Rows are absolute native buffer offsets.
+    // or close;generation. External rows are relative to the mutable viewport.
     if (command.size() > 96)
     {
         return;
@@ -113,8 +113,9 @@ void Terminal::NativeOverlayPrototype(std::wstring_view command)
         const auto begin = number(parts[2]);
         const auto end = number(parts[3]);
         if (generation && begin && end && *begin < *end &&
-            *end <= static_cast<uint64_t>(_mainBuffer->GetSize().Height()) &&
-            BeginNativeOverlayPrototype(static_cast<til::CoordType>(*begin), static_cast<til::CoordType>(*end), *generation))
+            *end <= static_cast<uint64_t>(_mutableViewport.Height()) &&
+            BeginNativeOverlayPrototype(_mutableViewport.Top() + static_cast<til::CoordType>(*begin),
+                                        _mutableViewport.Top() + static_cast<til::CoordType>(*end), *generation))
         {
             PaintNativeOverlayPrototype(*generation);
         }
