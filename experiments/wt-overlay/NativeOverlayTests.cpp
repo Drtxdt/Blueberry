@@ -85,6 +85,7 @@ class NativeOverlayTests
                 if (attr.IsHyperlink())
                 {
                     VERIFY_IS_TRUE(expected.GetHyperlinkUriFromId(attr.GetHyperlinkId()) == actual.GetHyperlinkUriFromId(attr.GetHyperlinkId()));
+                    VERIFY_IS_TRUE(expected.GetCustomIdFromId(attr.GetHyperlinkId()) == actual.GetCustomIdFromId(attr.GetHyperlinkId()));
                 }
             }
         }

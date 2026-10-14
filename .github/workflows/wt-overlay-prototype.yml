@@ -20,7 +20,11 @@ jobs:
       - uses: microsoft/setup-msbuild@v2
       - name: Apply isolated native primitive
         shell: pwsh
-        run: python experiments/wt-overlay/apply-prototype.py terminal-prototype
+        run: |
+          python experiments/wt-overlay/apply-prototype.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/wt-overlay/apply-lifecycle.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Restore native dependencies
         shell: pwsh
         working-directory: terminal-prototype
@@ -34,6 +38,13 @@ jobs:
           $root = (Get-Location).Path + '\'
           & msbuild src\buffer\out\ut_textbuffer\TextBuffer.Unit.Tests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:native-build.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build actual Terminal lifecycle hook and tests
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $root = (Get-Location).Path + '\'
+          & msbuild src\cascadia\UnitTests_TerminalCore\UnitTests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.26100.0 /bl:lifecycle-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Run native tests without installing Terminal
         shell: pwsh
         working-directory: terminal-prototype
@@ -42,6 +53,8 @@ jobs:
           if (!$taef) { throw 'Missing x64 TAEF executable' }
           & $taef.FullName bin\x64\Release\TextBuffer.Unit.Tests.dll "/select:@Name='*NativeOverlayTests*'" /logFile:../native-tests.wtl
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & $taef.FullName bin\x64\Release\UnitTests_TerminalCore\Terminal.Core.Unit.Tests.dll "/select:@Name='*NativeOverlayLifecycleTests*'" /logFile:../native-lifecycle-tests.wtl
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -49,6 +62,9 @@ jobs:
           retention-days: 90
           path: |
             terminal-prototype/native-build.binlog
+            terminal-prototype/lifecycle-build.binlog
             native-tests.wtl
+            native-lifecycle-tests.wtl
             terminal-prototype/bin/x64/Release/TextBuffer.Unit.Tests.dll
+            terminal-prototype/bin/x64/Release/UnitTests_TerminalCore/
             experiments/wt-overlay/
