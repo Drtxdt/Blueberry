@@ -13,6 +13,7 @@ class NativeOverlayClientTests {
     sealed class Terminal : TextWriter {
         NamedPipeClientStream pipe;
         internal bool Reject;
+        internal int ReadyVersion=4;
         internal long LastFrame;
         bool active;
         public override Encoding Encoding { get { return Encoding.UTF8; } }
@@ -24,7 +25,7 @@ class NativeOverlayClientTests {
             string[] parts=value.Substring(7).TrimEnd('\x07').Split(';');
             if(parts[0]=="channel") {
                 pipe=new NamedPipeClientStream(".","Blueberry.TerminalOverlay."+parts[2],PipeDirection.InOut);
-                pipe.Connect(1000); Reply("ready;3;"+parts[2]);
+                pipe.Connect(1000); Reply("ready;"+ReadyVersion+";"+parts[2]);
             } else if(parts[0]=="native-frame") {
                 LastFrame=Int64.Parse(parts[2]); active=!Reject; Reply("frame;"+LastFrame+";"+(Reject ? "rejected" : "presented"));
             } else if(parts[0]=="native-close") {
@@ -67,6 +68,13 @@ class NativeOverlayClientTests {
             unconnected.Dispose();
             Check(unconnected.ReaderStopped,"Unconnected reader survived disposal");
             Check(timer.ElapsedMilliseconds<2500,"Unconnected reader did not cancel promptly");
+            using(var terminal=new Terminal { ReadyVersion=3 }) {
+                Console.SetOut(terminal);
+                using(var overlay=new NativeOverlay()) {
+                    Check(!overlay.Connect(),"Unfenced experimental version was accepted");
+                    Check(overlay.Error!=null && overlay.Error.Contains("version"),"Version mismatch was not reported");
+                }
+            }
             using(var terminal=new Terminal()) {
                 Console.SetOut(terminal);
                 using(var overlay=new NativeOverlay()) {

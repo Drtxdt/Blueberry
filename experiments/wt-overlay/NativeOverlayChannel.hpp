@@ -69,7 +69,7 @@ private:
         std::string asciiOwner;
         asciiOwner.reserve(owner.size());
         for (const auto ch : owner) { asciiOwner.push_back(static_cast<char>(ch)); }
-        _queue.push_back("ready;3;" + asciiOwner + "\n");
+        _queue.push_back("ready;4;" + asciiOwner + "\n");
         SetEvent(_queueReady.get());
         _worker = std::thread{ [this]() noexcept { Run(); } };
     }

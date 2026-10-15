@@ -75,7 +75,7 @@ namespace Blueberry.Direct {
                         if(next!='\n') { if(next<32 || next>126 || text.Length>=192) throw new InvalidDataException("Invalid Terminal acknowledgement"); text.Append((char)next); continue; }
                         string value=text.ToString(); text.Clear();
                         lock(state) {
-                            if(!ready) { if(value!="ready;3;"+owner) throw new InvalidDataException("Terminal owner mismatch"); ready=true; }
+                            if(!ready) { if(value!="ready;4;"+owner) throw new InvalidDataException("Terminal channel version or owner mismatch"); ready=true; }
                             else {
                                 var parts=value.Split(';'); long id;
                                 if(parts.Length<2 || !Int64.TryParse(parts[1],out id) || id<=0) throw new InvalidDataException("Invalid Terminal generation");

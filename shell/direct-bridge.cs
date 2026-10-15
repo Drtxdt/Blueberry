@@ -198,7 +198,7 @@ namespace Blueberry.Direct {
             pipe.Connect(5000); connected = true;
             // Only the companion's dedicated profile opts into this internal
             // interface. An environment hint alone is never proof of support.
-            if(Environment.GetEnvironmentVariable("BLUEBERRY_NATIVE_OVERLAY")=="3"
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_NATIVE_OVERLAY")=="4"
                 && !String.Equals(Environment.GetEnvironmentVariable("TERM_PROGRAM"),"vscode",StringComparison.OrdinalIgnoreCase)) {
                 try {
                     nativeOverlay=new NativeOverlay();
@@ -217,7 +217,7 @@ namespace Blueberry.Direct {
                 {"editor_patch", EditorHooks ? (string)api.GetProperty("EditorIntegrationPatch").GetValue(null, null) : null},
                 {"editor_dll_sha256", editorHash}, {"editor_fallback_reason", editorFallbackReason},
                 {"shell_version", shellVersion},
-                {"terminal_restore", nativeOverlay!=null ? "native_overlay_v3" : terminalPages ? "windows_terminal_pages" : "legacy_cells"},
+                {"terminal_restore", nativeOverlay!=null ? "native_overlay_v4" : terminalPages ? "windows_terminal_pages" : "legacy_cells"},
                 {"capabilities", new object[] {"revision", "frame_identity", "accept_identity", "utf16_edit"}}
             });
             long handshakeDeadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency*5;

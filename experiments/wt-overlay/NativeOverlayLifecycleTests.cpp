@@ -281,7 +281,7 @@ class NativeOverlayLifecycleTests
         term.SetNativeOverlayClosedCallback([&](std::wstring value) { if (value == owner) { closed.store(true); } });
         term.Write(L"\x1b]7775;channel;" + std::to_wstring(GetCurrentProcessId()) + L";" + owner + L"\x07");
         VERIFY_IS_TRUE(WaitForSingleObject(connected.get(), 2000) == WAIT_OBJECT_0);
-        VERIFY_IS_TRUE(ReadPipe(server.get()) == "ready;3;18fbcb598bcd41e4934c892bf39d8536\n");
+        VERIFY_IS_TRUE(ReadPipe(server.get()) == "ready;4;18fbcb598bcd41e4934c892bf39d8536\n");
         auto frame = Frame(61, 0, 1, 20, L"menu");
         frame.replace(frame.find(L"frame;"), 6, std::wstring{ L"native-frame;" } + owner + L";");
         frame.replace(frame.find(L";0;1;20;"), 8, L";0;3;1;20;");
