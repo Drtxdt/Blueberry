@@ -98,6 +98,13 @@ CI 另以全新便携副本运行流读取及 `ReadConsoleInputW` 诊断，判�
 没有可用 WinUI 桌面，诊断步骤可以失败，但失败／未执行必须保存在独立工件，
 不能由功能 CI 的总体成功填成运行或发布通过。
 
+下一阶段 `apply-native-channel.py` 提供独立确认管道：客户端在自己进程建立
+`Blueberry.TerminalOverlay.<随机 GUID>`，Terminal 按服务端 PID 校验后连接。
+`native-frame`／`native-close` 绑定该 owner；提交与退场消息只经管道返回，
+不注入 PowerShell 按键流。单个工作线程使用事件及重叠 I/O，队列和写入等待
+有界，关闭取消并等待线程退出；EOF 经 UI 调度队列恢复，旧 owner 的迟到
+关闭不能清除新会话。此变更尚待原生编译和真实便携 GUI 验证，不计作接入完成。
+
 旧 Rust 构建缓存已按用户要求删除 12 个中间目录，约 6.47 GiB。历史 ZIP、
 EXE、探针、原始测量及 Git 历史保留，清理清单见
 `docs/benchmarks/v0.6/build-cache-cleanup-20261014.json`。

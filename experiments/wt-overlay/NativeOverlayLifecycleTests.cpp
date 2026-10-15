@@ -260,7 +260,62 @@ class NativeOverlayLifecycleTests
         Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
     }
 
+    TEST_METHOD(PrivatePipeAcknowledgesFramesAndRetiresOnDisconnect)
+    {
+        const auto owner = L"18fbcb598bcd41e4934c892bf39d8536";
+        const auto name = std::wstring{ L"\\\\.\\pipe\\Blueberry.TerminalOverlay." } + owner;
+        wil::unique_handle server{ CreateNamedPipeW(name.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
+            PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 4096, 4096, 0, nullptr) };
+        VERIFY_IS_TRUE(server.get() != INVALID_HANDLE_VALUE);
+        wil::unique_handle connected{ CreateEventW(nullptr, TRUE, FALSE, nullptr) };
+        OVERLAPPED connection{};
+        connection.hEvent = connected.get();
+        VERIFY_IS_TRUE(!ConnectNamedPipe(server.get(), &connection) && GetLastError() == ERROR_IO_PENDING);
+        std::atomic<bool> closed{ false };
+        std::wstring input;
+        Terminal term{ Terminal::TestDummyMarker{} };
+        DummyRenderer renderer{ &term };
+        term.Create({ 40, 12 }, 100, renderer);
+        term.Write(L"history\r\n$ ");
+        term.SetWriteInputCallback([&](std::wstring_view text) { input.append(text); });
+        term.SetNativeOverlayClosedCallback([&](std::wstring value) { if (value == owner) { closed.store(true); } });
+        term.Write(L"\x1b]7775;channel;" + std::to_wstring(GetCurrentProcessId()) + L";" + owner + L"\x07");
+        VERIFY_IS_TRUE(WaitForSingleObject(connected.get(), 2000) == WAIT_OBJECT_0);
+        VERIFY_IS_TRUE(ReadPipe(server.get()) == "ready;3;18fbcb598bcd41e4934c892bf39d8536\n");
+        auto frame = Frame(61, 0, 1, 20, L"menu");
+        frame.replace(frame.find(L"frame;"), 6, std::wstring{ L"native-frame;" } + owner + L";");
+        term.Write(frame);
+        VERIFY_IS_TRUE(ReadPipe(server.get()) == "frame;61;presented\n");
+        VERIFY_IS_TRUE(input.empty());
+        term.Write(L"\x1b]7775;native-close;00000000000000000000000000000000;61\x07");
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"menu");
+        server.reset();
+        for (int attempt = 0; attempt < 200 && !closed.load(); ++attempt) { Sleep(10); }
+        VERIFY_IS_TRUE(closed.load());
+        term.RetireNativeOverlayChannel(owner);
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 7) == L"history");
+        VERIFY_IS_TRUE(input.empty());
+    }
+
 private:
+    static std::string ReadPipe(HANDLE pipe)
+    {
+        wil::unique_handle event{ CreateEventW(nullptr, TRUE, FALSE, nullptr) };
+        OVERLAPPED operation{};
+        operation.hEvent = event.get();
+        char data[192]{};
+        DWORD count{};
+        if (!ReadFile(pipe, data, sizeof(data), &count, &operation))
+        {
+            VERIFY_IS_TRUE(GetLastError() == ERROR_IO_PENDING);
+            const auto wait = WaitForSingleObject(event.get(), 2000);
+            if (wait != WAIT_OBJECT_0) { CancelIoEx(pipe, &operation); }
+            const auto completed = GetOverlappedResult(pipe, &operation, &count, TRUE);
+            VERIFY_IS_TRUE(wait == WAIT_OBJECT_0 && completed);
+        }
+        return { data, count };
+    }
+
     static std::wstring Frame(uint64_t generation, unsigned top, unsigned height, unsigned width, std::wstring_view text)
     {
         static constexpr wchar_t digits[] = L"0123456789abcdef";
