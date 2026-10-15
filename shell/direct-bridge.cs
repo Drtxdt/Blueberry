@@ -531,6 +531,18 @@ namespace Blueberry.Direct {
         public static void Begin(string cwd, string historyPath) {
             long beginning=diagnostic ? Stopwatch.GetTimestamp() : 0;
             Clear(); displayed = null; acceptingFrame = null; expectedUiEditRevision=-1; interaction = "completion"; directory = cwd; editing = true; editorThread = Thread.CurrentThread.ManagedThreadId;
+            // A nested child can temporarily own the same terminal. Its owner
+            // must not permanently disconnect the parent's next prompt.
+            if(nativeOverlay!=null && !nativeOverlay.IsConnected) {
+                nativeOverlay.Dispose(); nativeOverlay=null;
+                try {
+                    nativeOverlay=new NativeOverlay();
+                    if(!nativeOverlay.Connect()) throw new NotSupportedException(nativeOverlay.Error);
+                } catch(Exception error) {
+                    if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; }
+                    Disable("companion Terminal reconnect failed: "+error.GetBaseException().Message);
+                }
+            }
             revision++;
             nativeHistory=false; nativeEditPending=false; nativeEditBefore=null;
             commandSession = revision;

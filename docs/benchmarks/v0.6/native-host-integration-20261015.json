@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "kind": "native companion integration correctness; not final package acceptance",
+  "interface": 4,
+  "changes": [
+    "Nested menus use the native owner-bound submission and retirement fences when the companion is explicitly requested.",
+    "Shell output is flushed before synchronous native requests; rapid navigation confirms its new frame before a following Tab.",
+    "Native resize restoration belongs to TerminalCore; the host does not repaint historical content from its lossy VT model.",
+    "Parent sessions reconnect after a child session replaces their native owner.",
+    "Native errors invalidate visible selection and adapter diagnostics rather than silently reverting to partial restoration."
+  ],
+  "local_correctness": {
+    "core": {"passed": 130, "ignored_native_opt_in": 2},
+    "legacy_direct": {"passed": 30, "ignored": 7},
+    "legacy_nested_host": {"passed": 4, "ignored": 1},
+    "input_protocol": {"passed": 1},
+    "native_client_clr4_and_coreclr": "passed",
+    "native_production_model_owner_takeover_and_eof": "passed",
+    "native_observation_ordering": "passed",
+    "comparison_probe": {"passed": 3},
+    "native_terminal_three_tests_per_combination": {
+      "PS5.1/PSReadLine2.0.0": "passed direct and nested",
+      "PS5.1/PSReadLine2.4.5": "passed direct and nested",
+      "PS7/PSReadLine2.4.5": "passed direct and nested"
+    },
+    "empty_inherited_module_path": "passed all three combinations against plain-shell default paths",
+    "native_cases": ["bottom menu above input", "four rapid resizes then Escape", "Unicode history text", "Up/Down history recall", "native Tab/Escape and ineffective delete", "real edit re-enables completion", "navigation and Tab in the same input burst"],
+    "model_dll_sha256": "CA9D5CE2BBD6399FECB3E957068F9AA4D6C44113F2EBF266249AC71B46659FA5",
+    "raw_logs": "artifacts/native-terminal-{ps51-200,ps51-245,ps7-245}-20261015.log",
+    "observation": "production TerminalCore text/viewport; attribute tests and GUI acceptance remain separate",
+    "screen_pixels": "not_measured"
+  },
+  "user_intermediate_acceptance": {
+    "candidate": "artifacts/v053-native-direct-b1r2-ps7/candidate.json",
+    "receipt": "artifacts/v053-native-direct-b1r2-ps7/user-feedback.json",
+    "reported": "一切正常，没有问题",
+    "scope": "PS7/direct diagnostic candidate, bottom menu and continuous resize restoration",
+    "final_acceptance": false
+  },
+  "release_blocked": true,
+  "remaining": ["CI for this integration", "complete valid native performance measurements", "remaining optimization A/B and resource checks", "frozen final package install and manual acceptance"]
+}

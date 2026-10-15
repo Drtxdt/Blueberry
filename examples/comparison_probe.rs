@@ -41,6 +41,8 @@ struct Session {
     data_dir: Option<PathBuf>,
     #[serde(default)]
     expected_host_mode: Option<String>,
+    #[serde(default)]
+    expected_transport: Option<String>,
 }
 #[derive(Deserialize)]
 struct Query {
@@ -71,6 +73,39 @@ fn adapter_identity(adapter: &Value) -> Value {
         fields.remove("system_commands");
     }
     identity
+}
+
+fn validate_adapter(adapter: &Value, host: Option<&str>, transport: Option<&str>) -> Result<()> {
+    if host == Some("direct") {
+        ensure!(
+            transport.is_none_or(|value| value == "pipe")
+                && adapter["host_mode"] == "direct"
+                && adapter["editor_mode"] == "editor_hooks_v1"
+                && adapter["automatic_menu"] == true
+                && adapter["transport"] == "pipe",
+            "direct fallback: {adapter}"
+        );
+    } else {
+        let transport = transport.unwrap_or("osc");
+        ensure!(
+            matches!(transport, "osc" | "pipe")
+                && adapter["transport"] == transport
+                && adapter["ready"] == true
+                && (host != Some("nested") || adapter["host_mode"] == "nested"),
+            "nested adapter not ready: {adapter}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn nested_pipe_requires_an_explicit_transport_and_cannot_silently_fall_back() {
+    let pipe = json!({"host_mode":"nested","transport":"pipe","ready":true});
+    assert!(validate_adapter(&pipe, Some("nested"), Some("pipe")).is_ok());
+    assert!(validate_adapter(&pipe, Some("nested"), None).is_err());
+    let osc = json!({"transport":"osc","ready":true});
+    assert!(validate_adapter(&osc, None, None).is_ok());
+    assert!(validate_adapter(&osc, Some("nested"), Some("pipe")).is_err());
 }
 
 #[test]
@@ -312,20 +347,11 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                     .find(|path| path.is_file() && !old_adapters.contains(path))
                 {
                     let adapter: Value = serde_json::from_slice(&fs::read(&path)?)?;
-                    if session.expected_host_mode.as_deref() == Some("direct") {
-                        ensure!(
-                            adapter["host_mode"] == "direct"
-                                && adapter["editor_mode"] == "editor_hooks_v1"
-                                && adapter["automatic_menu"] == true
-                                && adapter["transport"] == "pipe",
-                            "direct fallback: {adapter}"
-                        );
-                    } else {
-                        ensure!(
-                            adapter["transport"] == "osc" && adapter["ready"] == true,
-                            "nested adapter not ready: {adapter}"
-                        );
-                    }
+                    validate_adapter(
+                        &adapter,
+                        session.expected_host_mode.as_deref(),
+                        session.expected_transport.as_deref(),
+                    )?;
                     result["adapter"] = adapter;
                     break Some(path);
                 }

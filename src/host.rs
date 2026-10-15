@@ -31,6 +31,148 @@ use std::{
     time::Instant,
 };
 
+fn flush_native_prefix(frame: &mut Vec<u8>, output: &mut impl Write) -> std::io::Result<()> {
+    output.write_all(frame)?;
+    frame.clear();
+    output.flush()
+}
+
+fn erase_overlay(
+    overlay: &mut Overlay,
+    screen: &vt100::Screen,
+    frame: &mut Vec<u8>,
+    output: &mut impl Write,
+) -> std::io::Result<()> {
+    if overlay.is_native() {
+        flush_native_prefix(frame, output)?;
+        overlay.erase(screen, output)
+    } else {
+        overlay.erase(screen, frame)
+    }
+}
+
+fn render_overlay(
+    state: &mut State,
+    frame: &mut Vec<u8>,
+    output: &mut impl Write,
+) -> std::io::Result<()> {
+    if state.prompt && !state.dismissed {
+        let notice = state
+            .notification
+            .as_ref()
+            .map(|message| Candidate {
+                label: "Blueberry".into(),
+                description: message.clone(),
+                ..Default::default()
+            })
+            .or_else(|| {
+                if !state.completion.argument_hint.is_empty() {
+                    Some(Candidate {
+                        label: state.completion.argument_hint.clone(),
+                        description: "请输入参数值".into(),
+                        ..Default::default()
+                    })
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                state.completion.incomplete.then(|| Candidate {
+                    label: "环境刷新中…".into(),
+                    ..Default::default()
+                })
+            })
+            .or_else(|| {
+                state
+                    .hub_query
+                    .as_ref()
+                    .filter(|query| !query.is_empty())
+                    .map(|_| Candidate {
+                        label: "无匹配命令".into(),
+                        description: "修改关键词后重试".into(),
+                        ..Default::default()
+                    })
+            });
+        let displayed = if state.completion.candidates.is_empty() {
+            notice.as_slice()
+        } else {
+            &state.completion.candidates
+        };
+        let query = state.hub_query.as_deref().unwrap_or_else(|| {
+            state
+                .line
+                .get(state.completion.replace_start..state.cursor)
+                .unwrap_or("")
+        });
+        draw_overlay(
+            &mut state.overlay,
+            state.parser.screen(),
+            frame,
+            output,
+            displayed,
+            state.selected,
+            query,
+            &state.config,
+            crate::menu::MenuState {
+                incomplete: state.completion.incomplete,
+                details: state.details,
+                detail_page: state.detail_page,
+                argument_hint: (!state.completion.candidates.is_empty())
+                    .then_some(state.completion.argument_hint.as_str()),
+                searching: state.searching && state.hub_query.is_none(),
+                diagnostic: state.notification.as_deref().or_else(|| {
+                    state.completion.candidates.is_empty().then_some(
+                        if state.completion.incomplete {
+                            "环境刷新中"
+                        } else if state.hub_query.as_ref().is_some_and(|q| !q.is_empty()) {
+                            "无匹配命令"
+                        } else {
+                            "提示 · 请继续输入"
+                        },
+                    )
+                }),
+            },
+        )?;
+        state.presented_candidate = state
+            .overlay
+            .frame_visible()
+            .then(|| {
+                PresentedCandidate::capture(
+                    state.revision,
+                    &state.line,
+                    state.cursor,
+                    &state.completion,
+                    state.selected,
+                )
+            })
+            .flatten();
+    } else {
+        erase_overlay(&mut state.overlay, state.parser.screen(), frame, output)?;
+        state.presented_candidate = None;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_overlay(
+    overlay: &mut Overlay,
+    screen: &vt100::Screen,
+    frame: &mut Vec<u8>,
+    output: &mut impl Write,
+    candidates: &[Candidate],
+    selected: usize,
+    query: &str,
+    config: &Config,
+    state: crate::menu::MenuState<'_>,
+) -> std::io::Result<()> {
+    if overlay.is_native() {
+        flush_native_prefix(frame, output)?;
+        overlay.draw_with_state(screen, output, candidates, selected, query, config, state)
+    } else {
+        overlay.draw_with_state(screen, frame, candidates, selected, query, config, state)
+    }
+}
+
 #[cfg(windows)]
 #[path = "direct.rs"]
 pub mod direct;
@@ -1036,6 +1178,7 @@ struct State {
     public_keys: BTreeMap<String, bool>,
     reset_pending: Option<String>,
     status_writer: crate::status::StatusWriter,
+    adapter_status: Value,
     hub_query: Option<String>,
     hub_history: Vec<String>,
     hub_history_path: Option<PathBuf>,
@@ -1272,7 +1415,15 @@ impl State {
         );
         match value["event"].as_str().unwrap_or("") {
             "capabilities" => {
-                self.status_writer.update(value.clone());
+                let mut status = value.clone();
+                status["host_mode"] = json!("nested");
+                status["terminal_restore"] = json!(if self.overlay.is_native() {
+                    "native_overlay_v4"
+                } else {
+                    "legacy_vt_model"
+                });
+                self.adapter_status = status.clone();
+                self.status_writer.update(status);
                 self.public_keys = serde_json::from_value(
                     value
                         .get("public_keys")
@@ -1327,6 +1478,7 @@ impl State {
                 self.dirty = false;
             }
             "prompt_end" => {
+                self.overlay.new_prompt();
                 self.learning.refresh();
                 worker.update(|w| w.invalidate_sources = true);
                 self.native_queued = false;
@@ -1961,8 +2113,8 @@ impl State {
                         }
                         // Coalesced resizes can return to the original size
                         // after the outer terminal has reflowed menu cells.
-                        self.overlay = Overlay::default();
-                        self.repaint = true;
+                        self.overlay.reset_layout();
+                        self.repaint = !self.overlay.is_native();
                     }
                     return Ok(());
                 }
@@ -2495,8 +2647,10 @@ impl State {
                     // resize. Repaint the shell model instead of erasing only
                     // the overlay's obsolete row coordinates. This is also
                     // required when coalesced events return to the old size.
-                    self.overlay = Overlay::default();
-                    self.repaint = true;
+                    self.overlay.reset_layout();
+                    // Native Terminal restores before its own reflow. Repainting
+                    // a cropped VT model would discard rich historical attributes.
+                    self.repaint = !self.overlay.is_native();
                 }
                 return Ok(());
             }
@@ -2815,6 +2969,24 @@ pub fn run(options: RunOptions) -> Result<u32> {
         .context("Blueberry run requires an interactive terminal. Use 'complete' for scripts.")?;
     #[cfg(windows)]
     let _ = crossterm::ansi_support::supports_ansi();
+    let overlay = {
+        #[cfg(windows)]
+        if std::env::var("BLUEBERRY_NATIVE_OVERLAY").as_deref() == Ok("4")
+            && !std::env::var("TERM_PROGRAM")
+                .is_ok_and(|value| value.eq_ignore_ascii_case("vscode"))
+        {
+            Overlay::with_native(
+                crate::native_overlay::NativeOverlay::connect(&mut std::io::stdout())
+                    .context("connect required companion Terminal")?,
+            )
+        } else {
+            Overlay::default()
+        }
+        #[cfg(not(windows))]
+        {
+            Overlay::default()
+        }
+    };
     // The screen model owns a fresh viewport. CSI 2J preserves scrollback.
     std::io::stdout().write_all(b"\x1b[2J\x1b[H")?;
     std::io::stdout().flush()?;
@@ -2965,7 +3137,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         descriptions,
         parser: vt100::Parser::new(rows, cols, 0),
         decoder: Decoder::new(token),
-        overlay: Overlay::default(),
+        overlay,
         config,
         config_path: options.config_path,
         cwd,
@@ -3023,6 +3195,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         public_keys: BTreeMap::new(),
         reset_pending: None,
         status_writer: crate::status::StatusWriter::new(session_directory.join("adapter.json")),
+        adapter_status: Value::Null,
         hub_query: None,
         hub_history: Vec::new(),
         hub_history_path: None,
@@ -3096,7 +3269,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     for part in state.decoder.feed(&bytes) {
                         match part {
                             Part::Data(data) => {
-                                state.overlay.erase(state.parser.screen(), &mut frame)?;
+                                erase_overlay(
+                                    &mut state.overlay,
+                                    state.parser.screen(),
+                                    &mut frame,
+                                    &mut output,
+                                )?;
                                 state.parser.process(&data);
                                 frame.extend_from_slice(&data);
                                 ui_dirty = true;
@@ -3166,6 +3344,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     // protocol replies are handled before a new request.
                     let mut input_frame = Vec::with_capacity(inputs.len() * 8);
                     for input in inputs {
+                        if state.overlay.is_native()
+                            && !matches!(&input, Event::Key(key) if key.kind == crossterm::event::KeyEventKind::Release)
+                        {
+                            flush_native_prefix(&mut frame, &mut output)?;
+                            if !state.overlay.close_for_input(&mut output) {
+                                state.presented_candidate = None;
+                            }
+                        }
                         #[cfg(debug_assertions)]
                         if matches!(&input, Event::Key(key) if key.code == crossterm::event::KeyCode::Tab && key.kind != crossterm::event::KeyEventKind::Release)
                             && let Some(token) = &probe_token
@@ -3195,9 +3381,24 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             || matches!(&input, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release);
                         // Restore the old coordinates before changing the model size.
                         if matches!(&input, Event::Resize(..)) {
-                            state.overlay.erase(state.parser.screen(), &mut frame)?;
+                            erase_overlay(
+                                &mut state.overlay,
+                                state.parser.screen(),
+                                &mut frame,
+                                &mut output,
+                            )?;
                         }
+                        let previous_selection = (state.selected, state.details, state.detail_page);
                         state.input(input, &mut input_frame, master.as_ref(), &worker)?;
+                        if state.overlay.is_native()
+                            && input_frame.is_empty()
+                            && previous_selection
+                                != (state.selected, state.details, state.detail_page)
+                        {
+                            // Navigation and Tab can arrive in the same native
+                            // read. Confirm the new visible frame between keys.
+                            render_overlay(&mut state, &mut frame, &mut output)?;
+                        }
                     }
                     if !input_frame.is_empty() {
                         let write_started = Instant::now();
@@ -3383,91 +3584,26 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
         let repaint_start = Instant::now();
         let bytes_before = frame.len();
-        if ui_dirty && state.prompt && !state.dismissed {
-            let notice = state
-                .notification
-                .as_ref()
-                .map(|message| Candidate {
-                    label: "Blueberry".into(),
-                    description: message.clone(),
-                    ..Default::default()
-                })
-                .or_else(|| {
-                    if !state.completion.argument_hint.is_empty() {
-                        Some(Candidate {
-                            label: state.completion.argument_hint.clone(),
-                            description: "请输入参数值".into(),
-                            ..Default::default()
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .or_else(|| {
-                    state.completion.incomplete.then(|| Candidate {
-                        label: "环境刷新中…".into(),
-                        ..Default::default()
-                    })
-                })
-                .or_else(|| {
-                    state
-                        .hub_query
-                        .as_ref()
-                        .filter(|query| !query.is_empty())
-                        .map(|_| Candidate {
-                            label: "无匹配命令".into(),
-                            description: "修改关键词后重试".into(),
-                            ..Default::default()
-                        })
-                });
-            let displayed = if state.completion.candidates.is_empty() {
-                notice.as_slice()
-            } else {
-                &state.completion.candidates
-            };
-            let query = state.hub_query.as_deref().unwrap_or_else(|| {
-                state
-                    .line
-                    .get(state.completion.replace_start..state.cursor)
-                    .unwrap_or("")
-            });
-            state.overlay.draw_with_state(
-                state.parser.screen(),
-                &mut frame,
-                displayed,
-                state.selected,
-                query,
-                &state.config,
-                crate::menu::MenuState {
-                    incomplete: state.completion.incomplete,
-                    details: state.details,
-                    detail_page: state.detail_page,
-                    argument_hint: (!state.completion.candidates.is_empty())
-                        .then_some(state.completion.argument_hint.as_str()),
-                    searching: state.searching && state.hub_query.is_none(),
-                    diagnostic: state.notification.as_deref().or_else(|| {
-                        state.completion.candidates.is_empty().then_some(
-                            if state.completion.incomplete {
-                                "环境刷新中"
-                            } else if state.hub_query.as_ref().is_some_and(|q| !q.is_empty()) {
-                                "无匹配命令"
-                            } else {
-                                "提示 · 请继续输入"
-                            },
-                        )
-                    }),
-                },
-            )?;
-            state.presented_candidate = PresentedCandidate::capture(
-                state.revision,
-                &state.line,
-                state.cursor,
-                &state.completion,
-                state.selected,
-            );
-        } else if ui_dirty {
-            state.overlay.erase(state.parser.screen(), &mut frame)?;
+        if ui_dirty {
+            render_overlay(&mut state, &mut frame, &mut output)?;
+        }
+        if let Some(error) = state.overlay.take_native_error() {
             state.presented_candidate = None;
+            state.adapter_status["automatic_menu"] = json!(false);
+            state.adapter_status["disabled_reason"] =
+                json!(format!("companion Terminal overlay failed: {error}"));
+            state.status_writer.update(state.adapter_status.clone());
+            state
+                .trace
+                .event("native_overlay_failed", Some(state.revision), None, None);
+        } else if state.overlay.frame_visible()
+            && state.adapter_status["disabled_reason"]
+                .as_str()
+                .is_some_and(|reason| reason.starts_with("companion Terminal overlay failed: "))
+        {
+            state.adapter_status["automatic_menu"] = json!(true);
+            state.adapter_status["disabled_reason"] = Value::Null;
+            state.status_writer.update(state.adapter_status.clone());
         }
         if frame.len() > bytes_before {
             trace.event(
@@ -3525,7 +3661,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
     }
     frame.clear();
-    state.overlay.erase(state.parser.screen(), &mut frame)?;
+    erase_overlay(
+        &mut state.overlay,
+        state.parser.screen(),
+        &mut frame,
+        &mut output,
+    )?;
     frame.extend_from_slice(&state.decoder.finish());
     output.write_all(&frame)?;
     output.flush()?;

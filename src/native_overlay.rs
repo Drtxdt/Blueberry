@@ -76,6 +76,12 @@ pub struct NativeOverlay {
 }
 
 impl NativeOverlay {
+    pub fn is_connected(&self) -> bool {
+        self.shared
+            .0
+            .lock()
+            .is_ok_and(|state| state.ready && !state.stopped)
+    }
     pub fn connect(output: &mut impl Write) -> io::Result<Self> {
         let pipe = NativeAckPipe::new()?;
         let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
@@ -358,6 +364,27 @@ mod tests {
             reference.lock().unwrap().snapshot().unwrap(),
             output.0.lock().unwrap().snapshot().unwrap()
         );
+        // Replacing an owner restores its frame. Its delayed EOF must never
+        // retire a newer owner's menu on the same terminal.
+        assert!(client.paint(&mut output, &lines, 2, 3, 16).unwrap());
+        let mut replacement = NativeOverlay::connect(&mut output).unwrap();
+        assert!(replacement.paint(&mut output, &lines, 2, 3, 16).unwrap());
+        drop(client);
+        assert!(
+            output
+                .0
+                .lock()
+                .unwrap()
+                .snapshot()
+                .unwrap()
+                .contains("MENU")
+        );
+        assert_eq!(replacement.close(&mut output).unwrap(), Some(true));
+        assert_eq!(
+            reference.lock().unwrap().snapshot().unwrap(),
+            output.0.lock().unwrap().snapshot().unwrap()
+        );
+        let mut client = replacement;
         assert!(client.paint(&mut output, &lines, 2, 3, 16).unwrap());
         drop(client);
         let deadline = Instant::now() + Duration::from_secs(2);

@@ -23,6 +23,7 @@ namespace Blueberry.Direct {
         int disposed;
         int waiters, eventDisposed;
         public string Error { get; private set; }
+        public bool IsConnected { get { lock(state) { return ready && !stopped; } } }
         internal bool ReaderStopped { get { return !reader.IsAlive; } }
 
         [StructLayout(LayoutKind.Sequential)] struct SecurityAttributes {
