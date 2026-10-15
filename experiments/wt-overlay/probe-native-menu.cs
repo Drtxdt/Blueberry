@@ -14,7 +14,7 @@ class NativeMenuRuntimeProbe {
         string path=Path.GetFullPath(args[0]);
         if(File.Exists(path)) throw new IOException("Refusing to overwrite native runtime evidence");
         var result=new Dictionary<string,object> {
-            {"schema",1L},{"diagnostic_only",true},{"supported",false},
+            {"schema",1L},{"diagnostic_only",true},{"supported",false},{"interface_version",4L},
             {"pixel_visibility_measured",false},{"all_history_attributes_verified",false},
             {"input_stream_read_or_modified",false},{"error",null}
         };

@@ -786,6 +786,8 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         let mut build = build;
         build["private_editors"] = blueberry::editor::build_identity();
         build["conpty"] = blueberry::conpty::build_identity();
+        // Internal companion interface version, not a release-acceptance flag.
+        build["companion_overlay_interface"] = serde_json::json!(4);
         build
     };
     if json {

@@ -61,6 +61,10 @@ def main():
         startup.wShowWindow = 0
         row = {"kind": kind, "probe_sha256": hashlib.sha256(probe.read_bytes()).hexdigest(),
                "terminal_sha256": hashlib.sha256((copy / "WindowsTerminal.exe").read_bytes()).hexdigest()}
+        if kind == 'native_menu':
+            row.update(probe_executable_sha256=hashlib.sha256(executable.read_bytes()).hexdigest(),
+                       bridge_source_sha256=hashlib.sha256((repository/'shell/direct-bridge.cs').read_bytes()).hexdigest(),
+                       native_client_source_sha256=hashlib.sha256((repository/'shell/native-overlay.cs').read_bytes()).hexdigest())
         with (root / "launcher.log").open("wb") as log:
             process = subprocess.Popen([str(copy / "WindowsTerminal.exe"), "--window", "new", "new-tab",
                                         "--profile", profile], startupinfo=startup, stdout=log, stderr=log)
