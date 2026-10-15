@@ -74,13 +74,15 @@ def capability_unavailable(scenario, probes):
     assert all(outcomes) or not any(outcomes), f'{scenario}: inconsistent capability results'
     return not any(outcomes)
 
-def summarize_measurements(report, startups, samples):
+def summarize_measurements(report, startups, samples, cases=None):
+    cases = CASES if cases is None else cases
     assert set(report['modes']) == set(MODES), 'Incomplete comparison modes'
     for mode in MODES:
         measured = report['modes'][mode]
         assert len(measured['startup']) == startups, f'{mode}: insufficient startup samples'
-        measured['startup'] = stats(measured['startup'])
-        assert set(measured['hot']) == set(CASES), f'{mode}: incomplete scenario matrix'
+        if startups:
+            measured['startup'] = stats(measured['startup'])
+        assert set(measured['hot']) == set(cases), f'{mode}: incomplete scenario matrix'
         for scenario, groups in measured['hot'].items():
             assert set(groups) == {'cache_miss', 'cache_hit'}, f'{mode}/{scenario}: incomplete cache matrix'
             for measurement in groups.values():
@@ -95,6 +97,11 @@ def summarize_measurements(report, startups, samples):
                     measurement['menu'] = stats(measurement['menu'])
 
 def run(options):
+    section = options.section
+    if section == 'hot':
+        assert options.scenario and options.capability_report, 'Hot shards require scenario and capability evidence'
+        assert options.samples % 10 == 0 and options.pair_count and options.pair_start >= 0, 'Invalid hot shard'
+        assert options.pair_start + options.pair_count <= options.samples // 10, 'Hot shard exceeds sample target'
     plan = read(options.plan)
     out = Path(options.output).resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -143,6 +150,12 @@ def run(options):
             host_mode={'candidate':'direct','beta6':'nested'}.get(mode,'not_applicable'),
             transport_degraded=False if mode in ('candidate','beta6') else None,startup=[],hot={},first_queries=[])
     write(out/'frozen.json', frozen)
+    report['section'] = section
+    report['section_complete'] = False
+    report['fixture_sha256'] = sha(out/'fixtures.json')
+    report['frozen_sha256'] = sha(out/'frozen.json')
+    if section == 'hot':
+        report.update(scenario=options.scenario, pair_start=options.pair_start, pair_count=options.pair_count)
 
     def session(name, mode, scenario, queries, data_dir, allow_timeout=False):
         folder = out/name
@@ -190,27 +203,55 @@ def run(options):
 
     try:
         unavailable = {}
-        for scenario in CASES:
+        report['capability_probes'] = {}
+        for scenario in CASES if section in ('full', 'capability') else ():
             probes = []
             for index in range(3):
                 path,value = session(f'capability/{scenario}-{index}','inshellisense',scenario,[query(scenario,index)],out/'data/capability',True)
                 probes.append((path,value))
+            report['capability_probes'][scenario] = [dict(report=path.relative_to(out).as_posix(), sha256=sha(path)) for path, _ in probes]
             if not capability_unavailable(scenario, probes):
                 continue
             unavailable[scenario] = [dict(report=path.relative_to(out).as_posix(),sha256=sha(path),line=value['queries'][0]['line'],expected=value['queries'][0]['expected']) for path,value in probes]
-        for index in range(options.startups):
+        report['unavailable'] = unavailable
+        if section == 'hot':
+            capability_path = Path(options.capability_report).resolve()
+            capability = read(capability_path)
+            assert capability.get('section') == 'capability' and capability.get('section_complete') is True, 'Incomplete capability evidence'
+            for key in ('source_commit', 'source_dirty', 'formal', 'profile', 'profile_sha256', 'power_policy',
+                        'probe_sha256', 'collector_sha256', 'plan_sha256', 'fixture_sha256', 'frozen_sha256'):
+                assert capability.get(key) == report.get(key), f'Capability identity mismatch: {key}'
+            unavailable = capability['unavailable']
+            assert set(capability['capability_probes']) == set(CASES), 'Incomplete capability scenarios'
+            for scenario, evidence in capability['capability_probes'].items():
+                probes = []
+                for item in evidence:
+                    path = capability_path.parent / item['report']
+                    assert sha(path) == item['sha256'], 'Capability probe changed'
+                    probes.append((path, read(path)))
+                assert capability_unavailable(scenario, probes) == (scenario in unavailable), 'Capability summary mismatch'
+            for evidence in unavailable.values():
+                for item in evidence:
+                    path = capability_path.parent / item['report']
+                    assert sha(path) == item['sha256'], 'Capability probe changed'
+                    item['report'] = str(path)
+            report['capability_evidence'] = dict(path=str(capability_path), sha256=sha(capability_path))
+            report['unavailable'] = unavailable
+        for index in range(options.startups if section in ('full', 'startup') else 0):
             order = rotate(index)
             report['startup_orders'].append(order)
             for mode in order:
                 _,value = session(f'startup/{index}-{mode}',mode,'root',[],out/f'data/startup/{index}/{mode}')
                 report['modes'][mode]['startup'].append(value['startup'])
             print(f'startup {index+1}/{options.startups}',flush=True)
-        for scenario in CASES:
+        scenarios = CASES if section == 'full' else (options.scenario,) if section == 'hot' else ()
+        for scenario in scenarios:
             report['hot_session_orders'][scenario] = {cache:[] for cache in ('cache_miss','cache_hit')}
             for mode in MODES:
                 report['modes'][mode]['hot'][scenario] = {cache:dict(input_echo=[],menu=[] if mode != 'plain' else None,
                     cache_capability='supported' if mode in ('candidate','beta6') else 'not_applicable') for cache in ('cache_miss','cache_hit')}
-            for pair in range(math.ceil(options.samples/10)):
+            pairs = range(math.ceil(options.samples/10)) if section == 'full' else range(options.pair_start, options.pair_start + options.pair_count)
+            for pair in pairs:
                 order = rotate(pair)
                 before = {}
                 for cache in ('cache_miss','cache_hit'):
@@ -236,11 +277,15 @@ def run(options):
                             else: assert identity == before[mode], 'Cache-hit rewrote the cache'
                 print(f'{scenario} pair {pair+1}/{math.ceil(options.samples/10)}',flush=True)
                 write(out/'progress.json',report)
-        summarize_measurements(report, options.startups, options.samples)
+        if section != 'capability':
+            summarize_measurements(report, options.startups if section in ('full', 'startup') else 0,
+                                   options.samples if section == 'full' else options.pair_count * 10 if section == 'hot' else 0,
+                                   scenarios)
         assert all(sha(item['path']) == item['sha256'] for item in frozen), 'Frozen dependency changed'
         assert inventory([plan['fixtures']]) == fixture_files, 'Fixture changed'
         assert profiles_unchanged(profiles), 'Profile changed during comparison'
-        report['measurement_complete']=True
+        report['section_complete']=True
+        report['measurement_complete']=section == 'full'
         report['passed']=True  # Historical alias for collection validity, not a performance gate.
     except Exception as error:
         report['error']=str(error)
@@ -255,4 +300,9 @@ if __name__ == '__main__':
     parser.add_argument('--samples',type=int,default=30)
     parser.add_argument('--startups',type=int,default=10)
     parser.add_argument('--formal',action='store_true')
+    parser.add_argument('--section', choices=('full', 'capability', 'startup', 'hot'), default='full')
+    parser.add_argument('--scenario', choices=CASES)
+    parser.add_argument('--pair-start', type=int, default=0)
+    parser.add_argument('--pair-count', type=int)
+    parser.add_argument('--capability-report')
     run(parser.parse_args())
