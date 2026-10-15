@@ -90,7 +90,7 @@ fn elapsed(harness: &Harness, start: Instant) -> Result<f64> {
 fn wait(harness: &mut Harness, description: &str, predicate: impl Fn(&str) -> bool) -> Result<()> {
     let deadline = Instant::now() + TIMEOUT;
     loop {
-        let screen = harness.viewport_contents();
+        let screen = harness.observed_viewport()?;
         if predicate(&screen) {
             return Ok(());
         }
@@ -135,6 +135,7 @@ fn measure(
         ("BLUEBERRY_ACTIVE".into(), "1".into()),
         ("TERM".into(), "xterm-256color".into()),
     ]);
+    crate::probe::inherit_native_observer_environment(&mut env);
     env.insert(
         "APPDATA".into(),
         directory
@@ -186,8 +187,9 @@ fn measure(
         &env,
         String::new(),
     )?;
+    let start = harness.observation_start(start);
     beta_metrics::wait_for_prompt(&mut harness, TIMEOUT)?;
-    let before = harness.viewport_contents();
+    let before = harness.observed_viewport()?;
     let prompt = before.lines().last().unwrap_or("").trim_end().to_owned();
     let key_start = Instant::now();
     harness.send_text("g")?;
@@ -200,7 +202,7 @@ fn measure(
     })?;
     let first_input = elapsed(&harness, start)?;
     let first_key = elapsed(&harness, key_start)?;
-    let (first_static, first_dynamic, status) = if candidate {
+    let (first_static, first_dynamic, mut status) = if candidate {
         wait(&mut harness, "first complete static menu", |screen| {
             beta_metrics::has_complete_status(screen)
                 && screen.lines().any(|line| line.contains("› "))
@@ -249,7 +251,7 @@ fn measure(
         wait(&mut harness, "plain version metadata", |screen| {
             shell_metadata(screen).is_some()
         })?;
-        let contents = harness.viewport_contents();
+        let contents = harness.observed_viewport()?;
         let mut status = shell_metadata(&contents).context("missing complete plain metadata")?;
         // Collect the actually loaded assembly after all timed observations.
         // Windows inbox modules can share a version label with a different
@@ -283,6 +285,7 @@ fn measure(
         harness.finish(TIMEOUT)?;
         (None, None, status)
     };
+    status["native_observer"] = json!(harness.native_observer_identity());
     Ok(Sample {
         first_input,
         first_key,
@@ -343,6 +346,7 @@ pub fn run_with_trace(
     let mut automatic_menus = Vec::new();
     let mut editors = Vec::new();
     let mut plain_editors = Vec::new();
+    let mut observers = Vec::new();
     let mut orders = Vec::new();
     for index in 0..iterations {
         let directory = root.join(format!("pair-{index}"));
@@ -377,6 +381,11 @@ pub fn run_with_trace(
         }
         let baseline = baseline.unwrap();
         let product = product.unwrap();
+        ensure!(
+            baseline.status["native_observer"] == product.status["native_observer"],
+            "paired observer identities differ"
+        );
+        observers.push(product.status["native_observer"].clone());
         if let Some(first) = plain_editors.first() {
             ensure!(
                 first == &baseline.status["editor"],
@@ -443,6 +452,14 @@ pub fn run_with_trace(
         .unwrap()
         .extend(frozen.as_object().unwrap().clone());
     report["plain_editors"] = json!(plain_editors);
+    report["diagnostic_only"] = json!(cfg!(debug_assertions) || trace_directory.is_some());
+    report["probe_build_profile"] = json!(env!("BLUEBERRY_BUILD_PROFILE"));
+    report["probe_source_commit"] = json!(env!("BLUEBERRY_BUILD_COMMIT"));
+    report["probe_source_dirty"] = json!(env!("BLUEBERRY_BUILD_DIRTY") == "true");
+    report["probe_executable_sha256"] =
+        json!(metrics::executable_sha256(&std::env::current_exe()?)?);
+    report["native_observers"] = json!(observers);
+    report["screen_pixels"] = json!("not_measured");
     Ok(report)
 }
 

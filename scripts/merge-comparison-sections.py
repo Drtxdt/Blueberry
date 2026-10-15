@@ -16,6 +16,7 @@ SPEC.loader.exec_module(C)
 IDENTITY = ('source_commit', 'source_dirty', 'formal', 'profile', 'profile_sha256', 'power_policy',
             'probe_sha256', 'collector_sha256', 'plan_sha256', 'fixture_sha256', 'frozen_sha256',
             'startup_pairs', 'hot_samples_per_mode', 'terminal_rows', 'terminal_columns', 'trace', 'probe_conpty')
+IDENTITY += ('native_observer',)
 
 
 def verified_samples(value):

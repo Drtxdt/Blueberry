@@ -173,6 +173,7 @@ struct Measurements {
     psreadline_versions: Vec<String>,
     editors: Vec<Value>,
     observations: Vec<Value>,
+    native_observers: Vec<Value>,
     input_echo: Vec<f64>,
     first_menu: Vec<f64>,
     first_candidate_menu: Vec<f64>,
@@ -245,6 +246,7 @@ impl Measurements {
             "psreadline_versions": &self.psreadline_versions,
             "editors": &self.editors,
             "observations": &self.observations,
+            "native_observers": &self.native_observers,
             "transport_ineligible_hot_queries": self.transport_ineligible_hot_queries,
             "input_echo": f64_stats(&self.input_echo, "ms"),
             "first_menu": f64_stats(&self.first_menu, "ms"),
@@ -590,6 +592,12 @@ pub fn run_traced(
             "throughput_bytes": OUTPUT_BYTES,
         },
     });
+    report["diagnostic_only"] = json!(cfg!(debug_assertions) || trace_directory.is_some());
+    report["probe_build_profile"] = json!(env!("BLUEBERRY_BUILD_PROFILE"));
+    report["probe_source_commit"] = json!(env!("BLUEBERRY_BUILD_COMMIT"));
+    report["probe_source_dirty"] = json!(env!("BLUEBERRY_BUILD_DIRTY") == "true");
+    report["probe_executable_sha256"] =
+        json!(crate::metrics::executable_sha256(&std::env::current_exe()?)?);
     report["candidate_stage_schema"] = json!(1);
     report["observed_stages"] = json!({
         "input_echo": "probe_model",
@@ -766,6 +774,7 @@ fn measure_cache_modes(
 }
 
 fn append_measurements(target: &mut Measurements, mut source: Measurements) {
+    target.native_observers.append(&mut source.native_observers);
     target.observations.append(&mut source.observations);
     target.editors.append(&mut source.editors);
     target.first_query.append(&mut source.first_query);
@@ -861,6 +870,9 @@ fn measure_session(
         && actual_host == host_mode
         && (host_mode != "direct" || automatic && editor["mode"] == "editor_hooks_v1");
     let mut measurements = Measurements::default();
+    measurements
+        .native_observers
+        .push(json!(harness.native_observer_identity()));
     let raw = data_dir.join(format!("observations-{mode}-{session_index}.jsonl"));
     measurements.actual_transport.push(actual_transport);
     measurements.actual_host_mode.push(actual_host);
@@ -967,7 +979,7 @@ fn observe_query(
     expected: &str,
     dynamic: bool,
 ) -> Result<Observation> {
-    let before = harness.viewport_contents();
+    let before = harness.observed_viewport()?;
     if has_input_echo(&before, line) || has_menu_row(&before) {
         bail!("计时前仍有本次输入或旧菜单，拒绝使用陈旧画面作为样本；screen:\n{before}");
     }
@@ -987,7 +999,7 @@ fn observe_query(
     let mut first_candidate_menu = None;
     let mut dynamic_complete_menu = None;
     loop {
-        let screen = harness.viewport_contents();
+        let screen = harness.observed_viewport()?;
         let observed = harness
             .last_output_arrival()
             .filter(|arrival| *arrival >= started)
@@ -1039,7 +1051,7 @@ fn observe_query(
 pub(crate) fn wait_for_prompt(harness: &mut Harness, timeout: Duration) -> Result<()> {
     let deadline = Instant::now() + timeout;
     loop {
-        let screen = harness.viewport_contents();
+        let screen = harness.observed_viewport()?;
         if has_prompt(&screen) {
             return Ok(());
         }
@@ -1058,7 +1070,7 @@ fn reset_line(harness: &mut Harness, previous_line: &str) -> Result<()> {
     harness.send(b"\x01\x7f")?; // SelectAll + Backspace in one input write.
     let deadline = Instant::now() + CLEANUP_TIMEOUT;
     while Instant::now() < deadline {
-        let screen = harness.viewport_contents();
+        let screen = harness.observed_viewport()?;
         if !has_menu_row(&screen) && !has_input_echo(&screen, previous_line) {
             return Ok(());
         }
@@ -1166,7 +1178,7 @@ fn host_environment(fixtures: &Fixtures) -> Result<BTreeMap<String, String>> {
             "".into()
         }
     });
-    Ok(BTreeMap::from([
+    let mut environment = BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), pathext.to_string_lossy().into_owned()),
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
@@ -1178,7 +1190,9 @@ fn host_environment(fixtures: &Fixtures) -> Result<BTreeMap<String, String>> {
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), String::new()),
         ("ISTERM".to_owned(), "1".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
-    ]))
+    ]);
+    crate::probe::inherit_native_observer_environment(&mut environment);
+    Ok(environment)
 }
 
 fn create_fixtures(directory: &Path) -> Result<Fixtures> {
@@ -1423,7 +1437,7 @@ fn measure_pwsh_baseline(
         harness.send_text(&line)?;
         let deadline = started + WAIT_TIMEOUT;
         loop {
-            if has_input_echo(&harness.viewport_contents(), &line) {
+            if has_input_echo(&harness.observed_viewport()?, &line) {
                 input_echo.push(milliseconds(started.elapsed()));
                 break;
             }

@@ -6,6 +6,30 @@ use crate::{
 };
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::{Value, json};
+#[cfg(windows)]
+use std::sync::{Arc, Mutex};
+
+type ObservedChunk = std::result::Result<(Vec<u8>, Instant, Option<i64>), String>;
+
+/// Keep the explicit benchmark environment consistent with its actual child.
+/// A requested native path without a frozen model is rejected before spawn.
+pub fn inherit_native_observer_environment(environment: &mut BTreeMap<String, String>) {
+    for key in [
+        "BLUEBERRY_NATIVE_MODEL_DLL",
+        "BLUEBERRY_NATIVE_MODEL_SHA256",
+        "BLUEBERRY_NATIVE_OVERLAY",
+    ] {
+        if let Ok(value) = std::env::var(key) {
+            environment.insert(key.into(), value);
+        }
+    }
+    if environment
+        .get("BLUEBERRY_NATIVE_MODEL_DLL")
+        .is_some_and(|value| !value.is_empty())
+    {
+        environment.insert("TERM_PROGRAM".into(), "blueberry-native-model".into());
+    }
+}
 use std::{
     collections::{BTreeMap, VecDeque},
     io::{Read, Write},
@@ -17,7 +41,11 @@ use std::{
 
 pub struct Harness {
     session: pty::Session,
-    receive: mpsc::Receiver<(Vec<u8>, Instant, Option<i64>)>,
+    receive: mpsc::Receiver<ObservedChunk>,
+    #[cfg(windows)]
+    native: Option<Arc<Mutex<crate::native_observer::NativeObserver>>>,
+    #[cfg(windows)]
+    started_at: Instant,
     last_output_arrival: Option<Instant>,
     last_output_qpc: Option<i64>,
     diagnostic: bool,
@@ -58,15 +86,38 @@ impl Harness {
         env: &BTreeMap<String, String>,
         token: String,
     ) -> Result<Self> {
+        #[cfg(windows)]
+        let native = crate::native_observer::NativeObserver::configured(env)?;
+        #[cfg(windows)]
+        let started_at = Instant::now();
         let mut session = pty::spawn(program, args, cwd, env, 30, 120)?;
         let mut reader = std::mem::replace(&mut session.reader, Box::new(std::io::empty()));
         let (send, receive) = mpsc::channel();
         let diagnostic = args.iter().any(|arg| arg == "--trace")
             || env.get("BLUEBERRY_PROBE_QPC").is_some_and(|v| v == "1");
+        #[cfg(windows)]
+        let native_reader = native.clone();
         thread::spawn(move || {
             let mut buffer = [0u8; 16384];
             while let Ok(n) = reader.read(&mut buffer) {
                 let arrived = Instant::now();
+                if n == 0 {
+                    break;
+                }
+                #[cfg(windows)]
+                let arrived = if let Some(native) = &native_reader {
+                    let result = native
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("native observer poisoned"))
+                        .and_then(|mut native| native.write(&buffer[..n]));
+                    if let Err(error) = result {
+                        let _ = send.send(Err(format!("native observer: {error:#}")));
+                        break;
+                    }
+                    Instant::now()
+                } else {
+                    arrived
+                };
                 #[cfg(windows)]
                 let qpc = if diagnostic {
                     crate::latency_layers::qpc().ok()
@@ -75,7 +126,7 @@ impl Harness {
                 };
                 #[cfg(not(windows))]
                 let qpc = None;
-                if n == 0 || send.send((buffer[..n].to_vec(), arrived, qpc)).is_err() {
+                if send.send(Ok((buffer[..n].to_vec(), arrived, qpc))).is_err() {
                     break;
                 }
             }
@@ -93,6 +144,10 @@ impl Harness {
             last_output_arrival: None,
             last_output_qpc: None,
             diagnostic,
+            #[cfg(windows)]
+            native,
+            #[cfg(windows)]
+            started_at,
         })
     }
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {
@@ -114,13 +169,17 @@ impl Harness {
         }
     }
     pub fn pump(&mut self, timeout: Duration) -> Result<()> {
-        let (bytes, arrived, qpc) = self.receive.recv_timeout(timeout).with_context(|| {
-            format!(
-                "PTY timeout/closed. Screen: {}; raw tail: {:?}",
-                self.screen.screen().contents(),
-                String::from_utf8_lossy(&self.trace)
-            )
-        })?;
+        let (bytes, arrived, qpc) = self
+            .receive
+            .recv_timeout(timeout)
+            .with_context(|| {
+                format!(
+                    "PTY timeout/closed. Screen: {}; raw tail: {:?}",
+                    self.screen.screen().contents(),
+                    String::from_utf8_lossy(&self.trace)
+                )
+            })?
+            .map_err(anyhow::Error::msg)?;
         for part in self.decoder.feed(&bytes) {
             match part {
                 Part::Data(data) => {
@@ -146,6 +205,12 @@ impl Harness {
                     self.messages.push_back(value);
                 }
                 Part::CursorQuery(private) => {
+                    #[cfg(windows)]
+                    if self.native.is_some() {
+                        // The real parser already queued its response. Never
+                        // inject a second cursor response into the editor.
+                        continue;
+                    }
                     let (row, col) = self.screen.screen().cursor_position();
                     // A terminal cursor response is not an editor keystroke.
                     // Preserve the last confirmed empty-buffer state, especially
@@ -162,6 +227,17 @@ impl Harness {
                     self.session.writer.flush()?;
                 }
             }
+        }
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            let replies = native
+                .lock()
+                .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+                .replies()?;
+            for reply in replies {
+                self.session.writer.write_all(&reply)?;
+            }
+            self.session.writer.flush()?;
         }
         Ok(())
     }
@@ -215,6 +291,32 @@ impl Harness {
             .trim_end()
             .to_owned()
     }
+    /// Strict performance observation; a native parser failure is collection
+    /// failure, never a valid slow sample or a missing completion capability.
+    pub fn observed_viewport(&self) -> Result<String> {
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            return native
+                .lock()
+                .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+                .snapshot();
+        }
+        Ok(self.viewport_contents())
+    }
+    pub fn native_observer_identity(&self) -> Option<Value> {
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            return native.lock().ok().map(|native| native.identity());
+        }
+        None
+    }
+    pub fn observation_start(&self, external: Instant) -> Instant {
+        #[cfg(windows)]
+        if self.native.is_some() {
+            return self.started_at;
+        }
+        external
+    }
     pub fn process_id(&self) -> Option<u32> {
         self.session.child.process_id()
     }
@@ -222,6 +324,13 @@ impl Harness {
         self.last_capabilities.as_ref()
     }
     pub fn resize(&mut self, rows: u16, cols: u16) -> Result<()> {
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            native
+                .lock()
+                .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+                .resize(rows, cols)?;
+        }
         self.session.master.resize(portable_pty::PtySize {
             rows,
             cols,

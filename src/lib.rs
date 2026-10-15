@@ -16,6 +16,8 @@ pub mod maintenance;
 pub mod menu;
 pub mod metrics;
 pub mod model;
+#[cfg(windows)]
+mod native_observer;
 pub mod overlay;
 pub mod packs;
 pub mod paths;

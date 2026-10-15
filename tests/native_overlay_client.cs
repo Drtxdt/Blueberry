@@ -14,6 +14,8 @@ class NativeOverlayClientTests {
         NamedPipeClientStream pipe;
         internal bool Reject;
         internal int ReadyVersion=4;
+        internal bool HoldFrameReply;
+        internal readonly ManualResetEvent FrameWritten=new ManualResetEvent(false);
         internal long LastFrame;
         bool active;
         public override Encoding Encoding { get { return Encoding.UTF8; } }
@@ -27,7 +29,9 @@ class NativeOverlayClientTests {
                 pipe=new NamedPipeClientStream(".","Blueberry.TerminalOverlay."+parts[2],PipeDirection.InOut);
                 pipe.Connect(1000); Reply("ready;"+ReadyVersion+";"+parts[2]);
             } else if(parts[0]=="native-frame") {
-                LastFrame=Int64.Parse(parts[2]); active=!Reject; Reply("frame;"+LastFrame+";"+(Reject ? "rejected" : "presented"));
+                LastFrame=Int64.Parse(parts[2]); active=!Reject;
+                if(!HoldFrameReply) Reply("frame;"+LastFrame+";"+(Reject ? "rejected" : "presented"));
+                FrameWritten.Set();
             } else if(parts[0]=="native-close") {
                 bool restored=active && Int64.Parse(parts[2])==LastFrame;
                 if(restored) { active=false; Reply("retired;"+parts[2]); }
@@ -37,7 +41,7 @@ class NativeOverlayClientTests {
         }
         internal void Disconnect() { if(pipe!=null) { pipe.Dispose(); pipe=null; } }
         internal void RetireWithoutNotification() { active=false; }
-        protected override void Dispose(bool disposing) { Disconnect(); base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { Disconnect(); FrameWritten.Dispose(); base.Dispose(disposing); }
     }
     static void Check(bool condition,string message) { if(!condition) throw new Exception(message); }
     static void BridgeEof(NativeOverlay overlay) {
@@ -109,6 +113,21 @@ class NativeOverlayClientTests {
                     Check(overlay.Connect(),"Bridge EOF setup handshake failed");
                     Check(overlay.Paint(new List<object>{"menu"},0,20),"Bridge EOF setup frame failed");
                     BridgeEof(overlay);
+                }
+            }
+            using(var terminal=new Terminal { HoldFrameReply=true }) {
+                Console.SetOut(terminal);
+                using(var overlay=new NativeOverlay()) {
+                    Check(overlay.Connect(),"Concurrent EOF setup handshake failed");
+                    Exception failure=null; bool painted=true;
+                    var waiting=new Thread(delegate() {
+                        try { painted=overlay.Paint(new List<object>{"menu"},0,20); }
+                        catch(Exception error) { failure=error; }
+                    }) { IsBackground=true };
+                    waiting.Start();
+                    Check(terminal.FrameWritten.WaitOne(1000),"Concurrent EOF frame not sent");
+                    BridgeEof(overlay);
+                    Check(waiting.Join(1000) && !painted && failure==null,"EOF raced the editor wait handle: "+failure);
                 }
             }
             Console.SetOut(original);

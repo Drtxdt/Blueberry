@@ -21,6 +21,7 @@ namespace Blueberry.Direct {
         long closing;
         bool closeResolved, closeRestored;
         int disposed;
+        int waiters, eventDisposed;
         public string Error { get; private set; }
         internal bool ReaderStopped { get { return !reader.IsAlive; } }
 
@@ -59,7 +60,7 @@ namespace Blueberry.Direct {
             long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/2;
             while(Stopwatch.GetTimestamp()<deadline) {
                 lock(state) { if(ready) return true; if(stopped) return false; }
-                changed.WaitOne(10);
+                Wait(10);
             }
             Error="Companion Terminal handshake timed out";
             return false;
@@ -110,7 +111,7 @@ namespace Blueberry.Direct {
             long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/4;
             while(Stopwatch.GetTimestamp()<deadline) {
                 lock(state) { if(stopped || expected!=id) return false; if(resolved) return visible; }
-                changed.WaitOne(5);
+                Wait(5);
             }
             Close(); Error="Companion Terminal did not confirm menu submission";
             return false;
@@ -126,18 +127,28 @@ namespace Blueberry.Direct {
             long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/4;
             while(Stopwatch.GetTimestamp()<deadline) {
                 lock(state) { if(stopped || closing!=id) return false; if(closeResolved) return wasVisible && closeRestored; }
-                changed.WaitOne(5);
+                Wait(5);
             }
             Error="Companion Terminal did not confirm frame retirement";
             return false;
         }
         internal void Close() { bool ignored; Close(out ignored); }
+        void Wait(int milliseconds) {
+            Interlocked.Increment(ref waiters);
+            try { if(Volatile.Read(ref disposed)==0) changed.WaitOne(milliseconds); }
+            finally { Interlocked.Decrement(ref waiters); DisposeEventIfUnused(); }
+        }
+        void DisposeEventIfUnused() {
+            if(Volatile.Read(ref disposed)!=0 && !reader.IsAlive && Volatile.Read(ref waiters)==0
+                && Interlocked.Exchange(ref eventDisposed,1)==0) changed.Dispose();
+        }
         public void Dispose() {
             if(Interlocked.Exchange(ref disposed,1)!=0) return;
             lock(state) { stopped=true; visible=false; }
+            changed.Set();
             pipe.Dispose();
-            if(reader!=Thread.CurrentThread && reader.Join(2000)) changed.Dispose();
-            else if(reader!=Thread.CurrentThread) Error="Terminal acknowledgement reader did not stop";
+            if(reader!=Thread.CurrentThread && !reader.Join(2000)) Error="Terminal acknowledgement reader did not stop";
+            DisposeEventIfUnused();
             // A still-unwinding reader owns its event until process exit.
         }
     }

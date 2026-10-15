@@ -143,6 +143,10 @@ def check_frozen_report(report, commit, environment, label):
     for field in ("machine_id", "power_policy", "profile_sha256", "terminal_rows", "terminal_columns"):
         require(report.get(field) == environment.get(field), f"{label}: environment changed ({field})")
     require(report.get("trace") == "disabled", f"{label}: diagnostic trace enabled")
+    require(report.get("diagnostic_only") is not True, f"{label}: diagnostic probe cannot qualify")
+    if "probe_build_profile" in report:
+        require(report["probe_build_profile"] == "release" and report.get("probe_source_dirty") is False,
+                f"{label}: probe is not a frozen release build")
     require(report.get("os_cache_cleared") is False, f"{label}: OS cache state missing or changed")
 
 

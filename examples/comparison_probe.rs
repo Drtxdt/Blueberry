@@ -118,7 +118,7 @@ fn menu(screen: &str, query: &Query, style: &str) -> bool {
 fn wait(h: &mut Harness, predicate: impl Fn(&str) -> bool) -> Result<()> {
     let until = Instant::now() + TIMEOUT;
     loop {
-        if predicate(&h.viewport_contents()) {
+        if predicate(&h.observed_viewport()?) {
             return Ok(());
         }
         ensure!(Instant::now() < until, "timeout: {}", h.viewport_contents());
@@ -167,7 +167,7 @@ fn settle_prompt(h: &mut Harness) -> Result<()> {
             last = arrived;
             quiet_since = Instant::now();
         }
-        let screen = h.viewport_contents();
+        let screen = h.observed_viewport()?;
         if quiet_since.elapsed() >= Duration::from_millis(250)
             && prompt(&screen)
             && !screen.contains('│')
@@ -204,9 +204,15 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         &session.environment,
         String::new(),
     )?;
+    let started = h.observation_start(started);
+    result["native_observer"] = json!(h.native_observer_identity());
+    result["diagnostic_only"] = json!(h.diagnostic() || cfg!(debug_assertions));
+    result["probe_build_profile"] = json!(env!("BLUEBERRY_BUILD_PROFILE"));
+    result["probe_source_commit"] = json!(env!("BLUEBERRY_BUILD_COMMIT"));
+    result["probe_source_dirty"] = json!(env!("BLUEBERRY_BUILD_DIRTY") == "true");
     let run = (|| -> Result<()> {
         wait(&mut h, prompt)?;
-        let before = h.viewport_contents();
+        let before = h.observed_viewport()?;
         let prefix = before.lines().last().unwrap_or("").trim_end().to_owned();
         let key_start = Instant::now();
         h.send(b"g")?;
@@ -259,7 +265,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
             while Instant::now() < until {
                 let _ = h.pump(Duration::from_millis(25));
             }
-            if session.style == "inshellisense" && h.viewport_contents().contains('│') {
+            if session.style == "inshellisense" && h.observed_viewport()?.contains('│') {
                 h.send(b"\x1b")?;
                 // A comparator can leave old menu cells in the viewport.
                 // Do not treat those pixels as an active-menu handshake.
@@ -358,7 +364,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 "echo-only capability comparison is restricted to inshellisense"
             );
             ensure!(
-                !h.viewport_contents().contains(&query.line),
+                !h.observed_viewport()?.contains(&query.line),
                 "stale input before query"
             );
             let start = Instant::now();
@@ -369,7 +375,7 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
             let mut observations = Vec::new();
             let mut last_observed = None;
             loop {
-                let screen = h.viewport_contents();
+                let screen = h.observed_viewport()?;
                 if h.last_output_arrival().is_some_and(|at| at >= start) {
                     let at = ms(&h, start)?;
                     if echo.is_none() && input_echo(&screen, &query.line) {

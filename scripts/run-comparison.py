@@ -112,6 +112,12 @@ def run(options):
     assert build.get('allocation_diagnostics') is not True, 'Allocation diagnostics cannot qualify as comparison timing'
     assert not options.formal or (not build['dirty'] and build['default_host_mode'] == 'direct' and build['profile'] == 'release'), 'Unfrozen candidate'
     env = dict(os.environ, **plan['environment'])
+    native_plan = plan.get('native_observer')
+    if native_plan:
+        assert native_plan['abi_version'] == 1 and native_plan['interface_version'] == 4, 'Unsupported native observer contract'
+        assert sha(native_plan['dll']) == native_plan['sha256'].upper(), 'Native DLL identity mismatch'
+    if plan.get('candidate_terminal_restore') == 'native_overlay_v4':
+        assert native_plan and plan['environment'].get('BLUEBERRY_NATIVE_OVERLAY') == '4', 'Native candidate requires an explicit frozen native observer'
     env['GIT_OPTIONAL_LOCKS'] = '0'
     assert not any(env.get(name) not in (None, '', '0') for name in ('BLUEBERRY_DIRECT_TRACE', 'BLUEBERRY_TEST_FRAME_DELAY_MS', 'BLUEBERRY_TEST_DISABLE_PREJIT')), 'Diagnostic timing environment'
     profile_paths = json.loads(subprocess.check_output([plan['shell'], '-NoProfile', '-NonInteractive', '-Command',
@@ -132,6 +138,8 @@ def run(options):
     fixture_files = inventory([plan['fixtures']])
     write(out/'fixtures.json', fixture_files)
     frozen = inventory([__file__, options.plan, plan['probe'], plan['shell'], plan['original_editor']]+[v['program'] for v in plan['modes'].values()])
+    if native_plan:
+        frozen.extend(inventory([Path(native_plan['dll']).parent]))
     report = dict(schema=3, profile=plan['profile'], formal=options.formal, source_commit=build['commit'], source_dirty=build['dirty'],
         shell=plan['shell'], psreadline_version=plan['psreadline_version'], profile_mode='with_profile', profile_sha256=profile_hash.hexdigest().upper(),
         profile_inventory=profiles, machine_id=env['COMPUTERNAME'], power_policy=hashlib.sha256(subprocess.check_output(['powercfg.exe','/GETACTIVESCHEME'])).hexdigest().upper(),
@@ -141,6 +149,9 @@ def run(options):
         measurement_complete=False, performance_passed=None, performance_evaluation='separate_direct_matrix',
         observed_stages=dict(input_echo='probe_model', menu='first_expected_candidate_in_probe_model',
             complete_candidates='not_measured', screen_pixels='not_measured'), passed=False)
+    report['native_observer'] = None
+    if native_plan:
+        report['observed_stages'].update(input_echo='production_terminalcore_buffer', menu='first_expected_candidate_in_native_buffer')
     for mode, spec in plan['modes'].items():
         dependencies = inventory(spec['dependency_paths'])
         frozen.extend(dependencies)
@@ -163,6 +174,8 @@ def run(options):
         spec = plan['modes'][mode]
         data_dir.mkdir(parents=True, exist_ok=True)
         session_env = dict(plan['environment'], GIT_OPTIONAL_LOCKS='0')
+        if native_plan:
+            session_env.update(BLUEBERRY_NATIVE_MODEL_DLL=native_plan['dll'], BLUEBERRY_NATIVE_MODEL_SHA256=native_plan['sha256'])
         if mode == 'inshellisense':
             session_env['ISTERM'] = ''
         description = dict(program=spec['program'], args=[arg.replace('{data_dir}', str(data_dir)) for arg in spec['args']],
@@ -176,6 +189,17 @@ def run(options):
                 stdout=log,stderr=subprocess.STDOUT,timeout=120+25*len(queries))
         value = read(folder/'result.json')
         assert value.get('diagnostic_only') is not True, 'Diagnostic editor hooks cannot qualify as timing samples'
+        observed = value.get('native_observer')
+        if native_plan:
+            assert observed and observed['dll_sha256'].upper() == native_plan['sha256'].upper(), 'Native runtime DLL mismatch'
+            assert observed['abi_version'] == 1 and observed['companion_interface_version'] == 4, 'Native runtime ABI mismatch'
+            assert observed['backend'] == 'production_terminalcore_buffer' and observed['gui_renderer'] is False, 'Unexpected native observation stage'
+            if report['native_observer'] is None: report['native_observer'] = observed
+            assert report['native_observer'] == observed, 'Native observer changed within collection'
+        else:
+            assert observed is None, 'Unplanned native observer; collection invalid'
+        if mode == 'candidate' and plan.get('candidate_terminal_restore'):
+            assert value.get('adapter', {}).get('terminal_restore') == plan['candidate_terminal_restore'], 'Candidate used another restoration backend'
         runtime = value.get('probe_conpty', {})
         assert runtime.get('mode') == 'pinned' and runtime.get('sha256') == build['conpty']['sha256'] and runtime.get('files') == build['conpty']['files'], f'{name}: ConPTY identity mismatch'
         report.setdefault('probe_conpty', runtime)
@@ -221,6 +245,11 @@ def run(options):
             for key in ('source_commit', 'source_dirty', 'formal', 'profile', 'profile_sha256', 'power_policy',
                         'probe_sha256', 'collector_sha256', 'plan_sha256', 'fixture_sha256', 'frozen_sha256'):
                 assert capability.get(key) == report.get(key), f'Capability identity mismatch: {key}'
+            cap_native = capability.get('native_observer')
+            assert (cap_native is not None) == bool(native_plan), 'Capability observation backend mismatch'
+            if cap_native:
+                assert cap_native['dll_sha256'].upper() == native_plan['sha256'].upper(), 'Capability native DLL mismatch'
+            report['native_observer'] = cap_native
             unavailable = capability['unavailable']
             assert set(capability['capability_probes']) == set(CASES), 'Incomplete capability scenarios'
             for scenario, evidence in capability['capability_probes'].items():

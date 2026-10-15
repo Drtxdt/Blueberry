@@ -25,6 +25,16 @@ def statistics(value, count):
 
 
 class ReleaseEvidenceTests(unittest.TestCase):
+    def test_diagnostic_or_unfrozen_probe_cannot_qualify(self):
+        environment = dict(machine_id='machine', power_policy='balanced', profile_sha256='a', terminal_rows=30, terminal_columns=120)
+        report = dict(environment, source_commit='abc', source_dirty=False, trace='disabled', os_cache_cleared=False)
+        validator.check_frozen_report(report, 'abc', environment, 'fixture')
+        for fields in (dict(diagnostic_only=True), dict(probe_build_profile='debug', probe_source_dirty=False),
+                       dict(probe_build_profile='release', probe_source_dirty=True)):
+            with self.subTest(fields=fields), self.assertRaises(Exception):
+                validator.check_frozen_report(dict(report, **fields), 'abc', environment, 'fixture')
+        validator.check_frozen_report(dict(report, probe_build_profile='release', probe_source_dirty=False), 'abc', environment, 'fixture')
+
     def test_real_ci_artifact_layout_preserves_bytes_and_rejects_duplicates(self):
         workflow = (MODULE_PATH.parent.parent / '.github/workflows/release.yml').read_text(encoding='utf-8')
         section = workflow.split('name: Normalize the original CI artifact layout', 1)[1]
