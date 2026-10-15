@@ -1,8 +1,9 @@
 name: Windows Terminal native overlay prototype
 on:
   push:
-    branches: ['codex/v053-reliability-performance']
+    branches: ['codex/v053-reliability-performance', 'main']
     paths: ['experiments/wt-overlay/**', '.github/workflows/wt-overlay-prototype.yml']
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -92,7 +93,26 @@ jobs:
           if (!(Test-Path -LiteralPath $settingsModel)) { throw 'Unpackaged prototype layout incomplete' }
           New-Item -ItemType File -Path (Join-Path $layout '.portable') -Force | Out-Null
           Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $layout 'TERMINAL-LICENSE.txt')
-          'Independent Blueberry interface prototype. Not an official Microsoft release. Fixed MENU only. Do not install; portable settings remain beside this copy.' | Set-Content -Encoding utf8 (Join-Path $layout 'PROTOTYPE-README.txt')
+          'Independent Blueberry interface prototype. Not an official Microsoft release. Bounded Unicode/RGB menu frames; production acceptance incomplete. Portable settings remain beside this copy.' | Set-Content -Encoding utf8 (Join-Path $layout 'PROTOTYPE-README.txt')
+      - name: Diagnose hosted desktop stream and Win32 reply paths
+        # A hosted WinUI desktop may be unavailable. Preserve explicit failed
+        # receipts; this optional diagnostic never satisfies a release gate.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python experiments/wt-overlay/run-layout-diagnostics.py --layout terminal-prototype/bin/x64/Release/WindowsTerminal --output terminal-runtime-evidence
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wt-runtime-diagnostics-${{ github.sha }}
+          retention-days: 90
+          path: |
+            terminal-runtime-evidence/summary.json
+            terminal-runtime-evidence/stream/runtime.json
+            terminal-runtime-evidence/stream/launcher.log
+            terminal-runtime-evidence/records/runtime.json
+            terminal-runtime-evidence/records/launcher.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

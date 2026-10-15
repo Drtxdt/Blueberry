@@ -8,7 +8,8 @@
 class NativeOverlayFrame final
 {
 public:
-    static std::unique_ptr<TextBuffer> Parse(std::wstring_view hex, til::CoordType width, til::CoordType height)
+    static std::unique_ptr<TextBuffer> Parse(std::wstring_view hex, til::CoordType width, til::CoordType height,
+                                           const TextAttribute& initialAttributes)
     {
         if (width < 1 || width > 512 || height < 1 || height > 512 ||
             hex.empty() || hex.size() > 262144 || hex.size() % 4 != 0)
@@ -43,7 +44,9 @@ public:
         auto buffer = std::make_unique<TextBuffer>(til::size{ width, height }, TextAttribute{}, 0, false, nullptr);
         til::CoordType rowIndex = 0;
         til::CoordType column = 0;
-        TextAttribute attr{};
+        // Match ordinary VT: text before its first SGR inherits current state.
+        // The client includes each existing menu row's terminating SGR reset.
+        TextAttribute attr = initialAttributes;
         size_t pos = 0;
         while (pos < text.size())
         {
@@ -51,7 +54,6 @@ public:
             {
                 if (++rowIndex >= height) { return nullptr; }
                 column = 0;
-                attr = TextAttribute{};
                 ++pos;
                 continue;
             }
@@ -83,9 +85,16 @@ public:
                 for (size_t i = 0; i < codes.size(); ++i)
                 {
                     const auto code = codes[i];
-                    if (code == 0) { attr = TextAttribute{}; }
+                    if (code == 0)
+                    {
+                        // SGR 0 does not close OSC 8 or reset protection/marks.
+                        attr.SetDefaultForeground();
+                        attr.SetDefaultBackground();
+                        attr.SetDefaultUnderlineColor();
+                        attr.SetDefaultRenditionAttributes();
+                    }
                     else if (code == 1) { attr.SetIntense(true); }
-                    else if (code == 22) { attr.SetIntense(false); }
+                    else if (code == 22) { attr.SetIntense(false); attr.SetFaint(false); }
                     else if ((code == 38 || code == 48) && i + 4 < codes.size() && codes[i + 1] == 2)
                     {
                         const auto rgb = RGB(codes[i + 2], codes[i + 3], codes[i + 4]);

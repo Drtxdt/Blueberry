@@ -228,4 +228,36 @@ class NativeOverlayTests
         VERIFY_IS_TRUE(snapshot.RestoreBeforeResize(*overlaid, 14));
         Compare(*original, *overlaid);
     }
+    TEST_METHOD(NonzeroCoveredRowsRestoreTheirCompleteOriginalState)
+    {
+        auto original = Fixture();
+        auto overlaid = Fixture();
+        for (auto* buffer : { original.get(), overlaid.get() })
+        {
+            for (int y = 0; y < 3; ++y) { buffer->CopyRow(y, 60 + y, *buffer); }
+        }
+        NativeOverlaySnapshot snapshot{ *overlaid, 60, 63, 15 };
+        for (int y = 60; y < 63; ++y)
+        {
+            overlaid->GetMutableRowByOffset(y).Reset(TextAttribute{ 0x4f });
+            overlaid->GetMutableRowByOffset(y).ReplaceCharacters(0, 4, L"MENU");
+        }
+        VERIFY_IS_TRUE(snapshot.RestoreBeforeResize(*overlaid, 15));
+        Compare(*original, *overlaid);
+    }
+
+    TEST_METHOD(ChangedCustomLinkIdIsRejectedBeforeAnyRowWrite)
+    {
+        auto buffer = Fixture();
+        const auto id = buffer->GetRowByOffset(0).GetAttrByColumn(0).GetHyperlinkId();
+        const auto uri = buffer->GetHyperlinkUriFromId(id);
+        NativeOverlaySnapshot snapshot{ *buffer, 0, 3, 16 };
+        Cover(*buffer);
+        // Same numeric ID and URI, but the original custom-ID binding is lost.
+        // URI-only validation must not silently accept this as full restoration.
+        buffer->RemoveHyperlinkFromMap(id);
+        buffer->AddHyperlinkToMap(uri, id);
+        VERIFY_IS_FALSE(snapshot.RestoreBeforeResize(*buffer, 16));
+        VERIFY_IS_TRUE(buffer->GetRowByOffset(0).GetText().substr(0, 4) == L"MENU");
+    }
 };

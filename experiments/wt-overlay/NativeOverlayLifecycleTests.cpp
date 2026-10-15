@@ -178,6 +178,8 @@ class NativeOverlayLifecycleTests
         DummyRenderer renderer{ &term };
         term.Create({ 40, 12 }, 100, renderer);
         term.Write(L"original history\r\n$ ");
+        std::wstring reply;
+        term.SetWriteInputCallback([&](std::wstring_view text) { reply.assign(text); });
         term.Write(L"\x1b]7775;draw;51;0;1\x07");
         for (const auto& command : {
                  Frame(52, 0, 1, 20, L"\x1b[2J"),
@@ -189,10 +191,13 @@ class NativeOverlayLifecycleTests
                  std::wstring{ L"\x1b]7775;frame;52;0;1;20;zzzz\x07" } })
         {
             term.Write(command);
+            VERIFY_IS_TRUE(reply == L"\x1b]7775;frame;52;rejected\x07");
             VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"MENU");
         }
         term.Write(Frame(52, 0, 1, 20, L"GOOD"));
+        VERIFY_IS_TRUE(reply == L"\x1b]7775;frame;52;presented\x07");
         term.Write(Frame(51, 0, 1, 20, L"OLD"));
+        VERIFY_IS_TRUE(reply == L"\x1b]7775;frame;51;rejected\x07");
         term.Write(L"\x1b]7775;close;51\x07");
         VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"GOOD");
         term.Write(L"\x1b]7775;close;52\x07");
@@ -220,6 +225,38 @@ class NativeOverlayLifecycleTests
         reference.Write(output);
         overlaid.Write(output);
         overlaid.Write(L"\x1b]7775;close;53\x07");
+        Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
+    }
+
+    TEST_METHOD(FrameWithoutSgrInheritsTheExistingVtAttributes)
+    {
+        Terminal term{ Terminal::TestDummyMarker{} };
+        DummyRenderer renderer{ &term };
+        term.Create({ 40, 12 }, 100, renderer);
+        term.Write(L"history\r\n$ \x1b[38;2;12;34;56m\x1b]8;id=active;https://example.invalid/active\x1b\\");
+        const auto before = term.GetTextBuffer().GetCurrentAttributes();
+        term.Write(Frame(55, 0, 1, 20, L"plain\x1b[0m menu"));
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetAttrByColumn(0) == before);
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetCurrentAttributes() == before);
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetAttrByColumn(6).GetHyperlinkId() == before.GetHyperlinkId());
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetAttrByColumn(6).GetForeground() == TextAttribute{}.GetForeground());
+        term.Write(L"\x1b]7775;close;55\x07");
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 7) == L"history");
+    }
+
+    TEST_METHOD(ConnectionResetRestoresBeforeResettingNativeState)
+    {
+        Terminal reference{ Terminal::TestDummyMarker{} };
+        Terminal overlaid{ Terminal::TestDummyMarker{} };
+        DummyRenderer referenceRenderer{ &reference };
+        DummyRenderer overlayRenderer{ &overlaid };
+        reference.Create({ 40, 12 }, 100, referenceRenderer);
+        overlaid.Create({ 40, 12 }, 100, overlayRenderer);
+        reference.Write(L"\x1b[38;2;12;34;56mhistory\x1b[0m\r\n$ ");
+        overlaid.Write(L"\x1b[38;2;12;34;56mhistory\x1b[0m\r\n$ ");
+        overlaid.Write(Frame(54, 0, 1, 20, L"menu"));
+        reference.HardResetWithoutErase();
+        overlaid.HardResetWithoutErase();
         Compare(reference.GetTextBuffer(), overlaid.GetTextBuffer());
     }
 
