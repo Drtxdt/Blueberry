@@ -703,6 +703,7 @@ fn embed_legacy_json() {
 #[cfg(windows)]
 fn embed_direct_bridge() {
     println!("cargo:rerun-if-changed=shell/direct-bridge.cs");
+    println!("cargo:rerun-if-changed=shell/native-overlay.cs");
     println!("cargo:rerun-if-changed=shell/direct.ps1");
     let compiler = PathBuf::from(env::var_os("SystemRoot").expect("SystemRoot"))
         .join("Microsoft.NET/Framework64/v4.0.30319/csc.exe");
@@ -719,6 +720,11 @@ fn embed_direct_bridge() {
                 .expect("build directory")
                 .join("shell")
                 .join("direct-bridge.cs")
+                .to_string_lossy()
+                .into_owned(),
+            env::current_dir()
+                .expect("build directory")
+                .join("shell/native-overlay.cs")
                 .to_string_lossy()
                 .into_owned(),
         ])

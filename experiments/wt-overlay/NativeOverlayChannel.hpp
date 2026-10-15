@@ -66,7 +66,10 @@ private:
         _queueReady{ CreateEventW(nullptr, FALSE, FALSE, nullptr) }
     {
         THROW_LAST_ERROR_IF(!_stop || !_queueReady);
-        _queue.push_back("ready;3;" + std::string{ owner.begin(), owner.end() } + "\n");
+        std::string asciiOwner;
+        asciiOwner.reserve(owner.size());
+        for (const auto ch : owner) { asciiOwner.push_back(static_cast<char>(ch)); }
+        _queue.push_back("ready;3;" + asciiOwner + "\n");
         SetEvent(_queueReady.get());
         _worker = std::thread{ [this]() noexcept { Run(); } };
     }

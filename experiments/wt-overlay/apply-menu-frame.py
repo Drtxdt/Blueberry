@@ -70,14 +70,14 @@ assert text.count(anchor) == 1
 text = text.replace(anchor, '''            _connectionStateChangedRevoker = newConnection.StateChanged(winrt::auto_revoke, [this](auto&& /*s*/, auto&& /*v*/) {
                 // StateChanged can be synchronous with an input response under
                 // the terminal write lock. Retire on the dispatcher, not here.
-                _dispatcher.TryEnqueue(DispatcherQueuePriority::Normal, [weakThis = get_weak()]() try {
+                _dispatcher.TryEnqueue(DispatcherQueuePriority::Normal, [weakThis = get_weak()]() { try {
                     if (const auto self = weakThis.get(); self && !self->_IsClosing() &&
                         self->ConnectionState() >= TerminalConnection::ConnectionState::Closed)
                     {
                         const auto lock = self->_terminal->LockForWriting();
                         self->_terminal->BeforeNativeOverlayMutation();
                     }
-                } CATCH_LOG());
+                } CATCH_LOG() });
                 ConnectionStateChanged.raise(*this, nullptr);
             });''', 1)
 control.write_text(text, encoding='utf-8')

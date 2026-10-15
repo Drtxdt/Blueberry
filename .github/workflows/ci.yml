@@ -109,6 +109,10 @@ jobs:
       - name: Resource sampler initialization regression
         if: runner.os == 'Windows'
         run: python -m unittest discover -s tests -p 'test_resource*.py'
+      - name: Private Terminal acknowledgement channel / CLR and CoreCLR
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tests/native-overlay-client.tests.ps1 -OutputDirectory artifacts/native-overlay-client-tests
       - run: cargo run --locked -- --version
       - run: cargo run --locked -- specs check
       - name: Repeat concurrent favorites writers

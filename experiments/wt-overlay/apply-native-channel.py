@@ -97,12 +97,12 @@ replace('src/cascadia/TerminalControl/ControlCore.cpp', '''        _terminal->Se
             _pendingResponses.append(wstr);
         });
         _terminal->SetNativeOverlayClosedCallback([weakThis = get_weak(), dispatcher = _dispatcher](std::wstring owner) {
-            dispatcher.TryEnqueue(DispatcherQueuePriority::Normal, [weakThis, owner = std::move(owner)]() try {
+            dispatcher.TryEnqueue(DispatcherQueuePriority::Normal, [weakThis, owner = std::move(owner)]() { try {
                 if (const auto self = weakThis.get(); self && !self->_IsClosing())
                 {
                     const auto lock = self->_terminal->LockForWriting();
                     self->_terminal->RetireNativeOverlayChannel(owner);
                 }
-            } CATCH_LOG());
+            } CATCH_LOG() });
         });''')
 print('Applied owner/PID-bound event-driven native acknowledgement channel')

@@ -105,6 +105,13 @@ CI 另以全新便携副本运行流读取及 `ReadConsoleInputW` 诊断，判�
 有界，关闭取消并等待线程退出；EOF 经 UI 调度队列恢复，旧 owner 的迟到
 关闭不能清除新会话。此变更尚待原生编译和真实便携 GUI 验证，不计作接入完成。
 
+direct 桥接的内部 `BLUEBERRY_NATIVE_OVERLAY=3` 接入只供专用便携配置验证，
+还必须握手成功才启用。菜单绑定原有布局及可见帧身份，确认提交后才允许接受；
+历史恢复交给原生接口，既有 CHAR_INFO／后台页恢复不会在此路径执行。客户端
+的真实本地管道回归已在 CLR 4 和 PS7 CoreCLR 通过，服务端暂由测试替身回复；
+这不代表真实 GUI、nested、缩放、性能或最终包验收通过。记录见
+`docs/benchmarks/v0.6/native-channel-client-20261015.json`。
+
 旧 Rust 构建缓存已按用户要求删除 12 个中间目录，约 6.47 GiB。历史 ZIP、
 EXE、探针、原始测量及 Git 历史保留，清理清单见
 `docs/benchmarks/v0.6/build-cache-cleanup-20261014.json`。

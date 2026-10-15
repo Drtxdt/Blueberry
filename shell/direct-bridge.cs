@@ -28,6 +28,8 @@ namespace Blueberry.Direct {
         static ReplaceText replace;
         static Action<ConsoleKeyInfo?, object> selfInsert;
         static NamedPipeClientStream pipe;
+        static NativeOverlay nativeOverlay;
+        static bool nativeFrameEligible;
         static readonly object writeLock = new object(), frameLock = new object();
         static readonly AutoResetEvent arrived = new AutoResetEvent(false);
         static Dictionary<string, object> pending, displayed;
@@ -194,6 +196,17 @@ namespace Blueberry.Direct {
             }
             pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
             pipe.Connect(5000); connected = true;
+            // Only the companion's dedicated profile opts into this internal
+            // interface. An environment hint alone is never proof of support.
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_NATIVE_OVERLAY")=="3") {
+                try {
+                    nativeOverlay=new NativeOverlay();
+                    if(!nativeOverlay.Connect()) throw new NotSupportedException(nativeOverlay.Error);
+                } catch(Exception error) {
+                    if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; }
+                    Disable("companion Terminal unavailable: "+error.GetBaseException().Message);
+                }
+            }
             new Thread(ReadFrames) { IsBackground = true, Name = "Blueberry frame receiver" }.Start();
             Send(new Dictionary<string, object> {
                 {"event", "hello"}, {"protocol", 1}, {"host_mode", "direct"}, {"transport", "pipe"},
@@ -203,7 +216,7 @@ namespace Blueberry.Direct {
                 {"editor_patch", EditorHooks ? (string)api.GetProperty("EditorIntegrationPatch").GetValue(null, null) : null},
                 {"editor_dll_sha256", editorHash}, {"editor_fallback_reason", editorFallbackReason},
                 {"shell_version", shellVersion},
-                {"terminal_restore", terminalPages ? "windows_terminal_pages" : "legacy_cells"},
+                {"terminal_restore", nativeOverlay!=null ? "native_overlay_v3" : terminalPages ? "windows_terminal_pages" : "legacy_cells"},
                 {"capabilities", new object[] {"revision", "frame_identity", "accept_identity", "utf16_edit"}}
             });
             long handshakeDeadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency*5;
@@ -672,6 +685,7 @@ namespace Blueberry.Direct {
         }
         static void Accept() {
             var frame = displayed; displayed = null;
+            if(nativeOverlay!=null && !nativeFrameEligible) return;
             string line; int cursor; buffer(out line, out cursor);
             if (frame == null || Json.Long(frame, "revision") != revision) return;
             acceptingFrame = frame;
@@ -817,7 +831,7 @@ namespace Blueberry.Direct {
             connected = false; arrived.Set();
             if (EditorHooks) requestEditorRefresh(); else Events.Raise();
         }
-        public static void Shutdown() { if(editing) End(); connected = false; if(editorRegistration!=null) { editorRegistration.Dispose(); editorRegistration=null; } if (pipe != null) pipe.Dispose(); if(responseTimer!=IntPtr.Zero) { CloseHandle(responseTimer); responseTimer=IntPtr.Zero; } }
+        public static void Shutdown() { if(editing) End(); connected = false; if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; } if(editorRegistration!=null) { editorRegistration.Dispose(); editorRegistration=null; } if (pipe != null) pipe.Dispose(); if(responseTimer!=IntPtr.Zero) { CloseHandle(responseTimer); responseTimer=IntPtr.Zero; } }
 
         [StructLayout(LayoutKind.Sequential)] struct Coord { public short X, Y; public Coord(int x, int y) { X=(short)x; Y=(short)y; } }
         [StructLayout(LayoutKind.Sequential)] struct Rect { public short Left, Top, Right, Bottom; }
@@ -915,6 +929,10 @@ namespace Blueberry.Direct {
             // Never clip a rendered page: that could hide the selected item.
             if (height<=0 || height>layout.Available || width<=0 || width>=layout.Width) return false;
             int top=layout.Below>=height ? layout.Last+1 : layout.First-height;
+            if(nativeOverlay!=null) {
+                nativeFrameEligible=nativeOverlay.Paint(lines,top-info.Window.Top,width);
+                return nativeFrameEligible;
+            }
             // Preserve exactly the painted rectangle. Touching the last
             // column of every row would introduce soft wraps in ConPTY.
             region = new Rect { Left=info.Window.Left, Right=(short)(info.Window.Left+width-1), Top=(short)top, Bottom=(short)(top+height-1) };
@@ -956,6 +974,12 @@ namespace Blueberry.Direct {
             return true;
         }
         static void Clear() {
+            if(nativeOverlay!=null) {
+                bool hadFrame;
+                bool wasVisible=nativeOverlay.Close(out hadFrame);
+                if(hadFrame) nativeFrameEligible=wasVisible;
+                return;
+            }
             if (covered == null) return;
             var cells = covered; covered = null;
             var viewport=savedViewport; savedViewport=null;

@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "kind": "client transport regression, not final package acceptance",
+  "runtime_input_probe": {
+    "artifact_id": 11903706513,
+    "zip_sha256": "A7F231EF9859EAF592819CBB6CD98AC720D1B0034B62096DBD27953EF7FDBF24",
+    "report": "artifacts/wt-overlay-prototype/runtime-win32-033-20261015/runtime.json",
+    "input_kind": "ReadConsoleInputW",
+    "supported": true,
+    "terminal_exit_code": 0,
+    "all_history_properties_acceptance": false
+  },
+  "client_transport_regression": {
+    "entry": "tests/native-overlay-client.tests.ps1",
+    "passed_runtimes": ["CLR 4 executable", "PowerShell 7 CoreCLR assembly invocation"],
+    "transport": "real current-user-only local named pipes with simulated Terminal replies",
+    "cases": ["unconnected reader cancellation", "owner-bound ready", "confirmed submission", "rejected submission", "stale acknowledgement", "retired frame", "pipe EOF", "pre-key eligibility", "duplicate close"],
+    "terminal_core_integration_proven_by_this_test": false,
+    "console_input_read_or_modified": false
+  },
+  "unpassed_ci_preserved": [
+    {"run_id": 38659046816, "stage": "portable GUI compile", "reason": "Lambda function try-block syntax; replaced with try inside lambda body", "release_eligible": false},
+    {"run_id": 38659485652, "stage": "TerminalCore compile", "reason": "Warnings-as-errors rejected implicit wchar_t to char conversion of validated ASCII owner; made conversion explicit", "release_eligible": false}
+  ],
+  "direct_integration": "Internal companion opt-in plus actual handshake; pending native GUI end-to-end validation",
+  "nested_integration": "not implemented",
+  "performance_acceptance": "not executed for native interface",
+  "release_blocked": true
+}

@@ -11,11 +11,14 @@ import uuid
 import zipfile
 
 EXPECTED_ZIP = "aa983ff4b99953133d967fd157edad5fa1dc55336f8e42a7e0301b6162ae8335"
+KNOWN_ZIPS = {EXPECTED_ZIP: 'd2351fb',
+              'a7f231ef9859eaf592819cbb6cd98ac720d1b0034b62096dbd27953ef7fdbf24': '033f6d3'}
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--zip", type=Path, required=True)
+    parser.add_argument("--input-kind", choices=('stream', 'records'), default='stream')
     parser.add_argument("--output", type=Path, required=True,
                         help="New dedicated directory, including portable layout and evidence")
     args = parser.parse_args()
@@ -25,7 +28,8 @@ def main():
     root = args.output.resolve()
     if root.exists():
         raise SystemExit("Refusing to reuse or overwrite a runtime directory")
-    if hashlib.sha256(archive.read_bytes()).hexdigest() != EXPECTED_ZIP:
+    actual_zip = hashlib.sha256(archive.read_bytes()).hexdigest()
+    if actual_zip not in KNOWN_ZIPS:
         raise SystemExit("Prototype ZIP identity mismatch")
     # Validate the whole inventory before creating/extracting a directory.
     with zipfile.ZipFile(archive) as z:
@@ -50,9 +54,9 @@ def main():
     settings = layout / "settings"
     settings.mkdir()  # Existing settings in the archive must not be silently reused.
     output = root / "runtime.json"
-    probe = Path(__file__).with_name("probe-runtime.py").resolve(strict=True)
+    probe = Path(__file__).with_name("probe-runtime.py" if args.input_kind == 'stream' else 'probe-win32-reply.py').resolve(strict=True)
     profile = "{" + str(uuid.uuid4()) + "}"
-    command = subprocess.list2cmdline([sys.executable, str(probe), "--output", str(output)])
+    command = subprocess.list2cmdline([sys.executable, str(probe)] + (["--output"] if args.input_kind == 'stream' else []) + [str(output)])
     config = {"defaultProfile": profile, "firstWindowPreference": "defaultProfile",
               "initialCols": 100, "initialRows": 24,
               "disabledProfileSources": ["Windows.Terminal.PowershellCore",
@@ -64,7 +68,8 @@ def main():
     startup = subprocess.STARTUPINFO()
     startup.dwFlags = subprocess.STARTF_USESHOWWINDOW
     startup.wShowWindow = 0
-    receipt = {"schema": 1, "diagnostic_only": True, "zip_sha256": EXPECTED_ZIP,
+    receipt = {"schema": 1, "diagnostic_only": True, "zip_sha256": actual_zip,
+               "prototype_commit": KNOWN_ZIPS[actual_zip], "input_kind": args.input_kind,
                "executable": str(executable),
                "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
                "probe_sha256": hashlib.sha256(probe.read_bytes()).hexdigest(),
@@ -100,8 +105,8 @@ def main():
     result = receipt.get("result", {})
     print(json.dumps({"supported": result.get("supported", False), "evidence": str(output),
                       "error": result.get("error", receipt.get("error"))}, ensure_ascii=False))
-    return 0 if (result.get("supported") and result.get("reader_cleaned_up")
-                 and result.get("console_modes_restored") and receipt.get("exit_code") == 0) else 1
+    clean = (result.get("reader_cleaned_up") and result.get("console_modes_restored")) if args.input_kind == 'stream' else result.get("output_mode_restored")
+    return 0 if result.get("supported") and clean and receipt.get("exit_code") == 0 else 1
 
 
 if __name__ == "__main__":
