@@ -29,16 +29,26 @@ def main():
     output.mkdir(parents=True)
     summary = {"schema": 1, "diagnostic_only": True, "installed_terminal_modified": False,
                "pixel_visibility_measured": False, "results": [], "passed": False}
-    for kind in ("stream", "records"):
+    for kind in ("stream", "records", "native_menu"):
         root = output / kind
         copy = root / "terminal"
         shutil.copytree(layout, copy)
         settings = copy / "settings"
         settings.mkdir()
         receipt = root / "runtime.json"
-        probe = Path(__file__).with_name("probe-runtime.py" if kind == "stream" else "probe-win32-reply.py").resolve()
-        args = [sys.executable, str(probe)]
-        args += ["--output", str(receipt)] if kind == "stream" else [str(receipt)]
+        probe = Path(__file__).with_name("probe-runtime.py" if kind == "stream" else "probe-win32-reply.py" if kind == "records" else "probe-native-menu.cs").resolve()
+        if kind == 'native_menu':
+            executable = root/'native-menu-probe.exe'
+            repository = Path(__file__).resolve().parents[2]
+            import os
+            compiler = Path(os.environ['SystemRoot'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+            subprocess.run([str(compiler), '/nologo', '/target:exe', '/optimize+', '/codepage:65001',
+                            '/out:'+str(executable), '/reference:System.Core.dll', str(probe),
+                            str(repository/'shell/direct-bridge.cs'), str(repository/'shell/native-overlay.cs')], check=True)
+            args = [str(executable), str(receipt)]
+        else:
+            args = [sys.executable, str(probe)]
+            args += ["--output", str(receipt)] if kind == "stream" else [str(receipt)]
         profile = "{" + str(uuid.uuid4()) + "}"
         config = {"defaultProfile": profile, "firstWindowPreference": "defaultProfile",
                   "profiles": {"defaults": {"closeOnExit": "always"}, "list": [

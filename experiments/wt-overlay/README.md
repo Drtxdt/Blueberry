@@ -112,6 +112,11 @@ direct 桥接的内部 `BLUEBERRY_NATIVE_OVERLAY=3` 接入只供专用便携配�
 这不代表真实 GUI、nested、缩放、性能或最终包验收通过。记录见
 `docs/benchmarks/v0.6/native-channel-client-20261015.json`。
 
+原生私有帧另带 `left`，为 nested 保留现有水平菜单位置准备；旧实验版本 2
+的零列帧仍保持原格式。`probe-native-menu.cs` 用实际 C# 客户端向独立 GUI
+提交两份 Unicode/RGB 菜单并确认退场。它不读取键盘，也不把提交确认当作像素
+可见或全部历史属性已验证；托管桌面的失败仍单独保留。
+
 旧 Rust 构建缓存已按用户要求删除 12 个中间目录，约 6.47 GiB。历史 ZIP、
 EXE、探针、原始测量及 Git 历史保留，清理清单见
 `docs/benchmarks/v0.6/build-cache-cleanup-20261014.json`。

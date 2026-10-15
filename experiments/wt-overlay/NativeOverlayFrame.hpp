@@ -125,19 +125,19 @@ public:
         return buffer;
     }
 
-    static void Paint(const TextBuffer& frame, TextBuffer& target, til::CoordType top)
+    static void Paint(const TextBuffer& frame, TextBuffer& target, til::CoordType top, til::CoordType left = 0)
     {
         const auto width = frame.GetSize().Width();
         for (til::CoordType y = 0; y < frame.GetSize().Height(); ++y)
         {
             const auto& src = frame.GetRowByOffset(y);
             auto& dst = target.GetMutableRowByOffset(top + y);
-            RowCopyTextFromState text{ .source = src, .columnBegin = 0, .columnLimit = width,
+            RowCopyTextFromState text{ .source = src, .columnBegin = left, .columnLimit = left + width,
                                       .sourceColumnBegin = 0, .sourceColumnLimit = width };
             dst.CopyTextFrom(text);
             for (til::CoordType x = 0; x < width; ++x)
             {
-                dst.ReplaceAttributes(x, x + 1, src.GetAttrByColumn(x));
+                dst.ReplaceAttributes(left + x, left + x + 1, src.GetAttrByColumn(x));
             }
         }
         target.TriggerRedrawAll();

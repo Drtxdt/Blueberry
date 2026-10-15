@@ -284,11 +284,12 @@ class NativeOverlayLifecycleTests
         VERIFY_IS_TRUE(ReadPipe(server.get()) == "ready;3;18fbcb598bcd41e4934c892bf39d8536\n");
         auto frame = Frame(61, 0, 1, 20, L"menu");
         frame.replace(frame.find(L"frame;"), 6, std::wstring{ L"native-frame;" } + owner + L";");
+        frame.replace(frame.find(L";0;1;20;"), 8, L";0;3;1;20;");
         term.Write(frame);
         VERIFY_IS_TRUE(ReadPipe(server.get()) == "frame;61;presented\n");
         VERIFY_IS_TRUE(input.empty());
         term.Write(L"\x1b]7775;native-close;00000000000000000000000000000000;61\x07");
-        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(0, 4) == L"menu");
+        VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(3, 4) == L"menu");
         server.reset();
         for (int attempt = 0; attempt < 200 && !closed.load(); ++attempt) { Sleep(10); }
         VERIFY_IS_TRUE(closed.load());

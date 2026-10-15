@@ -20,6 +20,7 @@ assert not header.exists()
 shutil.copyfile(Path(__file__).with_name(header.name), header)
 terminal_h = 'src/cascadia/TerminalCore/Terminal.hpp'
 terminal_cpp = 'src/cascadia/TerminalCore/Terminal.cpp'
+replace(terminal_cpp, '    if (command.size() > 262240)', '    if (command.size() > 262400)')
 replace(terminal_h, '#include "../../buffer/out/NativeOverlaySnapshot.hpp"',
         '#include "../../buffer/out/NativeOverlaySnapshot.hpp"\n#include "NativeOverlayChannel.hpp"')
 replace(terminal_h, '    void NativeOverlayPrototype(std::wstring_view command) override;', '''    void NativeOverlayPrototype(std::wstring_view command) override;
@@ -29,6 +30,7 @@ replace(terminal_h, '    uint64_t _nativeOverlayGeneration{};', '''    uint64_t 
     std::unique_ptr<NativeOverlayChannel> _nativeOverlayChannel;
     std::function<void(std::wstring)> _nativeOverlayClosed;''')
 replace(terminal_cpp, '    if (parts.size() == 6 && parts[0] == L"frame")', '''    bool privateFrame = false;
+    std::optional<uint64_t> nativeLeft{ 0 };
     if (parts.size() == 3 && parts[0] == L"channel")
     {
         if (const auto pid = number(parts[1]); pid && *pid <= MAXDWORD)
@@ -51,14 +53,26 @@ replace(terminal_cpp, '    if (parts.size() == 6 && parts[0] == L"frame")', ''' 
         if (!_nativeOverlayChannel || !_nativeOverlayChannel->Connected() ||
             parts[1] != _nativeOverlayChannel->Owner()) { return; }
         privateFrame = parts[0] == L"native-frame";
+        if (parts.size() != (privateFrame ? 8u : 3u)) { return; }
         parts[0] = privateFrame ? L"frame" : L"close";
         parts.erase(parts.begin() + 1);
+        if (privateFrame)
+        {
+            nativeLeft = number(parts[3]);
+            parts.erase(parts.begin() + 3);
+        }
     }
     else if (_nativeOverlayChannel && (parts[0] == L"frame" || parts[0] == L"close" || parts[0] == L"draw"))
     {
         return;
     }
     if (parts.size() == 6 && parts[0] == L"frame")''')
+replace(terminal_cpp, '''        if (generation && top && height && width && *height > 0 && *height <= 512 &&''',
+        '''        if (generation && top && height && width && nativeLeft &&
+            *nativeLeft < static_cast<uint64_t>(_mutableViewport.Width()) &&
+            *width < static_cast<uint64_t>(_mutableViewport.Width()) - *nativeLeft && *height > 0 && *height <= 512 &&''')
+replace(terminal_cpp, 'NativeOverlayFrame::Paint(*frame, *_mainBuffer, begin);',
+        'NativeOverlayFrame::Paint(*frame, *_mainBuffer, begin, static_cast<til::CoordType>(*nativeLeft));')
 replace(terminal_cpp, '''            ReturnResponse(L"\\x1b]7775;frame;" + std::to_wstring(*generation) +
                            (presented ? L";presented\\x07" : L";rejected\\x07"));''', '''            if (privateFrame)
             {

@@ -97,7 +97,7 @@ namespace Blueberry.Direct {
             for(int i=0;i<text.Length;i++) { int c=text[i]; for(int n=0;n<4;n++) hex[i*4+n]=digits[(c>>(12-4*n))&15]; }
             long id;
             lock(state) { if(!ready || stopped) return false; id=++generation; expected=id; visible=false; resolved=false; }
-            Console.Write("\x1b]7775;native-frame;"+owner+";"+id+";"+top+";"+lines.Count+";"+width+";"+new string(hex)+"\x07");
+            Console.Write("\x1b]7775;native-frame;"+owner+";"+id+";"+top+";0;"+lines.Count+";"+width+";"+new string(hex)+"\x07");
             long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/4;
             while(Stopwatch.GetTimestamp()<deadline) {
                 lock(state) { if(stopped || expected!=id) return false; if(resolved) return visible; }
