@@ -830,9 +830,13 @@ namespace Blueberry.Direct {
                 }
             } catch { }
             connected = false; arrived.Set();
+            // Closing this independent channel retires a native overlay even
+            // when the editor thread cannot service the bridge-EOF refresh.
+            var native=nativeOverlay;
+            if(native!=null) native.Dispose();
             if (EditorHooks) requestEditorRefresh(); else Events.Raise();
         }
-        public static void Shutdown() { if(editing) End(); connected = false; if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; } if(editorRegistration!=null) { editorRegistration.Dispose(); editorRegistration=null; } if (pipe != null) pipe.Dispose(); if(responseTimer!=IntPtr.Zero) { CloseHandle(responseTimer); responseTimer=IntPtr.Zero; } }
+        public static void Shutdown() { try { if(editing) End(); } finally { connected = false; if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; } if(editorRegistration!=null) { editorRegistration.Dispose(); editorRegistration=null; } if (pipe != null) pipe.Dispose(); if(responseTimer!=IntPtr.Zero) { CloseHandle(responseTimer); responseTimer=IntPtr.Zero; } } }
 
         [StructLayout(LayoutKind.Sequential)] struct Coord { public short X, Y; public Coord(int x, int y) { X=(short)x; Y=(short)y; } }
         [StructLayout(LayoutKind.Sequential)] struct Rect { public short Left, Top, Right, Bottom; }

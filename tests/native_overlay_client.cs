@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Text;
+using System.Reflection;
+using System.Threading;
 using Blueberry.Direct;
 
 class NativeOverlayClientTests {
@@ -37,11 +39,33 @@ class NativeOverlayClientTests {
         protected override void Dispose(bool disposing) { Disconnect(); base.Dispose(disposing); }
     }
     static void Check(bool condition,string message) { if(!condition) throw new Exception(message); }
+    static void BridgeEof(NativeOverlay overlay) {
+        string name="blueberry-test-eof-"+Guid.NewGuid().ToString("N");
+        using(var server=new NamedPipeServerStream(name,PipeDirection.InOut,1,PipeTransmissionMode.Byte,PipeOptions.Asynchronous))
+        using(var client=new NamedPipeClientStream(".",name,PipeDirection.InOut)) {
+            var waiting=server.BeginWaitForConnection(null,null);
+            client.Connect(1000); server.EndWaitForConnection(waiting);
+            const BindingFlags flags=BindingFlags.Static|BindingFlags.NonPublic;
+            Type bridge=typeof(Bridge);
+            bridge.GetField("nativeOverlay",flags).SetValue(null,overlay);
+            bridge.GetField("pipe",flags).SetValue(null,client);
+            bridge.GetField("connected",flags).SetValue(null,true);
+            var worker=new Thread(delegate() { bridge.GetMethod("ReadFrames",flags).Invoke(null,null); }) { IsBackground=true };
+            worker.Start();
+            server.Dispose();
+            Check(worker.Join(3000),"Bridge EOF worker did not terminate");
+            Check(overlay.ReaderStopped,"Bridge EOF left native channel alive without editor refresh");
+            bridge.GetField("nativeOverlay",flags).SetValue(null,null);
+            bridge.GetField("pipe",flags).SetValue(null,null);
+        }
+    }
     public static int Main() {
         var original=Console.Out;
         try {
             var timer=Stopwatch.StartNew();
-            using(var unconnected=new NativeOverlay()) { }
+            var unconnected=new NativeOverlay();
+            unconnected.Dispose();
+            Check(unconnected.ReaderStopped,"Unconnected reader survived disposal");
             Check(timer.ElapsedMilliseconds<2500,"Unconnected reader did not cancel promptly");
             using(var terminal=new Terminal()) {
                 Console.SetOut(terminal);
@@ -67,6 +91,16 @@ class NativeOverlayClientTests {
                     terminal.Disconnect();
                     System.Threading.Thread.Sleep(25);
                     Check(!overlay.Paint(lines,0,20),"Disconnected channel accepted a frame");
+                    overlay.Dispose();
+                    Check(overlay.ReaderStopped,"Connected reader survived disposal");
+                }
+            }
+            using(var terminal=new Terminal()) {
+                Console.SetOut(terminal);
+                using(var overlay=new NativeOverlay()) {
+                    Check(overlay.Connect(),"Bridge EOF setup handshake failed");
+                    Check(overlay.Paint(new List<object>{"menu"},0,20),"Bridge EOF setup frame failed");
+                    BridgeEof(overlay);
                 }
             }
             Console.SetOut(original);

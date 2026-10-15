@@ -96,6 +96,7 @@ jobs:
           New-Item -ItemType File -Path (Join-Path $layout '.portable') -Force | Out-Null
           Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $layout 'TERMINAL-LICENSE.txt')
           Copy-Item -LiteralPath (Join-Path $root 'NOTICE.md') -Destination (Join-Path $layout 'TERMINAL-THIRD-PARTY-NOTICES.md')
+          Copy-Item -LiteralPath (Join-Path $root '..\LICENSE') -Destination (Join-Path $layout 'BLUEBERRY-PATCH-LICENSE.txt')
           'Independent Blueberry interface prototype. Not an official Microsoft release. Bounded Unicode/RGB menu frames; production acceptance incomplete. Portable settings remain beside this copy.' | Set-Content -Encoding utf8 (Join-Path $layout 'PROTOTYPE-README.txt')
       - name: Diagnose hosted desktop stream and Win32 reply paths
         # A hosted WinUI desktop may be unavailable. Preserve explicit failed

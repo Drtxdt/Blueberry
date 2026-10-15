@@ -20,7 +20,9 @@ namespace Blueberry.Direct {
         long generation, expected;
         long closing;
         bool closeResolved, closeRestored;
+        int disposed;
         public string Error { get; private set; }
+        internal bool ReaderStopped { get { return !reader.IsAlive; } }
 
         [StructLayout(LayoutKind.Sequential)] struct SecurityAttributes {
             public int Length; public IntPtr Descriptor; public int Inherit;
@@ -131,9 +133,11 @@ namespace Blueberry.Direct {
         }
         internal void Close() { bool ignored; Close(out ignored); }
         public void Dispose() {
+            if(Interlocked.Exchange(ref disposed,1)!=0) return;
             lock(state) { stopped=true; visible=false; }
             pipe.Dispose();
             if(reader!=Thread.CurrentThread && reader.Join(2000)) changed.Dispose();
+            else if(reader!=Thread.CurrentThread) Error="Terminal acknowledgement reader did not stop";
             // A still-unwinding reader owns its event until process exit.
         }
     }

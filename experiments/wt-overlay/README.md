@@ -121,6 +121,10 @@ direct 桥接的内部 `BLUEBERRY_NATIVE_OVERLAY=3` 接入只供专用便携配�
 终端确认当时确实存在该帧时才保留接受资格；即使退场通知的读取线程延迟，
 缩放或滚动已退掉的帧也不能被 Tab 接受。客户端等待有界，未确认时不接受。
 
+桥接接收 EOF 立即关闭独立原生通道，不依赖 UI 刷新。真实桥接接收函数的
+断开回归已在 CLR 4／CoreCLR 验证读线程退出；重复清理幂等，Shutdown 即使
+End 抛错也会进入清理。实际 GUI 的 EOF 历史恢复仍需与原生服务端一起验收。
+
 旧 Rust 构建缓存已按用户要求删除 12 个中间目录，约 6.47 GiB。历史 ZIP、
 EXE、探针、原始测量及 Git 历史保留，清理清单见
 `docs/benchmarks/v0.6/build-cache-cleanup-20261014.json`。

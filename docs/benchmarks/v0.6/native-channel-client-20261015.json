@@ -14,7 +14,7 @@
     "entry": "tests/native-overlay-client.tests.ps1",
     "passed_runtimes": ["CLR 4 executable", "PowerShell 7 CoreCLR assembly invocation"],
     "transport": "real current-user-only local named pipes with simulated Terminal replies",
-    "cases": ["unconnected reader cancellation", "owner-bound ready", "confirmed submission", "rejected submission", "stale acknowledgement", "retired frame", "pipe EOF", "pre-key eligibility", "duplicate close"],
+    "cases": ["unconnected reader cancellation and thread exit", "owner-bound ready", "confirmed submission", "rejected submission", "stale acknowledgement", "retired frame", "pipe EOF and reader exit", "pre-key eligibility", "duplicate close", "absent frame before retirement notification", "actual bridge receiver EOF without editor refresh"],
     "terminal_core_integration_proven_by_this_test": false,
     "console_input_read_or_modified": false
   },
