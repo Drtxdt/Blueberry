@@ -54,6 +54,16 @@ replace(terminal_cpp, '    if (parts.size() == 6 && parts[0] == L"frame")', ''' 
             parts[1] != _nativeOverlayChannel->Owner()) { return; }
         privateFrame = parts[0] == L"native-frame";
         if (parts.size() != (privateFrame ? 8u : 3u)) { return; }
+        if (!privateFrame)
+        {
+            if (const auto generation = number(parts[2]))
+            {
+                const auto restored = EndNativeOverlayPrototype(*generation);
+                _nativeOverlayChannel->Send("closed;" + std::to_string(*generation) +
+                    (restored ? ";restored\\n" : ";absent\\n"));
+            }
+            return;
+        }
         parts[0] = privateFrame ? L"frame" : L"close";
         parts.erase(parts.begin() + 1);
         if (privateFrame)

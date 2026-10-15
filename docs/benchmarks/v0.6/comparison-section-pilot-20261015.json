@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "kind": "real bounded-section preflight",
+  "status": "passed",
+  "formal": false,
+  "full_matrix_complete": false,
+  "collector_sha256": "DB60A47D272B40493A52D5A73B7A56BDA64D9AD11FEF7DF46C632466100B01C8",
+  "probe_sha256": "B6A6985F2C58BAF9C8BBD77895041D5F9223158955E960A353A28DC4AB05B75B",
+  "baseline_source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+  "cross_tool_call_lifetime_verified": true,
+  "detached_lifetime_verified": false,
+  "sections": [
+    {
+      "section": "capability",
+      "report": "artifacts/cb5-1015/capability/comparison.json",
+      "sha256": "BF687982E90C6232808793357A583C211606915E1FCC8A38614B4E156B4A898E",
+      "exit_code": 0,
+      "unavailable_scenarios": [
+        "cargo",
+        "fuzzy",
+        "root"
+      ]
+    },
+    {
+      "section": "startup",
+      "report": "artifacts/cb5-1015/startup/comparison.json",
+      "sha256": "92FE05336F2BA5BE74224069BC18EFFD16007A3B1218B42FC695FFFA4E0B013E",
+      "exit_code": 0,
+      "startup_pairs": 2
+    },
+    {
+      "section": "hot",
+      "report": "artifacts/cb5-1015/hot/comparison.json",
+      "sha256": "2FA06E564FF7CDE88EB0B24E54D2E475F0AA3100EF433BEF670468DAD6784228",
+      "exit_code": 0,
+      "samples_per_mode_per_cache": 10,
+      "scenario": "root"
+    }
+  ],
+  "performance_gate_evaluated": false,
+  "native_overlay_path_measured": false
+}

@@ -2,9 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using Blueberry.Direct;
 
 class NativeMenuRuntimeProbe {
+    [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int kind);
+    [DllImport("kernel32.dll")] static extern bool GetConsoleMode(IntPtr handle, out uint mode);
+    [DllImport("kernel32.dll")] static extern bool SetConsoleMode(IntPtr handle, uint mode);
     static int Main(string[] args) {
         string path=Path.GetFullPath(args[0]);
         if(File.Exists(path)) throw new IOException("Refusing to overwrite native runtime evidence");
@@ -13,7 +17,11 @@ class NativeMenuRuntimeProbe {
             {"pixel_visibility_measured",false},{"all_history_attributes_verified",false},
             {"input_stream_read_or_modified",false},{"error",null}
         };
+        IntPtr output=GetStdHandle(-11); uint originalMode=0; bool changed=false;
         try {
+            if(!GetConsoleMode(output,out originalMode) || !SetConsoleMode(output,originalMode|4))
+                throw new IOException("Cannot enable VT in dedicated probe console");
+            changed=true;
             Console.Write("\x1b[38;2;12;34;56;48;2;23;45;67m\x1b]8;id=own-history;https://example.invalid/native-menu\x1b\\历史 🚀 é\x1b]8;;\x1b\\\x1b[0m\r\nsecond history row\r\n$ ");
             using(var overlay=new NativeOverlay()) {
                 if(!overlay.Connect()) throw new IOException(overlay.Error);
@@ -28,6 +36,11 @@ class NativeMenuRuntimeProbe {
                 result["reply_transport"]="private owner-bound pipe";
             }
         } catch(Exception error) { result["error"]=error.GetBaseException().Message; }
+        finally {
+            bool restored=changed && SetConsoleMode(output,originalMode);
+            result["output_mode_restored"]=restored;
+            if(!restored) { result["supported"]=false; if(result["error"]==null) result["error"]="Probe console mode restoration failed"; }
+        }
         File.WriteAllText(path,Json.Encode(result)+"\n",new System.Text.UTF8Encoding(false));
         return (bool)result["supported"] ? 0 : 1;
     }

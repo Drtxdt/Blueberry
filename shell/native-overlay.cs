@@ -18,6 +18,8 @@ namespace Blueberry.Direct {
         readonly Thread reader;
         bool ready, stopped, visible, resolved;
         long generation, expected;
+        long closing;
+        bool closeResolved, closeRestored;
         public string Error { get; private set; }
 
         [StructLayout(LayoutKind.Sequential)] struct SecurityAttributes {
@@ -26,13 +28,15 @@ namespace Blueberry.Direct {
         [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
         static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(string text, uint revision, out IntPtr descriptor, IntPtr size);
         [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr memory);
+        [DllImport("kernel32.dll")] static extern uint GetCurrentProcessId();
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
         static extern SafePipeHandle CreateNamedPipeW(string name, uint access, uint mode, uint instances,
             uint outputSize, uint inputSize, uint timeout, ref SecurityAttributes attributes);
 
         internal NativeOverlay() {
             IntPtr descriptor;
-            string sid = System.Security.Principal.WindowsIdentity.GetCurrent().User.Value;
+            string sid;
+            using(var identity=System.Security.Principal.WindowsIdentity.GetCurrent()) sid=identity.User.Value;
             if (!ConvertStringSecurityDescriptorToSecurityDescriptorW("D:P(A;;GA;;;"+sid+")", 1, out descriptor, IntPtr.Zero))
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
             SafePipeHandle handle = null;
@@ -49,7 +53,7 @@ namespace Blueberry.Direct {
         }
 
         internal bool Connect() {
-            Console.Write("\x1b]7775;channel;"+Process.GetCurrentProcess().Id+";"+owner+"\x07");
+            Console.Write("\x1b]7775;channel;"+GetCurrentProcessId()+";"+owner+"\x07");
             long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/2;
             while(Stopwatch.GetTimestamp()<deadline) {
                 lock(state) { if(ready) return true; if(stopped) return false; }
@@ -76,6 +80,9 @@ namespace Blueberry.Direct {
                                 if(parts[0]=="frame" && parts.Length==3 && (parts[2]=="presented" || parts[2]=="rejected")) {
                                     if(id==expected) { visible=parts[2]=="presented"; resolved=true; }
                                 } else if(parts[0]=="retired" && parts.Length==2) { if(id==expected) visible=false; }
+                                else if(parts[0]=="closed" && parts.Length==3 && (parts[2]=="restored" || parts[2]=="absent")) {
+                                    if(id==closing) { closeResolved=true; closeRestored=parts[2]=="restored"; }
+                                }
                                 else throw new InvalidDataException("Invalid Terminal result");
                             }
                         }
@@ -96,7 +103,7 @@ namespace Blueberry.Direct {
             var hex=new char[text.Length*4];
             for(int i=0;i<text.Length;i++) { int c=text[i]; for(int n=0;n<4;n++) hex[i*4+n]=digits[(c>>(12-4*n))&15]; }
             long id;
-            lock(state) { if(!ready || stopped) return false; id=++generation; expected=id; visible=false; resolved=false; }
+            lock(state) { if(!ready || stopped) return false; id=++generation; expected=id; visible=false; resolved=false; closing=0; }
             Console.Write("\x1b]7775;native-frame;"+owner+";"+id+";"+top+";0;"+lines.Count+";"+width+";"+new string(hex)+"\x07");
             long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/4;
             while(Stopwatch.GetTimestamp()<deadline) {
@@ -111,9 +118,16 @@ namespace Blueberry.Direct {
         // before the editor's own synchronous pre-key restoration.
         internal bool Close(out bool hadFrame) {
             long id; bool wasVisible;
-            lock(state) { id=expected; expected=0; wasVisible=visible && !stopped; visible=false; hadFrame=id!=0; }
-            if(id!=0) Console.Write("\x1b]7775;native-close;"+owner+";"+id+"\x07");
-            return wasVisible;
+            lock(state) { id=expected; expected=0; wasVisible=visible && !stopped; visible=false; hadFrame=id!=0; closing=id; closeResolved=false; closeRestored=false; }
+            if(id==0) return false;
+            Console.Write("\x1b]7775;native-close;"+owner+";"+id+"\x07");
+            long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/4;
+            while(Stopwatch.GetTimestamp()<deadline) {
+                lock(state) { if(stopped || closing!=id) return false; if(closeResolved) return wasVisible && closeRestored; }
+                changed.WaitOne(5);
+            }
+            Error="Companion Terminal did not confirm frame retirement";
+            return false;
         }
         internal void Close() { bool ignored; Close(out ignored); }
         public void Dispose() {

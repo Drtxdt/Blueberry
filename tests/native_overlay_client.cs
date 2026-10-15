@@ -12,6 +12,7 @@ class NativeOverlayClientTests {
         NamedPipeClientStream pipe;
         internal bool Reject;
         internal long LastFrame;
+        bool active;
         public override Encoding Encoding { get { return Encoding.UTF8; } }
         internal void Reply(string text) {
             byte[] bytes=Encoding.ASCII.GetBytes(text+"\n"); pipe.Write(bytes,0,bytes.Length); pipe.Flush();
@@ -23,11 +24,16 @@ class NativeOverlayClientTests {
                 pipe=new NamedPipeClientStream(".","Blueberry.TerminalOverlay."+parts[2],PipeDirection.InOut);
                 pipe.Connect(1000); Reply("ready;3;"+parts[2]);
             } else if(parts[0]=="native-frame") {
-                LastFrame=Int64.Parse(parts[2]); Reply("frame;"+LastFrame+";"+(Reject ? "rejected" : "presented"));
-            } else if(parts[0]=="native-close") Reply("retired;"+parts[2]);
+                LastFrame=Int64.Parse(parts[2]); active=!Reject; Reply("frame;"+LastFrame+";"+(Reject ? "rejected" : "presented"));
+            } else if(parts[0]=="native-close") {
+                bool restored=active && Int64.Parse(parts[2])==LastFrame;
+                if(restored) { active=false; Reply("retired;"+parts[2]); }
+                Reply("closed;"+parts[2]+";"+(restored ? "restored" : "absent"));
+            }
             else throw new Exception("Unexpected operation");
         }
         internal void Disconnect() { if(pipe!=null) { pipe.Dispose(); pipe=null; } }
+        internal void RetireWithoutNotification() { active=false; }
         protected override void Dispose(bool disposing) { Disconnect(); base.Dispose(disposing); }
     }
     static void Check(bool condition,string message) { if(!condition) throw new Exception(message); }
@@ -46,6 +52,9 @@ class NativeOverlayClientTests {
                     bool had;
                     Check(overlay.Close(out had) && had,"Visible frame lost its pre-key eligibility");
                     Check(!overlay.Close(out had) && !had,"Duplicate close retained a generation");
+                    Check(overlay.Paint(lines,0,20),"Frame before external retirement was not confirmed");
+                    terminal.RetireWithoutNotification();
+                    Check(!overlay.Close(out had) && had,"Missing retirement notification authorized an absent frame");
                     terminal.Reject=true;
                     Check(!overlay.Paint(lines,0,20),"Rejected frame became visible");
                     Check(!overlay.Close(out had) && had,"Rejected frame became eligible");

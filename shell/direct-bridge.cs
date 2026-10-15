@@ -198,7 +198,8 @@ namespace Blueberry.Direct {
             pipe.Connect(5000); connected = true;
             // Only the companion's dedicated profile opts into this internal
             // interface. An environment hint alone is never proof of support.
-            if(Environment.GetEnvironmentVariable("BLUEBERRY_NATIVE_OVERLAY")=="3") {
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_NATIVE_OVERLAY")=="3"
+                && !String.Equals(Environment.GetEnvironmentVariable("TERM_PROGRAM"),"vscode",StringComparison.OrdinalIgnoreCase)) {
                 try {
                     nativeOverlay=new NativeOverlay();
                     if(!nativeOverlay.Connect()) throw new NotSupportedException(nativeOverlay.Error);

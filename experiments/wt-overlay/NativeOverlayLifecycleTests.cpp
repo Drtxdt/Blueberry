@@ -290,6 +290,17 @@ class NativeOverlayLifecycleTests
         VERIFY_IS_TRUE(input.empty());
         term.Write(L"\x1b]7775;native-close;00000000000000000000000000000000;61\x07");
         VERIFY_IS_TRUE(term.GetTextBuffer().GetRowByOffset(0).GetText().substr(3, 4) == L"menu");
+        term.Write(std::wstring{ L"\x1b]7775;native-close;" } + owner + L";61\x07");
+        auto replies = ReadPipe(server.get());
+        if (replies.find("closed;") == std::string::npos) { replies += ReadPipe(server.get()); }
+        VERIFY_IS_TRUE(replies.find("retired;61\n") != std::string::npos);
+        VERIFY_IS_TRUE(replies.find("closed;61;restored\n") != std::string::npos);
+        term.Write(std::wstring{ L"\x1b]7775;native-close;" } + owner + L";61\x07");
+        VERIFY_IS_TRUE(ReadPipe(server.get()) == "closed;61;absent\n");
+        const std::wstring oldGeneration{ L";61;0;" };
+        frame.replace(frame.find(oldGeneration), oldGeneration.size(), L";62;0;");
+        term.Write(frame);
+        VERIFY_IS_TRUE(ReadPipe(server.get()) == "frame;62;presented\n");
         server.reset();
         for (int attempt = 0; attempt < 200 && !closed.load(); ++attempt) { Sleep(10); }
         VERIFY_IS_TRUE(closed.load());
