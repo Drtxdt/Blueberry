@@ -157,7 +157,8 @@ impl NativeObserver {
             identity: json!({"backend":"production_terminalcore_buffer","abi_version":1,"companion_interface_version":4,
                 "dll":path,"dll_sha256":actual,"rows":30,"columns":120,"history_rows":9001,
                 "renderer":"DummyRenderer","gui_renderer":false,"screen_pixels":"not_measured",
-                "timestamp":"after_native_parser_write","eof_dispatch":"explicit_model_api_boundaries",
+                "timestamp":"after_native_parser_write_and_snapshot","snapshot_binding":"per_received_chunk",
+                "eof_dispatch":"explicit_model_api_boundaries",
                 "startup_origin":"before_child_spawn_after_observer_initialization"}),
             _library: library,
             failure: None,
@@ -183,6 +184,13 @@ impl NativeObserver {
         Ok(())
     }
     pub(crate) fn snapshot(&mut self) -> Result<String> {
+        let result = self.snapshot_inner();
+        if let Err(error) = &result {
+            self.failure = Some(format!("native observer snapshot: {error:#}"));
+        }
+        result
+    }
+    fn snapshot_inner(&self) -> Result<String> {
         self.check_error()?;
         for _ in 0..3 {
             let mut needed = 0;
@@ -223,7 +231,7 @@ impl NativeObserver {
         }
         Ok(replies.frames.drain(..).collect())
     }
-    fn check_error(&self) -> Result<()> {
+    pub(crate) fn check_error(&self) -> Result<()> {
         if let Some(error) = &self.failure {
             bail!("{error}");
         }

@@ -9,7 +9,13 @@ use serde_json::{Value, json};
 #[cfg(windows)]
 use std::sync::{Arc, Mutex};
 
-type ObservedChunk = std::result::Result<(Vec<u8>, Instant, Option<i64>), String>;
+struct Observation {
+    bytes: Vec<u8>,
+    arrived: Instant,
+    qpc: Option<i64>,
+    native_viewport: Option<String>,
+}
+type ObservedChunk = std::result::Result<Observation, String>;
 
 /// Keep the explicit benchmark environment consistent with its actual child.
 /// A requested native path without a frozen model is rejected before spawn.
@@ -42,6 +48,7 @@ use std::{
 pub struct Harness {
     session: pty::Session,
     receive: mpsc::Receiver<ObservedChunk>,
+    native_viewport: Option<String>,
     #[cfg(windows)]
     native: Option<Arc<Mutex<crate::native_observer::NativeObserver>>>,
     #[cfg(windows)]
@@ -105,19 +112,32 @@ impl Harness {
                     break;
                 }
                 #[cfg(windows)]
-                let arrived = if let Some(native) = &native_reader {
+                let native_viewport = if let Some(native) = &native_reader {
                     let result = native
                         .lock()
                         .map_err(|_| anyhow::anyhow!("native observer poisoned"))
-                        .and_then(|mut native| native.write(&buffer[..n]));
-                    if let Err(error) = result {
-                        let _ = send.send(Err(format!("native observer: {error:#}")));
-                        break;
+                        .and_then(|mut native| {
+                            native.write(&buffer[..n])?;
+                            native.snapshot()
+                        });
+                    match result {
+                        Ok(viewport) => Some(viewport),
+                        Err(error) => {
+                            let _ = send.send(Err(format!("native observer: {error:#}")));
+                            break;
+                        }
                     }
+                } else {
+                    None
+                };
+                #[cfg(windows)]
+                let arrived = if native_viewport.is_some() {
                     Instant::now()
                 } else {
                     arrived
                 };
+                #[cfg(not(windows))]
+                let native_viewport = None;
                 #[cfg(windows)]
                 let qpc = if diagnostic {
                     crate::latency_layers::qpc().ok()
@@ -126,7 +146,15 @@ impl Harness {
                 };
                 #[cfg(not(windows))]
                 let qpc = None;
-                if send.send(Ok((buffer[..n].to_vec(), arrived, qpc))).is_err() {
+                if send
+                    .send(Ok(Observation {
+                        bytes: buffer[..n].to_vec(),
+                        arrived,
+                        qpc,
+                        native_viewport,
+                    }))
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -134,6 +162,7 @@ impl Harness {
         Ok(Self {
             session,
             receive,
+            native_viewport: None,
             decoder: Decoder::new(token),
             messages: VecDeque::new(),
             screen: vt100::Parser::new(30, 120, 0),
@@ -169,7 +198,12 @@ impl Harness {
         }
     }
     pub fn pump(&mut self, timeout: Duration) -> Result<()> {
-        let (bytes, arrived, qpc) = self
+        let Observation {
+            bytes,
+            arrived,
+            qpc,
+            native_viewport,
+        } = self
             .receive
             .recv_timeout(timeout)
             .with_context(|| {
@@ -180,6 +214,7 @@ impl Harness {
                 )
             })?
             .map_err(anyhow::Error::msg)?;
+        self.native_viewport = native_viewport;
         for part in self.decoder.feed(&bytes) {
             match part {
                 Part::Data(data) => {
@@ -296,12 +331,18 @@ impl Harness {
     pub fn observed_viewport(&self) -> Result<String> {
         #[cfg(windows)]
         if let Some(native) = &self.native {
-            return native
+            native
                 .lock()
                 .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
-                .snapshot();
+                .check_error()?;
+            if self.native_viewport.is_none() {
+                return Ok(String::new());
+            }
         }
-        Ok(self.viewport_contents())
+        Ok(self
+            .native_viewport
+            .clone()
+            .unwrap_or_else(|| self.viewport_contents()))
     }
     pub fn native_observer_identity(&self) -> Option<Value> {
         #[cfg(windows)]
@@ -403,6 +444,77 @@ impl Harness {
                 self.viewport_contents()
             );
             let _ = self.pump(Duration::from_millis(50));
+        }
+    }
+}
+
+#[cfg(all(test, windows))]
+mod native_observation_tests {
+    use super::*;
+
+    struct OwnedFixture(Harness);
+    impl Drop for OwnedFixture {
+        fn drop(&mut self) {
+            let _ = self.0.session.child.kill();
+            let _ = self.0.session.child.wait();
+        }
+    }
+
+    fn wait_live(h: &mut Harness, marker: &str) -> Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let native = h.native.as_ref().context("native DLL not configured")?;
+            let (screen, replies) = {
+                let mut native = native.lock().unwrap();
+                (native.snapshot()?, native.replies()?)
+            };
+            // Deliberately service replies without consuming observation events.
+            for reply in replies {
+                h.session.writer.write_all(&reply)?;
+            }
+            h.session.writer.flush()?;
+            if screen.contains(marker) {
+                return Ok(());
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "fixture did not print {marker}: {screen}"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    #[ignore = "requires the frozen CI native DLL and digest"]
+    fn native_snapshot_cannot_outrun_its_observation_timestamp() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let mut environment = BTreeMap::from([("BLUEBERRY_NATIVE_OVERLAY".into(), "4".into())]);
+        inherit_native_observer_environment(&mut environment);
+        let mut fixture = OwnedFixture(Harness::start(&pty::default_shell(), &[
+            "-NoLogo".into(), "-NoProfile".into(), "-Command".into(),
+            "[Console]::Write('BEFORE'); $null=[Console]::ReadLine(); [Console]::Write('AFTER'); $null=[Console]::ReadLine()".into()
+        ], directory.path(), &environment, String::new())?);
+        let h = &mut fixture.0;
+        wait_live(h, "BEFORE")?;
+        h.send_text("go")?;
+        h.send(b"\r")?;
+        wait_live(h, "AFTER")?;
+        ensure!(
+            h.observed_viewport()?.is_empty(),
+            "unconsumed future output became a measured viewport"
+        );
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            h.pump(Duration::from_millis(50))?;
+            let screen = h.observed_viewport()?;
+            if screen.contains("BEFORE") {
+                ensure!(
+                    !screen.contains("AFTER"),
+                    "later snapshot was paired with earlier timestamp"
+                );
+                return Ok(());
+            }
+            ensure!(Instant::now() < deadline, "BEFORE observation missing");
         }
     }
 }
