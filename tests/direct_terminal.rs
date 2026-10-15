@@ -903,8 +903,6 @@ fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> R
                 .to_string_lossy()
                 .into_owned(),
             "--no-profile".into(),
-            "--psreadline-version".into(),
-            "2.4.5".into(),
             "--data-dir".into(),
             dir.path().to_string_lossy().into_owned(),
         ],
@@ -931,8 +929,20 @@ fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> R
     h.send(b"1..40 | ForEach-Object { 'HISTORY-ROW' }; 'BOTTOM-READY'\r")?;
     wait_output_line(&mut h, "BOTTOM-READY")?;
     h.send(b"git sw")?;
-    h.wait_text("switch", TIMEOUT)?;
-    let screen = h.viewport_contents();
+    // The same scenario can also be run with the frozen native observer.
+    // Private companion frames intentionally never enter the legacy VT model.
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    let screen = loop {
+        let screen = h.observed_viewport()?;
+        if screen.contains("switch") {
+            break screen;
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "menu missing above bottom input: {screen}"
+        );
+        let _ = h.pump(Duration::from_millis(10));
+    };
     let menu = screen
         .lines()
         .position(|line| line.contains("switch"))

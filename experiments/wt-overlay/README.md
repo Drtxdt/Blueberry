@@ -147,3 +147,16 @@ EXE 的成功运行证据；错误或早期接口包会被拒绝。新目录限�
 旧 Rust 构建缓存已按用户要求删除 12 个中间目录，约 6.47 GiB。历史 ZIP、
 EXE、探针、原始测量及 Git 历史保留，清理清单见
 `docs/benchmarks/v0.6/build-cache-cleanup-20261014.json`。
+
+2026-10-15 追加状态：`b1a2d3f` 的原生缓冲模型已在 CI 编译，C ABI 本机测试
+通过，Rust 探针可显式加载固定摘要的 DLL；启用原生菜单却没有原生观察器会在
+启动采集前失败。观察阶段为 TerminalCore 缓冲提交，DummyRenderer 不证明
+像素可见或 GUI 调度耗时。正式原生性能矩阵仍未完成。
+
+该固定原包首次人工诊断发现：直接由 GUI 启动且未继承 PSModulePath 时，会
+加载普通编辑器，菜单无法向上放。源码已修复模块搜索顺序；同一底部菜单
+回归在原生模型下通过三个支持的编辑器组合。`verify-native.ps1` 现在也要求
+`editor_hooks_v1`，兼容模式不能作为正常候选。参见
+`docs/benchmarks/v0.6/native-gui-startup-regression-20261015.json`。
+这不替代新固定包的 GUI／连续缩放／全部历史属性人工验收；nested 原生接入
+仍未完成，发布继续阻塞。

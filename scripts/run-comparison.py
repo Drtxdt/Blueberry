@@ -35,6 +35,19 @@ def sha(path):
     with Path(path).open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest().upper()
 
+def probe_identity(value, formal):
+    assert value.get('diagnostic_only') is not True, 'Diagnostic probe cannot qualify as timing samples'
+    fields = ('probe_build_profile', 'probe_source_commit', 'probe_source_dirty')
+    if not any(field in value for field in fields):
+        return None  # Historical frozen probes predate the additive metadata.
+    assert all(field in value for field in fields), 'Incomplete probe build identity'
+    identity = {field: value[field] for field in fields}
+    if formal:
+        assert identity['probe_build_profile'] == 'release' and identity['probe_source_dirty'] is False, 'Unfrozen probe build'
+        commit = identity['probe_source_commit']
+        assert isinstance(commit, str) and len(commit) == 40 and all(c in '0123456789abcdef' for c in commit.lower()), 'Invalid probe source commit'
+    return identity
+
 def profiles_unchanged(profiles):
     return all((sha(item['path']) if Path(item['path']).exists() else None) == item['sha256'] for item in profiles)
 
@@ -150,6 +163,7 @@ def run(options):
         observed_stages=dict(input_echo='probe_model', menu='first_expected_candidate_in_probe_model',
             complete_candidates='not_measured', screen_pixels='not_measured'), passed=False)
     report['native_observer'] = None
+    report['probe_build_identity'] = None
     if native_plan:
         report['observed_stages'].update(input_echo='production_terminalcore_buffer', menu='first_expected_candidate_in_native_buffer')
     for mode, spec in plan['modes'].items():
@@ -188,7 +202,11 @@ def run(options):
             process = subprocess.run([plan['probe'],'--session',str(folder/'session.json'),'--output',str(folder/'result.json')],
                 stdout=log,stderr=subprocess.STDOUT,timeout=120+25*len(queries))
         value = read(folder/'result.json')
-        assert value.get('diagnostic_only') is not True, 'Diagnostic editor hooks cannot qualify as timing samples'
+        observed_probe = probe_identity(value, options.formal)
+        if report['probe_build_identity'] is None:
+            report['probe_build_identity'] = observed_probe
+            if observed_probe: report.update(observed_probe)
+        assert report['probe_build_identity'] == observed_probe, 'Probe build changed within collection'
         observed = value.get('native_observer')
         if native_plan:
             assert observed and observed['dll_sha256'].upper() == native_plan['sha256'].upper(), 'Native runtime DLL mismatch'

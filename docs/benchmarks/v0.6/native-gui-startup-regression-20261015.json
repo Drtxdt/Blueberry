@@ -19,6 +19,7 @@
     "source_test": "direct_without_inherited_module_path_keeps_editor_and_menu_above_input",
     "source_before": "failed: GUI startup lost private editor",
     "source_after": "passed: private editor retained and completion appears above bottom input",
+    "native_model_source_regression": ["PS5.1 / PSReadLine 2.0.0 passed", "PS5.1 / PSReadLine 2.4.5 passed", "PS7.6.6 / PSReadLine 2.4.5 passed"],
     "raw_diagnostics": ["artifacts/native-empty-modulepath-20261015", "artifacts/native-shell-modulepath-20261015", "artifacts/native-real-profile-20261015"]
   },
   "fix": "Keep PSHOME/Modules in the inherited module search path; retain existing paths and private editor precedence. Candidate verification now requires editor_hooks_v1, not just automatic_menu and native handshake.",

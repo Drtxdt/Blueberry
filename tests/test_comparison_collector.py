@@ -21,6 +21,17 @@ def report():
 
 
 class ComparisonCollectorTests(unittest.TestCase):
+    def test_formal_probe_must_be_clean_release_and_keeps_legacy_compatibility(self):
+        self.assertIsNone(collector.probe_identity({}, True))
+        valid = dict(probe_build_profile='release', probe_source_commit='a'*40, probe_source_dirty=False)
+        self.assertEqual(collector.probe_identity(valid, True), valid)
+        for fields in (dict(diagnostic_only=True), dict(probe_source_dirty=True),
+                       dict(probe_build_profile='debug'), dict(probe_source_commit='unknown')):
+            with self.subTest(fields=fields), self.assertRaises(AssertionError):
+                collector.probe_identity(dict(valid, **fields), True)
+        with self.assertRaisesRegex(AssertionError, 'Incomplete'):
+            collector.probe_identity(dict(probe_build_profile='release'), True)
+
     def capability_probes(self, passed):
         return [(Path(str(index)), {'passed': passed, 'queries': [{
             'input_echo': 25.0, 'menu': 30.0 if passed else None,
