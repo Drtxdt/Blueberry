@@ -924,6 +924,34 @@ fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> R
         status["editor_mode"] == "editor_hooks_v1",
         "GUI startup lost private editor: {status}"
     );
+    let expected = std::process::Command::new(blueberry::pty::default_shell())
+        .env_remove("PSModulePath")
+        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+            "[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); [Console]::WriteLine((ConvertTo-Json -InputObject @($env:PSModulePath -split ';') -Compress))"])
+        .output()?;
+    ensure!(
+        expected.status.success(),
+        "plain module path control failed"
+    );
+    let expected: Vec<String> = serde_json::from_slice(&expected.stdout)?;
+    let paths_file = dir.path().join("actual-module-paths.json");
+    h.send_text(&format!("[IO.File]::WriteAllText('{}',(ConvertTo-Json -InputObject @($env:PSModulePath -split ';') -Compress)); [Console]::WriteLine('MODULE-PATHS-CAPTURED')\r",
+        paths_file.to_string_lossy().replace('\'', "''")))?;
+    wait_output_line(&mut h, "MODULE-PATHS-CAPTURED")?;
+    let actual: Vec<String> = serde_json::from_slice(&std::fs::read(paths_file)?)?;
+    let normalized = |path: &str| {
+        path.replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_lowercase()
+    };
+    for path in expected.iter().filter(|path| !path.is_empty()) {
+        ensure!(
+            actual
+                .iter()
+                .any(|entry| normalized(entry) == normalized(path)),
+            "GUI startup lost default module directory {path}: {actual:?}"
+        );
+    }
     // Fill the viewport: a menu below the last prompt has no room. Only a
     // verified editor can provide the input bounds for upward placement.
     h.send(b"1..40 | ForEach-Object { 'HISTORY-ROW' }; 'BOTTOM-READY'\r")?;

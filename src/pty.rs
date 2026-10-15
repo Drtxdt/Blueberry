@@ -14,6 +14,74 @@ pub struct Session {
     pub child: Box<dyn Child + Send + Sync>,
 }
 
+#[cfg(windows)]
+fn default_windows_module_paths() -> Vec<PathBuf> {
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
+    use windows_sys::Win32::System::Registry::{
+        HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ,
+        RegGetValueW,
+    };
+    fn read(hive: HKEY, key: &str) -> Option<OsString> {
+        let key: Vec<_> = key.encode_utf16().chain([0]).collect();
+        let name: Vec<_> = "PSModulePath".encode_utf16().chain([0]).collect();
+        let flags = RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ;
+        let mut bytes = 0;
+        if unsafe {
+            RegGetValueW(
+                hive,
+                key.as_ptr(),
+                name.as_ptr(),
+                flags,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                &mut bytes,
+            )
+        } != 0
+        {
+            return None;
+        }
+        for _ in 0..3 {
+            if !(2..=131072).contains(&bytes) || bytes % 2 != 0 {
+                return None;
+            }
+            let mut value = vec![0u16; bytes as usize / 2];
+            let status = unsafe {
+                RegGetValueW(
+                    hive,
+                    key.as_ptr(),
+                    name.as_ptr(),
+                    flags,
+                    ptr::null_mut(),
+                    value.as_mut_ptr().cast(),
+                    &mut bytes,
+                )
+            };
+            if status == 234 {
+                continue;
+            }
+            if status != 0 {
+                return None;
+            }
+            let end = value.iter().position(|unit| *unit == 0)?;
+            return Some(OsString::from_wide(&value[..end]));
+        }
+        None
+    }
+    let mut paths = Vec::new();
+    for (hive, key) in [
+        (HKEY_CURRENT_USER, "Environment"),
+        (
+            HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+        ),
+    ] {
+        if let Some(value) = read(hive, key) {
+            paths.extend(std::env::split_paths(&value));
+        }
+    }
+    paths
+}
+
 /// PowerShell 7 sanitizes PSModulePath when it launches powershell.exe
 /// directly; native intermediate launchers must do the same themselves.
 pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
@@ -25,23 +93,13 @@ pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
     } else {
         None
     }
-    .or_else(|| std::env::var_os("PSModulePath"));
+    .or_else(|| std::env::var_os("PSModulePath"))
+    .filter(|value| !value.is_empty());
+    #[cfg(windows)]
+    let use_defaults = inherited.is_none();
     let mut paths = inherited
         .map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
         .unwrap_or_default();
-    if legacy {
-        paths.retain(|path| {
-            let normalized = path
-                .to_string_lossy()
-                .replace('/', "\\")
-                .trim_end_matches('\\')
-                .to_ascii_lowercase();
-            !normalized.ends_with("\\powershell\\modules")
-                && !path
-                    .parent()
-                    .is_some_and(|parent| parent.join("pwsh.exe").is_file())
-        });
-    }
     // A GUI launcher need not inherit PSModulePath. If we pass only the
     // private editor root, ConsoleHost reconstructs its default path ahead
     // of it and eagerly loads stock PSReadLine before our bootstrap runs.
@@ -60,6 +118,30 @@ pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
         if modules.is_dir() && !paths.iter().any(|path| path == &modules) {
             paths.push(modules);
         }
+    }
+    // Supplying PSHOME suppresses PowerShell's registry-path merge. Restore
+    // that merge for an absent/empty inherited path, without overriding an
+    // explicitly configured nonempty path or starting another shell process.
+    #[cfg(windows)]
+    if use_defaults {
+        for path in default_windows_module_paths() {
+            if !paths.iter().any(|existing| existing == &path) {
+                paths.push(path);
+            }
+        }
+    }
+    if legacy {
+        paths.retain(|path| {
+            let normalized = path
+                .to_string_lossy()
+                .replace('/', "\\")
+                .trim_end_matches('\\')
+                .to_ascii_lowercase();
+            !normalized.ends_with("\\powershell\\modules")
+                && !path
+                    .parent()
+                    .is_some_and(|parent| parent.join("pwsh.exe").is_file())
+        });
     }
     paths
 }
