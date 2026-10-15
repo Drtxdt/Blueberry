@@ -42,6 +42,25 @@ pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
                     .is_some_and(|parent| parent.join("pwsh.exe").is_file())
         });
     }
+    // A GUI launcher need not inherit PSModulePath. If we pass only the
+    // private editor root, ConsoleHost reconstructs its default path ahead
+    // of it and eagerly loads stock PSReadLine before our bootstrap runs.
+    // Include PSHOME/Modules so PowerShell retains the supplied ordering.
+    let resolved = if shell.components().count() == 1 {
+        std::env::var_os("PATH").and_then(|value| {
+            std::env::split_paths(&value)
+                .map(|root| root.join(shell))
+                .find(|path| path.is_file())
+        })
+    } else {
+        None
+    };
+    if let Some(parent) = resolved.as_deref().unwrap_or(shell).parent() {
+        let modules = parent.join("Modules");
+        if modules.is_dir() && !paths.iter().any(|path| path == &modules) {
+            paths.push(modules);
+        }
+    }
     paths
 }
 

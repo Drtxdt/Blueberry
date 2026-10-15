@@ -90,6 +90,10 @@ def main():
     launcher = output/'launch.ps1'
     literal = lambda value: "'"+str(value).replace("'", "''")+"'"
     launcher.write_text('& '+literal(terminal)+' --window new new-tab --profile '+literal(profile)+'\n', encoding='utf-8-sig')
+    verifier = output/'verify-native.ps1'
+    template = Path(__file__).with_name('verify-candidate.ps1').read_text(encoding='utf-8')
+    verifier.write_text(template.replace('param([Parameter(Mandatory=$true)][string]$CandidateData)',
+                                        '$CandidateData='+literal(output/'data'), 1), encoding='utf-8-sig')
     receipt = dict(schema=1, kind='prepared manual diagnostic; not final release acceptance',
                    manifest=manifest, installed_terminal_modified=False, user_profile_modified=False,
                    program_sha256=digest(product), terminal_sha256=digest(terminal),

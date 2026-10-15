@@ -890,6 +890,63 @@ fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<(
 }
 
 #[test]
+fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut h = Harness::start(
+        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--no-profile".into(),
+            "--psreadline-version".into(),
+            "2.4.5".into(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            ("PSModulePath".into(), String::new()),
+            ("TERM".into(), "xterm-256color".into()),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    let status = std::fs::read_dir(dir.path())?
+        .filter_map(Result::ok)
+        .find_map(|entry| std::fs::read(entry.path().join("adapter.json")).ok())
+        .context("missing actual editor status")?;
+    let status: serde_json::Value = serde_json::from_slice(&status)?;
+    ensure!(
+        status["editor_mode"] == "editor_hooks_v1",
+        "GUI startup lost private editor: {status}"
+    );
+    // Fill the viewport: a menu below the last prompt has no room. Only a
+    // verified editor can provide the input bounds for upward placement.
+    h.send(b"1..40 | ForEach-Object { 'HISTORY-ROW' }; 'BOTTOM-READY'\r")?;
+    wait_output_line(&mut h, "BOTTOM-READY")?;
+    h.send(b"git sw")?;
+    h.wait_text("switch", TIMEOUT)?;
+    let screen = h.viewport_contents();
+    let menu = screen
+        .lines()
+        .position(|line| line.contains("switch"))
+        .context("menu missing")?;
+    let input = screen
+        .lines()
+        .position(|line| line.trim_end().ends_with("git sw"))
+        .context("input missing")?;
+    ensure!(menu < input, "menu was not above bottom input: {screen}");
+    h.send(b"\x01\x7f")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let mut h = start(dir.path())?;

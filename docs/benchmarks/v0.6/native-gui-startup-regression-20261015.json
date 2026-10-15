@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "kind": "intermediate candidate failure and source regression; not final acceptance",
+  "candidate_commit": "b1a2d3f0ebd0a8e6c4a89777d07de6424fa931a6",
+  "candidate_zip_sha256": "EA2C2792F906A682CF979BD4AC5D04ABB34E96ACE83D203FA11A30508D0E1795",
+  "user_observation": {
+    "shell": "7.6.6",
+    "psreadline": "2.4.5",
+    "native_interface": "native_overlay_v4",
+    "editor_mode": "legacy",
+    "warning": "loaded PSReadLine has no editor integration v1",
+    "result": "Menu available above mid-screen; fewer rows near bottom and absent at bottom",
+    "status": "failed"
+  },
+  "cause": "Without inherited PSModulePath, ConsoleHost reconstructs the default search path ahead of the private editor and eagerly imports stock PSReadLine. Legacy integration cannot establish the input's top bound for upward menu placement.",
+  "reproduction": {
+    "original_candidate_empty_module_path": "failed: loaded stock DLL f8e3a5b7e3e8cad2130ce10647564a2a0ea15d98db8a0cc8d589f80154c108e2",
+    "original_candidate_shell_module_path": "passed: editor_hooks_v1",
+    "source_test": "direct_without_inherited_module_path_keeps_editor_and_menu_above_input",
+    "source_before": "failed: GUI startup lost private editor",
+    "source_after": "passed: private editor retained and completion appears above bottom input",
+    "raw_diagnostics": ["artifacts/native-empty-modulepath-20261015", "artifacts/native-shell-modulepath-20261015", "artifacts/native-real-profile-20261015"]
+  },
+  "fix": "Keep PSHOME/Modules in the inherited module search path; retain existing paths and private editor precedence. Candidate verification now requires editor_hooks_v1, not just automatic_menu and native handshake.",
+  "new_original_ci_package_manual_result": "not_executed",
+  "all_history_properties_across_resize": "not_accepted",
+  "release_blocked": true
+}
