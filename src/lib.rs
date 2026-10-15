@@ -18,6 +18,8 @@ pub mod metrics;
 pub mod model;
 #[cfg(windows)]
 mod native_observer;
+#[cfg(windows)]
+pub mod native_overlay;
 pub mod overlay;
 pub mod packs;
 pub mod paths;
