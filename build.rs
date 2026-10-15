@@ -724,7 +724,8 @@ fn embed_direct_bridge() {
                 .into_owned(),
             env::current_dir()
                 .expect("build directory")
-                .join("shell/native-overlay.cs")
+                .join("shell")
+                .join("native-overlay.cs")
                 .to_string_lossy()
                 .into_owned(),
         ])
