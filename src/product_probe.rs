@@ -120,6 +120,21 @@ struct Sample {
     status: Value,
 }
 
+fn first_key_echo(screen: &str, prompt: &str) -> bool {
+    if prompt.is_empty() {
+        return false;
+    }
+    let lines: Vec<_> = screen.lines().collect();
+    lines.iter().enumerate().any(|(index, line)| {
+        let Some(tail) = line.trim_end().strip_prefix(prompt) else {
+            return false;
+        };
+        tail.trim() == "g"
+            || (tail.trim().is_empty()
+                && lines.get(index + 1).is_some_and(|next| next.trim() == "g"))
+    })
+}
+
 fn measure(
     executable: &Path,
     shell: &Path,
@@ -194,11 +209,7 @@ fn measure(
     let key_start = Instant::now();
     harness.send_text("g")?;
     wait(&mut harness, "first PSReadLine-confirmed echo", |screen| {
-        screen.lines().any(|line| {
-            line.trim_end()
-                .strip_prefix(&prompt)
-                .is_some_and(|tail| tail.trim() == "g")
-        })
+        first_key_echo(screen, &prompt)
     })?;
     let first_input = elapsed(&harness, start)?;
     let first_key = elapsed(&harness, key_start)?;
@@ -466,6 +477,22 @@ pub fn run_with_trace(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn first_echo_can_wrap_but_must_immediately_follow_the_actual_prompt() {
+        let prompt = "PS fixture-pair-10>";
+        assert!(first_key_echo("PS fixture-pair-10> g", prompt));
+        assert!(first_key_echo("PS fixture-pair-10>  \n g  ", prompt));
+        for screen in [
+            "PS fixture-pair-10>\n\ng",
+            "PS other-pair>\ng",
+            "PS fixture-pair-10>\ngit",
+            "PS fixture-pair-10>\n│› g",
+            "PS fixture-pair-10>",
+        ] {
+            assert!(!first_key_echo(screen, prompt), "{screen}");
+        }
+        assert!(!first_key_echo("g", ""));
+    }
     #[test]
     fn metadata_rejects_echo_fragments_and_incomplete_output() {
         for echo in [
