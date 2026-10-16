@@ -236,6 +236,18 @@ pub fn native_bytes(event: Event, application_cursor: bool) -> Option<Vec<u8>> {
 /// browsing deliberately does not send a private query chord to complete it.
 pub fn native_editor_bytes(event: Event, application_cursor: bool) -> Option<Vec<u8>> {
     #[cfg(windows)]
+    if let Event::Key(key) = &event
+        && key.kind != KeyEventKind::Release
+        && key.modifiers == Mod::CONTROL
+        && let KeyCode::Char(character @ ('g' | 'r' | 's')) = key.code
+    {
+        // Native history search compares physical key bindings. A raw BEL
+        // can arrive through ConPTY as a VK0 character and be inserted as
+        // U+0007 instead of invoking Ctrl+G (Abort).
+        let vk = character.to_ascii_uppercase() as u16;
+        return Some(windows_key_record(vk, character as u16 & 0x1f, 8));
+    }
+    #[cfg(windows)]
     if matches!(&event, Event::Key(key) if key.kind != KeyEventKind::Release
         && key.code == KeyCode::Esc && key.modifiers.is_empty())
     {

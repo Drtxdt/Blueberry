@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "kind": "CI failure diagnosis and pending physical-key correction",
+  "ci_failure": {
+    "source": "01fa187",
+    "run": 38876115528,
+    "job": 116891463883,
+    "test": "terminal_history_search_exit_serializes_following_typing_and_delete",
+    "actual_buffer": "\u0007git sgit st",
+    "expected_buffer": "git s",
+    "artifact": 12036051117
+  },
+  "local_before_fix": {
+    "exact_test_runs": 6,
+    "passed": 6,
+    "limitation": "Intermittent CI failure not reproduced locally; local passes do not invalidate the retained failure."
+  },
+  "correction": {
+    "scope": "nested native editor delegation on Windows",
+    "keys": [
+      "Ctrl+G",
+      "Ctrl+R",
+      "Ctrl+S"
+    ],
+    "representation": "Win32 input records with original virtual key, control character, Ctrl modifier and press/release",
+    "reason": "Preserve native history-search binding identity instead of forwarding an ambiguous raw control character."
+  },
+  "after_fix": "pending local and repeated CI validation",
+  "release_blocked": true
+}
