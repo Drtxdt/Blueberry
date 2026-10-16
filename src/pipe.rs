@@ -319,6 +319,123 @@ mod windows_pipe {
         }
     }
 
+    /// The companion's acknowledgements use a distinct, current-user-only byte
+    /// stream. They must never share the editor's JSON transport or input queue.
+    #[derive(Clone)]
+    pub struct NativeAckPipe(Arc<NativeAckHandles>);
+
+    struct NativeAckHandles {
+        pipe: OwnedHandle,
+        cancel: OwnedHandle,
+        owner: String,
+    }
+
+    impl NativeAckPipe {
+        pub fn new() -> io::Result<Self> {
+            let owner = uuid::Uuid::new_v4().simple().to_string();
+            let name = wide_z(&format!(r"\\.\pipe\Blueberry.TerminalOverlay.{owner}"));
+            let security = SecurityDescriptor::for_current_user()?;
+            let raw = unsafe {
+                CreateNamedPipeW(
+                    name.as_ptr(),
+                    PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
+                    PIPE_REJECT_REMOTE_CLIENTS,
+                    1,
+                    4096,
+                    4096,
+                    0,
+                    &security.attributes,
+                )
+            };
+            if raw.is_null() || raw == INVALID_HANDLE_VALUE {
+                return Err(last_error());
+            }
+            let pipe = unsafe { OwnedHandle::from_raw_handle(raw) };
+            let raw = unsafe {
+                windows_sys::Win32::System::Threading::CreateEventW(ptr::null(), 1, 0, ptr::null())
+            };
+            if raw.is_null() {
+                return Err(last_error());
+            }
+            Ok(Self(Arc::new(NativeAckHandles {
+                pipe,
+                cancel: unsafe { OwnedHandle::from_raw_handle(raw) },
+                owner,
+            })))
+        }
+
+        pub fn owner(&self) -> &str {
+            &self.0.owner
+        }
+
+        pub fn connect(&self) -> io::Result<()> {
+            match overlapped_io(
+                self.0.pipe.as_raw_handle(),
+                500,
+                Some(self.0.cancel.as_raw_handle()),
+                |operation| unsafe { ConnectNamedPipe(self.0.pipe.as_raw_handle(), operation) },
+            ) {
+                Ok(_) => Ok(()),
+                Err(error) if error.raw_os_error() == Some(ERROR_PIPE_CONNECTED as i32) => Ok(()),
+                Err(error) => Err(error),
+            }
+        }
+
+        pub fn read(&self, buffer: &mut [u8]) -> io::Result<usize> {
+            if buffer.is_empty() || buffer.len() > 256 {
+                return Err(Error::new(
+                    ErrorKind::InvalidInput,
+                    "native acknowledgement read bound exceeded",
+                ));
+            }
+            if unsafe {
+                windows_sys::Win32::System::Threading::WaitForSingleObject(
+                    self.0.cancel.as_raw_handle(),
+                    0,
+                )
+            } == 0
+            {
+                return Err(Error::new(
+                    ErrorKind::Interrupted,
+                    "native acknowledgement channel cancelled",
+                ));
+            }
+            let read = overlapped_io(
+                self.0.pipe.as_raw_handle(),
+                u32::MAX,
+                Some(self.0.cancel.as_raw_handle()),
+                |operation| unsafe {
+                    ReadFile(
+                        self.0.pipe.as_raw_handle(),
+                        buffer.as_mut_ptr().cast(),
+                        buffer.len() as u32,
+                        ptr::null_mut(),
+                        operation,
+                    )
+                },
+            )?;
+            if read == 0 {
+                return Err(Error::new(
+                    ErrorKind::UnexpectedEof,
+                    "native acknowledgement channel closed",
+                ));
+            }
+            Ok(read as usize)
+        }
+
+        // The manual-reset event is included in every overlapped wait. It also
+        // covers cancellation racing with submission of the next read.
+        pub fn cancel(&self) -> io::Result<()> {
+            if unsafe {
+                windows_sys::Win32::System::Threading::SetEvent(self.0.cancel.as_raw_handle())
+            } == 0
+            {
+                return Err(last_error());
+            }
+            Ok(())
+        }
+    }
+
     /// A single-instance, local, message-mode duplex named pipe.
     pub struct PipeServer {
         name: String,
@@ -772,6 +889,62 @@ mod windows_pipe {
         }
 
         #[test]
+        fn native_acknowledgements_are_separate_bytes_and_report_eof() {
+            let server = NativeAckPipe::new().unwrap();
+            let name = format!("Blueberry.TerminalOverlay.{}", server.owner());
+            let (connected, ready) = std::sync::mpsc::channel();
+            let receiver = thread::spawn(move || {
+                server.connect().unwrap();
+                connected.send(()).unwrap();
+                let mut received = Vec::new();
+                let mut buffer = [0; 7];
+                while let Ok(count) = server.read(&mut buffer) {
+                    received.extend_from_slice(&buffer[..count]);
+                }
+                received
+            });
+            let mut client = connect(&name);
+            ready
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .unwrap();
+            for fragment in [b"ready;4;".as_slice(), b"owner\nframe;1;presented\n"] {
+                client.write_all(fragment).unwrap();
+            }
+            drop(client);
+            assert_eq!(
+                receiver.join().unwrap(),
+                b"ready;4;owner\nframe;1;presented\n"
+            );
+        }
+
+        #[test]
+        fn native_ack_cancellation_releases_connect_and_read_waits() {
+            for connected in [false, true] {
+                let server = NativeAckPipe::new().unwrap();
+                let reader = server.clone();
+                let (ready, wait) = std::sync::mpsc::channel();
+                let receiver = thread::spawn(move || {
+                    let result = reader.connect();
+                    ready.send(()).unwrap();
+                    if result.is_ok() {
+                        assert!(reader.read(&mut [0; 64]).is_err());
+                    }
+                });
+                let client = connected
+                    .then(|| connect(&format!("Blueberry.TerminalOverlay.{}", server.owner())));
+                if connected {
+                    wait.recv_timeout(std::time::Duration::from_secs(2))
+                        .unwrap();
+                }
+                server.cancel().unwrap();
+                receiver.join().unwrap();
+                // A future read must also observe an already-signalled cancel.
+                assert!(server.read(&mut [0; 64]).is_err());
+                drop(client);
+            }
+        }
+
+        #[test]
         fn direct_connection_waits_for_slow_profile_without_polling() {
             let mut server = PipeServer::new_direct().unwrap();
             server.set_client_pid(std::process::id());
@@ -908,7 +1081,7 @@ mod windows_pipe {
 }
 
 #[cfg(windows)]
-pub use windows_pipe::PipeServer;
+pub use windows_pipe::{NativeAckPipe, PipeServer};
 
 #[cfg(not(windows))]
 /// Non-Windows builds keep the public API available so the default OSC host

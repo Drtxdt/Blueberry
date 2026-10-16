@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "kind": "collection failure and probe correction; not a performance failure",
+  "invalid_batch": "artifacts/native-bound-startup-baseline-20261016",
+  "probe_source_commit": "34ad6c8f6441d9e5665694f4ceffb482dae2b9e6",
+  "probe_sha256": "19DB33CBB31223F9B5ECA142ACAFADD5DBAA757C86A9936BED052EE681B49146",
+  "failed_sample": "PS5.1/PSReadLine2.0.0, pair 10, plain",
+  "cause": "At the fixed 120-column width, the longer two-digit fixture directory made the first actual editor echo wrap to the physical row immediately after the prompt. The probe required both on one row.",
+  "correction": "Accept the exact first key on the prompt row or its immediately following physical row. Reject empty prompts, unrelated prompts, blank intervening rows and candidate/menu text.",
+  "regression": "product_probe::tests::first_echo_can_wrap_but_must_immediately_follow_the_actual_prompt",
+  "prior_small_pilot": "six two-pair tasks completed identity and statistics checks; insufficient sample count for gates",
+  "measurement_complete": false,
+  "performance_passed": null,
+  "formal_eligible": false,
+  "replacement": "independent batch required with a newly frozen clean release probe",
+  "release_blocked": true
+}

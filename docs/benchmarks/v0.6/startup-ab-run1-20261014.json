@@ -1,0 +1,156 @@
+{
+  "schema": 1,
+  "round": 1,
+  "run": 1,
+  "diagnostic_only": true,
+  "measurement_complete": true,
+  "same_conditions": true,
+  "samples_per_product_per_profile": 30,
+  "rows": [
+    {
+      "profile": "ps51-200",
+      "same_conditions": true,
+      "metrics": {
+        "paired_first_input_delta": {
+          "before_p50_ms": 303.22405000000015,
+          "after_p50_ms": 55.80970000000002,
+          "difference_ms": -247.41435000000013,
+          "regression_threshold_ms": 30.322405000000018,
+          "regressed": false
+        },
+        "first_key_echo": {
+          "before_p50_ms": 15.0559,
+          "after_p50_ms": 15.2009,
+          "difference_ms": 0.14500000000000135,
+          "regression_threshold_ms": 1.50559,
+          "regressed": false
+        },
+        "first_static_candidate": {
+          "before_p50_ms": 208.09195,
+          "after_p50_ms": 21.585,
+          "difference_ms": -186.50695,
+          "regression_threshold_ms": 20.809195000000003,
+          "regressed": false
+        },
+        "first_dynamic_candidate": {
+          "before_p50_ms": 11.3923,
+          "after_p50_ms": 8.784949999999998,
+          "difference_ms": -2.607350000000002,
+          "regression_threshold_ms": 1.1392300000000002,
+          "regressed": false
+        }
+      },
+      "startup_target_passed": false,
+      "raw": {
+        "before": {
+          "path": "artifacts\\r1-ab2-1014\\run1-ps51-200-before\\raw.json",
+          "sha256": "7699A74293B66FAE39102ED0698ABB74B96C6FEFC1D4916A38C6DCDFFF17F8F6"
+        },
+        "after": {
+          "path": "artifacts\\r1-ab2-1014\\run1-ps51-200-after\\raw.json",
+          "sha256": "4EAD56AC2933DD42CF73CA1495E765EDC90E72BD5AD60351166D4C4556953691"
+        }
+      }
+    },
+    {
+      "profile": "ps51-245",
+      "same_conditions": true,
+      "metrics": {
+        "paired_first_input_delta": {
+          "before_p50_ms": 315.20704999999987,
+          "after_p50_ms": 49.55010000000004,
+          "difference_ms": -265.6569499999998,
+          "regression_threshold_ms": 31.52070499999999,
+          "regressed": false
+        },
+        "first_key_echo": {
+          "before_p50_ms": 18.56525,
+          "after_p50_ms": 19.4009,
+          "difference_ms": 0.8356500000000011,
+          "regression_threshold_ms": 1.856525,
+          "regressed": false
+        },
+        "first_static_candidate": {
+          "before_p50_ms": 208.48135000000002,
+          "after_p50_ms": 25.4771,
+          "difference_ms": -183.00425,
+          "regression_threshold_ms": 20.848135000000003,
+          "regressed": false
+        },
+        "first_dynamic_candidate": {
+          "before_p50_ms": 11.8476,
+          "after_p50_ms": 8.9639,
+          "difference_ms": -2.8836999999999993,
+          "regression_threshold_ms": 1.18476,
+          "regressed": false
+        }
+      },
+      "startup_target_passed": true,
+      "raw": {
+        "before": {
+          "path": "artifacts\\r1-ab2-1014\\run1-ps51-245-before\\raw.json",
+          "sha256": "EA6B368FEEC18D73BE2DBACBAADA7F474A77FD5BACDDF7227B7989827CE9F7D9"
+        },
+        "after": {
+          "path": "artifacts\\r1-ab2-1014\\run1-ps51-245-after\\raw.json",
+          "sha256": "801F5AE93ED70CF9581304E1517E03D07FE0EBB9DDEBCADE9AE11FEE3B382640"
+        }
+      }
+    },
+    {
+      "profile": "ps7-245",
+      "same_conditions": true,
+      "metrics": {
+        "paired_first_input_delta": {
+          "before_p50_ms": 19.022999999999797,
+          "after_p50_ms": 19.337300000000027,
+          "difference_ms": 0.3143000000002303,
+          "regression_threshold_ms": 1.90229999999998,
+          "regressed": false
+        },
+        "first_key_echo": {
+          "before_p50_ms": 15.0245,
+          "after_p50_ms": 15.166350000000001,
+          "difference_ms": 0.14185000000000159,
+          "regression_threshold_ms": 1.50245,
+          "regressed": false
+        },
+        "first_static_candidate": {
+          "before_p50_ms": 422.5043,
+          "after_p50_ms": 21.1482,
+          "difference_ms": -401.3561,
+          "regression_threshold_ms": 42.25043,
+          "regressed": false
+        },
+        "first_dynamic_candidate": {
+          "before_p50_ms": 10.501800000000001,
+          "after_p50_ms": 7.4825,
+          "difference_ms": -3.019300000000001,
+          "regression_threshold_ms": 1.0501800000000001,
+          "regressed": false
+        }
+      },
+      "startup_target_passed": true,
+      "raw": {
+        "before": {
+          "path": "artifacts\\r1-ab2-1014\\run1-ps7-245-before\\raw.json",
+          "sha256": "0FD2FB5850E63B221EBC4E1508BB184B3A4215D416F2C0E969E9F310C061FE5E"
+        },
+        "after": {
+          "path": "artifacts\\r1-ab2-1014\\run1-ps7-245-after\\raw.json",
+          "sha256": "119B198C5C7F8F54D3D4FCFD80F7A7D57151B64A47465B233BB1FE84AE460593"
+        }
+      }
+    }
+  ],
+  "outliers_removed": false,
+  "storage": {
+    "kind": "fixed_actions_artifact_and_ignored_local_raw_records",
+    "actions_artifact_status": "uploaded_and_download_verified",
+    "locator": "raw-baseline-artifact-20261014.json",
+    "run_id": 38517306894,
+    "artifact_id": 11872279995,
+    "retention_days": 90,
+    "release_evidence_status": "not_created"
+  }
+}

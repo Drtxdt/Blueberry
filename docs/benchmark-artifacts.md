@@ -1,0 +1,68 @@
+# 工件保留与性能采集
+
+已有历史归档保留，不重写 Git 历史。新诊断 ZIP 和超过 5 MiB 的基准文件不得提交
+`docs/benchmarks/`；原始文件使用已忽略的 `artifacts/`，Actions 工件默认保留 90 天。
+发布时将经过验证的完整证据包作为 Release 附件长期保留，不能只依赖会到期的链接。
+
+Git 中保留报告摘要、统计口径和 SHA-256。发布证据 schema 2 可以增加 `raw_artifacts`
+数组，每项为 `run_id`、`artifact_id`、工件下载 ZIP 的 `sha256`，以及 `files` 映射
+（证据目录下的相对路径 → 文件 SHA-256）。工件须属于同一仓库、该固定 run 和源码提交。
+使用 `scripts/materialize-release-artifacts.py <evidence.json>` 下载并校验后，现有发布
+检查器读取同样的相对路径并将原始文件打入最终证据包。历史内联文件仍然可用。
+缺失、过期、摘要错误、重复／越界路径或覆盖既有不同证据都应阻止发布。
+
+## 正式采集
+
+先用独立目录试跑，再冻结成功 CI 原包、探针和编辑器摘要。三个支持组合每组至少
+30 对启动样本，六场景 × 两种缓存状态 × 说明开关每组至少 300 个热态样本。
+正式计时关闭 trace；profile、机器、电源策略、Shell／编辑器版本、尺寸和配置均需记录。
+对照沿用 plain／beta.6／candidate direct／inshellisense，nested 兼容指标单独保存。
+
+`scripts/run-editor-matrix.ps1 -Formal -ContinueOnGateFailure` 保留原有参数和身份要求，
+但超出 50 ms／20 ms 门槛后继续采集剩余组。`measurement_complete` 表示数据收齐；
+`automated_performance_passed` 只有正式批次全部达标才为 true。最终存在超标时仍返回
+非零退出码。身份不符、采集失败、样本不足、统计错误立即中止，不能算作完整慢样本。
+正式批次不跨中断续跑；保留失败批次并使用新目录重测，不删掉慢样本。
+
+## 采集进程归属与异常终止
+
+`python scripts/run-benchmark-batch.py --plan <plan.json> --output <新的批次目录>`
+串行运行冻结任务。计划 schema 1 的 `tasks` 每项包含 `name`、`argv`、`cwd`、
+`timeout_seconds`、`report` 和 `completion_field`；`accepted_exit_codes` 默认 `[0]`。
+`dependencies` 保存各文件的 `path` 与 `sha256`，采集前后均验证。
+示例：矩阵任务的完成字段为 `measurement_complete`，接受 `[0,1]`，因此完整采样后的
+性能超标可以进入下一项；身份失败、缺报告、超时和不完整采样立即停止整个批次。
+
+协调器先将等待输入的工作进程加入 Windows Job，再允许它启动探针；协调器退出、
+任务超时或失败时清理该任务子进程树。JSON 状态以临时文件原子替换，记录当前组、
+日志、报告、退出码、协调器／工作进程 PID 和创建时间，避免把复用 PID 当成原任务。
+突然断电或外部终止留下的 running 状态使用
+`python scripts/run-benchmark-batch.py --inspect <批次目录>` 核对：原协调器已不在时
+记录 interrupted，保留原始报告；不能续写正式批次或自动宣称数据完整。
+批次完成只表示计划内所有任务有效完成，性能通过仍以各正式报告为准。
+
+四方对照 `scripts/run-comparison.py` 的 `measurement_complete` 只表示采集有效且完整，
+旧 `passed` 字段作为该含义的兼容别名保留。`performance_passed` 为 null，性能门槛由
+独立 direct 正式矩阵验收，不能把四方对照采集成功解释为性能达标。采集器、计划文件、
+程序依赖及 profile 均校验是否在批次中变化；缺组、短样本和非有限／负延迟均失败。
+对照的 `menu` 是探针模型中首个预期候选出现的时间，不代表完整候选或实际屏幕像素；
+这两个未测阶段在 `observed_stages` 中明确标注。对照能力缺失需保留三次探测记录。
+
+分配／阶段 trace 与进程树资源采集使用独立诊断批次。ConPTY 探针观察到菜单不等于
+屏幕像素呈现时间；没有可靠测量的视觉阶段记为未测。性能改动须用相同环境复测，
+不得把不同版本的小样本连接为正式性能趋势。
+
+资源批次使用 `scripts/run-resource-matrix.py --plan <四方对照计划> --output <新目录> --formal`
+分别覆盖三个组合，再由归属协调器串行执行。每模式五个独立进程会话，旋转顺序，
+每次至少 30 秒；`measure-process-tree.ps1` schema 2 保存中间快照。树中进程退出、
+新增、PID 复用、计数失败或区间不足均保留原始记录并使采集失败，不能算成零 CPU。
+`resource-statistics.py` 从全部数组复算内存、峰值和单核 CPU，发布检查重复复算并
+拒绝重复进程会话或重复原始报告。schema 1 历史记录保留，但不代替本轮正式资源证据。
+
+Rust 分配诊断使用独立 `--features allocation-diagnostics` 构建及 trace 批次。
+`direct_menu_allocations` 记录渲染及候选快照复制的当前线程申请次数和申请字节数；
+`direct_frame_allocations` 记录帧序列化／发送的申请。计数不是驻留堆大小、复制字节
+或托管分配，不能据此推断 C# 堆。其他线程的分配单独归属，不混进当前阶段。
+默认构建不使用计数分配器；doctor 的 `allocation_diagnostics` 标识诊断构建。
+正式探针、安装包组装和发布证据均拒绝该构建。CI 单独保存诊断 EXE 和基准探针，
+不得替换原始安装包。共享候选存储仍须根据独立分配记录及正常构建的 A/B 决定。

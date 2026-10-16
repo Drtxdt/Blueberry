@@ -5,6 +5,14 @@ use std::io::{self, Write};
 pub struct Overlay {
     rows: Option<(u16, u16)>,
     painted: Option<Painted>,
+    #[cfg(windows)]
+    native: Option<crate::native_overlay::NativeOverlay>,
+    #[cfg(windows)]
+    native_mode: bool,
+    #[cfg(windows)]
+    native_retry: bool,
+    #[cfg(windows)]
+    native_error: Option<String>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -17,8 +25,88 @@ struct Painted {
 }
 
 impl Overlay {
+    #[cfg(windows)]
+    pub fn with_native(client: crate::native_overlay::NativeOverlay) -> Self {
+        Self {
+            native: Some(client),
+            native_mode: true,
+            ..Self::default()
+        }
+    }
+
+    pub fn is_native(&self) -> bool {
+        #[cfg(windows)]
+        {
+            self.native_mode
+        }
+        #[cfg(not(windows))]
+        {
+            false
+        }
+    }
+
+    pub fn reset_layout(&mut self) {
+        self.rows = None;
+        self.painted = None;
+    }
+
+    pub fn new_prompt(&mut self) {
+        #[cfg(windows)]
+        if self.native_mode && self.native.is_none() {
+            self.native_retry = true;
+        }
+    }
+
+    pub fn frame_visible(&self) -> bool {
+        self.rows.is_some() && self.painted.is_some()
+    }
+
+    #[cfg(windows)]
+    fn native_failed(&mut self, error: io::Error) {
+        self.native_error = Some(error.to_string());
+        self.native = None;
+        self.reset_layout();
+    }
+
+    pub fn take_native_error(&mut self) -> Option<String> {
+        #[cfg(windows)]
+        {
+            self.native_error.take()
+        }
+        #[cfg(not(windows))]
+        {
+            None
+        }
+    }
+
+    /// Must receive the actual output writer, after queued shell bytes have
+    /// been flushed. A Vec cannot deliver the synchronous retirement fence.
+    pub fn close_for_input(&mut self, output: &mut impl Write) -> bool {
+        #[cfg(windows)]
+        if self.native_mode {
+            self.reset_layout();
+            match self.native.as_ref().map(|native| native.close(output)) {
+                Some(Ok(Some(true))) => return true,
+                Some(Err(error)) => self.native_failed(error),
+                _ => {}
+            }
+            return false;
+        }
+        #[cfg(not(windows))]
+        let _ = output;
+        true
+    }
+
     pub fn erase(&mut self, screen: &vt100::Screen, output: &mut impl Write) -> io::Result<()> {
         self.painted = None;
+        #[cfg(windows)]
+        if self.native_mode {
+            self.rows = None;
+            if let Some(Err(error)) = self.native.as_ref().map(|native| native.close(output)) {
+                self.native_failed(error);
+            }
+            return Ok(());
+        }
         if let Some((top, height)) = self.rows.take() {
             let (_, cols) = screen.size();
             write!(output, "\x1b[?25l")?;
@@ -122,6 +210,36 @@ impl Overlay {
         if self.painted.as_ref() == Some(&painted) {
             return Ok(());
         }
+        #[cfg(windows)]
+        if self.native_mode {
+            let reconnect = self
+                .native
+                .as_ref()
+                .is_some_and(|native| !native.is_connected())
+                || self.native_retry;
+            self.erase(screen, output)?;
+            // A child Blueberry session can temporarily take ownership of the
+            // same terminal. Reconnect once when the parent becomes active.
+            if reconnect {
+                self.native = None;
+                self.native_retry = false;
+                match crate::native_overlay::NativeOverlay::connect(output) {
+                    Ok(native) => self.native = Some(native),
+                    Err(error) => self.native_failed(error),
+                }
+            }
+            if let Some(native) = &mut self.native {
+                match native.paint(output, &painted.frame.lines, top, left, painted.frame.width) {
+                    Ok(true) => {
+                        self.rows = Some((top, height));
+                        self.painted = Some(painted);
+                    }
+                    Ok(false) => {}
+                    Err(error) => self.native_failed(error),
+                }
+            }
+            return Ok(());
+        }
         if let Some(previous) = self.painted.as_ref().filter(|previous| {
             previous.top == painted.top
                 && previous.left == painted.left
@@ -176,6 +294,21 @@ fn restore_cursor(screen: &vt100::Screen, output: &mut impl Write) -> io::Result
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn resizing_through_a_wide_character_keeps_the_parser_writable() {
+        for alternate in [false, true] {
+            for width in 1..6 {
+                let mut parser = vt100::Parser::new(2, 6, 0);
+                if alternate {
+                    parser.process(b"\x1b[?1049h");
+                }
+                parser.process("中中中".as_bytes());
+                parser.screen_mut().set_size(2, width);
+                parser.process(format!("\x1b[1;{width}HX").as_bytes());
+                assert_eq!(parser.screen().cell(0, width - 1).unwrap().contents(), "X");
+            }
+        }
+    }
     use super::*;
     use crate::model::CandidateKind;
     #[test]

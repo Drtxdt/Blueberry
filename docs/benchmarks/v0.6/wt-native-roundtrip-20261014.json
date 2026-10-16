@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "terminal_source_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+  "prototype_source_commit": "b87237f449b54edcb806a6c1d28abbadd9a9def0",
+  "run_id": 38516713070,
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38516713070",
+  "ci_passed": true,
+  "total": 5,
+  "passed": 5,
+  "failed": 0,
+  "original_logical_row_roundtrip_passed": true,
+  "colored_trailing_blank_attributes_roundtrip_passed": true,
+  "raw_log": "artifacts\\ci-8ad-ca19-failures\\wt-native-b872",
+  "raw_log_sha256": "74E6020055AB83AAFD99239FBFDC507B174922AE8DC323963D80516F1892232C",
+  "artifacts": [
+    {
+      "id": 11872495799,
+      "name": "wt-native-overlay-b87237f449b54edcb806a6c1d28abbadd9a9def0",
+      "size_in_bytes": 647172,
+      "digest": "sha256:1e7812fff85cb39afb65c3e6bd561a0d539f698b38334aa8ab7f31abb3efec0a",
+      "expires_at": "2027-01-12T05:27:13Z"
+    }
+  ],
+  "complete_history_interface_passed": false,
+  "lifecycle_hook_status": "implemented in independent prototype; native compilation pending",
+  "release_blocked": true
+}

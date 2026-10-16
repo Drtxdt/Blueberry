@@ -1,4 +1,6 @@
+pub mod allocation_diagnostics;
 pub mod beta_metrics;
+mod bounded_process;
 pub mod cache_writer;
 pub mod completion;
 pub mod config;
@@ -14,6 +16,10 @@ pub mod maintenance;
 pub mod menu;
 pub mod metrics;
 pub mod model;
+#[cfg(windows)]
+mod native_observer;
+#[cfg(windows)]
+pub mod native_overlay;
 pub mod overlay;
 pub mod packs;
 pub mod paths;
@@ -26,6 +32,7 @@ pub mod providers;
 pub mod pty;
 pub mod ranking;
 pub mod reload;
+mod selection;
 pub mod settings;
 pub mod setup;
 pub mod sources;

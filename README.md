@@ -3,13 +3,15 @@
 [![CI](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml/badge.svg)](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Drtxdt/Blueberry?include_prereleases)](https://github.com/Drtxdt/Blueberry/releases)
 
-Blueberry 是一个使用rust主要构建的高性能终端IDE风格补全工具，可以为 PowerShell 提供带中文说明的命令补全菜单。输入命令后，可以查看参数、浏览路径、阅读帮助，或按用途查找命令。
+Blueberry 是一个使用 Rust 构建的终端 IDE 风格补全工具，可以为 PowerShell 提供带中文说明的命令补全菜单。输入命令后，可以查看参数、浏览路径、阅读帮助，或按用途查找命令。
 
-使用 Rust 编写，目前交互运行环境为 **Windows x64、Windows PowerShell 5.1 / PowerShell 7、PSReadLine 2.0 及以上**。未来计划支持更多类型的终端。
+使用 Rust 编写，目前交互运行环境为 **Windows x64、Windows PowerShell 5.1 / PowerShell 7、经验证的 PSReadLine 组合：PS5.1／2.0.0、PS5.1／2.4.5、PS7／2.4.5**。未来计划支持更多类型的终端。
 
 本项目的灵感来源来自：[microsoft/inshellisense: IDE style command line auto complete](https://github.com/microsoft/inshellisense)
 
-`0.5.1` 正在准备未公开的发布草稿，修复 direct 的 PowerShell 命令补全。Windows 默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。本轮功能与安装回归仍为门槛；性能验收延期、人工检查按用户要求豁免，均不记为通过。流程见 [发布说明](docs/releasing.md)。
+当前公开版本为 [v0.5.2](https://github.com/Drtxdt/Blueberry/releases/tag/v0.5.2)，`0.5.3` 正在候选验收。Windows 默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。
+
+启动增量 P50 ≤50 ms、热态完整菜单 P95 ≤20 ms 是验收目标，尚未由当前候选正式证明。按[三轮优化与发布规则](docs/performance-next.md)，完整达标且无明显回退发布 0.6.0；三轮结束、数据完整有效但仍未全部达标时发布 0.5.3。两版均须通过最终包功能、安装与本机人工验收，外部试用未执行。见 [本版验收](docs/v0.5.3-validation.md)、[安装与故障诊断](docs/installation.md) 和 [发布流程](docs/releasing.md)。
 
 ## 安装
 
@@ -22,6 +24,8 @@ Blueberry 是一个使用rust主要构建的高性能终端IDE风格补全工具
 安装脚本下载 GitHub Release，校验文件后安装到当前用户目录，并询问是否随 PowerShell 启动。默认选择最新稳定版；只有 Beta 版本时安装最新公开 Beta。
 
 也可以从 [Releases](https://github.com/Drtxdt/Blueberry/releases) 下载 Windows x64 ZIP，解压后运行 `blueberry.exe`。指定版本、升级、回滚和卸载步骤见 [安装指南](docs/installation.md)。
+
+开发中的下一版将自动配套安装固定的便携 Windows Terminal，并增加 `blueberry-terminal` 启动入口，用于跨缩放完整恢复历史内容；现有 Terminal 设置及系统默认终端保留。组件与 Blueberry 同包下载、校验、升级和回滚。当前公开的 0.5.2 尚无此入口。
 
 ## 快速开始
 

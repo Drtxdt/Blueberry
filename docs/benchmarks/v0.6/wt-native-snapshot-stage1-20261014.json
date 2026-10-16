@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "terminal_source_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+  "prototype_source_commit": "875546871381756d656d524c2e1f9d58b03c032f",
+  "native_build": {
+    "run_id": 38515957545,
+    "job_id": 115694694646,
+    "compiled": true,
+    "workflow_passed": false,
+    "failure": "TAEF selection syntax before test execution",
+    "artifact_id": 11871324118,
+    "zip_sha256": "75EFB84E5165740E71B645EC1B25830DA084A0FFB104E9B60DDB925F57FFC399",
+    "dll_sha256": "44D059A63EEDCCDD084EF1A82E40B34D577DD4ED9227D20E29C18D24360A52EF"
+  },
+  "local_native_tests": {
+    "runner": "Windows SDK TAEF x64 10.99k",
+    "selection": "@Name='*NativeOverlayTests*'",
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "stdout": "artifacts\\wt-overlay-prototype\\native-local-selected.txt",
+    "stdout_sha256": "76C37B75ACE3ABE895FAF858B2BB42AC88FCF5D8A85078B314B211D789BAF911",
+    "cases": [
+      "NativeFieldsAndForeignRowSurviveRestore",
+      "RestoreBeforeRepeatedNativeReflowMatchesUncoveredBuffer",
+      "StaleGenerationAndLinkCollisionFailBeforeMutation"
+    ]
+  },
+  "stage_one_native_snapshot_passed": true,
+  "complete_history_interface_passed": false,
+  "release_blocked": true,
+  "remaining": [
+    "Independent original logical row and colored trailing blank round trips",
+    "Native pre-resize lifecycle hook and write lock",
+    "Hyperlink ID/custom ID retention and remapping",
+    "Foreign writes in covered rows, scrolling, viewport/scrollback truncation",
+    "Special line rendition and image payload round trips",
+    "Parser/interface and renderer invalidation integration",
+    "Final Blueberry package and actual terminal/manual acceptance"
+  ]
+}

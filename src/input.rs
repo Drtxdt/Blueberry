@@ -205,6 +205,74 @@ pub fn mouse_bytes(event: crossterm::event::MouseEvent, screen: &vt100::Screen) 
     }
 }
 
+pub fn native_bytes(event: Event, application_cursor: bool) -> Option<Vec<u8>> {
+    match translate(event, application_cursor)? {
+        Input::Bytes(bytes) => Some(bytes),
+        Input::Tab => Some(vec![b'\t']),
+        Input::BackTab => Some(b"\x1b[Z".to_vec()),
+        Input::Previous => Some(
+            if application_cursor {
+                b"\x1bOA"
+            } else {
+                b"\x1b[A"
+            }
+            .to_vec(),
+        ),
+        Input::Next => Some(
+            if application_cursor {
+                b"\x1bOB"
+            } else {
+                b"\x1b[B"
+            }
+            .to_vec(),
+        ),
+        Input::Dismiss => Some(vec![0x1b]),
+        _ => None,
+    }
+}
+
+/// Native editor delegation must deliver a standalone Escape key. A lone VT
+/// ESC byte can remain an incomplete prefix until another key arrives; history
+/// browsing deliberately does not send a private query chord to complete it.
+pub fn native_editor_bytes(event: Event, application_cursor: bool) -> Option<Vec<u8>> {
+    #[cfg(windows)]
+    if let Event::Key(key) = &event
+        && key.kind != KeyEventKind::Release
+        && key.modifiers == Mod::CONTROL
+        && let KeyCode::Char(character @ ('g' | 'r' | 's')) = key.code
+    {
+        // Native history search compares physical key bindings. A raw BEL
+        // can arrive through ConPTY as a VK0 character and be inserted as
+        // U+0007 instead of invoking Ctrl+G (Abort).
+        let vk = character.to_ascii_uppercase() as u16;
+        return Some(windows_key_record(vk, character as u16 & 0x1f, 8));
+    }
+    #[cfg(windows)]
+    if matches!(&event, Event::Key(key) if key.kind != KeyEventKind::Release
+        && key.code == KeyCode::Esc && key.modifiers.is_empty())
+    {
+        return Some(windows_key_record(0x1b, 0x1b, 0));
+    }
+    native_bytes(event, application_cursor)
+}
+
+pub fn matches_native_delete(chord: &str, event: &Event) -> bool {
+    let Event::Key(key) = event else {
+        return false;
+    };
+    let (name, modifiers) = match chord.get(..5) {
+        Some(prefix) if prefix.eq_ignore_ascii_case("ctrl+") => (&chord[5..], Mod::CONTROL),
+        _ => (chord, Mod::NONE),
+    };
+    let code = match name {
+        _ if name.eq_ignore_ascii_case("backspace") => KeyCode::Backspace,
+        _ if name.eq_ignore_ascii_case("delete") => KeyCode::Delete,
+        _ if name.len() == 1 => KeyCode::Char(name.chars().next().unwrap().to_ascii_lowercase()),
+        _ => return false,
+    };
+    key.kind != KeyEventKind::Release && key.code == code && key.modifiers == modifiers
+}
+
 pub fn translate(event: Event, application_cursor: bool) -> Option<Input> {
     match event {
         Event::Resize(w, h) => Some(Input::Resize(w, h)),
@@ -306,6 +374,40 @@ pub fn translate(event: Event, application_cursor: bool) -> Option<Input> {
 mod tests {
     use super::*;
     use crossterm::event::KeyEvent;
+    #[cfg(windows)]
+    #[test]
+    fn native_editor_escape_is_a_complete_key_record() {
+        let escape = Event::Key(KeyEvent::new(KeyCode::Esc, Mod::NONE));
+        let records = native_editor_bytes(escape, false).unwrap();
+        assert!(records.starts_with(b"\x1b[27;"));
+        assert_eq!(
+            records.windows(2).filter(|bytes| *bytes == b"1_").count(),
+            2
+        );
+        let tab = Event::Key(KeyEvent::new(KeyCode::Tab, Mod::NONE));
+        assert_eq!(native_editor_bytes(tab, false).unwrap(), b"\t");
+    }
+    #[test]
+    fn native_history_keys_and_delete_ack_bindings_keep_modifiers() {
+        for (code, modifiers, bytes) in [
+            (KeyCode::Tab, Mod::NONE, b"\t".as_slice()),
+            (KeyCode::Esc, Mod::NONE, b"\x1b".as_slice()),
+            (KeyCode::Left, Mod::NONE, b"\x1b[D".as_slice()),
+            (KeyCode::Up, Mod::NONE, b"\x1b[A".as_slice()),
+        ] {
+            assert_eq!(
+                native_bytes(Event::Key(KeyEvent::new(code, modifiers)), false).unwrap(),
+                bytes
+            );
+        }
+        let plain = Event::Key(KeyEvent::new(KeyCode::Backspace, Mod::NONE));
+        let ctrl = Event::Key(KeyEvent::new(KeyCode::Backspace, Mod::CONTROL));
+        assert!(matches_native_delete("Backspace", &plain));
+        assert!(matches_native_delete("CTRL+BACKSPACE", &ctrl));
+        assert!(!matches_native_delete("Backspace", &ctrl));
+        assert!(!matches_native_delete("Ctrl+Backspace", &plain));
+        assert!(!matches_native_delete("Delete", &plain));
+    }
     #[test]
     fn unicode_and_ctrl_c_are_forwarded() {
         let check = |code, mods, expected: &[u8]| match translate(

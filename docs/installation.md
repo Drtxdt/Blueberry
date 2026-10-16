@@ -14,7 +14,13 @@
 
 发布者需要先公开 GitHub Release，安装命令才能下载对应版本。
 
-`0.5.0` 尚在候选验收中；下面指定版本和本地包的示例供该版本发布后使用。当前进度见 [0.5.0 验收记录](v0.5.0-validation.md)。
+当前公开版为 `0.5.2`；`0.5.3` 候选单独验收，不能通过在线安装示例假定已公开。见 [0.5.3 验收记录](v0.5.3-validation.md)。
+
+Windows 默认 direct／pipe；`blueberry run --host-mode nested --transport osc` 或 `--transport pipe` 进入 ConPTY 兼容模式。支持矩阵为 PS5.1／PSReadLine 2.0.0、PS5.1／2.4.5、PS7／2.4.5；direct 使用随包提供的对应私有编辑器。
+
+开发中的下一版安装包会自动配套安装固定版本的便携 Windows Terminal，并提供 `blueberry-terminal` 启动入口（也可双击安装目录的 `blueberry-terminal.cmd`）。组件随同一个 ZIP 下载，安装事务校验全部文件；无需分别解压或安装 Python。该入口启用完整历史恢复接口，使用 direct／pipe 和现有 Blueberry 配置。
+
+配套组件位于安装目录的 `terminal` 子目录，独立使用 `terminal/settings` 保存设置；保留系统默认终端及已有 Terminal 设置。升级、回滚同时处理受管组件和启动入口，保留新生成的便携 Terminal 用户设置。卸载仅删除未修改的受管文件，用户设置保留。更新前退出配套 Terminal 的所有窗口；正在运行的组件被占用时，更新失败并恢复安装，不会强制结束窗口。普通 `blueberry` 入口继续兼容现有终端；完整属性跨缩放恢复须从配套入口使用。
 
 若 PowerShell 提示“此系统上禁止运行脚本”，先运行 `Get-ExecutionPolicy -List` 查看策略。个人电脑可自行执行 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`，允许本地安装脚本和 profile 加载；组织管理的电脑请遵循管理员策略。安装程序保留现有执行策略。
 
@@ -22,7 +28,7 @@
 
 ```powershell
 $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/install.ps1').TrimStart([char]0xFEFF)
-& ([scriptblock]::Create($installer)) -Version 0.5.0 -NoPrompt
+& ([scriptblock]::Create($installer)) -Version 0.5.2 -NoPrompt
 ```
 
 `-EnableStartup` 明确开启自动启动；`-NoPrompt` 跳过询问，默认关闭。`-InstallRoot` 可更改安装目录，`-ConfigRoot` 可更改首次配置写入目录；自定义配置目录启动时使用 `--config` 指定文件。
@@ -32,7 +38,7 @@ $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/insta
 从 Releases 下载 ZIP 及同名 `.sha256`，放入同一目录。解压 ZIP 可直接运行 `blueberry.exe`；纳入安装管理时执行：
 
 ```powershell
-.\install.ps1 -PackagePath C:\Downloads\blueberry-v0.5.0-windows-x64.zip
+.\install.ps1 -PackagePath C:\Downloads\blueberry-v0.5.2-windows-x64.zip
 ```
 
 ## 升级、回滚与卸载
@@ -42,8 +48,8 @@ $installer = (irm 'https://raw.githubusercontent.com/Drtxdt/Blueberry/main/insta
 ```powershell
 blueberry upgrade --check
 blueberry upgrade
-blueberry upgrade --version 0.5.0
-blueberry upgrade --package C:\Downloads\blueberry-v0.5.0-windows-x64.zip
+blueberry upgrade --version 0.5.2
+blueberry upgrade --package C:\Downloads\blueberry-v0.5.2-windows-x64.zip
 blueberry rollback
 blueberry uninstall
 blueberry maintenance status
@@ -88,3 +94,7 @@ blueberry startup disable
 - 自动启动启用、关闭，以及退出 Blueberry 后继续使用 PowerShell。
 
 出现问题时附上 `blueberry doctor`、PowerShell/PSReadLine 版本及复现步骤。
+
+## 故障诊断与反馈
+
+先记录 `blueberry --version`、`blueberry doctor --json`、实际宿主模式、PowerShell／PSReadLine 和终端版本，再提供最短复现、预期与实际结果。诊断输出可能包含本机路径，分享前检查。通过仓库 Bug 模板提交；真实终端操作清单见 [当前候选验收](v0.5.3-validation.md)。

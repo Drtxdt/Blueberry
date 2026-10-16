@@ -318,6 +318,15 @@ fn start_delayed_executable(
     delay: u32,
     executable: &std::path::Path,
 ) -> Result<Harness> {
+    start_delayed_executable_with_pages(directory, delay, executable, false)
+}
+
+fn start_delayed_executable_with_pages(
+    directory: &std::path::Path,
+    delay: u32,
+    executable: &std::path::Path,
+    terminal_pages: bool,
+) -> Result<Harness> {
     let mut args = vec![
         "run".into(),
         "--host-mode".into(),
@@ -346,6 +355,10 @@ fn start_delayed_executable(
             ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
             ("TERM".into(), "xterm-256color".into()),
             ("BLUEBERRY_TEST_FRAME_DELAY_MS".into(), delay.to_string()),
+            (
+                "BLUEBERRY_TEST_TERMINAL_PAGES".into(),
+                if terminal_pages { "1" } else { "0" }.into(),
+            ),
         ]),
         String::new(),
     )?;
@@ -496,9 +509,143 @@ fn wait_editor_begin(h: &mut Harness, directory: &std::path::Path, count: usize)
 }
 
 #[test]
-fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() -> Result<()> {
-    for delay in [0, 3, 5, 10, 40, 100] {
+fn direct_empty_up_keeps_native_history_until_a_real_edit() -> Result<()> {
+    for delay in [0, 40] {
         let dir = tempfile::tempdir()?;
+        let mut h = start_with_delay(dir.path(), delay)?;
+        let result = (|| -> Result<()> {
+            h.send(b"function global:TabExpansion2 { param($inputScript,$cursorColumn,$options) $m=[Collections.ObjectModel.Collection[Management.Automation.CompletionResult]]::new(); $m.Add([Management.Automation.CompletionResult]::new('git status','git status','Command','fixture')); [Management.Automation.CommandCompletion]::new($m,0,0,$inputScript.Length) }; [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git sw'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st')\r")?;
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+            for (key, expected) in [
+                (b"\x1b[A".as_slice(), "git st"),
+                (b"\x1b[A".as_slice(), "git sw"),
+                (b"\x1b[B".as_slice(), "git st"),
+            ] {
+                h.send(key)?;
+                let deadline = std::time::Instant::now() + TIMEOUT;
+                loop {
+                    let _ = h.pump(Duration::from_millis(10));
+                    let screen = h.screen_snapshot();
+                    let row = screen
+                        .rows(0, screen.size().1)
+                        .nth(screen.cursor_position().0 as usize)
+                        .unwrap_or_default();
+                    if row.contains(expected) {
+                        break;
+                    }
+                    ensure!(
+                        std::time::Instant::now() < deadline,
+                        "native history did not reach {expected}"
+                    );
+                }
+                let _ = h.pump(Duration::from_millis(350));
+                ensure!(
+                    !h.screen_snapshot().contents().contains("› "),
+                    "history recall reopened Blueberry completion"
+                );
+            }
+            for key in [
+                b"\x1b[D".as_slice(),
+                b"\x1b[H",
+                b"\x7f",
+                b"\t",
+                b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_",
+            ] {
+                h.send(key)?;
+                let until = std::time::Instant::now() + Duration::from_millis(350);
+                while std::time::Instant::now() < until {
+                    let _ = h.pump(Duration::from_millis(10));
+                }
+                if key == b"\t" {
+                    let until = std::time::Instant::now() + TIMEOUT;
+                    loop {
+                        let screen = h.screen_snapshot();
+                        let row = screen
+                            .rows(0, screen.size().1)
+                            .nth(screen.cursor_position().0 as usize)
+                            .unwrap_or_default();
+                        if row.contains("git status") {
+                            break;
+                        }
+                        ensure!(
+                            std::time::Instant::now() < until,
+                            "native Tab did not complete the fixture"
+                        );
+                        let _ = h.pump(Duration::from_millis(10));
+                    }
+                }
+                ensure!(
+                    !h.screen_snapshot().contents().contains("› "),
+                    "native history key reopened completion: {key:?}"
+                );
+            }
+            h.send(b"\x03")?;
+            h.wait_text("^C", TIMEOUT)?;
+            wait_editor_begin(&mut h, dir.path(), 3)?;
+            h.send(b"\x1b[A")?;
+            let _ = h.pump(Duration::from_millis(350));
+            h.send(b"\x1b[F\x7f")?;
+            h.wait_text("› ", TIMEOUT)?;
+            h.send(b"\x03")?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error)
+                .with_context(|| format!("native history regression: {}", dir.keep().display()));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_history_respects_disabled_policy_and_custom_up_binding() -> Result<()> {
+    for custom in [false, true] {
+        let dir = tempfile::tempdir()?;
+        if !custom {
+            std::fs::write(
+                dir.path().join("config.toml"),
+                "[completion]\nup_arrow_history = false\n",
+            )?;
+        }
+        let mut h = start(dir.path())?;
+        let result = (|| -> Result<()> {
+            if custom {
+                h.send(b"Set-PSReadLineKeyHandler -Chord UpArrow -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('git st') }\r")?;
+            } else {
+                h.send(b"[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st')\r")?;
+            }
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+            h.send(b"\x1b[A")?;
+            h.wait_text("› ", TIMEOUT)?;
+            ensure!(
+                h.screen_snapshot().contents().contains("git st"),
+                "Up binding text changed"
+            );
+            h.send(b"\x03")?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error).with_context(|| {
+                format!("history policy/custom binding: {}", dir.keep().display())
+            });
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    for delay in [0, 3, 5, 10, 40, 100] {
+        let dir = tempfile::Builder::new()
+            .prefix("direct-wake-")
+            .tempdir_in(&evidence)?;
         let mut h = start_with_delay(dir.path(), delay)?;
         h.wait_text("PS ", TIMEOUT)?;
         h.send(b"if ([Blueberry.Direct.Bridge]::EditorHooks -and @(Get-PSReadLineKeyHandler).Count -lt 1000) { Write-Output 'HOOKS-VERIFIED' }\r")?;
@@ -532,16 +679,15 @@ fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() ->
             .filter(|event| event["event"] == "direct_frame_to_paint")
             .filter_map(|event| event["duration_ms"].as_f64())
             .collect();
-        ensure!(
-            !waits.is_empty(),
-            "missing receive-to-paint spans for delay {delay}"
-        );
         // This is a liveness regression with generous CI scheduling tolerance.
         // The stricter 5 ms P95 belongs to the isolated performance measurement.
-        ensure!(
-            waits.iter().all(|wait| *wait < 200.0),
-            "late frame waited on idle polling: {waits:?}"
-        );
+        if waits.is_empty() || waits.iter().any(|wait| *wait >= 200.0) {
+            let retained = dir.keep();
+            anyhow::bail!(
+                "receive-to-paint regression at delay {delay} ms: {waits:?}; all trace events retained at {}",
+                retained.display()
+            );
+        }
         eprintln!("frame delay {delay} ms: receive-to-paint {waits:?}");
     }
     Ok(())
@@ -740,6 +886,154 @@ fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<(
     let mut h = start(dir.path())?;
     h.send(b"if ((Get-Command Get-FileHash -ErrorAction Stop).Source -eq 'Microsoft.PowerShell.Utility' -and (Get-Command ConvertTo-Json -ErrorAction Stop)) { Write-Output 'MODULE-AUTOLOAD-OK' }\r")?;
     wait_output_line(&mut h, "MODULE-AUTOLOAD-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_autoloads_a_module_under_a_sql_style_powershell_directory() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let modules = dir.path().join("SQL/Tools/PowerShell/Modules");
+    let module = modules.join("BlueberrySqlRootFixture");
+    std::fs::create_dir_all(&module)?;
+    std::fs::write(
+        module.join("BlueberrySqlRootFixture.psm1"),
+        "function Get-BlueberrySqlRootFixture { 'SQL-MODULE-AUTOLOAD-OK' }; Export-ModuleMember -Function Get-BlueberrySqlRootFixture",
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut paths = vec![modules];
+    if let Some(inherited) = std::env::var_os("PSModulePath") {
+        paths.extend(std::env::split_paths(&inherited));
+    }
+    let paths = std::env::join_paths(paths)?.to_string_lossy().into_owned();
+    let mut h = Harness::start(
+        &executable,
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--no-profile".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            ("PSModulePath".into(), paths.clone()),
+            ("WinPSModulePath".into(), paths),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    h.send_text("Get-BlueberrySqlRootFixture\r")?;
+    wait_output_line(&mut h, "SQL-MODULE-AUTOLOAD-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut h = Harness::start(
+        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--no-profile".into(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            ("PSModulePath".into(), String::new()),
+            (
+                "WinPSModulePath".into(),
+                dir.path()
+                    .join("stale-user/Modules")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            ("TERM".into(), "xterm-256color".into()),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    let status = std::fs::read_dir(dir.path())?
+        .filter_map(Result::ok)
+        .find_map(|entry| std::fs::read(entry.path().join("adapter.json")).ok())
+        .context("missing actual editor status")?;
+    let status: serde_json::Value = serde_json::from_slice(&status)?;
+    ensure!(
+        status["editor_mode"] == "editor_hooks_v1",
+        "GUI startup lost private editor: {status}"
+    );
+    let expected = std::process::Command::new(blueberry::pty::default_shell())
+        .env_remove("PSModulePath")
+        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+            "[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); [Console]::WriteLine((ConvertTo-Json -InputObject @($env:PSModulePath -split ';') -Compress))"])
+        .output()?;
+    ensure!(
+        expected.status.success(),
+        "plain module path control failed"
+    );
+    let expected: Vec<String> = serde_json::from_slice(&expected.stdout)?;
+    let paths_file = dir.path().join("actual-module-paths.json");
+    h.send_text(&format!("[IO.File]::WriteAllText('{}',(ConvertTo-Json -InputObject @($env:PSModulePath -split ';') -Compress)); [Console]::WriteLine('MODULE-PATHS-CAPTURED')\r",
+        paths_file.to_string_lossy().replace('\'', "''")))?;
+    wait_output_line(&mut h, "MODULE-PATHS-CAPTURED")?;
+    let actual: Vec<String> = serde_json::from_slice(&std::fs::read(paths_file)?)?;
+    let normalized = |path: &str| {
+        path.replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_lowercase()
+    };
+    for path in expected.iter().filter(|path| !path.is_empty()) {
+        ensure!(
+            actual
+                .iter()
+                .any(|entry| normalized(entry) == normalized(path)),
+            "GUI startup lost default module directory {path}: {actual:?}"
+        );
+    }
+    // Fill the viewport: a menu below the last prompt has no room. Only a
+    // verified editor can provide the input bounds for upward placement.
+    h.send(b"1..40 | ForEach-Object { 'HISTORY-ROW' }; 'BOTTOM-READY'\r")?;
+    wait_output_line(&mut h, "BOTTOM-READY")?;
+    h.send(b"git sw")?;
+    // The same scenario can also be run with the frozen native observer.
+    // Private companion frames intentionally never enter the legacy VT model.
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    let screen = loop {
+        let screen = h.observed_viewport()?;
+        if screen.contains("switch") {
+            break screen;
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "menu missing above bottom input: {screen}"
+        );
+        let _ = h.pump(Duration::from_millis(10));
+    };
+    let menu = screen
+        .lines()
+        .position(|line| line.contains("switch"))
+        .context("menu missing")?;
+    let input = screen
+        .lines()
+        .position(|line| line.trim_end().ends_with("git sw"))
+        .context("input missing")?;
+    ensure!(menu < input, "menu was not above bottom input: {screen}");
+    h.send(b"\x01\x7f")?;
     h.finish(TIMEOUT)
 }
 
@@ -1062,6 +1356,92 @@ $global:BlueberryTestRegistration=[Microsoft.PowerShell.PSConsoleReadLine]::Regi
     );
     h.send(b"Write-Output 'NEXT-PROMPT-OK'\r")?;
     wait_output_line(&mut h, "NEXT-PROMPT-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+#[ignore = "native foreground child for the Ctrl+C lifecycle regression"]
+fn external_interrupt_helper() {
+    println!(
+        "BB-EXTERNAL-INTERRUPT-READY-{}",
+        std::env::var("BLUEBERRY_INTERRUPT_ROUND").unwrap()
+    );
+    std::thread::sleep(Duration::from_secs(60));
+}
+
+#[test]
+fn direct_ctrl_c_during_native_process_preserves_session_and_prompt() -> Result<()> {
+    check_native_interrupt(false)?;
+    check_native_interrupt(true)
+}
+
+fn check_native_interrupt(parent_shell: bool) -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut h = if parent_shell {
+        let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+        let shell = blueberry::pty::default_shell();
+        let quote = |path: &std::path::Path| path.to_string_lossy().replace('\'', "''");
+        let command = format!(
+            "function global:prompt {{ 'BB-PARENT-RESTORED> ' }}; & '{}' run --host-mode direct --no-profile --shell '{}' --data-dir '{}' --trace '{}'",
+            quote(&executable),
+            quote(&shell),
+            quote(dir.path()),
+            quote(&dir.path().join("trace.jsonl"))
+        );
+        let mut h = Harness::start(
+            &shell,
+            &[
+                "-NoLogo".into(),
+                "-NoProfile".into(),
+                "-NoExit".into(),
+                "-Command".into(),
+                command,
+            ],
+            dir.path(),
+            &BTreeMap::from([("BLUEBERRY_NO_HISTORY".into(), "1".into())]),
+            String::new(),
+        )?;
+        wait_editor_begin(&mut h, dir.path(), 1)?;
+        h
+    } else {
+        start(dir.path())?
+    };
+    let initialize = if let Some(starship) = std::env::var_os("BLUEBERRY_TEST_STARSHIP") {
+        format!(
+            "Invoke-Expression (& '{}' init powershell)",
+            starship.to_string_lossy().replace('\'', "''")
+        )
+    } else {
+        "function global:prompt { 'BB-PLUGIN-PROMPT> ' }".into()
+    };
+    h.send_text(&format!("$global:BBInterruptPid=$PID; {initialize}; $global:BBInterruptPrompt=(Get-Command prompt).ScriptBlock.ToString(); Write-Output 'BB-PLUGIN-READY'\r"))?;
+    wait_output_line(&mut h, "BB-PLUGIN-READY")?;
+    let helper = std::env::current_exe()?
+        .to_string_lossy()
+        .replace('\'', "''");
+    for iteration in 0..3 {
+        h.send_text(&format!("$env:BLUEBERRY_INTERRUPT_ROUND='{iteration}'; & '{helper}' external_interrupt_helper --exact --ignored --nocapture\r"))?;
+        h.wait_text(&format!("BB-EXTERNAL-INTERRUPT-READY-{iteration}"), TIMEOUT)?;
+        let begins = std::fs::read_to_string(dir.path().join("trace.jsonl"))?
+            .lines()
+            .filter(|line| line.contains("direct_readline_begin"))
+            .count();
+        h.send(b"\x03")?;
+        wait_editor_begin(&mut h, dir.path(), begins + 1)?;
+        let marker = format!("BB-SESSION-PRESERVED-{iteration}");
+        h.send_text(&format!("if ($global:BBInterruptPid -eq $PID -and (Get-Command prompt).ScriptBlock.ToString() -eq $global:BBInterruptPrompt) {{ Write-Output '{marker}' }}\r"))?;
+        wait_output_line(&mut h, &marker)?;
+    }
+    h.send(b"git sw")?;
+    h.wait_text("switch", TIMEOUT)?;
+    h.send(b"\x03")?;
+    if parent_shell {
+        h.send_text("exit\r")?;
+        // Windows may expand an 8.3 TEMP path in its stock prompt.
+        wait_output_line(&mut h, "BB-PARENT-RESTORED>")?;
+    }
     h.finish(TIMEOUT)
 }
 
@@ -1395,6 +1775,173 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
         let _ = console_snapshot::capture(&h, &dir.path().join("native-failure.json"));
         let _ = h.stop();
         return Err(error).with_context(|| format!("multiline overlay: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_above_menu_preserves_truecolor_prompt_cells() -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let dir = tempfile::Builder::new()
+        .prefix("direct-prompt-colors-")
+        .tempdir_in(evidence)?;
+    let setup = dir.path().join("setup.ps1");
+    std::fs::write(
+        &setup,
+        "\u{feff}1..40 | ForEach-Object { 'COLOR-SENTINEL' }; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $e=[char]27; [Console]::Write(\"${e}[38;2;123;45;67m${e}[48;2;23;89;145mRGB-PROMPT-中🚀é${e}[0m`r`n\"); function global:prompt { 'BB> ' }\r\n",
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut h = start_delayed_executable_with_pages(dir.path(), 0, &executable, true)?;
+    let result = (|| -> Result<()> {
+        h.send_text(&format!(
+            ". '{}'\r",
+            setup.display().to_string().replace('\'', "''")
+        ))?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        h.wait_text("RGB-PROMPT-中🚀é", TIMEOUT)?;
+        let before = h.screen_snapshot();
+        let row = (0..before.size().0)
+            .find(|row| {
+                before
+                    .rows(0, before.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("prompt row missing")?;
+        ensure!(
+            before.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67),
+            "fixture lacks truecolor"
+        );
+        h.send(b"git sw")?;
+        h.wait_text("switch", TIMEOUT)?;
+        h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+        let until = std::time::Instant::now() + Duration::from_millis(400);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        let after = h.screen_snapshot();
+        for column in 0..before.size().1 {
+            let old = before.cell(row, column).unwrap();
+            let new = after.cell(row, column).unwrap();
+            ensure!(
+                old == new,
+                "prompt cell changed at {row},{column}: {old:?} -> {new:?}"
+            );
+        }
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error).with_context(|| format!("prompt colors: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "known release blocker: resized overlays quantize historical RGB; run explicitly against the frozen CI EXE"]
+fn direct_above_menu_resize_preserves_truecolor_history() -> Result<()> {
+    check_above_menu_resized_history(true)
+}
+
+#[test]
+#[ignore = "known release blocker: CHAR_INFO cannot retain combining glyphs and exact history wrapping; run explicitly against the frozen CI EXE"]
+fn direct_above_menu_resize_preserves_unicode_and_wrapped_history() -> Result<()> {
+    // Keep this independent of RGB: a colour assertion must not conceal a
+    // second regression in the character/soft-wrap restoration path.
+    check_above_menu_resized_history(false)
+}
+
+fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let dir = tempfile::Builder::new()
+        .prefix("direct-resize-prompt-colors-")
+        .tempdir_in(evidence)?;
+    let setup = dir.path().join("setup.ps1");
+    std::fs::write(
+        &setup,
+        format!(
+            "\u{feff}1..40 | ForEach-Object {{ 'COLOR-SENTINEL' }}; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145mRGB-PROMPT-中🚀é{}${{e}}[0m`r`n\"); function global:prompt {{ 'BB> ' }}\r\n",
+            "x".repeat(55)
+        ),
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut h = start_delayed_executable_with_pages(dir.path(), 0, &executable, true)?;
+    let result = (|| -> Result<()> {
+        h.send_text(&format!(
+            ". '{}'\r",
+            setup.display().to_string().replace('\'', "''")
+        ))?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        h.wait_text("RGB-PROMPT-中🚀é", TIMEOUT)?;
+        let before = h.screen_snapshot();
+        let row = (0..before.size().0)
+            .find(|row| {
+                before
+                    .rows(0, before.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("original history row missing")?;
+        ensure!(
+            before.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67),
+            "fixture lacks truecolor"
+        );
+        h.send(b"git sw")?;
+        h.wait_text("switch", TIMEOUT)?;
+        h.resize(12, 40)?;
+        let until = std::time::Instant::now() + Duration::from_millis(500);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+        let until = std::time::Instant::now() + Duration::from_millis(400);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        let after = h.screen_snapshot();
+        let row = (0..after.size().0)
+            .find(|row| {
+                after
+                    .rows(0, after.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("history disappeared after menu resize and Esc")?;
+        if check_rgb {
+            ensure!(
+                after.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67)
+                    && after.cell(row, 0).unwrap().bgcolor() == vt100::Color::Rgb(23, 89, 145),
+                "resized history lost full RGB attributes: {:?}",
+                after.cell(row, 0)
+            );
+        }
+        ensure!(
+            after.contents().contains("中🚀é"),
+            "resized history lost Unicode"
+        );
+        let expected = format!("RGB-PROMPT-中🚀é{}", "x".repeat(55));
+        let contents = after.contents();
+        let logical_text = contents.lines().collect::<String>();
+        ensure!(
+            logical_text.contains(&expected),
+            "resized history clipped or changed the wrapped fixture"
+        );
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error)
+            .with_context(|| format!("resize prompt colors: {}", dir.keep().display()));
     }
     Ok(())
 }

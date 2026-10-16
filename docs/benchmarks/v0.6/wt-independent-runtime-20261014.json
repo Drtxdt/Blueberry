@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "terminal_source_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+  "prototype_source_commit": "d2351fb39a220fac80abb7a18d07e2b273d8674f",
+  "run_id": 38532075621,
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38532075621",
+  "native_tests_passed": 12,
+  "native_test_names": [
+    "NativeOverlayTests::NativeFieldsAndForeignRowSurviveRestore",
+    "NativeOverlayTests::RestoreBeforeRepeatedNativeReflowMatchesUncoveredBuffer",
+    "NativeOverlayTests::StaleGenerationAndLinkCollisionFailBeforeMutation",
+    "NativeOverlayTests::OriginalLogicalRowsRoundTripThroughRepeatedResize",
+    "NativeOverlayTests::ColoredTrailingBlankAttributesRoundTrip",
+    "NativeOverlayTests::SnapshotRetainsImagesSpecialRenditionAndHiddenColumns",
+    "NativeOverlayLifecycleTests::ActualUserResizeRestoresBeforeReflowAndRejectsOldGeneration",
+    "NativeOverlayLifecycleTests::OrdinaryOutputRestoresBeforeWritingCoveredHistory",
+    "NativeOverlayLifecycleTests::FragmentedPrivateDrawAndStaleClosePreserveCurrentOverlay",
+    "NativeOverlayLifecycleTests::PrivateOverlayRetiresBeforeScrollingAndAlternateScreen",
+    "NativeOverlayLifecycleTests::PrototypeCapabilityReplyPreservesActiveOverlay",
+    "NativeOverlayLifecycleTests::PrivateCoordinatesFollowViewportAfterHistoryScroll"
+  ],
+  "portable_ui_build_passed": true,
+  "portable_artifact_id": 11880016002,
+  "portable_zip_sha256": "aa983ff4b99953133d967fd157edad5fa1dc55336f8e42a7e0301b6162ae8335",
+  "portable_binaries": [
+    {
+      "name": "Microsoft.Terminal.Control.dll",
+      "sha256": "89e7ec735943b6df0a45465a8824395769b33864422483d4133dd706c1a3827d"
+    },
+    {
+      "name": "Microsoft.Terminal.Settings.Editor.dll",
+      "sha256": "dc27b1a9810fa3747cb71fca64bd3e7f149bb24c947ec1b7988ee7cdddf60d44"
+    },
+    {
+      "name": "Microsoft.Terminal.Settings.Model.dll",
+      "sha256": "e5b74a02ed47ecca9aa9c412d9faad4e1251d05e80b2a4553a4e35824738744d"
+    },
+    {
+      "name": "Microsoft.Terminal.UI.dll",
+      "sha256": "f9bf3a0011d3856f4ca5936d71dba8a4d5020ddbd642a907e29cee8e3fe5d2d7"
+    },
+    {
+      "name": "Microsoft.Terminal.UI.Markdown.dll",
+      "sha256": "992ab4d219a5e221e39149b0c601c2038f18dd90386c4fb0d2c5e9f0585e50e8"
+    },
+    {
+      "name": "Microsoft.UI.Xaml.dll",
+      "sha256": "8b92de46c8950ced663e970a3352d3930ff3c978f3c73770935b5316cf6ca5ad"
+    },
+    {
+      "name": "OpenConsole.exe",
+      "sha256": "bedd6392973c61fec06520600f6cfb6e5f84bb8d5ce54a0b168d4bb18205a8b4"
+    },
+    {
+      "name": "TerminalApp.dll",
+      "sha256": "399eb39ca3dac38a7813a152c1c4cd7e276348252be49d4988f3d2eb4ceed6d6"
+    },
+    {
+      "name": "TerminalConnection.dll",
+      "sha256": "84cee7fa908c52c5094d73c77c6f518d74ef8dfee3a7ab4da4205fba539e1908"
+    },
+    {
+      "name": "TerminalThemeHelpers.dll",
+      "sha256": "929ddfb7696bbe75234b2bf2ae1997b05502cc45b263ce53a5d27e7bf23abd77"
+    },
+    {
+      "name": "WindowsTerminal.exe",
+      "sha256": "8dd720f81246aa8d715726ccab4dcc66bac6a9f5b66f3e8260c8bba428a142bf"
+    }
+  ],
+  "raw_ci_log": "artifacts\\wt-overlay-prototype\\runtime-ci-d235.log",
+  "raw_ci_log_sha256": "ef62873d82a32d27507debbc8d8d806796c3cfd9b606726572383974841f70cf",
+  "runtime_probe_source": "experiments/wt-overlay/probe-runtime.py",
+  "runtime_probe_sha256": "a3d904384b6d96bd45a65de57753e8c067c408cd322ae090885c92fc4d7e9c50",
+  "actual_conpty_query_reply_passed": true,
+  "runtime_query": {
+    "schema": 1,
+    "diagnostic_only": true,
+    "source": "own_dedicated_console_input",
+    "supported": true,
+    "pixel_visibility_measured": false,
+    "complete_history_restoration_verified": false,
+    "wt_session": "eb01b1fa-ceba-4ca2-9e3c-9acb24109596",
+    "error": null,
+    "query_roundtrip_ms": 0.21809999998367857,
+    "reader_cleaned_up": true,
+    "received_ascii": "\u001b]7775;prototype;1;1650133399023136233;fixed-menu\u0007",
+    "console_modes_restored": true
+  },
+  "negative_console_timeout_and_cleanup_passed": true,
+  "runtime_receipt_sha256": "8f46f214ee13a435fa4cb3f2f8a500a7981b16da94892d9c89e41f633e6596fa",
+  "installed_terminal_modified": false,
+  "user_settings_or_profile_modified": false,
+  "review_patch": {
+    "terminal_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+    "prototype_commit": "d2351fb39a220fac80abb7a18d07e2b273d8674f",
+    "patch": "E:\\OpenSource\\shellsense-rs\\artifacts\\wt-overlay-prototype\\terminal-v1.24.12741.0-native-overlay-d235-v2.patch",
+    "patch_sha256": "ABADD35BE1FE7F1585CF442B54C16BFA3C9A5697AF92B399D29940143107F767",
+    "patched_source_files": 12,
+    "kind": "independent reviewable prototype patch; not installed or production accepted",
+    "git_apply_check_passed": true,
+    "check_requires_ignore_space_change": true,
+    "line_endings": "Terminal Git blobs contain CRLF; normalized LF review patch checked with --ignore-space-change",
+    "first_export_status": "invalid export retained; use v2"
+  },
+  "screen_pixels": "not_measured",
+  "arbitrary_menu_payload": "not_implemented",
+  "bridge_eof_cleanup": "not_implemented",
+  "production_blueberry_integration": "not_implemented",
+  "production_companion_terminal_delivery": "not_authorized",
+  "complete_history_interface_passed": false,
+  "release_blocked": true,
+  "runtime_probe_source_dirty_at_execution": true,
+  "ci_log_representation": "decoded connector log, normalized LF; digest applies to saved representation",
+  "reproducible_entrypoint": "experiments/wt-overlay/run-runtime.py",
+  "reproducible_entrypoint_sha256": "7854b941f95815212e78c4207a5e227201072213bbe2274fe6ed1c6b2a5e3f51",
+  "repeated_runtime_via_entrypoint_passed": true,
+  "repeated_runtime_receipt_sha256": "1f7414fb634cc9bf0f853268b269fa3aeb60cceb5fa92a1572461558d6ec29eb"
+}

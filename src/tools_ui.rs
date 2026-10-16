@@ -16,9 +16,13 @@ use std::{
     env, fs,
     io::{self, IsTerminal, Write},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    sync::atomic::AtomicBool,
+    time::Duration,
 };
 use toml_edit::{DocumentMut, value};
+
+#[path = "tools_tasks.rs"]
+mod tasks;
 
 #[derive(Clone, Serialize)]
 struct ToolInfo {
@@ -148,35 +152,86 @@ pub fn run(config_path: Option<&Path>, json: bool) -> Result<u32> {
     let mut query = String::new();
     let mut selected = 0usize;
     let mut notice = String::new();
+    let mut tasks = tasks::Worker::new();
+    let mut dirty = true;
     loop {
+        if let Some(completed) = tasks.poll() {
+            dirty = true;
+            let command = completed.tool.command;
+            match completed.output {
+                Ok(tasks::Output::Version(version)) => {
+                    if let Some(tool) = tools
+                        .iter_mut()
+                        .find(|tool| tool.command == command && tool.paths == completed.tool.paths)
+                    {
+                        tool.version = Some(version.clone());
+                    }
+                    notice = format!("{command}：{version}");
+                }
+                Ok(tasks::Output::Learned(record)) => {
+                    let published = knowledge::publish(&record, &knowledge::cache_dir());
+                    let saved = published.is_ok();
+                    notice = match published {
+                        Ok(()) => record
+                            .error
+                            .as_ref()
+                            .map(|e| format!("{command}：学习失败：{e}"))
+                            .unwrap_or_else(|| format!("{command}：帮助学习完成")),
+                        Err(error) => format!("{command}：缓存保存失败：{error}"),
+                    };
+                    if saved
+                        && let Some(tool) = tools.iter_mut().find(|tool| {
+                            tool.command == command && tool.paths == completed.tool.paths
+                        })
+                    {
+                        tool.help = if record.error.is_none() {
+                            "已学习"
+                        } else {
+                            "失败"
+                        }
+                        .into();
+                        tool.error.clone_from(&record.error);
+                    }
+                }
+                Err(error) => notice = format!("{command}：{error}"),
+            }
+        }
         let visible = filtered(&tools, &query);
         selected = selected.min(visible.len().saturating_sub(1));
-        draw(&tools, &visible, selected, &query, &notice, &settings)?;
+        if dirty {
+            draw(&tools, &visible, selected, &query, &notice, &settings)?;
+            dirty = false;
+        }
+        if !event::poll(Duration::from_millis(50))? {
+            continue;
+        }
+        dirty = true;
         match event::read()? {
             Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
                 KeyCode::Esc => break,
                 KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
                 KeyCode::Char('l' | 'L') if key.modifiers.is_empty() => {
-                    if let Some(index) = visible.get(selected).copied() {
-                        notice = learn(&tools[index])?;
-                        tools = collect(&config::load(config_path)?, config_path)?
+                    if let Some(index) = visible.get(selected).copied()
+                        && tasks.submit(&tools[index], tasks::Kind::Learn)
+                    {
+                        notice = format!("{}：正在学习…", tools[index].command);
                     }
                 }
                 KeyCode::Delete => {
+                    tasks.cancel();
                     if let Some(index) = visible.get(selected).copied() {
                         let count =
                             knowledge::forget(&knowledge::cache_dir(), &tools[index].command)?;
                         notice = format!("已清除 {count} 条帮助缓存");
-                        tools = collect(&config::load(config_path)?, config_path)?
+                        tools[index].help = "未学习".into();
+                        tools[index].error = None;
                     }
                 }
                 KeyCode::Char('v' | 'V') if key.modifiers.is_empty() => {
-                    if let Some(index) = visible.get(selected).copied() {
-                        tools[index].version = query_version(&tools[index]);
-                        notice = tools[index]
-                            .version
-                            .clone()
-                            .unwrap_or_else(|| "无法读取版本".into())
+                    if let Some(index) = visible.get(selected).copied()
+                        && tasks.submit(&tools[index], tasks::Kind::Version)
+                    {
+                        notice = format!("{}：正在读取版本…", tools[index].command);
                     }
                 }
                 KeyCode::Char('h' | 'H') if key.modifiers.is_empty() => {
@@ -419,42 +474,27 @@ fn flag(value: Option<bool>) -> &'static str {
         None => "跟随全局",
     }
 }
-fn learn(tool: &ToolInfo) -> Result<String> {
-    let Some(path) = tool.paths.first() else {
-        return Ok("找不到可学习的程序入口".into());
-    };
-    let cwd = env::current_dir()?;
-    let Some(entry) = knowledge::entry(&tool.command, path, &cwd) else {
-        return Ok("此入口不符合已知学习规则".into());
-    };
-    let record = knowledge::learn(
-        entry,
-        Vec::new(),
-        &knowledge::cache_dir(),
-        &std::sync::atomic::AtomicBool::new(false),
-    )
-    .map_err(anyhow::Error::msg)?;
-    Ok(record
-        .error
-        .map(|e| format!("学习失败：{e}"))
-        .unwrap_or_else(|| "帮助学习完成".into()))
+fn learn(tool: &ToolInfo, cancelled: &AtomicBool) -> Result<knowledge::Record, String> {
+    let path = tool.paths.first().ok_or("找不到可学习的程序入口")?;
+    let cwd = env::current_dir().map_err(|e| e.to_string())?;
+    let entry = knowledge::entry(&tool.command, path, &cwd).ok_or("此入口不符合已知学习规则")?;
+    knowledge::learn_uncached(entry, Vec::new(), &knowledge::cache_dir(), cancelled)
 }
-fn query_version(tool: &ToolInfo) -> Option<String> {
-    let path = tool.paths.first()?;
-    let output = Command::new(path)
-        .arg("--version")
-        .stdin(Stdio::null())
-        .output()
-        .ok()?;
-    String::from_utf8_lossy(if output.stdout.is_empty() {
-        &output.stderr
-    } else {
-        &output.stdout
-    })
-    .lines()
-    .find(|line| !line.trim().is_empty())
-    .map(|line| line.trim().to_owned())
+fn query_version(tool: &ToolInfo, cancelled: &AtomicBool) -> Result<String, String> {
+    let path = tool.paths.first().ok_or("找不到程序入口")?;
+    let cwd = env::current_dir().map_err(|e| e.to_string())?;
+    let output = crate::bounded_process::capture(path, &["--version".into()], &cwd, cancelled)?;
+    let first_line = |bytes: &[u8]| {
+        knowledge::clean(&String::from_utf8_lossy(bytes))
+            .lines()
+            .find(|line| !line.trim().is_empty())
+            .map(|line| line.trim().to_owned())
+    };
+    first_line(&output.stdout)
+        .or_else(|| first_line(&output.stderr))
+        .ok_or("无法读取版本：输出为空".into())
 }
+
 fn set_override(config_path: Option<&Path>, command: &str, key: &str, enabled: bool) -> Result<()> {
     let path = config_path
         .map(Path::to_path_buf)

@@ -1,10 +1,14 @@
 [package]
 name = "blueberry"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2024"
 rust-version = "1.94"
 description = "A native, low-latency completion host for PowerShell"
 license = "MIT"
+
+[features]
+# Separate diagnostic build; never enabled in formal timing or install packages.
+allocation-diagnostics = []
 
 [dependencies]
 anyhow = "1"
@@ -25,6 +29,9 @@ notify = "8.2"
 [dev-dependencies]
 tempfile = "3"
 
+[patch.crates-io]
+vt100 = { path = "vendor/vt100" }
+
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -32,7 +39,7 @@ sha2 = "0.10"
 toml = "0.9"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_IO", "Win32_System_JobObjects", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_Security", "Win32_System_ProcessStatus", "Win32_System_Console", "Win32_System_Pipes", "Win32_System_Power", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_System_LibraryLoader"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_IO", "Win32_System_JobObjects", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_Security", "Win32_System_ProcessStatus", "Win32_System_Console", "Win32_System_Pipes", "Win32_System_Power", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_System_LibraryLoader", "Win32_System_Registry", "Win32_UI_Shell", "Win32_System_Com"] }
 
 [profile.release]
 lto = "thin"

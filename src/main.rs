@@ -121,7 +121,7 @@ enum Command {
         /// Transport for the selected host (direct requires pipe).
         #[arg(long, value_enum)]
         transport: Option<host::Transport>,
-        /// Direct is experimental until its correctness and latency gates pass.
+        /// Windows defaults to direct (pipe); nested provides ConPTY compatibility.
         #[arg(long, value_enum)]
         host_mode: Option<host::HostMode>,
         /// Select a session-private PSReadLine baseline (direct host only).
@@ -778,6 +778,7 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         "commit":env!("BLUEBERRY_BUILD_COMMIT"),
         "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0),
         "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true",
+        "allocation_diagnostics":cfg!(feature="allocation-diagnostics"),
         "default_host_mode": if cfg!(windows) { "direct" } else { "nested" }
     });
     #[cfg(windows)]
@@ -785,6 +786,8 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         let mut build = build;
         build["private_editors"] = blueberry::editor::build_identity();
         build["conpty"] = blueberry::conpty::build_identity();
+        // Internal companion interface version, not a release-acceptance flag.
+        build["companion_overlay_interface"] = serde_json::json!(4);
         build
     };
     if json {

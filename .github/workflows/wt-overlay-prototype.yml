@@ -1,0 +1,217 @@
+name: Windows Terminal native overlay prototype
+on:
+  push:
+    branches: ['codex/v053-reliability-performance', 'main']
+    paths: ['experiments/wt-overlay/**', 'shell/native-overlay.cs', 'shell/direct-bridge.cs', 'src/native_overlay.rs', 'src/native_observer.rs', 'src/overlay.rs', 'src/host.rs', 'src/probe.rs', 'tests/native_terminal.rs', '.github/workflows/wt-overlay-prototype.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-buffer-proof:
+    # The pinned Terminal core still requires the VS 2022 UWP v143 toolset.
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: microsoft/terminal
+          ref: 7ff11ee107c984e236960ec948b450ccbc10187b
+          path: terminal-prototype
+          persist-credentials: false
+      - uses: microsoft/setup-msbuild@v2
+      - name: Apply isolated native primitive
+        shell: pwsh
+        run: |
+          python experiments/wt-overlay/apply-prototype.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/wt-overlay/apply-lifecycle.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/wt-overlay/apply-vt-interface.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/wt-overlay/apply-menu-frame.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/wt-overlay/apply-native-channel.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/wt-overlay/apply-native-model.py terminal-prototype
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Restore native dependencies
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          & .\dep\nuget\nuget.exe restore .\dep\nuget\packages.config -PackagesDirectory packages -NonInteractive
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build original Terminal native buffer and prototype tests
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $root = (Get-Location).Path + '\'
+          & msbuild src\buffer\out\ut_textbuffer\TextBuffer.Unit.Tests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:native-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build actual Terminal lifecycle hook and tests
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $root = (Get-Location).Path + '\'
+          & msbuild src\cascadia\UnitTests_TerminalCore\UnitTests.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:lifecycle-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Run native tests without installing Terminal
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $taef = Get-ChildItem packages\Microsoft.Taef.10.93.240607003 -Filter te.exe -Recurse | Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
+          if (!$taef) { throw 'Missing x64 TAEF executable' }
+          & $taef.FullName bin\x64\Release\TextBuffer.Unit.Tests.dll "/select:@Name='*NativeOverlayTests*'" /logFile:../native-tests.wtl
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & $taef.FullName bin\x64\Release\UnitTests_TerminalCore\Terminal.Core.Unit.Tests.dll "/select:@Name='*NativeOverlayLifecycleTests*'" /logFile:../native-lifecycle-tests.wtl
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wt-native-overlay-${{ github.sha }}
+          retention-days: 90
+          path: |
+            terminal-prototype/native-build.binlog
+            terminal-prototype/lifecycle-build.binlog
+            native-tests.wtl
+            native-lifecycle-tests.wtl
+            terminal-prototype/bin/x64/Release/TextBuffer.Unit.Tests.dll
+            terminal-prototype/bin/x64/Release/UnitTests_TerminalCore/
+            experiments/wt-overlay/
+            terminal-prototype/LICENSE
+      - name: Build production-buffer measurement model
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $root = (Get-Location).Path + '\'
+          & msbuild src\cascadia\BlueberryNativeModel\NativeModel.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:native-model-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Verify native model C ABI and reflow observations
+        shell: pwsh
+        run: |
+          python experiments/wt-overlay/test-native-model.py --directory terminal-prototype/bin/x64/Release --output native-model-tests.json
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wt-native-model-${{ github.sha }}
+          retention-days: 90
+          path: |
+            terminal-prototype/native-model-build.binlog
+            terminal-prototype/bin/x64/Release/BlueberryNativeModel/
+            native-model-tests.json
+      - name: Build independent unpackaged Terminal prototype
+        shell: pwsh
+        working-directory: terminal-prototype
+        run: |
+          $root = (Get-Location).Path + '\'
+          # Building an individual GUI project skips solution-only COM header
+          # prerequisites and the console host needed by the portable layout.
+          & msbuild src\host\proxy\Host.Proxy.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:proxy-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & msbuild src\host\exe\Host.EXE.vcxproj /m /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:host-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & msbuild src\cascadia\WindowsTerminal\WindowsTerminal.vcxproj /m '/t:Build;_WTPrepareUnpackagedLayoutForRun' /p:Configuration=Release /p:Platform=x64 "/p:SolutionDir=$root" /p:WindowsTargetPlatformVersion=10.0.22621.0 /bl:portable-build.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $layout = Join-Path $root 'bin\x64\Release\WindowsTerminal'
+          $settingsModel = Join-Path $layout 'Microsoft.Terminal.Settings.Model.dll'
+          if (!(Test-Path -LiteralPath $settingsModel)) { throw 'Unpackaged prototype layout incomplete' }
+          New-Item -ItemType File -Path (Join-Path $layout '.portable') -Force | Out-Null
+          Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $layout 'TERMINAL-LICENSE.txt')
+          Copy-Item -LiteralPath (Join-Path $root 'NOTICE.md') -Destination (Join-Path $layout 'TERMINAL-THIRD-PARTY-NOTICES.md')
+          Copy-Item -LiteralPath (Join-Path $root '..\LICENSE') -Destination (Join-Path $layout 'BLUEBERRY-PATCH-LICENSE.txt')
+          'Independent Blueberry interface prototype. Not an official Microsoft release. Bounded Unicode/RGB menu frames; production acceptance incomplete. Portable settings remain beside this copy.' | Set-Content -Encoding utf8 (Join-Path $layout 'PROTOTYPE-README.txt')
+      - name: Diagnose hosted desktop stream and Win32 reply paths
+        # A hosted WinUI desktop may be unavailable. Preserve explicit failed
+        # receipts; this optional diagnostic never satisfies a release gate.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python experiments/wt-overlay/run-layout-diagnostics.py --layout terminal-prototype/bin/x64/Release/WindowsTerminal --output terminal-runtime-evidence
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wt-runtime-diagnostics-${{ github.sha }}
+          retention-days: 90
+          path: |
+            terminal-runtime-evidence/summary.json
+            terminal-runtime-evidence/stream/runtime.json
+            terminal-runtime-evidence/stream/launcher.log
+            terminal-runtime-evidence/records/runtime.json
+            terminal-runtime-evidence/records/launcher.log
+            terminal-runtime-evidence/native_menu/runtime.json
+            terminal-runtime-evidence/native_menu/launcher.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wt-independent-portable-${{ github.sha }}
+          retention-days: 90
+          include-hidden-files: true
+          path: |
+            terminal-prototype/portable-build.binlog
+            terminal-prototype/proxy-build.binlog
+            terminal-prototype/host-build.binlog
+            terminal-prototype/bin/x64/Release/WindowsTerminal/
+  native-host-regressions:
+    needs: native-buffer-proof
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.425'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            target/private-editor/nuget
+            target/psreadline-upstream
+          key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wt-native-model-${{ github.sha }}
+          path: native-model
+      - name: Prepare matching native model and pinned editors
+        shell: pwsh
+        run: |
+          $dll = @(Get-ChildItem native-model -Filter Blueberry.NativeModel.dll -Recurse)
+          if ($dll.Count -ne 1) { throw 'Expected exactly one model from this workflow run' }
+          "BLUEBERRY_NATIVE_MODEL_DLL=$($dll[0].FullName)" >> $env:GITHUB_ENV
+          "BLUEBERRY_NATIVE_MODEL_SHA256=$((Get-FileHash $dll[0].FullName -Algorithm SHA256).Hash)" >> $env:GITHUB_ENV
+          python scripts/prepare-editor.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/prepare-conpty.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          foreach ($version in @('2.0.0', '2.4.5')) {
+            Save-Module PSReadLine -RequiredVersion $version -Path (Join-Path $env:RUNNER_TEMP "native-modules/$version") -Repository PSGallery -Force
+          }
+      - name: Native client and observation ordering regressions
+        shell: pwsh
+        run: |
+          cargo test --lib native_overlay::tests::production_terminal_round_trip_resize_and_owner_eof -- --exact --ignored --test-threads=1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --lib probe::native_observation_tests::native_snapshot_cannot_outrun_its_observation_timestamp -- --exact --ignored --test-threads=1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./tests/native-overlay-client.tests.ps1 -OutputDirectory artifacts/native-client
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Native direct and nested three-editor regressions
+        shell: pwsh
+        run: |
+          foreach ($combination in @(@('powershell.exe','2.0.0'), @('powershell.exe','2.4.5'), @('pwsh.exe','2.4.5'))) {
+            $env:BLUEBERRY_TEST_SHELL = (Get-Command $combination[0]).Source
+            $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $env:RUNNER_TEMP "native-modules/$($combination[1])/PSReadLine/$($combination[1])/PSReadLine.psd1"
+            cargo test --test native_terminal -- --ignored --test-threads=1 --nocapture
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            cargo test --test direct_terminal direct_without_inherited_module_path_keeps_editor_and_menu_above_input -- --exact --test-threads=1
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-host-regressions-${{ github.sha }}
+          retention-days: 90
+          path: |
+            artifacts/native-terminal-regressions/
+            artifacts/native-client/

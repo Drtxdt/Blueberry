@@ -693,14 +693,38 @@ fn edit_commands(path: &Path, edit: impl FnOnce(&mut DocumentMut) -> Result<bool
                 thread::park_timeout(Duration::from_millis(100));
             }
         }
-        // An editor that does not take our lock may have changed the file.
-        let current = read_commands_text(path)?;
-        store_trace("validate", current.as_deref());
-        if current != original {
-            bail!("{} 在保存期间被外部修改；未覆盖原文件", path.display());
+        let validate = || -> Result<()> {
+            let current = read_commands_text(path)?;
+            store_trace("validate", current.as_deref());
+            if current != original {
+                bail!("{} 在保存期间被外部修改；未覆盖原文件", path.display());
+            }
+            Ok(())
+        };
+        #[cfg(windows)]
+        {
+            let retry_until = std::time::Instant::now() + Duration::from_millis(500);
+            loop {
+                // Keep our writer lock, checking external edits after each wait.
+                validate()?;
+                let replacement = crate::engine::replace_file(&temporary, path);
+                if replacement.as_ref().is_err_and(|error| {
+                    matches!(error.raw_os_error(), Some(5 | 32 | 33))
+                        && std::time::Instant::now() < retry_until
+                }) {
+                    thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                replacement.with_context(|| format!("无法替换 {}", path.display()))?;
+                break;
+            }
         }
-        crate::engine::replace_file(&temporary, path)
-            .with_context(|| format!("无法替换 {}", path.display()))?;
+        #[cfg(not(windows))]
+        {
+            validate()?;
+            crate::engine::replace_file(&temporary, path)
+                .with_context(|| format!("无法替换 {}", path.display()))?;
+        }
         store_trace("replaced", std::str::from_utf8(&bytes).ok());
         Ok(())
     })();

@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "round": 1,
+  "status": "startup A/B complete; remaining optimization and diagnosis review pending",
+  "diagnostic_only": true,
+  "measurement_complete": true,
+  "independent_ab_reports": [
+    {
+      "report": "startup-ab-run1-20261014.json",
+      "sha256": "921DEAB10CE3E113EA857EB6E47EA0DB6DE15948D13728F3B2F8CE2B487B9A0B"
+    },
+    {
+      "report": "startup-ab-run2-20261014.json",
+      "sha256": "E15FFA176F835557BF9EBF3CE2DC29FF725C266289DFFD0C6F4A7C66CB25EFCF"
+    }
+  ],
+  "retained_for_release": false,
+  "final_performance_matrix_complete": false
+}

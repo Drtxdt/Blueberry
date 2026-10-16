@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "status": "40 repeated queries valid after parser fix; fresh full pilot pending",
+  "change": "Support parameterless ANSI.SYS CSI s/u using the existing saved cursor state",
+  "raw": "artifacts\\is-csi-cursor-diag-20261014\\result.json",
+  "raw_sha256": "D1E8DB1D187FE8AB2CCE3722B06CD97ED2CE8FA3CDC263DA1017353AACFAF026",
+  "probe_source": {
+    "diagnostic_only": true,
+    "source_commit": "284c934",
+    "source_dirty": true,
+    "change": "ANSI cursor save/restore observation support",
+    "probe_sha256": "0838BB3B4CE755941FF8948E4D48A5413463CA74D0DCE743D9FC55F9BE568EEE",
+    "perform_source_sha256": "8C51A6CFF774868D2D4DE705F271B77ECC1BB886E2AAFF8F7DCC469A5402B2A8"
+  },
+  "queries": 40,
+  "passed": true,
+  "all_input_echo_and_menu_observations_valid": true,
+  "original_reset_method_unchanged": true,
+  "alternative_native_reset_retained": false,
+  "formal_statistics_used": false,
+  "regression_tests": {
+    "failed_before": 2,
+    "passed_after": 2,
+    "all_rectangle_tests_passed": 8
+  },
+  "clippy_all_targets_passed": true,
+  "performance_causality": "Parser deficiency reproduced deterministically; this 40-query diagnostic supports the observation repair, not final four-way qualification."
+}

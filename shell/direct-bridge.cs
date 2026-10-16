@@ -28,6 +28,8 @@ namespace Blueberry.Direct {
         static ReplaceText replace;
         static Action<ConsoleKeyInfo?, object> selfInsert;
         static NamedPipeClientStream pipe;
+        static NativeOverlay nativeOverlay;
+        static bool nativeFrameEligible;
         static readonly object writeLock = new object(), frameLock = new object();
         static readonly AutoResetEvent arrived = new AutoResetEvent(false);
         static Dictionary<string, object> pending, displayed;
@@ -45,6 +47,9 @@ namespace Blueberry.Direct {
         static Func<int[]> editorBufferBounds;
         static Action<int,int> restoreEditorLayout;
         static bool navigationPending;
+        // Automatic completion eligibility is independent of workbench/form UI.
+        static bool nativeHistory, upArrowHistory=true, nativeEditPending;
+        static string nativeEditBefore;
         static readonly Queue<ConsoleKeyInfo> navigationKeys = new Queue<ConsoleKeyInfo>();
         static string queriedLine;
         static int queriedCursor;
@@ -177,9 +182,9 @@ namespace Blueberry.Direct {
                         restoreEditorLayout = (Action<int,int>)Public("RestoreEditorLayout", typeof(Action<int,int>),typeof(int),typeof(int));
                     if(diagnostic) editorTracePoints=(Func<long[]>)Public("GetEditorTracePoints",typeof(Func<long[]>));
                     editorRegistration = (IDisposable)api.GetMethod("RegisterEditorIntegration").Invoke(null, new object[] {
-                        1, (Action<string,string>)Begin, (Action)Clear,
+                        1, (Action<string,string>)Begin, (Action)delegate { ConfirmNativeEdit(); Clear(); },
                         (Func<ConsoleKeyInfo?,object,bool,bool>)EditorKey,
-                        (Action)delegate { if (editing && AutomaticMenu) Query("query"); },
+                        (Action)delegate { ConfirmNativeEdit(); if (editing && AutomaticMenu && !nativeHistory) Query("query"); },
                         (Action)delegate { Refresh(); }, (Action)End, (Action<string>)Disable
                     });
                     enabled = true;
@@ -191,6 +196,18 @@ namespace Blueberry.Direct {
             }
             pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
             pipe.Connect(5000); connected = true;
+            // Only the companion's dedicated profile opts into this internal
+            // interface. An environment hint alone is never proof of support.
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_NATIVE_OVERLAY")=="4"
+                && !String.Equals(Environment.GetEnvironmentVariable("TERM_PROGRAM"),"vscode",StringComparison.OrdinalIgnoreCase)) {
+                try {
+                    nativeOverlay=new NativeOverlay();
+                    if(!nativeOverlay.Connect()) throw new NotSupportedException(nativeOverlay.Error);
+                } catch(Exception error) {
+                    if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; }
+                    Disable("companion Terminal unavailable: "+error.GetBaseException().Message);
+                }
+            }
             new Thread(ReadFrames) { IsBackground = true, Name = "Blueberry frame receiver" }.Start();
             Send(new Dictionary<string, object> {
                 {"event", "hello"}, {"protocol", 1}, {"host_mode", "direct"}, {"transport", "pipe"},
@@ -200,6 +217,7 @@ namespace Blueberry.Direct {
                 {"editor_patch", EditorHooks ? (string)api.GetProperty("EditorIntegrationPatch").GetValue(null, null) : null},
                 {"editor_dll_sha256", editorHash}, {"editor_fallback_reason", editorFallbackReason},
                 {"shell_version", shellVersion},
+                {"terminal_restore", nativeOverlay!=null ? "native_overlay_v4" : terminalPages ? "windows_terminal_pages" : "legacy_cells"},
                 {"capabilities", new object[] {"revision", "frame_identity", "accept_identity", "utf16_edit"}}
             });
             long handshakeDeadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency*5;
@@ -344,8 +362,18 @@ namespace Blueberry.Direct {
         }
         static bool EditorKey(ConsoleKeyInfo? key, object nativeHandler, bool builtin) {
             if (!editing || !AutomaticMenu || !key.HasValue) return false;
-            if (!builtin) { ResetNavigation(); displayed=null; return false; }
+            ConfirmNativeEdit();
             var k = key.Value;
+            var action = nativeHandler as Delegate;
+            string name = action == null ? null : action.Method.Name;
+            string nativeLine=null; int nativeCursor;
+            if (nativeHistory || (upArrowHistory && k.Key==ConsoleKey.UpArrow && k.Modifiers==0)) buffer(out nativeLine,out nativeCursor);
+            if (interaction=="completion" && upArrowHistory && k.Key==ConsoleKey.UpArrow && k.Modifiers==0
+                && nativeLine.Length==0 && builtin && (name=="PreviousHistory" || name=="HistorySearchBackward")) {
+                nativeHistory=true; nativeEditPending=false;
+                if(diagnostic) TraceStage("direct_history_enter",0,1);
+                Query("cancel");
+            }
             string chord = ((k.Modifiers & ConsoleModifiers.Control) != 0 ? "Ctrl+" : "")
                 + ((k.Modifiers & ConsoleModifiers.Alt) != 0 ? "Alt+" : "")
                 + ((k.Modifiers & ConsoleModifiers.Shift) != 0 ? "Shift+" : "") + k.Key;
@@ -358,11 +386,15 @@ namespace Blueberry.Direct {
                 Query(interaction == "hub" ? "hub" : "cancel"); return true;
             }
             if (interaction != "completion") { SendKey(k); return true; }
+            if (nativeHistory) {
+                if(diagnostic) TraceStage("direct_history_native_key",0,(int)k.Key);
+                RememberNativeEdit(k,name,nativeLine,builtin);
+                return false;
+            }
+            if (!builtin) { ResetNavigation(); displayed=null; return false; }
             if (displayed == null && !navigationPending) return false;
             // Compare the action resolved for this very keystroke. A user may
             // rebind to another built-in action, not only to a script block.
-            var action = nativeHandler as Delegate;
-            string name = action == null ? null : action.Method.Name;
             if (k.Key == ConsoleKey.Tab && name != "Complete" && name != "MenuComplete" && name != "TabCompleteNext" && name != "TabCompletePrevious") { ResetNavigation(); return false; }
             if (k.Key == ConsoleKey.UpArrow && name != "PreviousHistory" && name != "HistorySearchBackward") { ResetNavigation(); return false; }
             if (k.Key == ConsoleKey.DownArrow && name != "NextHistory" && name != "HistorySearchForward") { ResetNavigation(); return false; }
@@ -375,6 +407,24 @@ namespace Blueberry.Direct {
             if (k.Key == ConsoleKey.Tab) { AcceptAfterNavigation(); return true; }
             ResetNavigation(); displayed=null;
             return false;
+        }
+        static void RememberNativeEdit(ConsoleKeyInfo key, string action, string before, bool builtin) {
+            // Tab, history recall, undo/redo and RevertLine can change text but
+            // do not grant permission to display automatic completion.
+            bool inserting=(!builtin || action==null || action=="SelfInsert" || action=="Insert")
+                && !Char.IsControl(key.KeyChar) && key.KeyChar!='\0';
+            bool paste=action=="Paste";
+            bool deleting=action!=null && (action.StartsWith("Delete",StringComparison.Ordinal)
+                || action.StartsWith("BackwardDelete",StringComparison.Ordinal)
+                || action=="KillLine" || action=="BackwardKillLine" || action=="KillWord" || action=="BackwardKillWord");
+            nativeEditPending=inserting || paste || deleting;
+            nativeEditBefore=nativeEditPending ? before : null;
+        }
+        static void ConfirmNativeEdit() {
+            if (!nativeEditPending) return;
+            string line; int cursor; buffer(out line,out cursor);
+            if (line!=nativeEditBefore) nativeHistory=false;
+            nativeEditPending=false; nativeEditBefore=null;
         }
         static void ResetNavigation() { navigationPending=false; navigationKeys.Clear(); }
         static void Navigate(ConsoleKeyInfo key) {
@@ -469,8 +519,11 @@ namespace Blueberry.Direct {
                     var record = commandEnumerator.Current;
                     batch.Add(new Dictionary<string,object> {{"name",record[0]},{"kind",record[1]},{"definition",record[2]}});
                 } while (batch.Count < 64 && Stopwatch.GetTimestamp()-start < Stopwatch.Frequency/500);
+                if(diagnostic) TraceStage("direct_session_command_batch",Stopwatch.GetTimestamp()-start,batch.Count);
+                long sending=diagnostic ? Stopwatch.GetTimestamp() : 0;
                 Send(new Dictionary<string,object> {{"event","commands"},{"session",commandSession},
                     {"snapshot",commandSnapshot},{"offset",commandOffset},{"complete",complete},{"commands",batch}});
+                if(diagnostic) TraceStage("direct_session_command_send",Stopwatch.GetTimestamp()-sending,batch.Count);
                 commandOffset += batch.Count;
                 if (complete) StopCommands(); else requestEditorRefresh();
             } catch (Exception error) { CommandError(error); }
@@ -478,7 +531,20 @@ namespace Blueberry.Direct {
         public static void Begin(string cwd, string historyPath) {
             long beginning=diagnostic ? Stopwatch.GetTimestamp() : 0;
             Clear(); displayed = null; acceptingFrame = null; expectedUiEditRevision=-1; interaction = "completion"; directory = cwd; editing = true; editorThread = Thread.CurrentThread.ManagedThreadId;
+            // A nested child can temporarily own the same terminal. Its owner
+            // must not permanently disconnect the parent's next prompt.
+            if(nativeOverlay!=null && !nativeOverlay.IsConnected) {
+                nativeOverlay.Dispose(); nativeOverlay=null;
+                try {
+                    nativeOverlay=new NativeOverlay();
+                    if(!nativeOverlay.Connect()) throw new NotSupportedException(nativeOverlay.Error);
+                } catch(Exception error) {
+                    if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; }
+                    Disable("companion Terminal reconnect failed: "+error.GetBaseException().Message);
+                }
+            }
             revision++;
+            nativeHistory=false; nativeEditPending=false; nativeEditBefore=null;
             commandSession = revision;
             if (enabled && !EditorHooks) {
                 try { AuditBindings(); } catch (Exception error) { Disable(error.GetBaseException().Message); }
@@ -491,6 +557,7 @@ namespace Blueberry.Direct {
             if(diagnostic) TraceStage("direct_readline_begin",Stopwatch.GetTimestamp()-beginning,1);
         }
         public static void End() {
+            nativeHistory=false; nativeEditPending=false; nativeEditBefore=null;
             ResetNavigation();
             StopCommands();
             string line; int cursor; buffer(out line,out cursor);
@@ -498,7 +565,23 @@ namespace Blueberry.Direct {
             Send(new Dictionary<string, object> { {"event", "end"}, {"revision", revision}, {"line",line} });
         }
         static void Edit(Action<ConsoleKeyInfo?, object> original, ConsoleKeyInfo? key, object arg) {
+            ConfirmNativeEdit();
             Clear();
+            if(editing && AutomaticMenu && interaction=="completion" && key.HasValue) {
+                string before; int cursor; buffer(out before,out cursor);
+                string action=original.Method.Name;
+                if(upArrowHistory && key.Value.Key==ConsoleKey.UpArrow && key.Value.Modifiers==0 && before.Length==0
+                    && (action=="PreviousHistory" || action=="HistorySearchBackward")) {
+                    nativeHistory=true; Query("cancel");
+                }
+                if(nativeHistory) {
+                    RememberNativeEdit(key.Value,action,before,original.Method.DeclaringType==api);
+                    original(key,arg);
+                    ConfirmNativeEdit();
+                    if(!nativeHistory) Query("query");
+                    return;
+                }
+            }
             if (editing && AutomaticMenu && interaction != "completion" && key.HasValue) {
                 SendKey(key.Value); return;
             }
@@ -550,6 +633,7 @@ namespace Blueberry.Direct {
         }
         static void Query(string operation) {
             string line; int cursor; buffer(out line, out cursor);
+            if (nativeHistory && (operation=="query" || operation=="layout")) return;
             // Native no-op keys and resize/event callbacks may report the same
             // buffer again. Reflow it without creating another source request.
             if (operation=="query" && (displayed!=null || navigationPending)
@@ -614,6 +698,7 @@ namespace Blueberry.Direct {
         }
         static void Accept() {
             var frame = displayed; displayed = null;
+            if(nativeOverlay!=null && !nativeFrameEligible) return;
             string line; int cursor; buffer(out line, out cursor);
             if (frame == null || Json.Long(frame, "revision") != revision) return;
             acceptingFrame = frame;
@@ -636,6 +721,7 @@ namespace Blueberry.Direct {
         }
         public static bool Refresh() {
             if (!editing || Thread.CurrentThread.ManagedThreadId != editorThread) return false;
+            ConfirmNativeEdit();
             if (!connected) { Clear(); displayed=null; ResetNavigation(); return false; }
             if (EditorHooks) PumpCommands();
             if(!EditorHooks && enabled && !waitingForFrame) { try { AuditBindings(); } catch(Exception error) { Disable(error.GetBaseException().Message); return false; } }
@@ -652,13 +738,14 @@ namespace Blueberry.Direct {
             string line; int cursor; buffer(out line, out cursor);
             if (Json.String(frame, "expected_line") != line || Json.Long(frame, "expected_cursor") != cursor) return false;
             if (Json.String(frame,"kind") == "clear") { Clear(); displayed=null; ResetNavigation(); expectedUiEditRevision=-1; interaction="completion"; return true; }
+            if (nativeHistory && interaction=="completion") return false;
             if (Json.String(frame, "kind") == "edit") {
                 if (!EditAuthorized(frame)) return false;
                 int start = (int)Json.Long(frame, "start"), length = (int)Json.Long(frame, "length");
                 string text = Json.String(frame, "text");
                 if (start < 0 || length < 0 || start > line.Length - length || SplitsPair(line, start) || SplitsPair(line, start + length)) return false;
                 Clear(); expectedUiEditRevision=-1;
-                replace(start, length, text, null, null); acceptingFrame = null; displayed = null; interaction="completion"; Query("query"); return true;
+                replace(start, length, text, null, null); nativeHistory=false; nativeEditPending=false; acceptingFrame = null; displayed = null; interaction="completion"; Query("query"); return true;
             }
             if (acceptingFrame != null) return false;
             object lines;
@@ -736,6 +823,8 @@ namespace Blueberry.Direct {
                         var frame = Json.Parse(text.ToString()) as Dictionary<string, object>; text.Clear();
                         if (frame == null || Json.String(frame, "token") != token) throw new InvalidDataException("invalid session frame");
                         if(Json.String(frame,"kind")=="hello") {
+                            object historyOption;
+                            if(frame.TryGetValue("up_arrow_history",out historyOption) && historyOption is bool) upArrowHistory=(bool)historyOption;
                             if(Json.Long(frame,"protocol")!=1 || Json.String(frame,"host_mode")!="direct" || Json.String(frame,"transport")!="pipe") throw new InvalidDataException("incompatible direct capabilities");
                             var capabilities=frame["capabilities"] as List<object>;
                             foreach(string capability in new string[]{"revision","frame_identity","accept_identity","utf16_edit"})
@@ -753,9 +842,13 @@ namespace Blueberry.Direct {
                 }
             } catch { }
             connected = false; arrived.Set();
+            // Closing this independent channel retires a native overlay even
+            // when the editor thread cannot service the bridge-EOF refresh.
+            var native=nativeOverlay;
+            if(native!=null) native.Dispose();
             if (EditorHooks) requestEditorRefresh(); else Events.Raise();
         }
-        public static void Shutdown() { if(editing) End(); connected = false; if(editorRegistration!=null) { editorRegistration.Dispose(); editorRegistration=null; } if (pipe != null) pipe.Dispose(); if(responseTimer!=IntPtr.Zero) { CloseHandle(responseTimer); responseTimer=IntPtr.Zero; } }
+        public static void Shutdown() { try { if(editing) End(); } finally { connected = false; if(nativeOverlay!=null) { nativeOverlay.Dispose(); nativeOverlay=null; } if(editorRegistration!=null) { editorRegistration.Dispose(); editorRegistration=null; } if (pipe != null) pipe.Dispose(); if(responseTimer!=IntPtr.Zero) { CloseHandle(responseTimer); responseTimer=IntPtr.Zero; } } }
 
         [StructLayout(LayoutKind.Sequential)] struct Coord { public short X, Y; public Coord(int x, int y) { X=(short)x; Y=(short)y; } }
         [StructLayout(LayoutKind.Sequential)] struct Rect { public short Left, Top, Right, Bottom; }
@@ -772,6 +865,43 @@ namespace Blueberry.Direct {
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern bool WriteConsoleOutputW(IntPtr handle, Cell[] cells, Coord size, Coord origin, ref Rect region);
         static Cell[] covered; static Rect region; static Coord coveredSize; static IntPtr output;
         static Cell[] savedViewport; static Info paintedInfo;
+        static readonly bool terminalPages = SupportsTerminalPages();
+        [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct ProcessEntry {
+            public uint Size, Usage, ProcessId; public IntPtr Heap;
+            public uint ModuleId, Threads, ParentId; public int Priority; public uint Flags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=260)] public string Name;
+        }
+        [DllImport("kernel32.dll")] static extern IntPtr CreateToolhelp32Snapshot(uint flags,uint processId);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern bool Process32FirstW(IntPtr snapshot,ref ProcessEntry entry);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern bool Process32NextW(IntPtr snapshot,ref ProcessEntry entry);
+        static bool SupportsTerminalPages() {
+            if(Environment.GetEnvironmentVariable("BLUEBERRY_TEST_TERMINAL_PAGES")=="1") return true;
+            if(String.IsNullOrEmpty(Environment.GetEnvironmentVariable("WT_SESSION"))) return false;
+            if(String.Equals(Environment.GetEnvironmentVariable("TERM_PROGRAM"),"vscode",StringComparison.OrdinalIgnoreCase)) return false;
+            IntPtr snapshot=IntPtr.Zero;
+            try {
+                // An unrelated newer Terminal process is not evidence about
+                // this console. Check only the actual launching ancestry.
+                snapshot=CreateToolhelp32Snapshot(2,0);
+                if(snapshot==new IntPtr(-1)) return false;
+                var parents=new Dictionary<uint,ProcessEntry>();
+                var entry=new ProcessEntry { Size=(uint)Marshal.SizeOf(typeof(ProcessEntry)) };
+                if(Process32FirstW(snapshot,ref entry)) do { parents[entry.ProcessId]=entry; } while(Process32NextW(snapshot,ref entry));
+                uint pid; using(var self=Process.GetCurrentProcess()) pid=(uint)self.Id;
+                for(int depth=0;depth<64 && parents.TryGetValue(pid,out entry);depth++) {
+                    if(String.Equals(entry.Name,"WindowsTerminal.exe",StringComparison.OrdinalIgnoreCase)) {
+                        using(var process=Process.GetProcessById((int)pid)) {
+                            var version=process.MainModule.FileVersionInfo;
+                            return version.FileMajorPart>1 || (version.FileMajorPart==1 && version.FileMinorPart>=22);
+                        }
+                    }
+                    if(entry.ParentId==pid) break;
+                    pid=entry.ParentId;
+                }
+            } catch { }
+            finally { if(snapshot!=IntPtr.Zero && snapshot!=new IntPtr(-1)) CloseHandle(snapshot); }
+            return false;
+        }
         static int paintedInputRow, paintedInputColumn, paintedInputLast;
         struct Layout {
             internal Info Info;
@@ -816,6 +946,10 @@ namespace Blueberry.Direct {
             // Never clip a rendered page: that could hide the selected item.
             if (height<=0 || height>layout.Available || width<=0 || width>=layout.Width) return false;
             int top=layout.Below>=height ? layout.Last+1 : layout.First-height;
+            if(nativeOverlay!=null) {
+                nativeFrameEligible=nativeOverlay.Paint(lines,top-info.Window.Top,width);
+                return nativeFrameEligible;
+            }
             // Preserve exactly the painted rectangle. Touching the last
             // column of every row would introduce soft wraps in ConPTY.
             region = new Rect { Left=info.Window.Left, Right=(short)(info.Window.Left+width-1), Top=(short)top, Bottom=(short)(top+height-1) };
@@ -833,6 +967,13 @@ namespace Blueberry.Direct {
             paintedInputRow=layout.InputRow; paintedInputColumn=layout.InputColumn; paintedInputLast=layout.Last;
             try {
                 var outputText = new StringBuilder();
+                // Keep rich terminal cells outside the legacy CHAR_INFO snapshot.
+                // Page 6 is invisible: DECCRA neither moves the cursor nor scrolls.
+                // Use identical coordinates: alternate screens alias all pages,
+                // so the copy must become a harmless no-op there.
+                if(terminalPages) outputText.Append("\x1b[").Append(top-info.Window.Top+1).Append(";1;")
+                    .Append(top+height-info.Window.Top).Append(';').Append(layout.Width).Append(";1;")
+                    .Append(top-info.Window.Top+1).Append(";1;6$v");
                 for (int i=0; i<height; i++) {
                     outputText.Append("\x1b[").Append(top+i-info.Window.Top+1).Append(";1H");
                     // Rust renderer emits sanitized text and SGR only. No line
@@ -850,6 +991,12 @@ namespace Blueberry.Direct {
             return true;
         }
         static void Clear() {
+            if(nativeOverlay!=null) {
+                bool hadFrame;
+                bool wasVisible=nativeOverlay.Close(out hadFrame);
+                if(hadFrame) nativeFrameEligible=wasVisible;
+                return;
+            }
             if (covered == null) return;
             var cells = covered; covered = null;
             var viewport=savedViewport; savedViewport=null;
@@ -865,6 +1012,12 @@ namespace Blueberry.Direct {
                     clipped.Right=(short)Math.Min(clipped.Right,current.Size.X-1);
                     clipped.Bottom=(short)Math.Min(clipped.Bottom,current.Size.Y-1);
                     WriteConsoleOutputW(output, cells, coveredSize, new Coord(0,0), ref clipped);
+                    // The native console still needs its character snapshot for
+                    // editor bounds. Restore the terminal's full attributes last.
+                    if(terminalPages && current.Window.Top==paintedInfo.Window.Top) Console.Write("\x1b["+
+                        (region.Top-paintedInfo.Window.Top+1)+";1;"+(region.Bottom-paintedInfo.Window.Top+1)+";"+
+                        (paintedInfo.Window.Right-paintedInfo.Window.Left+1)+";6;"+
+                        (region.Top-current.Window.Top+1)+";1;1$v\x1b]1337;BlueberryFrame\x07");
                 }
             } catch { }
         }

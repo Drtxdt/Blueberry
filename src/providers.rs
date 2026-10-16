@@ -1752,11 +1752,57 @@ fn read_available_git_stdout(
 }
 
 #[cfg(windows)]
+fn spawn_git_with_budget(
+    command: &mut Command,
+    deadline: &mut Instant,
+    spawn: impl FnOnce(&mut Command) -> io::Result<std::process::Child>,
+) -> io::Result<std::process::Child> {
+    // Windows process creation can wait behind another thread's spawn. That
+    // wait cannot be cancelled here and must not consume the child's entire
+    // execution budget before it has run. Observation timings still include it.
+    let started = Instant::now();
+    let result = spawn(command);
+    if result.is_ok() {
+        *deadline += started.elapsed();
+    }
+    result
+}
+
+#[cfg(all(test, windows))]
+mod spawn_budget_tests {
+    use super::*;
+
+    #[test]
+    fn queued_creation_does_not_expire_a_command_before_it_runs() {
+        let mut command = Command::new("cmd.exe");
+        command
+            .args(["/D", "/C", "echo GIT-BUDGET-READY"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        let mut deadline = Instant::now() + Duration::from_millis(200);
+        let child = spawn_git_with_budget(&mut command, &mut deadline, |command| {
+            // Deterministically stand in for an OS/stdlib creation queue.
+            std::thread::sleep(Duration::from_millis(250));
+            command.spawn()
+        })
+        .unwrap();
+        assert!(
+            Instant::now() < deadline,
+            "command was expired before execution"
+        );
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success());
+        assert!(String::from_utf8_lossy(&output.stdout).contains("GIT-BUDGET-READY"));
+    }
+}
+
+#[cfg(windows)]
 fn run_fixed_git(
     query: &ProjectQuery,
     ctx: &GitContext,
     args: &[&str],
-    deadline: Instant,
+    deadline: &mut Instant,
     cancelled_flag: &AtomicBool,
 ) -> FixedOutput {
     if cancelled(cancelled_flag) {
@@ -1787,7 +1833,7 @@ fn run_fixed_git(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    let mut child = match command.spawn() {
+    let mut child = match spawn_git_with_budget(&mut command, deadline, Command::spawn) {
         Ok(child) => child,
         Err(error) => {
             return FixedOutput {
@@ -1814,7 +1860,7 @@ fn run_fixed_git(
             let _ = child.kill();
             break child.wait().ok();
         }
-        if Instant::now() >= deadline {
+        if Instant::now() >= *deadline {
             timed_out = true;
             let _ = child.kill();
             break child.wait().ok();
@@ -1850,7 +1896,7 @@ fn run_fixed_git(
                         was_cancelled = true;
                         break;
                     }
-                    if Instant::now() >= deadline {
+                    if Instant::now() >= *deadline {
                         timed_out = true;
                         break;
                     }
@@ -1900,7 +1946,7 @@ fn run_fixed_git(
     query: &ProjectQuery,
     ctx: &GitContext,
     args: &[&str],
-    deadline: Instant,
+    deadline: &mut Instant,
     cancelled_flag: &AtomicBool,
 ) -> FixedOutput {
     if cancelled(cancelled_flag) {
@@ -1952,7 +1998,7 @@ fn run_fixed_git(
             let _ = child.kill();
             break child.wait().ok();
         }
-        if Instant::now() >= deadline {
+        if Instant::now() >= *deadline {
             timed_out = true;
             let _ = child.kill();
             break child.wait().ok();
@@ -2025,7 +2071,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
     {
         return result;
     }
-    let deadline = Instant::now() + GIT_DEADLINE;
+    let mut deadline = Instant::now() + GIT_DEADLINE;
     let mut refs = GitRefs::default();
     if needs.refs {
         let output = run_fixed_git(
@@ -2039,7 +2085,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
                 "refs/remotes",
                 "refs/tags",
             ],
-            deadline,
+            &mut deadline,
             cancelled_flag,
         );
         append_git_process_diagnostic(&mut result, "引用", &output);
@@ -2048,7 +2094,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
         }
     }
     if needs.remotes && !cancelled(cancelled_flag) && Instant::now() < deadline {
-        let output = run_fixed_git(query, &ctx, &["remote"], deadline, cancelled_flag);
+        let output = run_fixed_git(query, &ctx, &["remote"], &mut deadline, cancelled_flag);
         append_git_process_diagnostic(&mut result, "远端", &output);
         if !output.interrupted() && !output.failed() {
             refs.remotes.extend(
@@ -2066,7 +2112,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
             query,
             &ctx,
             &["worktree", "list", "--porcelain"],
-            deadline,
+            &mut deadline,
             cancelled_flag,
         );
         append_git_process_diagnostic(&mut result, "工作树", &output);
@@ -2088,7 +2134,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
             query,
             &ctx,
             &["status", "--short", "--untracked-files=all", "-z"],
-            deadline,
+            &mut deadline,
             cancelled_flag,
         );
         append_git_process_diagnostic(&mut result, "状态路径", &output);
