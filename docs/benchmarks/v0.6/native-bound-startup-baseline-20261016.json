@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "kind": "formal startup baseline only; not final candidate or full matrix qualification",
+  "kind": "completed workspace-descendant startup reference; not a neutral-context qualification",
   "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
   "probe_source_commit": "b873a4dcb5542bac3894eae0add93ab9d1a3e7c4",
   "measurement_complete": true,
@@ -47,5 +47,8 @@
   "observation": "production TerminalCore buffer, per-chunk snapshot/time binding; clock starts after observer setup and before child spawn",
   "comparison_limit": "Do not calculate a speedup by comparing these native-observer numbers with the older legacy-observer baseline.",
   "probe_product_environment": "Explicit editor discovery applies only to actual PowerShell children; Blueberry inherits the paired environment without probe-specific module-path replacement.",
-  "release_blocked": true
+  "release_blocked": true,
+  "formal_eligible": false,
+  "fixture_scope": "scratch directories under the source workspace can see ancestor Git/Cargo project markers",
+  "qualification": "Retain every array and hash as a workspace reference. Collect neutral formal comparisons in an independently checked temporary root."
 }

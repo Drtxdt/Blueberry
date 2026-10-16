@@ -843,7 +843,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],
                             "terminal_restore":value["terminal_restore"],
                             "session_commands":{"source":"editor","count":0,"complete":false,"error":null},
-                            "system_commands":{"source":"system module export metadata","count":0,"error":null},
+                            "system_commands":{"source":"system module export metadata","count":0,"complete":false,"error":null},
                             "transport":"pipe","host_mode":"direct","automatic_menu":automatic && settings.completion.auto_trigger,
                             "disabled_reason":if automatic && !settings.completion.auto_trigger {json!("completion.auto_trigger is disabled")} else {value["disabled_reason"].clone()}});
                             if value["editor_mode"] != "editor_hooks_v1" {
@@ -963,6 +963,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             command_offset = 0;
                             command_snapshot_id = None;
                             system_generation += 1;
+                            adapter_status["system_commands"] = json!({"source":"system module export metadata","count":0,"complete":false,"error":null});
+                            status_writer.update(adapter_status.clone());
                             let generation = system_generation;
                             let system_tx = tx.clone();
                             system_discovery.take();
@@ -1201,10 +1203,11 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if generation == system_generation {
                         match result {
                             Ok(commands) => {
-                                adapter_status["system_commands"] = json!({"source":"system module export metadata","count":commands.len(),"error":null});
+                                adapter_status["system_commands"] = json!({"source":"system module export metadata","count":commands.len(),"complete":true,"error":null});
                                 worker.update(|w| w.system_commands = Some(commands));
                             }
                             Err(error) => {
+                                adapter_status["system_commands"]["complete"] = json!(true);
                                 adapter_status["system_commands"]["error"] =
                                     json!(error.to_string());
                             }

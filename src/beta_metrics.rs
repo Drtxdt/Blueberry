@@ -174,6 +174,7 @@ struct Measurements {
     editors: Vec<Value>,
     observations: Vec<Value>,
     native_observers: Vec<Value>,
+    hot_preparation_wait: Vec<f64>,
     input_echo: Vec<f64>,
     first_menu: Vec<f64>,
     first_candidate_menu: Vec<f64>,
@@ -247,6 +248,8 @@ impl Measurements {
             "editors": &self.editors,
             "observations": &self.observations,
             "native_observers": &self.native_observers,
+            "hot_preparation_wait": f64_stats(&self.hot_preparation_wait, "ms"),
+            "hot_precondition": "direct command discovery complete before untimed first-query warmup; nested uses adapter readiness",
             "transport_ineligible_hot_queries": self.transport_ineligible_hot_queries,
             "input_echo": f64_stats(&self.input_echo, "ms"),
             "first_menu": f64_stats(&self.first_menu, "ms"),
@@ -774,6 +777,9 @@ fn measure_cache_modes(
 }
 
 fn append_measurements(target: &mut Measurements, mut source: Measurements) {
+    target
+        .hot_preparation_wait
+        .append(&mut source.hot_preparation_wait);
     target.native_observers.append(&mut source.native_observers);
     target.observations.append(&mut source.observations);
     target.editors.append(&mut source.editors);
@@ -870,6 +876,13 @@ fn measure_session(
         && actual_host == host_mode
         && (host_mode != "direct" || automatic && editor["mode"] == "editor_hooks_v1");
     let mut measurements = Measurements::default();
+    let preparation = Instant::now();
+    if host_mode == "direct" {
+        wait_for_direct_hot_readiness(&mut harness, data_dir, &previous_adapters)?;
+    }
+    measurements
+        .hot_preparation_wait
+        .push(milliseconds(preparation.elapsed()));
     measurements
         .native_observers
         .push(json!(harness.native_observer_identity()));
@@ -1508,6 +1521,49 @@ fn adapter_paths(data_dir: &Path) -> BTreeSet<PathBuf> {
         .collect()
 }
 
+fn direct_hot_ready(value: &Value) -> Result<bool> {
+    ensure!(
+        value["session_commands"]["error"].is_null(),
+        "session command discovery failed: {}",
+        value["session_commands"]
+    );
+    ensure!(
+        value["system_commands"]["error"].is_null(),
+        "system command discovery failed: {}",
+        value["system_commands"]
+    );
+    Ok(value["session_commands"]["complete"] == true
+        && (value["system_commands"]["complete"] == true
+            || value["system_commands"]["count"]
+                .as_u64()
+                .is_some_and(|count| count > 0)))
+}
+
+fn wait_for_direct_hot_readiness(
+    harness: &mut Harness,
+    data_dir: &Path,
+    previous_adapters: &BTreeSet<PathBuf>,
+) -> Result<()> {
+    let deadline = Instant::now() + WAIT_TIMEOUT;
+    loop {
+        for path in adapter_paths(data_dir).difference(previous_adapters) {
+            if let Ok(bytes) = fs::read(path)
+                && let Ok(value) = serde_json::from_slice::<Value>(&bytes)
+                && direct_hot_ready(&value)?
+            {
+                return Ok(());
+            }
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "hot setup command discovery never completed"
+        );
+        // Continue servicing console replies; sleeping without pumping can
+        // itself hold the editor's initialization behind an unanswered query.
+        pump_brief(harness, deadline);
+    }
+}
+
 fn wait_for_transport(
     data_dir: &Path,
     requested: &str,
@@ -1559,7 +1615,7 @@ fn wait_for_transport(
                             .unwrap_or(value["capabilities"]["ready"] == true),
                         json!({"mode":value["editor_mode"],"patch":value["editor_patch"],
                             "dll_sha256":value["editor_dll_sha256"],"fallback_reason":value["editor_fallback_reason"],
-                            "conpty":value["conpty"]}),
+                              "conpty":value["conpty"],"terminal_restore":value["terminal_restore"]}),
                     ));
                 }
             }
@@ -1734,6 +1790,20 @@ fn verify_complete_cache(data_dir: &Path) -> Result<bool> {
 #[cfg(test)]
 mod stage_tests {
     use super::*;
+    #[test]
+    fn hot_setup_rejects_partial_or_failed_discovery() {
+        let mut value = json!({"session_commands":{"complete":false,"error":null},"system_commands":{"count":0,"error":null}});
+        assert!(!direct_hot_ready(&value).unwrap());
+        value["session_commands"]["complete"] = json!(true);
+        assert!(!direct_hot_ready(&value).unwrap());
+        value["system_commands"]["count"] = json!(1439);
+        assert!(direct_hot_ready(&value).unwrap());
+        value["system_commands"]["count"] = json!(0);
+        value["system_commands"]["complete"] = json!(true);
+        assert!(direct_hot_ready(&value).unwrap());
+        value["system_commands"]["error"] = json!("metadata helper failed");
+        assert!(direct_hot_ready(&value).is_err());
+    }
 
     #[test]
     fn fast_partial_static_candidate_cannot_hide_slow_complete_menu() {
