@@ -141,7 +141,9 @@ class TerminalDependencyTests(unittest.TestCase):
         observer = {'dll_sha256': self.dependency['native_model']['dll_sha256'], 'abi_version': 1,
                     'companion_interface_version': 4, 'backend': 'production_terminalcore_buffer',
                     'snapshot_binding': 'per_received_chunk', 'screen_pixels': 'not_measured'}
-        group = {'native_observers': [observer], 'hot_preparation_status': [{'source': 'adapter_json'}]}
+        status = json.dumps({'session_commands': {'complete': True}, 'system_commands': {'complete': True}})
+        group = {'native_observers': [observer], 'editors': [{'terminal_restore': 'native_overlay_v4'}],
+                 'hot_preparation_status': [{'source': 'adapter_json', 'json': status, 'sha256': hashlib.sha256(status.encode()).hexdigest().upper()}]}
         report = {'scenarios': [{'cache_miss': copy.deepcopy(group), 'cache_hit': copy.deepcopy(group)}]}
         path = self.root / 'hot.json'
         self.evidence['hot_reports'] = {'fixture': {'variant': path.name}}
@@ -150,6 +152,15 @@ class TerminalDependencyTests(unittest.TestCase):
         report['scenarios'][0]['cache_hit']['hot_preparation_status'][0]['source'] = 'legacy_unpublished_status'
         path.write_text(json.dumps(report), encoding='utf-8')
         with self.assertRaisesRegex(ValueError, 'unpublished legacy status'): self.check()
+        report['scenarios'][0]['cache_hit'] = copy.deepcopy(group)
+        incomplete = json.dumps({'session_commands': {'complete': True}, 'system_commands': {'complete': False, 'count': 1713}})
+        report['scenarios'][0]['cache_hit']['hot_preparation_status'][0].update(json=incomplete, sha256=hashlib.sha256(incomplete.encode()).hexdigest().upper())
+        path.write_text(json.dumps(report), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'discovery was incomplete'): self.check()
+        report['scenarios'][0]['cache_hit'] = copy.deepcopy(group)
+        report['scenarios'][0]['cache_hit']['editors'][0]['terminal_restore'] = 'legacy_cells'
+        path.write_text(json.dumps(report), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'restore interface'): self.check()
 
     def test_failed_download_digest_never_becomes_a_release_asset(self):
         self.dependency['asset_name'] = 'blueberry-terminal-fixture.zip'

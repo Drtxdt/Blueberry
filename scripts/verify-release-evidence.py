@@ -630,6 +630,18 @@ def check_terminal_dependency(evidence, root, package_path):
                 require(isinstance(preparation, list) and len(preparation) == len(observers)
                         and all(item.get("source") in ("adapter_json", "nested_adapter_readiness") for item in preparation),
                         f"{relative}: current candidate cannot qualify using unpublished legacy status")
+                editors = group.get("editors", [])
+                require(len(editors) == len(observers) and all(editor.get("terminal_restore") == "native_overlay_v4" for editor in editors),
+                        f"{relative}: current candidate did not use the companion restore interface")
+                for item in preparation:
+                    if item["source"] == "adapter_json":
+                        raw = item.get("json")
+                        require(isinstance(raw, str) and hashlib.sha256(raw.encode("utf-8")).hexdigest().upper() == item.get("sha256", "").upper(),
+                                f"{relative}: hot setup status bytes are not bound")
+                        status = json.loads(raw)
+                        require(all(status.get(field, {}).get("complete") is True
+                                    and status[field].get("error") is None for field in ("session_commands", "system_commands")),
+                                f"{relative}: hot setup discovery was incomplete")
 
 
 def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None, terminal_package=None):
