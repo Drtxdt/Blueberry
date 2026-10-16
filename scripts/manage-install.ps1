@@ -536,6 +536,34 @@ function Read-Package {
             $requiredItem = Get-RegularFileRecord -Path $requiredPath -Label "必要资产 $required"
             if ($requiredItem.Length -le 0) { throw "必要资产不能为空: $required" }
         }
+        if ($releaseManifest.ContainsKey('build') -and $releaseManifest.build.ContainsKey('companion_overlay_interface') -and
+            [int]$releaseManifest.build.companion_overlay_interface -eq 4) {
+            foreach ($required in @('blueberry-terminal.cmd', 'terminal-dependency.json', 'terminal/.portable',
+                    'terminal/WindowsTerminal.exe', 'terminal/Microsoft.Terminal.Settings.Model.dll')) {
+                if (-not $seen.Contains($required)) { throw "发布包缺少配套 Terminal 资产: $required" }
+            }
+            if (-not $releaseManifest.ContainsKey('terminal_dependency')) { throw '发布包缺少配套 Terminal 身份' }
+            $dependency = $releaseManifest.terminal_dependency
+            $descriptor = (Read-JsonHashtable (Join-Path $stage 'terminal-dependency.json')).terminal_dependency
+            foreach ($field in @('interface_version', 'source_commit', 'upstream_commit', 'run_id', 'artifact_id',
+                    'package_sha256', 'executable_member', 'executable_sha256', 'asset_name')) {
+                if (-not $dependency.ContainsKey($field) -or [string]$dependency[$field] -cne [string]$descriptor[$field]) {
+                    throw "配套 Terminal 身份不一致: $field"
+                }
+            }
+            if ([int]$dependency.interface_version -ne 4 -or
+                (Get-Sha256 (Join-Path $stage 'terminal/WindowsTerminal.exe')) -ne $dependency.executable_sha256) {
+                throw '配套 Terminal 接口或 EXE SHA-256 不匹配'
+            }
+            foreach ($license in $dependency.licenses.Keys) {
+                $name = [IO.Path]::GetFileName($license)
+                $relative = 'terminal/' + $name
+                if (-not $seen.Contains($relative) -or
+                    (Get-Sha256 (Join-Path $stage $relative)) -ne $dependency.licenses[$license]) {
+                    throw "配套 Terminal 许可证不匹配: $name"
+                }
+            }
+        }
         $stageFiles = @(Get-ChildItem -LiteralPath $stage -File -Recurse -Force)
         $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         [void]$allowed.Add('release.json')

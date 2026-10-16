@@ -395,6 +395,9 @@ jobs:
     if: ${{ !inputs.evidence_manifest }}
     needs: [format, core, powershell-51, powershell-7, native-mouse]
     runs-on: windows-2022
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -443,7 +446,12 @@ jobs:
 
       - name: Package and validate installation
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          $terminalArchive = python scripts/stage-terminal-release-asset.py scripts/terminal-dependency.json --output artifacts/terminal-dependency
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned companion Terminal download failed' }
+          $env:BLUEBERRY_TERMINAL_PACKAGE = $terminalArchive.Trim()
           ./scripts/licenses.ps1 -OutputPath ./THIRD-PARTY-NOTICES.txt
           $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
           ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -OutputDirectory ./dist/ci

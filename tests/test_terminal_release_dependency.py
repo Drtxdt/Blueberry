@@ -31,6 +31,7 @@ class TerminalDependencyTests(unittest.TestCase):
             archive.writestr(prefix + 'WindowsTerminal.exe', self.exe)
             archive.writestr(prefix + '.portable', b'')
             archive.writestr(prefix + 'Microsoft.Terminal.Settings.Model.dll', b'fixture')
+            archive.writestr(prefix + 'WindowsTerminal.pdb', b'diagnostic symbols, separate asset only')
             for name, data in licenses.items(): archive.writestr(name, data)
         package_hash = V.sha256_file(self.package)
         source = 'b' * 40
@@ -68,6 +69,34 @@ class TerminalDependencyTests(unittest.TestCase):
 
     def test_original_package_and_bound_manual_receipts_pass(self):
         self.check()
+
+    def embedded(self, *, changed=None, omitted=None, extra=None):
+        path = self.root / 'blueberry.zip'
+        with zipfile.ZipFile(self.package) as original, zipfile.ZipFile(path, 'w') as archive:
+            for item in original.infolist():
+                relative = item.filename.split('WindowsTerminal/', 1)[1]
+                if relative == '.portable' or relative == omitted or relative.lower().endswith('.pdb'):
+                    continue
+                archive.writestr('terminal/' + relative, b'changed' if relative == changed else original.read(item))
+            archive.writestr('terminal/.portable', b'Blueberry portable marker\n')
+            archive.writestr('blueberry-terminal.cmd', b'fixture launch entry')
+            archive.writestr('terminal-dependency.json', json.dumps({'terminal_dependency': self.dependency}))
+            if extra:
+                archive.writestr('terminal/' + extra, b'unexpected')
+        return path
+
+    def test_installed_runtime_matches_original_companion(self):
+        V.check_embedded_terminal(self.embedded(), self.package, self.dependency, self.dependency)
+
+    def test_changed_missing_or_injected_runtime_cannot_be_released(self):
+        for mutation in ({'changed': 'Microsoft.Terminal.Settings.Model.dll'},
+                         {'omitted': 'WindowsTerminal.exe'}, {'extra': 'settings/settings.json'}):
+            with self.subTest(mutation=mutation), self.assertRaises((ValueError, KeyError)):
+                V.check_embedded_terminal(self.embedded(**mutation), self.package, self.dependency)
+        wrong = copy.deepcopy(self.dependency)
+        wrong['source_commit'] = '0' * 40
+        with self.assertRaisesRegex(ValueError, 'identity differs'):
+            V.check_embedded_terminal(self.embedded(), self.package, self.dependency, wrong)
 
     def test_missing_dependency_or_package_is_rejected(self):
         with self.assertRaisesRegex(ValueError, 'package is required'):

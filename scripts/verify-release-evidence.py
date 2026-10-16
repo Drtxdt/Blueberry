@@ -644,6 +644,33 @@ def check_terminal_dependency(evidence, root, package_path):
                                 f"{relative}: hot setup discovery was incomplete")
 
 
+def check_embedded_terminal(package_path, terminal_package, dependency, package_dependency=None):
+    """The installed runtime must be the original, separately released artifact."""
+    require(terminal_package is not None and isinstance(dependency, dict), "embedded Terminal dependency missing")
+    prefix = str(PurePosixPath(dependency["executable_member"]).parent) + "/"
+    with zipfile.ZipFile(package_path) as installed, zipfile.ZipFile(terminal_package) as original:
+        embedded = json.loads(installed.read("terminal-dependency.json"))["terminal_dependency"]
+        if package_dependency is not None:
+            require(package_dependency == embedded, "package manifest companion identity differs")
+        for field in ("interface_version", "source_commit", "upstream_commit", "run_id", "artifact_id",
+                      "package_sha256", "executable_member", "executable_sha256", "asset_name", "licenses"):
+            require(embedded.get(field) == dependency.get(field), f"embedded Terminal identity mismatch: {field}")
+        expected = set()
+        for item in original.infolist():
+            if not item.filename.startswith(prefix) or item.is_dir():
+                continue
+            relative = item.filename[len(prefix):]
+            if relative in ("stamp", ".portable") or relative.lower().endswith(".pdb"):
+                continue
+            path = "terminal/" + relative
+            expected.add(path)
+            require(sha256_zip_member(installed, path) == sha256_zip_member(original, item.filename),
+                    f"embedded Terminal runtime differs from original: {relative}")
+        actual = {item.filename for item in installed.infolist() if item.filename.startswith("terminal/") and not item.is_dir()}
+        require(actual == expected | {"terminal/.portable"}, "embedded Terminal runtime members differ")
+        require(installed.read("terminal/.portable") and installed.read("blueberry-terminal.cmd"), "portable launch entry missing")
+
+
 def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None, terminal_package=None):
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
@@ -723,6 +750,8 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         require(len(records) == 1 and records[0].get("sha256", "").upper() == executable_hash, "manifest EXE SHA-256 mismatch")
     if build.get("companion_overlay_interface") == 4:
         check_terminal_dependency(evidence, evidence_path.parent, terminal_package)
+        require(isinstance(manifest.get("terminal_dependency"), dict), "package companion identity missing")
+        check_embedded_terminal(package_path, terminal_package, evidence["terminal_dependency"], manifest["terminal_dependency"])
     if "performance_waiver" in evidence:
         check_performance_waiver(evidence, evidence_path.parent, commit)
         if VERSION != "0.5.3":

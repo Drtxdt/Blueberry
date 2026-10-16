@@ -18,6 +18,10 @@
 
 Windows 默认 direct／pipe；`blueberry run --host-mode nested --transport osc` 或 `--transport pipe` 进入 ConPTY 兼容模式。支持矩阵为 PS5.1／PSReadLine 2.0.0、PS5.1／2.4.5、PS7／2.4.5；direct 使用随包提供的对应私有编辑器。
 
+开发中的下一版安装包会自动配套安装固定版本的便携 Windows Terminal，并提供 `blueberry-terminal` 启动入口（也可双击安装目录的 `blueberry-terminal.cmd`）。组件随同一个 ZIP 下载，安装事务校验全部文件；无需分别解压或安装 Python。该入口启用完整历史恢复接口，使用 direct／pipe 和现有 Blueberry 配置。
+
+配套组件位于安装目录的 `terminal` 子目录，独立使用 `terminal/settings` 保存设置；保留系统默认终端及已有 Terminal 设置。升级、回滚同时处理受管组件和启动入口，保留新生成的便携 Terminal 用户设置。卸载仅删除未修改的受管文件，用户设置保留。更新前退出配套 Terminal 的所有窗口；正在运行的组件被占用时，更新失败并恢复安装，不会强制结束窗口。普通 `blueberry` 入口继续兼容现有终端；完整属性跨缩放恢复须从配套入口使用。
+
 若 PowerShell 提示“此系统上禁止运行脚本”，先运行 `Get-ExecutionPolicy -List` 查看策略。个人电脑可自行执行 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`，允许本地安装脚本和 profile 加载；组织管理的电脑请遵循管理员策略。安装程序保留现有执行策略。
 
 ## 指定版本与无人值守安装

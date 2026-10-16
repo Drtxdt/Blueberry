@@ -155,3 +155,13 @@ Blueberry 提交，且必须能从公开仓库取得对应补丁。
 `terminal_package_sha256` 和 `terminal_executable_sha256`。更换任一原包后须重验
 受影响项目。原生缓冲证明、运行接口诊断和最终 GUI 人工结果分别记录，不能互相
 替代；全部历史属性恢复仍是发布关卡。
+
+配套自动安装采用单包交付：CI 使用 `scripts/terminal-dependency.json` 的固定
+Actions run／artifact／源码和 SHA-256 下载原始 Terminal ZIP，再以
+`BLUEBERRY_TERMINAL_PACKAGE`（或 `release.ps1 -TerminalPackagePath`）传入组包。
+组包脚本只提取便携运行文件，逐字节保留；PDB、构建日志和 stamp 留在独立原始
+Artifact，不进入安装目录。安装包增加受管 `terminal/`、非空 `.portable` 标记、
+`terminal-dependency.json` 和 `blueberry-terminal.cmd`；原始 Terminal ZIP 仍作为
+单独 Release 附件长期保存。发布校验同时核对两者的组件身份和全部运行文件，
+不允许注入预设用户设置或替换 DLL。便携 Terminal 自行生成的 `terminal/settings`
+不列入不可变受管清单，安装、升级、回滚及卸载测试须验证其内容保留。
