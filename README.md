@@ -11,7 +11,7 @@ Blueberry 是一个使用 Rust 构建的终端 IDE 风格补全工具，可以�
 
 当前公开版本为 [v0.5.2](https://github.com/Drtxdt/Blueberry/releases/tag/v0.5.2)，`0.5.3` 正在候选验收。Windows 默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。
 
-启动增量 P50 ≤50 ms、热态完整菜单 P95 ≤20 ms 是验收目标，尚未由当前候选正式证明。0.5.3 的性能验收可延期，真实终端人工检查待本机执行；外部试用未执行。见 [本版验收](docs/v0.5.3-validation.md)、[安装与故障诊断](docs/installation.md) 和 [发布流程](docs/releasing.md)。
+启动增量 P50 ≤50 ms、热态完整菜单 P95 ≤20 ms 是验收目标，尚未由当前候选正式证明。按[三轮优化与发布规则](docs/performance-next.md)，完整达标且无明显回退发布 0.6.0；三轮结束、数据完整有效但仍未全部达标时发布 0.5.3。两版均须通过最终包功能、安装与本机人工验收，外部试用未执行。见 [本版验收](docs/v0.5.3-validation.md)、[安装与故障诊断](docs/installation.md) 和 [发布流程](docs/releasing.md)。
 
 ## 安装
 
