@@ -19,7 +19,13 @@ class Capture {
         lines.Add(Environment.GetEnvironmentVariable("BLUEBERRY_NATIVE_OVERLAY") ?? "<null>");
         lines.Add(Environment.GetEnvironmentVariable("BLUEBERRY_ACTIVE") ?? "<null>");
         lines.AddRange(args);
-        File.WriteAllLines(Environment.GetEnvironmentVariable("BLUEBERRY_TEST_LAUNCH_CAPTURE"), lines);
+        lines.Add("PID=" + System.Diagnostics.Process.GetCurrentProcess().Id);
+        string path = Environment.GetEnvironmentVariable("BLUEBERRY_TEST_LAUNCH_CAPTURE");
+        File.WriteAllLines(path + ".tmp", lines);
+        File.Move(path + ".tmp", path);
+        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        while (!File.Exists(path + ".release") && DateTime.UtcNow < deadline)
+            System.Threading.Thread.Sleep(20);
     }
 }
 '@
@@ -44,14 +50,19 @@ try {
     $info.CreateNoWindow = $true
     $process = [Diagnostics.Process]::Start($info)
     try {
-        if (-not $process.WaitForExit(10000) -or $process.ExitCode -ne 0) { throw 'Launcher did not return successfully' }
+        if (-not $process.WaitForExit(5000)) {
+            $process.Kill();
+            throw 'Launcher waited for its GUI child instead of returning asynchronously'
+        }
+        if ($process.ExitCode -ne 0) { throw 'Launcher did not return successfully' }
     }
     finally { $process.Dispose() }
     $deadline = [DateTime]::UtcNow.AddSeconds(10)
     while (-not (Test-Path -LiteralPath $capture) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
     $actual = [IO.File]::ReadAllLines($capture)
+    if ($actual[-1] -notmatch '^PID=\d+$') { throw 'Missing owned launcher fixture PID' }
     $expected = @('4', '<null>', '--window', 'new', 'new-tab', '--inheritEnvironment', '--startingDirectory',
-        $working, (Join-Path $layout 'blueberry.exe'), 'run', '--host-mode', 'direct', '--transport', 'pipe')
+        $working, (Join-Path $layout 'blueberry.exe'), 'run', '--host-mode', 'direct', '--transport', 'pipe', $actual[-1])
     if (($actual | ConvertTo-Json -Compress) -cne ($expected | ConvertTo-Json -Compress)) {
         throw ('Launcher environment/arguments differ: ' + ($actual | ConvertTo-Json -Compress))
     }
@@ -61,6 +72,28 @@ try {
     Write-Host 'Portable launcher quoting, environment isolation and asynchronous return passed'
 }
 finally {
+    if (Test-Path -LiteralPath $root) {
+        $fixture = $null
+        try {
+            if (Test-Path -LiteralPath $capture) {
+                $last = [IO.File]::ReadAllLines($capture)[-1]
+                if ($last -match '^PID=(\d+)$') {
+                    try {
+                        $candidate = [Diagnostics.Process]::GetProcessById([int]$Matches[1])
+                        if ($candidate.MainModule.FileName -ieq (Join-Path $layout 'terminal/WindowsTerminal.exe')) { $fixture = $candidate }
+                        else { $candidate.Dispose() }
+                    }
+                    catch [ArgumentException] { } # Fixture already exited.
+                    catch [InvalidOperationException] { }
+                }
+            }
+        }
+        finally { [IO.File]::WriteAllText(($capture + '.release'), 'release owned fixture') }
+        if ($null -ne $fixture) {
+            try { if (-not $fixture.WaitForExit(5000)) { throw 'Owned fixture did not stop after release' } }
+            finally { $fixture.Dispose() }
+        }
+    }
     $env:BLUEBERRY_TEST_LAUNCH_CAPTURE = $oldCapture
     $env:BLUEBERRY_ACTIVE = $oldActive
     $env:BLUEBERRY_NATIVE_OVERLAY = $oldOverlay
