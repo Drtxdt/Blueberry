@@ -529,7 +529,105 @@ def check_performance_waiver(evidence, root, commit):
             "functional and package CI matrix incomplete or failed")
 
 
-def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None):
+def check_terminal_dependency(evidence, root, package_path):
+    """Bind the separately shipped original Terminal artifact to this acceptance."""
+    dependency = evidence.get("terminal_dependency")
+    require(isinstance(dependency, dict) and dependency.get("interface_version") == 4,
+            "native overlay release requires a fixed Terminal dependency")
+    require(package_path is not None, "original Terminal package is required")
+    package_path = Path(package_path).resolve(strict=True)
+    package_hash = sha256_file(package_path)
+    require(package_hash == dependency.get("package_sha256", "").upper(), "Terminal package SHA-256 mismatch")
+    source = dependency.get("source_commit", "")
+    require(HEX40.fullmatch(source) is not None, "Terminal patch source commit is not pinned")
+    require(dependency.get("upstream_commit") == "7ff11ee107c984e236960ec948b450ccbc10187b",
+            "Terminal upstream source differs from the verified native implementation")
+    executable_hash = dependency.get("executable_sha256", "").upper()
+    require(HEX64.fullmatch(executable_hash) is not None, "Terminal EXE is not frozen")
+    for field in ("ci_report", "runtime_report"):
+        record = dependency.get(field, {})
+        path = report_path(root, record.get("report"))
+        require(sha256_file(path) == record.get("sha256", "").upper(), f"Terminal {field} SHA-256 mismatch")
+    provenance = read_json(report_path(root, dependency["ci_report"]["report"]))
+    run, artifact = provenance.get("run", {}), provenance.get("artifact", {})
+    require(run.get("id") == dependency.get("run_id") and type(run.get("id")) is int
+            and run["id"] > 0 and run.get("head_sha") == source and run.get("conclusion") == "success"
+            and run.get("path") == ".github/workflows/wt-overlay-prototype.yml",
+            "Terminal dependency did not come from its successful pinned CI run")
+    require(artifact.get("id") == dependency.get("artifact_id") and type(artifact.get("id")) is int
+            and artifact["id"] > 0 and artifact.get("workflow_run", {}).get("id") == run["id"]
+            and artifact["workflow_run"].get("head_sha") == source,
+            "Terminal artifact does not belong to the pinned source/run")
+    require(artifact.get("digest", "").lower() == "sha256:" + package_hash.lower(),
+            "Terminal artifact digest differs from the original package")
+    jobs = provenance.get("jobs", [])
+    require(any(job.get("name") == "native-buffer-proof" and job.get("conclusion") == "success"
+                and job.get("run_id") == run["id"] for job in jobs), "Terminal native buffer proof is missing")
+    model = dependency.get("native_model", {})
+    model_package = evidence_file_path(root, model.get("package"))
+    model_hash = sha256_file(model_package)
+    require(model_hash == model.get("package_sha256", "").upper(), "native observer package SHA-256 mismatch")
+    model_artifact = provenance.get("native_model_artifact", {})
+    require(model_artifact.get("id") == model.get("artifact_id") and type(model.get("artifact_id")) is int
+            and model["artifact_id"] > 0 and model_artifact.get("workflow_run", {}).get("id") == run["id"]
+            and model_artifact["workflow_run"].get("head_sha") == source
+            and model_artifact.get("digest", "").lower() == "sha256:" + model_hash.lower(),
+            "native observer artifact differs from the companion CI source/run")
+    with zipfile.ZipFile(model_package) as archive:
+        require(archive.namelist().count(model.get("dll_member")) == 1
+                and HEX64.fullmatch(model.get("dll_sha256", "")) is not None
+                and sha256_zip_member(archive, model["dll_member"]) == model["dll_sha256"].upper(),
+                "native observer DLL differs from its original CI artifact")
+    with zipfile.ZipFile(package_path) as archive:
+        names = archive.namelist()
+        require(len(names) == len(set(names)) and len(names) == len({name.casefold() for name in names}),
+                "ambiguous Terminal package members")
+        member = dependency.get("executable_member")
+        require(isinstance(member, str) and PurePosixPath(member).name == "WindowsTerminal.exe"
+                and member in names, "Terminal executable member is missing")
+        require(sha256_zip_member(archive, member) == executable_hash, "packaged Terminal EXE SHA-256 mismatch")
+        prefix = str(PurePosixPath(member).parent) + "/"
+        require(prefix + ".portable" in names and prefix + "Microsoft.Terminal.Settings.Model.dll" in names,
+                "Terminal package is not the complete portable layout")
+        licenses = dependency.get("licenses", {})
+        require(set(licenses) == {prefix + name for name in (
+            "BLUEBERRY-PATCH-LICENSE.txt", "TERMINAL-LICENSE.txt", "TERMINAL-THIRD-PARTY-NOTICES.md")},
+            "Terminal source and third-party license records are incomplete")
+        for name, expected in licenses.items():
+            require(sha256_zip_member(archive, name) == expected.upper(), "Terminal license SHA-256 mismatch")
+    runtime = read_json(report_path(root, dependency["runtime_report"]["report"]))
+    proofs = [row for row in runtime.get("results", []) if row.get("kind") == "native_menu"]
+    require(len(proofs) == 1, "Terminal native runtime proof missing or duplicated")
+    row, proof = proofs[0], proofs[0].get("result", {})
+    require(row.get("terminal_sha256", "").upper() == executable_hash and row.get("exit_code") == 0
+            and proof.get("supported") is True and proof.get("interface_version") == 4
+            and proof.get("reader_stopped") is True and proof.get("output_mode_restored") is True,
+            "Terminal runtime proof belongs to another EXE or lacks fenced cleanup")
+    # Native buffer/runtime tests do not claim GUI pixels or final manual success.
+    for profile in PROFILES:
+        manual = evidence.get("manual_acceptance", {}).get("windows_terminal_matrix", {}).get(profile, {})
+        require(manual.get("terminal_package_sha256", "").upper() == package_hash
+                and manual.get("terminal_executable_sha256", "").upper() == executable_hash,
+                f"{profile}: manual history acceptance belongs to another Terminal package")
+    paths = list(evidence.get("startup_reports", {}).values())
+    for field in ("hot_reports", "nested_compatibility_reports"):
+        for variants in evidence.get(field, {}).values():
+            paths.extend(variants.values())
+    for relative in paths:
+        report = read_json(report_path(root, relative))
+        groups = [report] if "scenarios" not in report else [
+            scenario[cache] for scenario in report["scenarios"] for cache in ("cache_miss", "cache_hit")]
+        for group in groups:
+            observers = group.get("native_observers", [])
+            require(observers and all(observer.get("dll_sha256", "").upper() == model["dll_sha256"].upper()
+                    and observer.get("abi_version") == 1 and observer.get("companion_interface_version") == 4
+                    and observer.get("backend") == "production_terminalcore_buffer"
+                    and observer.get("snapshot_binding") == "per_received_chunk"
+                    and observer.get("screen_pixels") == "not_measured" for observer in observers),
+                    f"{relative}: native observer identity or observation boundary differs from the companion")
+
+
+def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None, terminal_package=None):
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
     evidence = read_json(evidence_path)
@@ -606,6 +704,8 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
                 require(item["bytes"] == archive.getinfo(path).file_size, f"package file size mismatch: {path}")
         records = [item for item in files if item.get("path") == "blueberry.exe"]
         require(len(records) == 1 and records[0].get("sha256", "").upper() == executable_hash, "manifest EXE SHA-256 mismatch")
+    if build.get("companion_overlay_interface") == 4:
+        check_terminal_dependency(evidence, evidence_path.parent, terminal_package)
     if "performance_waiver" in evidence:
         check_performance_waiver(evidence, evidence_path.parent, commit)
         if VERSION != "0.5.3":
@@ -666,6 +766,9 @@ def bundle(evidence_path, output_path):
     reports = set(evidence["startup_reports"].values())
     for artifact in evidence.get("raw_artifacts", []):
         reports.update(artifact["files"])
+    if "terminal_dependency" in evidence:
+        reports.update(evidence["terminal_dependency"][field]["report"] for field in ("ci_report", "runtime_report"))
+        reports.add(evidence["terminal_dependency"]["native_model"]["package"])
     if "performance_waiver" in evidence:
         reports.add(evidence["functional_ci"]["report"])
         for item in evidence["performance_waiver"].get("optimization_rounds", []):
@@ -711,9 +814,10 @@ def main():
     parser.add_argument("--public-beta6-package", required=True, type=Path,
                         help="original ZIP downloaded from this repository's public v0.5.0-beta.6 release")
     parser.add_argument("--bundle-out", type=Path, help="write a ZIP of verified raw reports")
+    parser.add_argument("--terminal-package", type=Path, help="original portable Terminal CI artifact, shipped separately")
     args = parser.parse_args()
     try:
-        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package, args.ci_run_id)
+        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package, args.ci_run_id, args.terminal_package)
         if args.bundle_out:
             bundle(args.evidence, args.bundle_out)
     except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:

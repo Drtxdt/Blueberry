@@ -115,13 +115,15 @@ jobs:
           while IFS= read -r file; do
             # Release-policy changes may follow the frozen product without
             # rebuilding it. Product, packaging and dependency changes remain forbidden.
-            [[ -z "$file" || "$file" == docs/benchmarks/v0.5/* || "$file" == "$VALIDATION_PATH" || "$file" == docs/releasing.md || "$file" == scripts/verify-release-evidence.py || "$file" == tests/test_release_evidence.py || "$file" == .github/workflows/release.yml ]] || { echo "Product or packaging change after freeze: $file" >&2; exit 1; }
+            [[ -z "$file" || "$file" == docs/benchmarks/v0.5/* || "$file" == "$VALIDATION_PATH" || "$file" == docs/releasing.md || "$file" == scripts/verify-release-evidence.py || "$file" == scripts/stage-terminal-release-asset.py || "$file" == tests/test_release_evidence.py || "$file" == tests/test_terminal_release_dependency.py || "$file" == .github/workflows/release.yml ]] || { echo "Product or packaging change after freeze: $file" >&2; exit 1; }
           done <<< "$changed"
           test -f "release-evidence/$EVIDENCE_PATH"
           echo "EVIDENCE_SHA=$EVIDENCE_SHA" >> "$GITHUB_ENV"
       - name: Test the version-bound release policy from the evidence commit
         working-directory: release-evidence
-        run: python3 -m unittest discover -s tests -p test_release_evidence.py
+        run: |
+          python3 -m unittest discover -s tests -p test_release_evidence.py
+          python3 -m unittest discover -s tests -p test_terminal_release_dependency.py
       - uses: actions/download-artifact@v4
         with:
           name: blueberry-windows-x64
@@ -166,11 +168,15 @@ jobs:
           sha256sum --check "blueberry-$RELEASE_TAG-windows-x64.zip.sha256"
           cd ..
           python3 release-evidence/scripts/materialize-release-artifacts.py "release-evidence/$EVIDENCE_PATH"
+          TERMINAL_PACKAGE="$(python3 release-evidence/scripts/stage-terminal-release-asset.py "release-evidence/$EVIDENCE_PATH" --output release-assets)"
+          terminal_args=()
+          if [[ -n "$TERMINAL_PACKAGE" ]]; then terminal_args=(--terminal-package "$TERMINAL_PACKAGE"); fi
           python3 release-evidence/scripts/verify-release-evidence.py \
             "release-evidence/$EVIDENCE_PATH" \
             "release-assets/blueberry-$RELEASE_TAG-windows-x64.zip" \
             --commit "$TAG_SHA" \
             --ci-run-id "$CI_RUN_ID" \
+            "${terminal_args[@]}" \
             --public-beta6-package beta6-public/blueberry-v0.5.0-beta.6-windows-x64.zip \
             --bundle-out "release-assets/blueberry-$RELEASE_TAG-evidence.zip"
       - name: Create or update unpublished draft with the measured bytes

@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "kind": "neutral fixture preflight only",
+  "measurement_complete": true,
+  "formal_eligible": false,
+  "probe_source": "1db3cc1",
+  "statistics_recomputed": true,
+  "groups": [
+    {
+      "name": "run1-before",
+      "measurement_complete": true,
+      "formal_eligible": false,
+      "startup": [
+        {
+          "group": "ps51-200-startup",
+          "median": -400.04945
+        },
+        {
+          "group": "ps51-245-startup",
+          "median": 316.14335
+        },
+        {
+          "group": "ps7-245-startup",
+          "median": 28.816149999999993
+        }
+      ],
+      "hot_groups": 72,
+      "hot_samples": 144,
+      "maximum_hot_p95": 109.0099,
+      "gate_failures": 30
+    },
+    {
+      "name": "run1-after",
+      "measurement_complete": true,
+      "formal_eligible": false,
+      "startup": [
+        {
+          "group": "ps51-200-startup",
+          "median": 285.4136
+        },
+        {
+          "group": "ps51-245-startup",
+          "median": 349.45754999999997
+        },
+        {
+          "group": "ps7-245-startup",
+          "median": -17.01815000000005
+        }
+      ],
+      "hot_groups": 72,
+      "hot_samples": 144,
+      "maximum_hot_p95": 201.3512,
+      "gate_failures": 39
+    }
+  ],
+  "source_scope": "Frozen R2 before 8ad00fb and after synthetic merge 6819f429; includes history fixes as well as shared snapshots, not an isolated snapshot-only diff. No history navigation in hot fixtures.",
+  "fixture_root": "C:/Windows/Temp/Blueberry-perf-20261016",
+  "ancestor_marker_check": [
+    ".git",
+    "Cargo.toml",
+    "package.json",
+    "pyproject.toml",
+    "go.mod"
+  ],
+  "trace": "disabled",
+  "observer": "production TerminalCore buffer; per_received_chunk; screen pixels not measured",
+  "raw_locator": "artifacts\\neutral-hot-preflight-20261016\\raw-copy",
+  "copy_manifest": {
+    "path": "artifacts\\neutral-hot-preflight-20261016\\copy-manifest.json",
+    "sha256": "306D397CE633433AEA63FCA084B0A659A8D9EE0C8E553CDEC715B354D9FB0259"
+  },
+  "coordinator": {
+    "path": "artifacts\\neutral-hot-preflight-20261016\\session\\batch.json",
+    "sha256": "FA768015D707DA6CD15D527DE498CDC20100954162CE335F06CE9E6092F40FBE"
+  },
+  "interpretation": "Fixture and collection preflight only. Keep every slow/negative sample. Two startup pairs and two hot samples per group cannot select a version or accept/reject an optimization.",
+  "next": "Two independent reversed-order A/B batches; then final frozen-package qualification.",
+  "release_blocked": true
+}

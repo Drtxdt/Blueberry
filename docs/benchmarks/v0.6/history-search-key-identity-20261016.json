@@ -25,6 +25,28 @@
     "representation": "Win32 input records with original virtual key, control character, Ctrl modifier and press/release",
     "reason": "Preserve native history-search binding identity instead of forwarding an ambiguous raw control character."
   },
-  "after_fix": "pending local and repeated CI validation",
+  "after_fix": {
+    "local": "passed",
+    "editor_profiles": [
+      "ps51-200",
+      "ps51-245",
+      "ps7-245"
+    ],
+    "transports": [
+      "osc",
+      "pipe"
+    ],
+    "repetitions_per_profile_transport": 2,
+    "total_exact_test_repetitions": 12,
+    "each_test_cases": [
+      "Ctrl+G followed immediately by typing",
+      "physical Escape followed by End/Delete/typing"
+    ],
+    "report": "artifacts/history-key-results-20261016.json",
+    "report_sha256": "A822ADE3FFE9413C3CA78ECF21FCC0C0C8F0FB7989A3CAD0B1297EA8BEB822C6",
+    "core_passed": 134,
+    "native_opt_in_ignored": 2,
+    "repeated_ci": "pending; ten repetitions per PS7 transport required"
+  },
   "release_blocked": true
 }
