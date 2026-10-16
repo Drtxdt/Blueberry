@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "kind": "Observed Windows atomic-replace failure; bounded retry correction pending validation",
+  "run": 38883869867,
+  "job": 116916782106,
+  "source": "1322e6e",
+  "test": "independent_processes_keep_all_favorites",
+  "repetition": 7,
+  "writer": 14,
+  "error": "MoveFileExW Access is denied (os error 5)",
+  "retained_favorites": 15,
+  "cause_limit": "The retained error does not identify the denying handle or prove antivirus involvement.",
+  "artifact": 12039390761,
+  "artifact_sha256": "5A7E52B7EBC99FA126FBB21C51986B25265C9E5F6EEDF74D4B11D17845F331DE",
+  "correction": "Keep the writer lock, retry Windows errors 5/32/33 for at most 500ms, and compare current bytes with the original before every replacement attempt. Permanent errors still fail and preserve the old file.",
+  "regressions": [
+    "temporary handle forbids deletion until after writer validation",
+    "external edit during retry must be preserved and reported",
+    "persistent denial must terminate without replacing original"
+  ],
+  "local_after_fix": "pending; do not build/test concurrently with active performance batch",
+  "release_blocked": true
+}
