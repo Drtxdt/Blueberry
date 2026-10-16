@@ -76,6 +76,48 @@ fn start(mode: &str) -> Result<Fixture> {
     wait(&mut fixture, |screen| {
         screen.lines().any(|line| line.trim_end().ends_with('>'))
     })?;
+    let deadline = Instant::now() + TIMEOUT;
+    loop {
+        let status = std::fs::read_dir(fixture.path.join("data"))?
+            .filter_map(Result::ok)
+            .find_map(|entry| {
+                let bytes = std::fs::read(entry.path().join("adapter.json")).ok()?;
+                serde_json::from_slice::<serde_json::Value>(&bytes).ok()
+            });
+        if let Some(status) = status {
+            ensure!(status["host_mode"] == mode, "wrong host: {status}");
+            ensure!(
+                status["terminal_restore"] == "native_overlay_v4",
+                "non-native menu: {status}"
+            );
+            if let Some(module) = std::env::var_os("BLUEBERRY_TEST_PSREADLINE_MODULE") {
+                let module = std::path::PathBuf::from(module);
+                let expected = module
+                    .parent()
+                    .and_then(Path::file_name)
+                    .context("editor version missing")?
+                    .to_string_lossy();
+                ensure!(
+                    status["psreadline_version"] == expected.as_ref(),
+                    "wrong editor: {status}"
+                );
+            }
+            if mode == "direct" {
+                ensure!(
+                    status["editor_mode"] == "editor_hooks_v1" && status["automatic_menu"] == true,
+                    "direct fallback: {status}"
+                );
+            } else {
+                ensure!(
+                    status["ready"] == true,
+                    "nested adapter not ready: {status}"
+                );
+            }
+            break;
+        }
+        ensure!(Instant::now() < deadline, "adapter identity never arrived");
+        let _ = fixture.h.pump(Duration::from_millis(20));
+    }
     Ok(fixture)
 }
 

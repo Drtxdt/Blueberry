@@ -185,7 +185,7 @@ jobs:
           python scripts/prepare-conpty.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           foreach ($version in @('2.0.0', '2.4.5')) {
-            Save-Module PSReadLine -RequiredVersion $version -Path (Join-Path $env:RUNNER_TEMP 'native-modules') -Repository PSGallery -Force
+            Save-Module PSReadLine -RequiredVersion $version -Path (Join-Path $env:RUNNER_TEMP "native-modules/$version") -Repository PSGallery -Force
           }
       - name: Native client and observation ordering regressions
         shell: pwsh
@@ -201,7 +201,7 @@ jobs:
         run: |
           foreach ($combination in @(@('powershell.exe','2.0.0'), @('powershell.exe','2.4.5'), @('pwsh.exe','2.4.5'))) {
             $env:BLUEBERRY_TEST_SHELL = (Get-Command $combination[0]).Source
-            $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $env:RUNNER_TEMP "native-modules/PSReadLine/$($combination[1])/PSReadLine.psd1"
+            $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $env:RUNNER_TEMP "native-modules/$($combination[1])/PSReadLine/$($combination[1])/PSReadLine.psd1"
             cargo test --test native_terminal -- --ignored --test-threads=1 --nocapture
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             cargo test --test direct_terminal direct_without_inherited_module_path_keeps_editor_and_menu_above_input -- --exact --test-threads=1

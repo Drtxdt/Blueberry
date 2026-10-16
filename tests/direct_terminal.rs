@@ -910,6 +910,13 @@ fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> R
         &BTreeMap::from([
             ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
             ("PSModulePath".into(), String::new()),
+            (
+                "WinPSModulePath".into(),
+                dir.path()
+                    .join("stale-user/Modules")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
             ("TERM".into(), "xterm-256color".into()),
         ]),
         String::new(),

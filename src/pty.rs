@@ -15,7 +15,7 @@ pub struct Session {
 }
 
 #[cfg(windows)]
-fn default_windows_module_paths() -> Vec<PathBuf> {
+fn default_windows_module_paths(legacy: bool) -> Vec<PathBuf> {
     use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
     use windows_sys::Win32::System::Registry::{
         HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ,
@@ -68,6 +68,43 @@ fn default_windows_module_paths() -> Vec<PathBuf> {
         None
     }
     let mut paths = Vec::new();
+    if legacy {
+        use windows_sys::Win32::{
+            System::Com::CoTaskMemFree,
+            UI::Shell::{
+                FOLDERID_Documents, FOLDERID_ProgramFiles, KF_FLAG_DONT_VERIFY,
+                SHGetKnownFolderPath,
+            },
+        };
+        // An empty GUI environment has no reliable per-user path in the
+        // registry: image builders can leave a different user's directory.
+        // Use the current user's redirected known folder, as ConsoleHost does.
+        for (folder, suffix) in [
+            (FOLDERID_Documents, "WindowsPowerShell/Modules"),
+            (FOLDERID_ProgramFiles, "WindowsPowerShell/Modules"),
+        ] {
+            let mut value = ptr::null_mut();
+            if unsafe {
+                SHGetKnownFolderPath(
+                    &folder,
+                    KF_FLAG_DONT_VERIFY as u32,
+                    ptr::null_mut(),
+                    &mut value,
+                )
+            } >= 0
+                && !value.is_null()
+            {
+                let mut length = 0;
+                while unsafe { *value.add(length) } != 0 {
+                    length += 1;
+                }
+                let path =
+                    OsString::from_wide(unsafe { std::slice::from_raw_parts(value, length) });
+                paths.push(PathBuf::from(path).join(suffix));
+            }
+            unsafe { CoTaskMemFree(value.cast()) };
+        }
+    }
     for (hive, key) in [
         (HKEY_CURRENT_USER, "Environment"),
         (
@@ -88,13 +125,13 @@ pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
     let legacy = shell
         .file_name()
         .is_some_and(|name| name.eq_ignore_ascii_case("powershell.exe"));
-    let inherited = if legacy {
+    let module_path = std::env::var_os("PSModulePath").filter(|p| !p.is_empty());
+    let inherited = if legacy && module_path.is_some() {
         std::env::var_os("WinPSModulePath").filter(|p| !p.is_empty())
     } else {
         None
     }
-    .or_else(|| std::env::var_os("PSModulePath"))
-    .filter(|value| !value.is_empty());
+    .or(module_path);
     #[cfg(windows)]
     let use_defaults = inherited.is_none();
     let mut paths = inherited
@@ -124,7 +161,7 @@ pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
     // explicitly configured nonempty path or starting another shell process.
     #[cfg(windows)]
     if use_defaults {
-        for path in default_windows_module_paths() {
+        for path in default_windows_module_paths(legacy) {
             if !paths.iter().any(|existing| existing == &path) {
                 paths.push(path);
             }
@@ -205,7 +242,9 @@ pub fn spawn(
     // ConsoleHost can load PSReadLine before -Command runs. Put the selected
     // test module first in discovery instead of attempting to replace an
     // already loaded binary module with Import-Module -Force.
-    if (std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1")
+    if program.file_name().is_some_and(|name| {
+        name.eq_ignore_ascii_case("powershell.exe") || name.eq_ignore_ascii_case("pwsh.exe")
+    }) && (std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1")
         || env.get("BLUEBERRY_NO_HISTORY").map(String::as_str) == Some("1"))
         && let Some(module) =
             std::env::var_os("BLUEBERRY_TEST_PSREADLINE_MODULE").filter(|module| !module.is_empty())
