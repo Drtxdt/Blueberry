@@ -158,5 +158,15 @@ EXE、探针、原始测量及 Git 历史保留，清理清单见
 回归在原生模型下通过三个支持的编辑器组合。`verify-native.ps1` 现在也要求
 `editor_hooks_v1`，兼容模式不能作为正常候选。参见
 `docs/benchmarks/v0.6/native-gui-startup-regression-20261015.json`。
-这不替代新固定包的 GUI／连续缩放／全部历史属性人工验收；nested 原生接入
-仍未完成，发布继续阻塞。
+这不替代新固定包的 GUI／连续缩放／全部历史属性人工验收；截至该记录时
+nested 原生接入仍未完成，发布继续阻塞。
+
+2026-10-16 追加状态：nested 已接入同一原生恢复接口，`01fa187` 的 CI
+原生缓冲证明和三编辑器组合 direct／nested 回归均通过（run 38876110080）。
+用户对 b1r2 PS7/direct 诊断副本的底部菜单和连续缩放复查反馈“一切正常”；
+结果只绑定该诊断包，不继承为最终包验收。
+
+候选清单现可固定 `host_mode` 为 direct 或 nested，并固定 `transport`
+（默认 pipe；direct 只允许 pipe）。生成的专用核验脚本检查实际宿主、传输、
+PSReadLine 版本及 `native_overlay_v4`；direct 还必须使用 `editor_hooks_v1`。
+三编辑器组合和最终包的完整人工清单仍需分别执行。

@@ -49,7 +49,11 @@ def main():
     output = args.output.resolve()
     assert output.is_relative_to((repository/'artifacts').resolve()) and not output.exists(), 'Output must be new and inside workspace artifacts'
     manifest = json.loads(args.manifest.read_text(encoding='utf-8-sig'))
-    assert manifest['schema'] == 1 and manifest['interface_version'] == 4 and manifest['host_mode'] == 'direct', 'Unsupported candidate contract'
+    assert manifest['schema'] == 1 and manifest['interface_version'] == 4 and manifest['host_mode'] in ('direct', 'nested'), 'Unsupported candidate contract'
+    host_mode = manifest['host_mode']
+    transport = manifest.get('transport', 'pipe')
+    assert transport in ('pipe', 'osc') and (host_mode != 'direct' or transport == 'pipe'), 'Unsupported candidate transport'
+    assert manifest['psreadline_version'] in ('2.0.0', '2.4.5'), 'Unqualified editor version'
     shell = Path(manifest['shell']).resolve(strict=True)
     output.mkdir(parents=True)
     extract(Path(manifest['blueberry_zip']).resolve(strict=True), manifest['blueberry_zip_sha256'], output/'blueberry')
@@ -76,7 +80,7 @@ def main():
     settings = layout/'settings'
     settings.mkdir()  # Do not reuse settings hidden inside a downloaded package.
     profile = '{'+str(uuid.uuid4())+'}'
-    command = [str(product), 'run', '--shell', str(shell), '--host-mode', 'direct',
+    command = [str(product), 'run', '--shell', str(shell), '--host-mode', host_mode, '--transport', transport,
                '--psreadline-version', manifest['psreadline_version'], '--data-dir', str(output/'data')]
     config = dict(defaultProfile=profile, initialCols=120, initialRows=30,
                   disabledProfileSources=['Windows.Terminal.PowershellCore', 'Windows.Terminal.Wsl', 'Windows.Terminal.Azure'],
@@ -92,8 +96,10 @@ def main():
     launcher.write_text('& '+literal(terminal)+' --window new new-tab --profile '+literal(profile)+'\n', encoding='utf-8-sig')
     verifier = output/'verify-native.ps1'
     template = Path(__file__).with_name('verify-candidate.ps1').read_text(encoding='utf-8')
-    verifier.write_text(template.replace('param([Parameter(Mandatory=$true)][string]$CandidateData)',
-                                        '$CandidateData='+literal(output/'data'), 1), encoding='utf-8-sig')
+    verifier.write_text(template.replace(
+        "param([Parameter(Mandatory=$true)][string]$CandidateData, [ValidateSet('direct','nested')][string]$HostMode='direct', [ValidateSet('pipe','osc')][string]$Transport='pipe', [string]$ExpectedPSReadLine='2.4.5')",
+        '$CandidateData='+literal(output/'data')+'\n$HostMode='+literal(host_mode)+'\n$Transport='+literal(transport)+
+        '\n$ExpectedPSReadLine='+literal(manifest['psreadline_version']), 1), encoding='utf-8-sig')
     receipt = dict(schema=1, kind='prepared manual diagnostic; not final release acceptance',
                    manifest=manifest, installed_terminal_modified=False, user_profile_modified=False,
                    program_sha256=digest(product), terminal_sha256=digest(terminal),
