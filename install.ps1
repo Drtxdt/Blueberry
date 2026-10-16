@@ -591,6 +591,11 @@ try {
     Write-Host ''
     Write-Host "Installed: $exe"
     Write-Host 'Run: blueberry'
+    $terminalEntry = Join-Path $InstallRoot 'blueberry-terminal.cmd'
+    if ([IO.File]::Exists($terminalEntry)) {
+        Write-Host "Companion Terminal: $terminalEntry"
+        Write-Host 'Run: blueberry-terminal (full history restoration across resize)'
+    }
     Write-Host 'Startup: blueberry startup enable | disable | status'
 }
 finally {

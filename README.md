@@ -25,6 +25,8 @@ Blueberry 是一个使用 Rust 构建的终端 IDE 风格补全工具，可以�
 
 也可以从 [Releases](https://github.com/Drtxdt/Blueberry/releases) 下载 Windows x64 ZIP，解压后运行 `blueberry.exe`。指定版本、升级、回滚和卸载步骤见 [安装指南](docs/installation.md)。
 
+开发中的下一版将自动配套安装固定的便携 Windows Terminal，并增加 `blueberry-terminal` 启动入口，用于跨缩放完整恢复历史内容；现有 Terminal 设置及系统默认终端保留。组件与 Blueberry 同包下载、校验、升级和回滚。当前公开的 0.5.2 尚无此入口。
+
 ## 快速开始
 
 在你的终端中输入：
