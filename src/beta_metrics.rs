@@ -175,6 +175,7 @@ struct Measurements {
     observations: Vec<Value>,
     native_observers: Vec<Value>,
     hot_preparation_wait: Vec<f64>,
+    hot_preparation_status: Vec<Value>,
     input_echo: Vec<f64>,
     first_menu: Vec<f64>,
     first_candidate_menu: Vec<f64>,
@@ -249,6 +250,7 @@ impl Measurements {
             "observations": &self.observations,
             "native_observers": &self.native_observers,
             "hot_preparation_wait": f64_stats(&self.hot_preparation_wait, "ms"),
+            "hot_preparation_status": &self.hot_preparation_status,
             "hot_precondition": "direct command discovery complete before untimed first-query warmup; nested uses adapter readiness",
             "transport_ineligible_hot_queries": self.transport_ineligible_hot_queries,
             "input_echo": f64_stats(&self.input_echo, "ms"),
@@ -778,6 +780,9 @@ fn measure_cache_modes(
 
 fn append_measurements(target: &mut Measurements, mut source: Measurements) {
     target
+        .hot_preparation_status
+        .append(&mut source.hot_preparation_status);
+    target
         .hot_preparation_wait
         .append(&mut source.hot_preparation_wait);
     target.native_observers.append(&mut source.native_observers);
@@ -877,9 +882,12 @@ fn measure_session(
         && (host_mode != "direct" || automatic && editor["mode"] == "editor_hooks_v1");
     let mut measurements = Measurements::default();
     let preparation = Instant::now();
-    if host_mode == "direct" {
-        wait_for_direct_hot_readiness(&mut harness, data_dir, &previous_adapters)?;
-    }
+    let preparation_status = if host_mode == "direct" {
+        wait_for_direct_hot_readiness(&mut harness, data_dir, &previous_adapters)?
+    } else {
+        json!({"source":"nested_adapter_readiness"})
+    };
+    measurements.hot_preparation_status.push(preparation_status);
     measurements
         .hot_preparation_wait
         .push(milliseconds(preparation.elapsed()));
@@ -1539,19 +1547,71 @@ fn direct_hot_ready(value: &Value) -> Result<bool> {
                 .is_some_and(|count| count > 0)))
 }
 
+fn legacy_unpublished_hot_ready(canonical: &Value, unpublished: &Value) -> Result<bool> {
+    // Frozen legacy hosts can leave a fully serialized status in adapter.tmp
+    // when Windows denies its rename. This is only an untimed setup signal;
+    // actual candidate observations still come from the terminal. Current
+    // hosts publish an explicit `complete` field and cannot take this path.
+    if canonical["system_commands"].get("complete").is_some() {
+        return Ok(false);
+    }
+    for field in [
+        "transport",
+        "host_mode",
+        "shell_version",
+        "psreadline_version",
+        "editor_mode",
+        "editor_dll_sha256",
+    ] {
+        if canonical[field].as_str().is_none_or(|text| text.is_empty())
+            || canonical[field] != unpublished[field]
+        {
+            return Ok(false);
+        }
+    }
+    if unpublished["session_commands"]["session"]
+        .as_u64()
+        .unwrap_or(0)
+        < canonical["session_commands"]["session"]
+            .as_u64()
+            .unwrap_or(0)
+    {
+        return Ok(false);
+    }
+    direct_hot_ready(unpublished)
+}
+
+fn setup_status_observation(path: &Path, source: &str, bytes: &[u8]) -> Value {
+    use sha2::{Digest, Sha256};
+    json!({"source":source,"path":path,"sha256":format!("{:x}", Sha256::digest(bytes)).to_ascii_uppercase(),
+        "json":String::from_utf8_lossy(bytes)})
+}
+
 fn wait_for_direct_hot_readiness(
     harness: &mut Harness,
     data_dir: &Path,
     previous_adapters: &BTreeSet<PathBuf>,
-) -> Result<()> {
+) -> Result<Value> {
     let deadline = Instant::now() + WAIT_TIMEOUT;
     loop {
         for path in adapter_paths(data_dir).difference(previous_adapters) {
             if let Ok(bytes) = fs::read(path)
                 && let Ok(value) = serde_json::from_slice::<Value>(&bytes)
-                && direct_hot_ready(&value)?
             {
-                return Ok(());
+                if direct_hot_ready(&value)? {
+                    return Ok(setup_status_observation(path, "adapter_json", &bytes));
+                }
+                let temporary = path.with_extension("tmp");
+                if let Ok(pending_bytes) = fs::read(&temporary)
+                    && let Ok(pending) = serde_json::from_slice::<Value>(&pending_bytes)
+                    && legacy_unpublished_hot_ready(&value, &pending)?
+                {
+                    return Ok(
+                        json!({"source":"legacy_unpublished_status","legacy_schema":true,
+                        "canonical":setup_status_observation(path,"adapter_json",&bytes),
+                        "unpublished":setup_status_observation(&temporary,"legacy_unpublished_status",&pending_bytes)}),
+                    );
+                }
             }
         }
         ensure!(
@@ -1790,6 +1850,26 @@ fn verify_complete_cache(data_dir: &Path) -> Result<bool> {
 #[cfg(test)]
 mod stage_tests {
     use super::*;
+    #[test]
+    fn unpublished_setup_requires_legacy_schema_and_same_editor_identity() {
+        let mut canonical = json!({"transport":"pipe","host_mode":"direct","shell_version":"5.1.0","psreadline_version":"2.4.5",
+            "editor_mode":"editor_hooks_v1","editor_dll_sha256":"fixture-hash","session_commands":{"complete":true,"session":1},
+            "system_commands":{"count":0,"error":null}});
+        let mut pending = canonical.clone();
+        pending["system_commands"]["count"] = json!(1713);
+        assert!(legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+        pending["editor_dll_sha256"] = json!("another-editor");
+        assert!(!legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+        pending["editor_dll_sha256"] = canonical["editor_dll_sha256"].clone();
+        pending["session_commands"]["session"] = json!(0);
+        assert!(!legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+        pending["session_commands"]["session"] = json!(1);
+        pending["system_commands"]["error"] = json!("helper failed");
+        assert!(legacy_unpublished_hot_ready(&canonical, &pending).is_err());
+        pending["system_commands"]["error"] = Value::Null;
+        canonical["system_commands"]["complete"] = json!(false);
+        assert!(!legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+    }
     #[test]
     fn hot_setup_rejects_partial_or_failed_discovery() {
         let mut value = json!({"session_commands":{"complete":false,"error":null},"system_commands":{"count":0,"error":null}});

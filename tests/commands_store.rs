@@ -113,7 +113,7 @@ fn blocked_favorite_replacement(action: BlockedReplacement) -> Result<()> {
             );
             let document: toml::Value = toml::from_str(&fs::read_to_string(&path)?)?;
             ensure!(
-                document["favorites"][0]["name"] == "blocked-favorite",
+                document["favorites"][0]["name"].as_str() == Some("blocked-favorite"),
                 "favorite missing"
             );
         }

@@ -137,6 +137,20 @@ class TerminalDependencyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'already exists'):
             STAGE.stage(self.dependency, self.root / 'assets', download, 'fixture/repo', 'fixture-token')
 
+    def test_current_candidate_cannot_use_unpublished_legacy_setup(self):
+        observer = {'dll_sha256': self.dependency['native_model']['dll_sha256'], 'abi_version': 1,
+                    'companion_interface_version': 4, 'backend': 'production_terminalcore_buffer',
+                    'snapshot_binding': 'per_received_chunk', 'screen_pixels': 'not_measured'}
+        group = {'native_observers': [observer], 'hot_preparation_status': [{'source': 'adapter_json'}]}
+        report = {'scenarios': [{'cache_miss': copy.deepcopy(group), 'cache_hit': copy.deepcopy(group)}]}
+        path = self.root / 'hot.json'
+        self.evidence['hot_reports'] = {'fixture': {'variant': path.name}}
+        path.write_text(json.dumps(report), encoding='utf-8')
+        self.check()
+        report['scenarios'][0]['cache_hit']['hot_preparation_status'][0]['source'] = 'legacy_unpublished_status'
+        path.write_text(json.dumps(report), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'unpublished legacy status'): self.check()
+
     def test_failed_download_digest_never_becomes_a_release_asset(self):
         self.dependency['asset_name'] = 'blueberry-terminal-fixture.zip'
         def download(descriptor, repository, token, destination, source):

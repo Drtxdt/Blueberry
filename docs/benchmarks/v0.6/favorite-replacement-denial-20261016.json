@@ -18,6 +18,17 @@
     "external edit during retry must be preserved and reported",
     "persistent denial must terminate without replacing original"
   ],
-  "local_after_fix": "pending; do not build/test concurrently with active performance batch",
+  "local_after_fix": {
+    "store_tests_passed": 6,
+    "controlled_old_behavior_failed": 2,
+    "persistent_denial_preserved_original": true,
+    "external_edit_detected": true,
+    "source_recipe": "artifacts\\windows-publication-regression-20261016\\before-sources.json",
+    "repeat_concurrent_writers": {
+      "passed": 20,
+      "writers_each": 16,
+      "report": "artifacts/windows-publication-regression-20261016/concurrent-results.json"
+    }
+  },
   "release_blocked": true
 }

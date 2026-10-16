@@ -625,6 +625,11 @@ def check_terminal_dependency(evidence, root, package_path):
                     and observer.get("snapshot_binding") == "per_received_chunk"
                     and observer.get("screen_pixels") == "not_measured" for observer in observers),
                     f"{relative}: native observer identity or observation boundary differs from the companion")
+            if "scenarios" in report:
+                preparation = group.get("hot_preparation_status", [])
+                require(isinstance(preparation, list) and len(preparation) == len(observers)
+                        and all(item.get("source") in ("adapter_json", "nested_adapter_readiness") for item in preparation),
+                        f"{relative}: current candidate cannot qualify using unpublished legacy status")
 
 
 def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None, terminal_package=None):
