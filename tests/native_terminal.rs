@@ -43,8 +43,11 @@ fn start(mode: &str) -> Result<Fixture> {
         ("TERM".into(), "xterm-256color".into()),
     ]);
     blueberry::probe::inherit_native_observer_environment(&mut environment);
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
     let h = Harness::start(
-        Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        &executable,
         &[
             "run".into(),
             "--host-mode".into(),
@@ -218,7 +221,7 @@ fn native_bottom_menu_rapid_resize_and_escape_preserve_unicode_history() -> Resu
         for (rows, columns) in [(12, 40), (30, 100), (12, 50), (30, 120)] {
             f.h.resize(rows, columns)?;
         }
-        f.h.send(b"\x1b")?;
+        f.h.send_text("\x1b")?;
         let restored = wait(&mut f, |screen| {
             !screen.contains('│') && screen.contains("BBH64中🚀é")
         })?;

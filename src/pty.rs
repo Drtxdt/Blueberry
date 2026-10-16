@@ -15,6 +15,52 @@ pub struct Session {
 }
 
 #[cfg(windows)]
+fn known_folder(folder: windows_sys::core::GUID) -> Option<PathBuf> {
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
+    use windows_sys::Win32::{
+        System::Com::CoTaskMemFree,
+        UI::Shell::{KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath},
+    };
+    let mut value = ptr::null_mut();
+    let status = unsafe {
+        SHGetKnownFolderPath(
+            &folder,
+            KF_FLAG_DONT_VERIFY as u32,
+            ptr::null_mut(),
+            &mut value,
+        )
+    };
+    let result = if status >= 0 && !value.is_null() {
+        let mut length = 0;
+        while unsafe { *value.add(length) } != 0 {
+            length += 1;
+        }
+        Some(PathBuf::from(OsString::from_wide(unsafe {
+            std::slice::from_raw_parts(value, length)
+        })))
+    } else {
+        None
+    };
+    unsafe { CoTaskMemFree(value.cast()) };
+    result
+}
+
+fn is_core_module_path(path: &Path, roots: &[PathBuf]) -> bool {
+    let normalized = |path: &Path| {
+        path.to_string_lossy()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_ascii_lowercase()
+    };
+    roots
+        .iter()
+        .any(|root| normalized(path) == normalized(root))
+        || path
+            .parent()
+            .is_some_and(|parent| parent.join("pwsh.exe").is_file())
+}
+
+#[cfg(windows)]
 fn default_windows_module_paths(legacy: bool) -> Vec<PathBuf> {
     use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
     use windows_sys::Win32::System::Registry::{
@@ -69,40 +115,12 @@ fn default_windows_module_paths(legacy: bool) -> Vec<PathBuf> {
     }
     let mut paths = Vec::new();
     if legacy {
-        use windows_sys::Win32::{
-            System::Com::CoTaskMemFree,
-            UI::Shell::{
-                FOLDERID_Documents, FOLDERID_ProgramFiles, KF_FLAG_DONT_VERIFY,
-                SHGetKnownFolderPath,
-            },
-        };
-        // An empty GUI environment has no reliable per-user path in the
-        // registry: image builders can leave a different user's directory.
-        // Use the current user's redirected known folder, as ConsoleHost does.
-        for (folder, suffix) in [
-            (FOLDERID_Documents, "WindowsPowerShell/Modules"),
-            (FOLDERID_ProgramFiles, "WindowsPowerShell/Modules"),
-        ] {
-            let mut value = ptr::null_mut();
-            if unsafe {
-                SHGetKnownFolderPath(
-                    &folder,
-                    KF_FLAG_DONT_VERIFY as u32,
-                    ptr::null_mut(),
-                    &mut value,
-                )
-            } >= 0
-                && !value.is_null()
-            {
-                let mut length = 0;
-                while unsafe { *value.add(length) } != 0 {
-                    length += 1;
-                }
-                let path =
-                    OsString::from_wide(unsafe { std::slice::from_raw_parts(value, length) });
-                paths.push(PathBuf::from(path).join(suffix));
+        use windows_sys::Win32::UI::Shell::{FOLDERID_Documents, FOLDERID_ProgramFiles};
+        // A GUI environment may contain a previous image user's registry path.
+        for folder in [FOLDERID_Documents, FOLDERID_ProgramFiles] {
+            if let Some(path) = known_folder(folder) {
+                paths.push(path.join("WindowsPowerShell/Modules"));
             }
-            unsafe { CoTaskMemFree(value.cast()) };
         }
     }
     for (hive, key) in [
@@ -168,17 +186,30 @@ pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
         }
     }
     if legacy {
-        paths.retain(|path| {
-            let normalized = path
-                .to_string_lossy()
-                .replace('/', "\\")
-                .trim_end_matches('\\')
-                .to_ascii_lowercase();
-            !normalized.ends_with("\\powershell\\modules")
-                && !path
-                    .parent()
-                    .is_some_and(|parent| parent.join("pwsh.exe").is_file())
-        });
+        let roots: Vec<PathBuf> = {
+            #[cfg(windows)]
+            {
+                use windows_sys::Win32::UI::Shell::{
+                    FOLDERID_Documents, FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86,
+                };
+                [
+                    FOLDERID_Documents,
+                    FOLDERID_ProgramFiles,
+                    FOLDERID_ProgramFilesX86,
+                ]
+                .into_iter()
+                .filter_map(known_folder)
+                .map(|path| path.join("PowerShell/Modules"))
+                .collect()
+            }
+            #[cfg(not(windows))]
+            {
+                Vec::new()
+            }
+        };
+        // A suffix also matches legitimate SQL Server/Tools/PowerShell/Modules.
+        // Remove only actual Core roots and directories belonging to pwsh.
+        paths.retain(|path| !is_core_module_path(path, &roots));
     }
     paths
 }
@@ -406,6 +437,32 @@ pub fn default_shell() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_module_filter_keeps_sql_and_custom_powershell_directories() {
+        let core = vec![
+            PathBuf::from(r"C:\Program Files\PowerShell\Modules"),
+            PathBuf::from(r"C:\Users\user\Documents\PowerShell\Modules"),
+        ];
+        for path in [
+            r"C:\Program Files\Microsoft SQL Server\130\Tools\PowerShell\Modules\",
+            r"C:\Tools\PowerShell\Modules",
+            r"C:\Program Files\WindowsPowerShell\Modules",
+        ] {
+            assert!(
+                !is_core_module_path(Path::new(path), &core),
+                "removed a non-Core module root: {path}"
+            );
+        }
+        assert!(is_core_module_path(
+            Path::new("c:/program files/PowerShell/Modules/"),
+            &core
+        ));
+        assert!(is_core_module_path(
+            Path::new(r"C:\Users\user\Documents\PowerShell\Modules"),
+            &core
+        ));
+    }
 
     #[test]
     fn initial_public_key_snapshot_contains_every_adapter_chord() {

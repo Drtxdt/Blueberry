@@ -890,6 +890,52 @@ fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<(
 }
 
 #[test]
+fn direct_autoloads_a_module_under_a_sql_style_powershell_directory() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let modules = dir.path().join("SQL/Tools/PowerShell/Modules");
+    let module = modules.join("BlueberrySqlRootFixture");
+    std::fs::create_dir_all(&module)?;
+    std::fs::write(
+        module.join("BlueberrySqlRootFixture.psm1"),
+        "function Get-BlueberrySqlRootFixture { 'SQL-MODULE-AUTOLOAD-OK' }; Export-ModuleMember -Function Get-BlueberrySqlRootFixture",
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut paths = vec![modules];
+    if let Some(inherited) = std::env::var_os("PSModulePath") {
+        paths.extend(std::env::split_paths(&inherited));
+    }
+    let paths = std::env::join_paths(paths)?.to_string_lossy().into_owned();
+    let mut h = Harness::start(
+        &executable,
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--no-profile".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            ("PSModulePath".into(), paths.clone()),
+            ("WinPSModulePath".into(), paths),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    h.send_text("Get-BlueberrySqlRootFixture\r")?;
+    wait_output_line(&mut h, "SQL-MODULE-AUTOLOAD-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let mut h = Harness::start(
