@@ -452,6 +452,9 @@ jobs:
           $terminalArchive = python scripts/stage-terminal-release-asset.py scripts/terminal-dependency.json --output artifacts/terminal-dependency
           if ($LASTEXITCODE -ne 0) { throw 'Pinned companion Terminal download failed' }
           $env:BLUEBERRY_TERMINAL_PACKAGE = $terminalArchive.Trim()
+          ./tests/terminal-launcher.tests.ps1
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/terminal-launcher.tests.ps1
+          if ($LASTEXITCODE -ne 0) { throw '5.1 companion launcher tests failed' }
           ./scripts/licenses.ps1 -OutputPath ./THIRD-PARTY-NOTICES.txt
           $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
           ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -OutputDirectory ./dist/ci
