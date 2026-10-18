@@ -128,6 +128,7 @@ pub fn identity(shell: &Path, script: &str) -> Result<String> {
         "powershell.dll",
         "pwsh.dll",
         "powershell.runtimeconfig.json",
+        "pwsh.runtimeconfig.json",
     ] {
         let path = home.join(name);
         if path.is_file() {
@@ -287,6 +288,36 @@ mod tests {
         let b = identity(&shell, "script")?;
         assert_ne!(a, b);
         assert_ne!(b, identity(&shell, "new-parser")?);
+        Ok(())
+    }
+
+    #[test]
+    fn inventory_tracks_runtime_and_module_removal() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let shell = dir.path().join("pwsh.exe");
+        fs::write(&shell, b"shell")?;
+        let modules = dir.path().join("Modules");
+        fs::create_dir(&modules)?;
+        let base = identity(&shell, "script")?;
+        assert_eq!(base, identity(&shell, "script")?);
+
+        // PS7 names this file after pwsh, not powershell. Runtime servicing
+        // can change the selected runtime without replacing the launcher.
+        let runtime = dir.path().join("pwsh.runtimeconfig.json");
+        fs::write(
+            &runtime,
+            br#"{"runtimeOptions":{"rollForward":"LatestPatch"}}"#,
+        )?;
+        let configured = identity(&shell, "script")?;
+        assert_ne!(base, configured);
+        fs::write(&runtime, br#"{"runtimeOptions":{"rollForward":"Disable"}}"#)?;
+        assert_ne!(configured, identity(&shell, "script")?);
+
+        let module = modules.join("Removed.psd1");
+        fs::write(&module, b"module")?;
+        let installed = identity(&shell, "script")?;
+        fs::remove_file(module)?;
+        assert_ne!(installed, identity(&shell, "script")?);
         Ok(())
     }
 }
