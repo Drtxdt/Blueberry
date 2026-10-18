@@ -109,6 +109,57 @@ try
 }
 CATCH_RETURN();
 
+// Diagnostic export: include logical scrollback, not only the visible viewport.
+// Kept separate from the timed snapshot so history scans do not affect latency.
+extern "C" __declspec(dllexport) HRESULT __cdecl bb_native_model_history(
+    void* value, wchar_t* output, uint32_t capacity, uint32_t* needed) noexcept
+try
+{
+    if (!value || !needed || (!output && capacity)) { return E_INVALIDARG; }
+    auto& model = *static_cast<Model*>(value);
+    const auto lock = model.terminal.LockForWriting();
+    model.DrainClosed();
+    const auto viewport = model.terminal.GetViewport();
+    const auto& buffer = model.terminal.GetTextBuffer();
+    std::wstring text;
+    for (auto y = 0; y < viewport.BottomExclusive(); ++y)
+    {
+        if (y) { text.push_back(L'\n'); }
+        text.append(buffer.GetRowByOffset(y).GetText());
+        if (text.size() >= 32 * 1024 * 1024) { return E_BOUNDS; }
+    }
+    *needed = static_cast<uint32_t>(text.size()) + 1;
+    if (capacity < *needed) { return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER); }
+    std::copy(text.begin(), text.end(), output);
+    output[text.size()] = L'\0';
+    return S_OK;
+}
+CATCH_RETURN();
+
+// Colors retain their type: default, 16-color index, 256-color index, or RGB.
+// Values are raw indices or COLORREF (0x00BBGGRR), never a 16-color projection.
+extern "C" __declspec(dllexport) HRESULT __cdecl bb_native_model_cell_colors(
+    void* value, uint32_t row, uint32_t column, uint32_t* colors) noexcept
+try
+{
+    if (!value || !colors) { return E_INVALIDARG; }
+    auto& model = *static_cast<Model*>(value);
+    const auto lock = model.terminal.LockForWriting();
+    model.DrainClosed();
+    const auto& buffer = model.terminal.GetTextBuffer();
+    if (row >= static_cast<uint32_t>(model.terminal.GetViewport().BottomExclusive()) ||
+        column >= static_cast<uint32_t>(buffer.GetSize().Width())) { return E_BOUNDS; }
+    const auto attributes = buffer.GetRowByOffset(row).GetAttrByColumn(column);
+    const auto foreground = attributes.GetForeground();
+    const auto background = attributes.GetBackground();
+    colors[0] = static_cast<uint32_t>(foreground.GetType());
+    colors[1] = foreground.IsRgb() ? foreground.GetRGB() : foreground.IsDefault() ? 0 : foreground.GetIndex();
+    colors[2] = static_cast<uint32_t>(background.GetType());
+    colors[3] = background.IsRgb() ? background.GetRGB() : background.IsDefault() ? 0 : background.GetIndex();
+    return S_OK;
+}
+CATCH_RETURN();
+
 extern "C" __declspec(dllexport) HRESULT __cdecl bb_native_model_resize(void* value, uint16_t rows, uint16_t columns) noexcept
 try
 {

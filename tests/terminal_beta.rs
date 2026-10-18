@@ -51,6 +51,16 @@ fn ctrl_space_records() -> &'static [u8] {
 #[test]
 fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_line() -> Result<()> {
     let mut host = start_host()?;
+    let mode_path = host._cwd.path().join("argument-mode.txt");
+    send_command(
+        &mut host.harness,
+        &format!(
+            "[IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy')); Write-Output BB_ARGUMENT_MODE_READY",
+            mode_path.to_string_lossy().replace('\'', "''")
+        ),
+        "BB_ARGUMENT_MODE_READY",
+    )?;
+    let legacy = fs::read_to_string(mode_path)? == "True";
     clear_line(&mut host.harness)?;
     host.harness.send_text("cargo test -p --release")?;
     host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
@@ -98,7 +108,11 @@ fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_lin
     read_real_buffer(
         &mut host.harness,
         "guided package",
-        "cargo test -p 'blue berry' --release",
+        if legacy {
+            "cargo test -p '\"blue berry\"' --release"
+        } else {
+            "cargo test -p 'blue berry' --release"
+        },
         None,
     )?;
 

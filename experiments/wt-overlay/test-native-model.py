@@ -30,6 +30,10 @@ def main():
     library.bb_native_model_resize.restype=c.c_int32
     library.bb_native_model_snapshot.argtypes=[c.c_void_p,c.POINTER(c.c_wchar),c.c_uint32,c.POINTER(c.c_uint32)]
     library.bb_native_model_snapshot.restype=c.c_int32
+    library.bb_native_model_history.argtypes=library.bb_native_model_snapshot.argtypes
+    library.bb_native_model_history.restype=c.c_int32
+    library.bb_native_model_cell_colors.argtypes=[c.c_void_p,c.c_uint32,c.c_uint32,c.POINTER(c.c_uint32)]
+    library.bb_native_model_cell_colors.restype=c.c_int32
     replies=[]
     @response
     def reply(_,text,length): replies.append(c.wstring_at(text,length))
@@ -46,12 +50,13 @@ def main():
         data=value.encode('utf-8') if isinstance(value,str) else value
         status=library.bb_native_model_write(handle,data,len(data))
         assert status>=0,f'Native write failed: {status:#x}'
-    def snapshot(handle):
+    def snapshot(handle,history=False):
+        read=library.bb_native_model_history if history else library.bb_native_model_snapshot
         needed=c.c_uint32()
-        assert library.bb_native_model_snapshot(handle,None,0,c.byref(needed))==-2147024774
-        assert 1<=needed.value<=2*1024*1024
+        assert read(handle,None,0,c.byref(needed))==-2147024774
+        assert 1<=needed.value<=(32 if history else 2)*1024*1024
         buffer=c.create_unicode_buffer(needed.value)
-        assert library.bb_native_model_snapshot(handle,buffer,len(buffer),c.byref(needed))==0
+        assert read(handle,buffer,len(buffer),c.byref(needed))==0
         return c.wstring_at(buffer,needed.value-1)
 
     try:
@@ -70,6 +75,20 @@ def main():
             for handle in (plain,overlaid): assert library.bb_native_model_resize(handle,rows,columns)==0
             assert snapshot(plain)==snapshot(overlaid),'Native resize restored different text'
         result['tests'].append('overlay/native-reflow round trips across three resizes')
+        scrollback=create()
+        write(scrollback,'before\r\n'*15+'\x1b[38;2;12;34;56mRGB-历史🚀é\x1b[0m\r\n'+'after\r\n'*15)
+        assert 'RGB-' not in snapshot(scrollback),'Fixture must be outside the viewport'
+        for rows,columns in ((8,20),(20,60),(12,40)):
+            assert library.bb_native_model_resize(scrollback,rows,columns)==0
+            lines=snapshot(scrollback,history=True).splitlines()
+            matches=[(y,line.index('RGB-')) for y,line in enumerate(lines) if 'RGB-历史🚀é' in line]
+            assert len(matches)==1,'Scrollback Unicode sentinel missing after native reflow'
+            colors=(c.c_uint32*4)()
+            assert library.bb_native_model_cell_colors(scrollback,*matches[0],colors)==0
+            assert list(colors)[:2]==[3,12|(34<<8)|(56<<16)],'History lost original RGB color'
+        colors=(c.c_uint32*4)()
+        assert library.bb_native_model_cell_colors(scrollback,0xffffffff,0,colors)<0
+        result['tests'].append('off-viewport Unicode and original RGB across three native resizes')
         split=create()
         for byte in '中🚀é'.encode('utf-8'): write(split,bytes([byte]))
         assert '中🚀é' in snapshot(split)
