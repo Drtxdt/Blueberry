@@ -18,6 +18,19 @@ $first=(State).current
 $settings=Join-Path $root "components/terminal/versions/$first/settings/settings.json"
 [IO.Directory]::CreateDirectory((Split-Path -Parent $settings)) | Out-Null
 [IO.File]::WriteAllText($settings,'{"font":"中文 Test font"}',[Text.UTF8Encoding]::new($false))
+# Deny replacement of the active pointer while allowing its normal read.
+# Upgrade may publish an immutable directory, but it must not activate it;
+# the next attempt must validate and reuse that interrupted publication.
+$statePath=Join-Path $root 'components/terminal/component-state.json'
+$beforeCommitHash=(Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash
+$stateLock=[IO.File]::Open($statePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+$failed=$false
+try { Run-Component Upgrade $PackageTwo } catch { $failed=$true } finally { $stateLock.Dispose() }
+Check $failed 'Blocked active pointer unexpectedly committed an upgrade'
+Check ((Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash -ceq $beforeCommitHash) 'Failed upgrade changed active state bytes'
+Check ((State).current -eq $first) 'Failed upgrade selected another runtime'
+$pendingId=(Get-FileHash -LiteralPath $PackageTwo -Algorithm SHA256).Hash.ToLowerInvariant()
+Check ([IO.File]::Exists((Join-Path $root "components/terminal/versions/$pendingId/component.json"))) 'Fixture did not reach the publication-before-commit boundary'
 Run-Component Upgrade $PackageTwo
 $second=(State).current
 Check ($second -ne $first) 'Upgrade did not select independent version'
@@ -46,6 +59,13 @@ $failed=$false
 try { Run-Component Status } catch { $failed=$true } finally { [IO.File]::WriteAllBytes($statePath,$stateBytes) }
 Check $failed 'Damaged component state was accepted'
 Check ((State).current -eq $second) 'State recovery selected another component'
+# Uninstall must commit the inactive pointer before deleting any runtime.
+$stateLock=[IO.File]::Open($statePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+$failed=$false
+try { Run-Component Uninstall } catch { $failed=$true } finally { $stateLock.Dispose() }
+Check $failed 'Blocked active pointer unexpectedly allowed uninstall'
+Check ((Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash -ceq $stateHash) 'Failed uninstall changed active state bytes'
+Check ([IO.File]::Exists((Join-Path $root "components/terminal/versions/$second/WindowsTerminal.exe"))) 'Uninstall removed runtime before inactive state was durable'
 # A blocked deletion leaves a retryable inactive state and retains settings.
 $locked=Join-Path $root "components/terminal/versions/$second/WindowsTerminal.exe"
 $handle=[IO.File]::Open($locked,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
