@@ -16,6 +16,8 @@ param(
 
     [string]$TerminalPackagePath = $env:BLUEBERRY_TERMINAL_PACKAGE,
 
+    [ValidateSet('core', 'bundled')][string]$PackageKind = 'core',
+
     [switch]$Force
 )
 
@@ -469,12 +471,12 @@ try {
 
     $buildIdentity = (& (Join-Path $stagePayload 'blueberry.exe') doctor --json | ConvertFrom-Json).build
     if ($LASTEXITCODE -ne 0 -or -not $buildIdentity.private_editors) { throw 'Executable has no private editor build identity' }
+    Copy-ToStage -Source (Join-Path $PSScriptRoot 'blueberry-terminal.cmd') -Stage $stagePayload -RelativePath 'blueberry-terminal.cmd'
     $terminalDependency = $null
-    if ($buildIdentity.PSObject.Properties['companion_overlay_interface'] -and $buildIdentity.companion_overlay_interface -eq 4) {
+    if ($PackageKind -eq 'bundled') {
         if (-not $TerminalPackagePath) { throw 'Native interface 4 packages require -TerminalPackagePath (or BLUEBERRY_TERMINAL_PACKAGE)' }
         $terminalArchive = Resolve-ReleaseFile -Path $TerminalPackagePath -Label 'Companion Terminal original artifact'
         $terminalDependency = & (Join-Path $PSScriptRoot 'stage-terminal-payload.ps1') -PackagePath $terminalArchive -Destination (Join-Path $stagePayload 'terminal')
-        Copy-ToStage -Source (Join-Path $PSScriptRoot 'blueberry-terminal.cmd') -Stage $stagePayload -RelativePath 'blueberry-terminal.cmd'
         Copy-ToStage -Source (Join-Path $PSScriptRoot 'terminal-dependency.json') -Stage $stagePayload -RelativePath 'terminal-dependency.json'
     }
 
@@ -494,6 +496,7 @@ try {
     if (-not $buildIdentity.conpty -or $buildIdentity.conpty.sha256 -ne $conpty.sha256) { throw 'Executable has no matching pinned ConPTY identity' }
     $manifest = [ordered]@{
         schema_version = 1; product = 'Blueberry'; name = 'Blueberry'; version = $Version
+        package_kind = $PackageKind
         platform = 'windows-x64'; architecture = 'x64'; executable = 'blueberry.exe'
         signed = $false; signature_status = 'unsigned'; release_notes = 'RELEASE-NOTES.md'
         license_notices = 'THIRD-PARTY-NOTICES.txt'; license_source = 'provided'

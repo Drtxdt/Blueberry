@@ -1,0 +1,90 @@
+{
+  "status": "development_validation_not_frozen",
+  "base_commit": "1b70b863bfbf9fa378275e4563a355b76132efd9",
+  "logs": [
+    {
+      "path": "review-combined-regression.log",
+      "sha256": "9aabe8dab6f8abf86291f74a033f462b42deba2e8685f6997da7a60da7980cff",
+      "bytes": 24478
+    },
+    {
+      "path": "render-context-regression.log",
+      "sha256": "18f34aeea0bf26761fa31faf422fbfc4dac4ad1f2b21ce22f7bf167de1fc1cb2",
+      "bytes": 18215
+    },
+    {
+      "path": "native-argv-regression2.log",
+      "sha256": "3d3dbe6175bc52ed9445b46ba067f7eb6719d7cb75b9c694ff1cd896d3eb2e36",
+      "bytes": 405
+    },
+    {
+      "path": "core-install-regression3.log",
+      "sha256": "3b5f0c39f7e6f343cf4f1e657bdfd7cd8f99d9994dccb7eedc73f6c04e11a17c",
+      "bytes": 13834
+    },
+    {
+      "path": "maintenance-regression-review.log",
+      "sha256": "57d46b47378cdb6c7e6fa4e6a985aa7a3a1fd015b364f7bfb25f5044e0ec14e4",
+      "bytes": 2682
+    },
+    {
+      "path": "terminal-component-ps51.log",
+      "sha256": "93135b57336a15269fc089052101ae218bb5e174e6f500865e6b51a1c92591ac",
+      "bytes": 148
+    },
+    {
+      "path": "terminal-component-lifecycle.log",
+      "sha256": "cce0f22c233af7d44c10035d078f307ca205feadb1c8b7df5e8a3a4129765751",
+      "bytes": 148
+    },
+    {
+      "path": "release-evidence-regression2.log",
+      "sha256": "60214b35e8377c54b550d1a0d18a72930938fde5cfd3cdb97b4472c3d137268c",
+      "bytes": 153
+    },
+    {
+      "path": "install-history-regression2.log",
+      "sha256": "abc7638c6a2ad7712ff297fdd77b4717fb7671cfae7a4325ce5576cc10b58bec",
+      "bytes": 13957
+    },
+    {
+      "path": "terminal-migration-regression.log",
+      "sha256": "40b89a77c6ec334ee4f758ed8f799b7c8a9d7236f6130c32cc6dfcf231fd15eb",
+      "bytes": 21457
+    },
+    {
+      "path": "review-final-unit-check.log",
+      "sha256": "9ac856bcc6893c37056ebbb8d7bd35c6123d14c84665fad121dfa4d7bf283b11",
+      "bytes": 14931
+    },
+    {
+      "path": "workflow-host-regression2.log",
+      "sha256": "6a965c603775a99e880c16a7215bf5d5f6098f7279f9a2a6b357e3addea13339",
+      "bytes": 417
+    },
+    {
+      "path": "workflow-host-ps51.log",
+      "sha256": "a4748296f7c0c9e6619378e2ee72fbaf4b375ab8faf79ac23546c4bcef16e293",
+      "bytes": 417
+    },
+    {
+      "path": "review-clippy6.log",
+      "sha256": "1c0c815116e02f9f41af103235ec7057ef7f646838f27f68c581e75ac3b0e152",
+      "bytes": 9828
+    },
+    {
+      "path": "direct-rich-history-regression2.log",
+      "sha256": "4d792636f79fbbc02fd494d2b9a6a1183381e1770e3fcd2f4219dcfb122df987",
+      "bytes": 1094
+    }
+  ],
+  "executable_sha256": "411335aaec4d1b0097e527a9c2b4e19a7a1f034bd90018d88aa7e3c1b5ad2d21",
+  "editor_manifest_sha256": "75296de018a8960308dbe3a8a5159dff4f452a4ccfe3d32505e606d529423062",
+  "known_unresolved": [
+    "Direct historical RGB/Unicode resize observation",
+    "Nested reserved area",
+    "complete argument rendering coverage",
+    "three formal performance rounds",
+    "final CI package and manual acceptance"
+  ]
+}

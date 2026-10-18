@@ -426,9 +426,26 @@ esac
         self.evidence['build_identity'] = manifest['build']
         self.evidence['package_sha256'] = validator.sha256_file(self.package)
         self.evidence['ci']['package_sha256'] = self.evidence['package_sha256']
+        self.evidence['manual_acceptance']['package_sha256'] = self.evidence['package_sha256']
         self.save_evidence()
         with self.assertRaisesRegex(ValueError, 'fixed Terminal dependency'):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_core_native_support_does_not_require_bundled_terminal(self):
+        manifest = json.loads(self.external_manifest.read_text(encoding='utf-8'))
+        manifest['build']['companion_overlay_interface'] = 4
+        manifest['package_kind'] = 'core'
+        raw = json.dumps(manifest)
+        with zipfile.ZipFile(self.package, 'w') as archive:
+            archive.writestr('blueberry.exe', self.exe)
+            archive.writestr('release.json', raw)
+        self.external_manifest.write_text(raw, encoding='utf-8')
+        self.evidence['build_identity'] = manifest['build']
+        self.evidence['package_sha256'] = validator.sha256_file(self.package)
+        self.evidence['ci']['package_sha256'] = self.evidence['package_sha256']
+        self.evidence['manual_acceptance']['package_sha256'] = self.evidence['package_sha256']
+        self.save_evidence()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
 
     def test_wrong_frozen_build_and_missing_private_editor_matrix_block_release(self):
         original = json.loads(self.external_manifest.read_text(encoding='utf-8'))

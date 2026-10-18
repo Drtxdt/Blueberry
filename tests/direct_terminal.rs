@@ -1032,7 +1032,7 @@ fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> R
         .lines()
         .position(|line| line.trim_end().ends_with("git sw"))
         .context("input missing")?;
-    ensure!(menu < input, "menu was not above bottom input: {screen}");
+    ensure!(menu > input, "menu was not below input: {screen}");
     h.send(b"\x01\x7f")?;
     h.finish(TIMEOUT)
 }
@@ -1044,7 +1044,7 @@ fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() 
     // No command execution/autoload is allowed before these first-prompt checks.
     for prefix in ["get", "GET", "get-"] {
         h.send_text(prefix)?;
-        h.wait_text("Get-Help", TIMEOUT)?;
+        h.wait_text("PowerShell 命令", TIMEOUT)?; // The reserved page may not include Get-Help yet.
         h.send(b"\x01\x7f")?;
     }
     for command in ["Get-ChildItem", "Get-Process", "Get-FileHash"] {
@@ -1589,7 +1589,7 @@ fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result
 }
 
 #[test]
-fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Result<()> {
+fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() -> Result<()> {
     let dir = tempfile::tempdir()?;
     path_fixture(dir.path())?;
     let mut h = start(dir.path())?;
@@ -1610,8 +1610,8 @@ fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Re
             .position(|row| row.contains('›'))
             .context("menu missing")?;
         ensure!(
-            menu < input,
-            "bottom menu did not open above input: {screen}"
+            menu > input,
+            "bottom menu did not reserve rows below input: {screen}"
         );
         h.resize(10, 90)?;
         h.send(b"\x1b[B")?;
@@ -1627,10 +1627,19 @@ fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Re
             !h.viewport_contents().contains('›'),
             "Escape left the overlay visible"
         );
-        ensure!(
-            h.viewport_contents().contains("BOTTOM-SENTINEL"),
-            "overlay failed to restore underlying output"
-        );
+        // Reserving rows can legitimately scroll history out of the viewport.
+        // Verify that the observer retained it in scrollback, not that the
+        // product copied old cells back over the current editor.
+        let mut history = h.screen_snapshot();
+        let mut retained = history.contents().contains("BOTTOM-SENTINEL");
+        for offset in 1..=1024 {
+            history.set_scrollback(offset);
+            retained |= history.contents().contains("BOTTOM-SENTINEL");
+            if history.scrollback() < offset {
+                break;
+            }
+        }
+        ensure!(retained, "reserved menu destroyed output history");
         h.send_text("x")?;
         h.wait_text("Get-ChildItem .\\nav-x", TIMEOUT)?;
         h.finish(TIMEOUT)
@@ -1739,7 +1748,7 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
             .position(|row| row.contains('›'))
             .context("native menu missing")?;
         ensure!(
-            menu < input && screen.contains("RIGHT"),
+            menu > input && screen.contains("RIGHT"),
             "menu covered multiline input: {screen}"
         );
         h.resize(10, 60)?;
@@ -1824,9 +1833,17 @@ fn direct_above_menu_preserves_truecolor_prompt_cells() -> Result<()> {
             let _ = h.pump(Duration::from_millis(10));
         }
         let after = h.screen_snapshot();
+        let after_row = (0..after.size().0)
+            .find(|row| {
+                after
+                    .rows(0, after.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("scrolled prompt row missing")?;
         for column in 0..before.size().1 {
             let old = before.cell(row, column).unwrap();
-            let new = after.cell(row, column).unwrap();
+            let new = after.cell(after_row, column).unwrap();
             ensure!(
                 old == new,
                 "prompt cell changed at {row},{column}: {old:?} -> {new:?}"
@@ -1904,6 +1921,14 @@ fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
         }
         h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
         let until = std::time::Instant::now() + Duration::from_millis(400);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        // The compact viewport is allowed to scroll history away to reserve
+        // menu rows. Grow it again so ConPTY re-emits the retained history;
+        // the vt100 observer itself does not reflow truncated visible rows.
+        h.resize(30, 120)?;
+        let until = std::time::Instant::now() + Duration::from_millis(500);
         while std::time::Instant::now() < until {
             let _ = h.pump(Duration::from_millis(10));
         }
@@ -2009,4 +2034,232 @@ fn direct_form_confirmation_precedes_immediately_following_typing() -> Result<()
     );
     h.send(b"\x01\x7f")?;
     h.finish(TIMEOUT)
+}
+
+#[test]
+fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let discovery = dir.path().join("unmatched.psd1");
+    std::fs::write(&discovery, "ModuleVersion = '2.3.6'")?;
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        "[keys]\ntrigger = 'F6'\nhub = 'F7'\nsearch = 'F8'\n",
+    )?;
+    let mut h = Harness::start(
+        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--no-profile".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+            "--config".into(),
+            config.to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            (
+                "BLUEBERRY_TEST_PSREADLINE_MODULE".into(),
+                discovery.to_string_lossy().into_owned(),
+            ),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    h.send_text("git sw")?;
+    h.pump(Duration::from_millis(500))?;
+    ensure!(
+        !h.contents().contains("switch"),
+        "unmatched editor popped up automatically"
+    );
+    h.send(b"\x1b[17~")?;
+    h.wait_text("switch", TIMEOUT)?;
+    h.send(b"\t")?;
+    h.wait_text("git switch", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
+    h.send_text("Write-Output 'MANUAL-EDIT-OK'")?;
+    h.send(b"\r")?;
+    h.wait_line("MANUAL-EDIT-OK", TIMEOUT)
+        .context("post acceptance edit")?;
+    h.send(b"\x1b[18~")?;
+    h.wait_text("工作台", TIMEOUT)
+        .context("open manual workbench")?;
+    h.send_text("\x1b")?;
+    h.send_text("Write-Output 'MANUAL-CANCEL-OK'")?;
+    h.send(b"\r")?;
+    h.wait_line("MANUAL-CANCEL-OK", TIMEOUT)
+        .context("post cancel edit")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let snapshot = dir.path().join("workflow-buffer.txt");
+    let setup = dir.path().join("setup.ps1");
+    let mode = dir.path().join("argument-mode.txt");
+    std::fs::write(
+        &setup,
+        format!(
+            "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ $line=''; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); [IO.File]::WriteAllText('{}',$line) }}; [IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy'))",
+            snapshot.display().to_string().replace('\'', "''"),
+            mode.display().to_string().replace('\'', "''")
+        ),
+    )?;
+    let mut h = start(dir.path())?;
+    let result = (|| -> Result<()> {
+        h.send_text(&format!(
+            ". '{}'\r",
+            setup.display().to_string().replace('\'', "''")
+        ))?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        let legacy = std::fs::read_to_string(&mode)? == "True";
+        let cases: &[(&str, &[&str], &str)] = &[
+            ("切换 Git 分支", &["main"], "git switch main"),
+            (
+                "创建 Git 分支",
+                &["feature-中文", ""],
+                "git switch -c 'feature-中文'",
+            ),
+            (
+                "添加 Git worktree 工作目录",
+                &["../work tree", "feature", "main"],
+                "git worktree add '../work tree' -b feature main",
+            ),
+            (
+                "进入 Git worktree 工作目录",
+                &["../work tree"],
+                "Set-Location '../work tree'",
+            ),
+            (
+                "查看 Git 提交日志",
+                &["main", ""],
+                "git log --oneline main --",
+            ),
+            ("查看 Git 差异", &["main", ""], "git diff main --"),
+            (
+                "创建 Python uv 虚拟环境",
+                &["", "3.12"],
+                "uv venv --python 3.12",
+            ),
+            ("同步 Python uv 项目依赖", &["test"], "uv sync --group test"),
+            ("运行 Python uv 项目脚本", &["hello"], "uv run hello"),
+            (
+                "运行 Python uv pytest 测试",
+                &["tests", "smoke"],
+                "uv run pytest tests -k smoke",
+            ),
+            (
+                "构建 Rust Cargo 工作区",
+                &["fixture", ""],
+                "cargo build -p fixture",
+            ),
+            (
+                "运行 Rust Cargo 测试",
+                &["fixture", "", "integration"],
+                "cargo test -p fixture --test integration",
+            ),
+        ];
+        for (name, values, expected) in cases {
+            let expected = if legacy && expected.starts_with("git worktree add") {
+                expected.replace("'../work tree'", "'\"../work tree\"'")
+            } else {
+                (*expected).to_owned()
+            };
+            h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
+            h.wait_text("工作台", TIMEOUT)?;
+            let trace_path = dir.path().join("trace.jsonl");
+            let read_events = || -> Vec<serde_json::Value> {
+                std::fs::read_to_string(&trace_path)
+                    .unwrap_or_default()
+                    .lines()
+                    .filter_map(|line| serde_json::from_str(line).ok())
+                    .collect()
+            };
+            let before = read_events()
+                .iter()
+                .filter(|event| event["event"] == "direct_ui_key")
+                .count();
+            h.send_text(name)?;
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            loop {
+                let events = read_events();
+                let keys = events
+                    .iter()
+                    .filter(|event| event["event"] == "direct_ui_key")
+                    .collect::<Vec<_>>();
+                let painted = events
+                    .iter()
+                    .rev()
+                    .find(|event| event["event"] == "editor_menu_written")
+                    .and_then(|event| event["revision"].as_u64())
+                    .unwrap_or(0);
+                let revised = keys
+                    .last()
+                    .and_then(|event| event["revision"].as_u64())
+                    .unwrap_or(u64::MAX);
+                if keys.len() >= before + name.encode_utf16().count()
+                    && painted >= revised
+                    && h.viewport_contents()
+                        .lines()
+                        .any(|row| row.contains('›') && row.contains(name))
+                {
+                    break;
+                }
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "workflow not selected: {name}: {}",
+                    h.viewport_contents()
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            h.send(b"\r")?;
+            for (index, value) in values.iter().enumerate() {
+                h.wait_text(&format!("参数 {}/{}", index + 1, values.len()), TIMEOUT)?;
+                if !value.is_empty() {
+                    h.send_text(value)?;
+                }
+                h.send(b"\r")?;
+            }
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            while h.viewport_contents().contains("填写参数") {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "workflow did not finish: {name}"
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            h.send(b"\x1b[24~")?;
+            while !snapshot.exists() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "workflow buffer snapshot missing: {name}"
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            ensure!(
+                std::fs::read_to_string(&snapshot)? == expected,
+                "workflow filled unexpected command: {name}: {:?}",
+                std::fs::read_to_string(&snapshot)?
+            );
+            std::fs::remove_file(&snapshot)?;
+            h.send(b"\x01\x7f")?;
+        }
+        h.send_text("Write-Output 'WORKFLOWS-STILL-EDITABLE'\r")?;
+        h.wait_line("WORKFLOWS-STILL-EDITABLE", TIMEOUT)?;
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error).with_context(|| format!("workflow evidence: {}", dir.keep().display()));
+    }
+    Ok(())
 }

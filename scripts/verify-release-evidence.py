@@ -748,7 +748,12 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
                 require(item["bytes"] == archive.getinfo(path).file_size, f"package file size mismatch: {path}")
         records = [item for item in files if item.get("path") == "blueberry.exe"]
         require(len(records) == 1 and records[0].get("sha256", "").upper() == executable_hash, "manifest EXE SHA-256 mismatch")
-    if build.get("companion_overlay_interface") == 4:
+    package_kind = manifest.get("package_kind", "legacy")
+    require(package_kind in ("core", "bundled", "legacy"), "unknown package kind")
+    if package_kind == "core":
+        require("terminal_dependency" not in manifest, "core package embeds Terminal identity")
+        require(not any(item["path"].lower().startswith("terminal/") for item in files), "core package embeds Terminal runtime")
+    if package_kind == "bundled" or (package_kind == "legacy" and build.get("companion_overlay_interface") == 4):
         check_terminal_dependency(evidence, evidence_path.parent, terminal_package)
         require(isinstance(manifest.get("terminal_dependency"), dict), "package companion identity missing")
         check_embedded_terminal(package_path, terminal_package, evidence["terminal_dependency"], manifest["terminal_dependency"])

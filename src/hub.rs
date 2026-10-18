@@ -195,6 +195,9 @@ pub struct TemplateParameter {
     pub values: Vec<String>,
     #[serde(default)]
     pub source: String,
+    /// Option emitted together with a nonempty value, never on its own.
+    #[serde(default)]
+    pub flag: String,
 }
 fn text_kind() -> String {
     "text".into()
@@ -209,8 +212,16 @@ impl CommandTemplate {
         }
     }
     pub fn render(&self, values: &BTreeMap<String, String>) -> Result<String> {
+        self.render_with_mode(values, crate::invocation::ArgumentMode::PowerShell)
+    }
+    pub fn render_with_mode(
+        &self,
+        values: &BTreeMap<String, String>,
+        mode: crate::invocation::ArgumentMode,
+    ) -> Result<String> {
+        use crate::invocation::{Invocation, Word};
         if self.tokens.is_empty() {
-            return Ok(fill_placeholders(&self.command, values));
+            return Ok(fill_placeholders_with_mode(&self.command, values, mode));
         }
         let mut output = Vec::new();
         for token in &self.tokens {
@@ -241,14 +252,25 @@ impl CommandTemplate {
                 if value.is_empty() {
                     continue;
                 }
-                output.push(quote_powershell_token(value));
+                if !parameter.flag.is_empty() {
+                    anyhow::ensure!(
+                        parameter.flag.starts_with('-')
+                            && parameter
+                                .flag
+                                .chars()
+                                .all(|c| c.is_ascii_alphanumeric() || c == '-'),
+                        "Invalid parameter option"
+                    );
+                    output.push(Word::Syntax(parameter.flag.clone()));
+                }
+                output.push(Word::Literal(value.clone()));
             } else if token.contains('{') || token.contains('}') {
                 anyhow::bail!("模板占位符必须占据完整 token")
             } else {
-                output.push(token.clone())
+                output.push(Word::Syntax(token.clone()))
             }
         }
-        Ok(output.join(" "))
+        Ok(Invocation { words: output }.render(mode))
     }
 }
 #[derive(Clone)]
@@ -257,6 +279,7 @@ pub struct TemplateForm {
     fields: Vec<TemplateParameter>,
     index: usize,
     values: BTreeMap<String, String>,
+    argument_mode: crate::invocation::ArgumentMode,
 }
 impl TemplateForm {
     pub fn new(template: CommandTemplate) -> Result<Self> {
@@ -307,7 +330,22 @@ impl TemplateForm {
             fields,
             index: 0,
             values: BTreeMap::new(),
+            argument_mode: Default::default(),
         })
+    }
+    pub fn with_shell(
+        mut self,
+        environment: &BTreeMap<String, String>,
+        commands: &[crate::model::ShellCommand],
+        cwd: &Path,
+    ) -> Self {
+        self.argument_mode = crate::invocation::shell_mode(
+            &self.provider_context().command,
+            environment,
+            commands,
+            cwd,
+        );
+        self
     }
     pub fn is_empty(&self) -> bool {
         self.fields.is_empty()
@@ -353,6 +391,11 @@ impl TemplateForm {
                             .map(|field| field.default.clone())
                     });
                     if let Some(value) = value.filter(|value| !value.is_empty()) {
+                        if let Some(field) = self.fields.iter().find(|field| field.name == name)
+                            && !field.flag.is_empty()
+                        {
+                            words.push(field.flag.clone());
+                        }
                         words.push(value);
                     }
                 } else {
@@ -384,7 +427,36 @@ impl TemplateForm {
         }
     }
     pub fn preview(&self) -> String {
-        fill_placeholders(&self.template.preview(), &self.values)
+        if self.template.tokens.is_empty() {
+            return fill_placeholders_with_mode(
+                &self.template.preview(),
+                &self.values,
+                self.argument_mode,
+            );
+        }
+        let mut words = Vec::new();
+        for token in &self.template.tokens {
+            if let Some(name) = token.strip_prefix('{').and_then(|s| s.strip_suffix('}')) {
+                let Some(field) = self.fields.iter().find(|field| field.name == name) else {
+                    continue;
+                };
+                if self.values.get(name).is_some_and(|v| v.is_empty()) {
+                    continue;
+                }
+                if !field.flag.is_empty() {
+                    words.push(field.flag.clone());
+                }
+                words.push(
+                    self.values
+                        .get(name)
+                        .map(|value| crate::invocation::literal(value, self.argument_mode))
+                        .unwrap_or_else(|| token.clone()),
+                );
+            } else {
+                words.push(token.clone());
+            }
+        }
+        words.join(" ")
     }
     pub fn submit(&mut self, entered: &str) -> Result<bool> {
         let field = self.current().context("参数表单已经结束")?;
@@ -407,7 +479,25 @@ impl TemplateForm {
         if self.index != self.fields.len() {
             bail!("参数尚未填写完毕");
         }
-        self.template.render(&self.values)
+        self.template
+            .render_with_mode(&self.values, self.argument_mode)
+    }
+
+    /// Commit a field transition only after validation and, on the final
+    /// field, command rendering and project approval have all succeeded.
+    /// Both hosts retain the editable field on any recoverable failure.
+    pub fn advance(&mut self, entered: &str, project: bool, cwd: &Path) -> Result<Option<String>> {
+        let mut next = self.clone();
+        let command = if next.submit(entered)? {
+            if project {
+                crate::packs::verify_approval(cwd)?;
+            }
+            Some(next.finish()?)
+        } else {
+            None
+        };
+        *self = next;
+        Ok(command)
     }
 }
 
@@ -540,15 +630,7 @@ pub fn parameter_suggestions(
         .collect())
 }
 pub fn quote_powershell_token(value: &str) -> String {
-    if !value.is_empty()
-        && value
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "_./:+-\\".contains(c))
-    {
-        value.into()
-    } else {
-        format!("'{}'", value.replace('\'', "''"))
-    }
+    crate::invocation::literal(value, crate::invocation::ArgumentMode::PowerShell)
 }
 pub fn placeholder_names(command: &str) -> Vec<String> {
     let mut names = Vec::new();
@@ -586,9 +668,16 @@ pub fn placeholder_names(command: &str) -> Vec<String> {
     names
 }
 pub fn fill_placeholders(command: &str, values: &BTreeMap<String, String>) -> String {
+    fill_placeholders_with_mode(command, values, crate::invocation::ArgumentMode::PowerShell)
+}
+fn fill_placeholders_with_mode(
+    command: &str,
+    values: &BTreeMap<String, String>,
+    mode: crate::invocation::ArgumentMode,
+) -> String {
     let mut result = command.to_owned();
     for (name, value) in values {
-        let value = quote_powershell_token(value);
+        let value = crate::invocation::literal(value, mode);
         result = result
             .replace(&format!("{{{name}}}"), &value)
             .replace(&format!("<{name}>"), &value);
@@ -883,43 +972,276 @@ pub fn remove_favorite(name: &str) -> Result<()> {
     Ok(())
 }
 
+fn workflow_templates() -> Vec<CommandTemplate> {
+    fn field(
+        name: &str,
+        label: &str,
+        kind: &str,
+        source: &str,
+        flag: &str,
+        required: bool,
+    ) -> TemplateParameter {
+        TemplateParameter {
+            name: name.into(),
+            label: label.into(),
+            kind: kind.into(),
+            source: source.into(),
+            flag: flag.into(),
+            required,
+            ..Default::default()
+        }
+    }
+    fn template(
+        id: &str,
+        name: &str,
+        tokens: &[&str],
+        description: &str,
+        parameters: Vec<TemplateParameter>,
+    ) -> CommandTemplate {
+        CommandTemplate {
+            id: format!("builtin:{id}"),
+            name: name.into(),
+            tokens: tokens.iter().map(|s| s.to_string()).collect(),
+            description: format!("{description}；确认后只填回命令，不执行"),
+            parameters,
+            ..Default::default()
+        }
+    }
+    let mut templates = vec![
+        template(
+            "git-switch",
+            "切换 Git 分支",
+            &["git", "switch", "{branch}"],
+            "选择已有分支",
+            vec![field(
+                "branch",
+                "目标分支",
+                "dynamic",
+                "git.branches",
+                "",
+                true,
+            )],
+        ),
+        template(
+            "git-create",
+            "创建 Git 分支",
+            &["git", "switch", "-c", "{branch}", "{base}"],
+            "创建并切换分支；起点留空使用当前 HEAD",
+            vec![
+                field("branch", "新分支名称", "text", "", "", true),
+                field("base", "起点（可选）", "dynamic", "git.refs", "", false),
+            ],
+        ),
+        template(
+            "git-worktree-add",
+            "添加 Git worktree 工作目录",
+            &["git", "worktree", "add", "{path}", "{branch}", "{base}"],
+            "指定新工作目录；新分支留空使用已有分支或 Git 默认值",
+            vec![
+                field("path", "工作目录", "directory", "", "", true),
+                field("branch", "新分支（可选）", "text", "", "-b", false),
+                field(
+                    "base",
+                    "已有分支或起点（可选）",
+                    "dynamic",
+                    "git.refs",
+                    "",
+                    false,
+                ),
+            ],
+        ),
+        template(
+            "git-worktree-select",
+            "进入 Git worktree 工作目录",
+            &["Set-Location", "{path}"],
+            "选择已有 worktree 路径",
+            vec![field(
+                "path",
+                "工作目录",
+                "dynamic",
+                "git.worktrees",
+                "",
+                true,
+            )],
+        ),
+        template(
+            "git-log",
+            "查看 Git 提交日志",
+            &["git", "log", "--oneline", "{revision}", "--", "{path}"],
+            "按引用或文件筛选提交",
+            vec![
+                field(
+                    "revision",
+                    "分支或引用（可选）",
+                    "dynamic",
+                    "git.refs",
+                    "",
+                    false,
+                ),
+                field("path", "文件路径（可选）", "file", "", "", false),
+            ],
+        ),
+        template(
+            "git-diff",
+            "查看 Git 差异",
+            &["git", "diff", "{revision}", "--", "{path}"],
+            "比较工作区与指定引用；引用留空比较暂存区",
+            vec![
+                field(
+                    "revision",
+                    "比较引用（可选）",
+                    "dynamic",
+                    "git.refs",
+                    "",
+                    false,
+                ),
+                field("path", "文件路径（可选）", "file", "", "", false),
+            ],
+        ),
+        template(
+            "uv-venv",
+            "创建 Python uv 虚拟环境",
+            &["uv", "venv", "{path}", "{python}"],
+            "创建环境；目录留空使用 .venv，可指定 Python 版本",
+            vec![
+                field("path", "环境目录（可选）", "directory", "", "", false),
+                field(
+                    "python",
+                    "Python 版本（可选）",
+                    "text",
+                    "",
+                    "--python",
+                    false,
+                ),
+            ],
+        ),
+        template(
+            "uv-sync",
+            "同步 Python uv 项目依赖",
+            &["uv", "sync", "{group}"],
+            "从项目清单同步环境；可指定依赖组",
+            vec![field(
+                "group",
+                "依赖组（可选）",
+                "dynamic",
+                "python.groups",
+                "--group",
+                false,
+            )],
+        ),
+        template(
+            "uv-run",
+            "运行 Python uv 项目脚本",
+            &["uv", "run", "{script}"],
+            "选择 pyproject.toml 中声明的脚本；发现过程不运行脚本",
+            vec![field(
+                "script",
+                "项目脚本",
+                "dynamic",
+                "python.scripts",
+                "",
+                true,
+            )],
+        ),
+        template(
+            "uv-pytest",
+            "运行 Python uv pytest 测试",
+            &["uv", "run", "pytest", "{path}", "{filter}"],
+            "静态发现测试路径；筛选留空运行所选路径下的全部测试",
+            vec![
+                field(
+                    "path",
+                    "测试路径（可选）",
+                    "dynamic",
+                    "python.tests",
+                    "",
+                    false,
+                ),
+                field("filter", "测试名称表达式（可选）", "text", "", "-k", false),
+            ],
+        ),
+    ];
+    for (action, name) in [
+        ("build", "构建 Rust Cargo 工作区"),
+        ("test", "运行 Rust Cargo 测试"),
+    ] {
+        let mut tokens = vec!["cargo", action, "{package}", "{features}"];
+        let mut fields = vec![
+            field(
+                "package",
+                "包（留空使用默认成员）",
+                "dynamic",
+                "cargo.packages",
+                "-p",
+                false,
+            ),
+            field(
+                "features",
+                "特性（可选）",
+                "dynamic",
+                "cargo.features",
+                "--features",
+                false,
+            ),
+        ];
+        if action == "test" {
+            tokens.push("{target}");
+            fields.push(field(
+                "target",
+                "测试目标（可选）",
+                "dynamic",
+                "cargo.tests",
+                "--test",
+                false,
+            ));
+        }
+        templates.push(template(
+            &format!("cargo-{action}"),
+            name,
+            &tokens,
+            "候选随所选包更新；Shift+Tab 返回修改前置字段",
+            fields,
+        ));
+    }
+    templates
+}
+
 fn builtins() -> Vec<SavedCommand> {
-    [
-        ("创建 Git 分支", "git switch -c <BRANCH>"),
-        ("切换 Git 分支", "git switch <BRANCH>"),
-        ("运行 Cargo 测试", "cargo test"),
-        ("运行 dotnet 测试", "dotnet test <PROJECT>"),
-        ("运行 Go 测试", "go test ./..."),
-        ("运行 Python 测试", "uv run pytest"),
-        ("运行 npm 脚本", "npm run <SCRIPT>"),
-        ("运行 pnpm 脚本", "pnpm run <SCRIPT>"),
-        ("运行 Yarn 脚本", "yarn run <SCRIPT>"),
-        ("运行 Bun 脚本", "bun run <SCRIPT>"),
-        ("进入 Conda 环境", "conda activate <ENV>"),
-        ("在 Conda 环境运行", "conda run -n <ENV> <COMMAND>"),
-        ("启动 Compose 服务", "docker compose up -d <SERVICE>"),
-        ("查看 Compose 日志", "docker compose logs -f <SERVICE>"),
-        (
-            "进入 Compose 服务",
-            "docker compose exec <SERVICE> <COMMAND>",
-        ),
-        ("查看 Kubernetes 日志", "kubectl logs <POD>"),
-        (
-            "进入 Kubernetes 容器",
-            "kubectl exec -it <POD> -- <COMMAND>",
-        ),
-        ("连接 SSH 主机", "ssh <HOST>"),
-    ]
-    .into_iter()
-    .map(|(n, c)| SavedCommand {
-        name: n.into(),
-        command: c.into(),
-        description: "内置命令模板".into(),
-        tags: Vec::new(),
-        kind: HubKind::Builtin,
-        template: None,
-    })
-    .collect()
+    let mut workflows = templates_as_commands(workflow_templates());
+    workflows.extend(
+        [
+            ("运行 dotnet 测试", "dotnet test <PROJECT>"),
+            ("运行 Go 测试", "go test ./..."),
+            ("运行 npm 脚本", "npm run <SCRIPT>"),
+            ("运行 pnpm 脚本", "pnpm run <SCRIPT>"),
+            ("运行 Yarn 脚本", "yarn run <SCRIPT>"),
+            ("运行 Bun 脚本", "bun run <SCRIPT>"),
+            ("进入 Conda 环境", "conda activate <ENV>"),
+            ("在 Conda 环境运行", "conda run -n <ENV> <COMMAND>"),
+            ("启动 Compose 服务", "docker compose up -d <SERVICE>"),
+            ("查看 Compose 日志", "docker compose logs -f <SERVICE>"),
+            (
+                "进入 Compose 服务",
+                "docker compose exec <SERVICE> <COMMAND>",
+            ),
+            ("查看 Kubernetes 日志", "kubectl logs <POD>"),
+            (
+                "进入 Kubernetes 容器",
+                "kubectl exec -it <POD> -- <COMMAND>",
+            ),
+            ("连接 SSH 主机", "ssh <HOST>"),
+        ]
+        .into_iter()
+        .map(|(n, c)| SavedCommand {
+            name: n.into(),
+            command: c.into(),
+            description: "内置命令模板".into(),
+            tags: Vec::new(),
+            kind: HubKind::Builtin,
+            template: None,
+        }),
+    );
+    workflows
 }
 
 fn actions() -> Vec<SavedCommand> {
@@ -1726,6 +2048,74 @@ mod store_tests {
 
 #[cfg(test)]
 mod template_tests {
+    #[test]
+    fn failed_final_render_keeps_the_current_field_editable() {
+        let template = super::CommandTemplate {
+            tokens: vec!["git".into(), "{branch}".into(), "bad{token}".into()],
+            parameters: vec![super::TemplateParameter {
+                name: "branch".into(),
+                required: true,
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let mut form = super::TemplateForm::new(template).unwrap();
+        assert!(
+            form.advance("main", false, std::path::Path::new("."))
+                .is_err()
+        );
+        assert_eq!(form.current().unwrap().name, "branch");
+        assert!(form.values.is_empty());
+        assert!(
+            form.advance("other", false, std::path::Path::new("."))
+                .is_err()
+        );
+        assert_eq!(form.current().unwrap().name, "branch");
+    }
+
+    #[test]
+    fn builtin_workflows_render_optional_flags_and_rewind_context() {
+        let templates = super::workflow_templates();
+        assert_eq!(templates.len(), 12);
+        let template = templates
+            .iter()
+            .find(|t| t.id == "builtin:cargo-test")
+            .unwrap()
+            .clone();
+        let mut form = super::TemplateForm::new(template).unwrap();
+        form.submit("example-package").unwrap();
+        assert_eq!(
+            form.provider_context().arguments,
+            vec!["test", "-p", "example-package"]
+        );
+        assert!(
+            form.preview()
+                .contains("-p example-package --features {features}")
+        );
+        form.submit("").unwrap();
+        form.submit("").unwrap();
+        assert_eq!(form.finish().unwrap(), "cargo test -p example-package");
+        assert!(form.back());
+        assert!(form.back());
+        assert!(form.back());
+        form.submit("").unwrap();
+        assert_eq!(form.provider_context().arguments, vec!["test"]);
+        form.submit("中文 feature").unwrap();
+        form.submit("integration").unwrap();
+        assert_eq!(
+            form.finish().unwrap(),
+            "cargo test --features '中文 feature' --test integration"
+        );
+        for template in templates {
+            let mut form = super::TemplateForm::new(template).unwrap();
+            while let Some(field) = form.current() {
+                let value = if field.required { "中文 path" } else { "" };
+                form.submit(value).unwrap();
+            }
+            assert!(!form.finish().unwrap().contains('{'));
+        }
+    }
+
     use super::*;
 
     #[test]

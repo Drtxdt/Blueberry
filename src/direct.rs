@@ -341,6 +341,7 @@ impl Session {
         settings: &Config,
         token: &str,
         history: &[String],
+        shell: (&BTreeMap<String, String>, &[ShellCommand]),
     ) -> Result<Value> {
         let next = value["revision"].as_u64().context("missing UI revision")?;
         ensure!(
@@ -383,15 +384,11 @@ impl Session {
             }
             "Enter" => {
                 if let Some(form) = ui.form.as_mut() {
-                    match form.submit(&ui.input) {
-                        Ok(true) => {
-                            if ui.project {
-                                crate::packs::verify_approval(&self.cwd)?;
-                            }
-                            let command = form.finish()?;
+                    match form.advance(&ui.input, ui.project, &self.cwd) {
+                        Ok(Some(command)) => {
                             return Ok(self.edit_command(command, token));
                         }
-                        Ok(false) => {
+                        Ok(None) => {
                             ui.input.clear();
                             ui.generation = self.revision;
                         }
@@ -403,7 +400,8 @@ impl Session {
                         crate::packs::verify_approval(&self.cwd)?;
                     }
                     if let Some(template) = ui.templates.get(&candidate.id).cloned() {
-                        let form = crate::hub::TemplateForm::new(template)?;
+                        let form = crate::hub::TemplateForm::new(template)?
+                            .with_shell(shell.0, shell.1, &self.cwd);
                         if form.is_empty() {
                             return Ok(self.edit_command(form.finish()?, token));
                         }
@@ -852,7 +850,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             automatic = value["automatic_menu"] == true;
                             adapter_status = json!({"shell_version":value["shell_version"],"psreadline_version":value["psreadline"],
                             "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],
-                            "terminal_restore":value["terminal_restore"],
+                            "terminal_restore":value["terminal_restore"], "terminal_connected":value["terminal_connected"], "terminal_fallback_reason":value["terminal_fallback_reason"],
                             "session_commands":{"source":"editor","count":0,"complete":false,"error":null},
                             "system_commands":{"source":"system module export metadata","count":0,"complete":false,"error":null},
                             "transport":"pipe","host_mode":"direct","automatic_menu":automatic && settings.completion.auto_trigger,
@@ -925,6 +923,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                         });
                                     }
                                 }
+                                adapter_status["terminal_connected"] =
+                                    value["terminal_connected"].clone();
+                                adapter_status["terminal_fallback_reason"] =
+                                    value["terminal_fallback_reason"].clone();
                                 automatic = value["automatic_menu"] == true;
                                 adapter_status["automatic_menu"] =
                                     json!(automatic && settings.completion.auto_trigger);
@@ -979,10 +981,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             let generation = system_generation;
                             let system_tx = tx.clone();
                             system_discovery.take();
-                            match crate::system_commands::start(&options.shell, move |result| {
-                                let _ =
-                                    system_tx.send(HostEvent::SystemCommands(generation, result));
-                            }) {
+                            match crate::system_commands::start_cached(
+                                &options.shell,
+                                true,
+                                move |result| {
+                                    let _ = system_tx
+                                        .send(HostEvent::SystemCommands(generation, result));
+                                },
+                            ) {
                                 Ok(discovery) => system_discovery = Some(discovery),
                                 Err(error) => {
                                     adapter_status["system_commands"]["error"] =
@@ -1028,7 +1034,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             adapter_status["session_commands"]["error"] = value["error"].clone();
                             status_writer.update(adapter_status.clone());
                         }
-                        Some("hub" | "query" | "cancel") if ready && automatic => {
+                        Some("hub" | "query" | "cancel")
+                            if ready
+                                && (automatic
+                                    || value["manual"] == true
+                                    || value["event"] == "cancel") =>
+                        {
                             session.query(&value)?;
                             let cwd =
                                 PathBuf::from(value["cwd"].as_str().context("missing shell cwd")?);
@@ -1036,7 +1047,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             crate::packs::set_cwd(cwd.clone());
                             if value["event"] == "cancel"
                                 || (value["event"] == "query"
-                                    && (!settings.completion.auto_trigger
+                                    && ((!settings.completion.auto_trigger
+                                        && value["manual"] != true)
                                         || session.line.trim().is_empty()))
                             {
                                 session.ui = None;
@@ -1098,7 +1110,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             Arc::make_mut(&mut environment).remove("BLUEBERRY_REMOTE_REQUESTED");
                             worker.update(|w| w.query = Some(query));
                         }
-                        Some("accept") if ready && automatic => {
+                        Some("accept") if ready => {
                             if let Some(edit) = session.accept(&value, &token) {
                                 session.accepting = true;
                                 worker.update(|w| {
@@ -1108,10 +1120,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 pipe.write_json(&edit)?;
                             }
                         }
-                        Some("ui_key") if ready && automatic => {
+                        Some("ui_key") if ready => {
                             trace.event("direct_ui_key", value["revision"].as_u64(), None, None);
                             trace.flush();
-                            let frame = match session.ui_key(&value, &settings, &token, &history) {
+                            let frame = match session.ui_key(
+                                &value,
+                                &settings,
+                                &token,
+                                &history,
+                                (&environment, &command_snapshot.previous),
+                            ) {
                                 Ok(frame) => frame,
                                 Err(error) => {
                                     if let Some(ui) = session.ui.as_mut() {
@@ -1131,7 +1149,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             pipe.write_json(&frame)?;
                             session.request_values(tx.clone(), environment.clone());
                         }
-                        Some("menu_key") if ready && automatic => {
+                        Some("menu_key") if ready => {
                             match session.navigate(&value, &settings, &token) {
                                 Ok(frame) => pipe.write_json(&frame)?,
                                 Err(_) => {
@@ -1149,7 +1167,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 }
                             }
                         }
-                        Some("layout") if ready && automatic => {
+                        Some("layout") if ready => {
                             if let Some(frame) = session.layout(&value, &settings, &token) {
                                 pipe.write_json(&frame)?;
                             }
@@ -1170,7 +1188,6 @@ pub fn run(options: RunOptions) -> Result<u32> {
             if let Some(event) = completion_event {
                 if let HostEvent::Completion(revision, _, _) = &event
                     && ready
-                    && automatic
                     && session.ui.is_none()
                     && !session.accepting
                     && active_query.as_ref().is_some_and(|query| {
@@ -1238,6 +1255,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     json!(error.to_string());
                             }
                         }
+                        adapter_status["system_commands"]["cache"] =
+                            json!(system_discovery.as_ref().map(|d| d.cache_status()));
                         status_writer.update(adapter_status.clone());
                     }
                 } else if let HostEvent::HistoryLoaded(_, values, partial, elapsed) = event {

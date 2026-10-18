@@ -1186,6 +1186,7 @@ struct State {
     reset_pending: Option<String>,
     status_writer: crate::status::StatusWriter,
     adapter_status: Value,
+    terminal_fallback_reason: Option<String>,
     hub_query: Option<String>,
     hub_history: Vec<String>,
     hub_history_path: Option<PathBuf>,
@@ -1421,6 +1422,8 @@ impl State {
             "capabilities" => {
                 let mut status = value.clone();
                 status["host_mode"] = json!("nested");
+                status["terminal_connected"] = json!(self.overlay.is_native());
+                status["terminal_fallback_reason"] = json!(self.terminal_fallback_reason);
                 status["terminal_restore"] = json!(if self.overlay.is_native() {
                     "native_overlay_v4"
                 } else {
@@ -2201,36 +2204,19 @@ impl State {
                             if self.hub_form.is_some() {
                                 let value = self.hub_query.as_ref().cloned().unwrap_or_default();
                                 let form = self.hub_form.as_mut().unwrap();
-                                let finished = match form.submit(&value) {
-                                    Ok(finished) => finished,
-                                    Err(error) => {
-                                        self.notification = Some(format!("{error:#}"));
-                                        return Ok(());
-                                    }
-                                };
-                                if !finished {
+                                let command =
+                                    match form.advance(&value, self.hub_form_project, &self.cwd) {
+                                        Ok(command) => command,
+                                        Err(error) => {
+                                            self.notification = Some(format!("{error:#}"));
+                                            return Ok(());
+                                        }
+                                    };
+                                let Some(command) = command else {
                                     *self.hub_query.as_mut().unwrap() = String::new();
                                     self.request_form_values();
                                     self.refresh_hub();
                                     return Ok(());
-                                }
-                                if self.hub_form_project
-                                    && let Err(error) = crate::packs::verify_approval(&self.cwd)
-                                {
-                                    self.notification =
-                                        Some(format!("项目命令包已变更：{error:#}"));
-                                    self.hub_form = None;
-                                    self.hub_form_project = false;
-                                    self.refresh_hub();
-                                    return Ok(());
-                                }
-                                let command = match form.finish() {
-                                    Ok(command) => command,
-                                    Err(error) => {
-                                        form.back();
-                                        self.notification = Some(format!("{error:#}"));
-                                        return Ok(());
-                                    }
                                 };
                                 self.hub_form = None;
                                 self.hub_form_project = false;
@@ -2289,7 +2275,11 @@ impl State {
                                         ..Default::default()
                                     });
                                 let form = match crate::hub::TemplateForm::new(template) {
-                                    Ok(form) => form,
+                                    Ok(form) => form.with_shell(
+                                        &self.shell_environment,
+                                        &self.commands_snapshot.previous,
+                                        &self.cwd,
+                                    ),
                                     Err(error) => {
                                         self.notification = Some(format!("{error:#}"));
                                         return Ok(());
@@ -2983,16 +2973,24 @@ pub fn run(options: RunOptions) -> Result<u32> {
         .context("Blueberry run requires an interactive terminal. Use 'complete' for scripts.")?;
     #[cfg(windows)]
     let _ = crossterm::ansi_support::supports_ansi();
+    #[cfg(windows)]
+    let mut terminal_fallback_reason = None;
+    #[cfg(not(windows))]
+    let terminal_fallback_reason = None;
     let overlay = {
         #[cfg(windows)]
         if std::env::var("BLUEBERRY_NATIVE_OVERLAY").as_deref() == Ok("4")
             && !std::env::var("TERM_PROGRAM")
                 .is_ok_and(|value| value.eq_ignore_ascii_case("vscode"))
         {
-            Overlay::with_native(
-                crate::native_overlay::NativeOverlay::connect(&mut std::io::stdout())
-                    .context("connect required companion Terminal")?,
-            )
+            match crate::native_overlay::NativeOverlay::connect(&mut std::io::stdout()) {
+                Ok(native) => Overlay::with_native(native),
+                Err(error) => {
+                    terminal_fallback_reason =
+                        Some(format!("companion Terminal unavailable: {error}"));
+                    Overlay::default()
+                }
+            }
         } else {
             Overlay::default()
         }
@@ -3210,6 +3208,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         reset_pending: None,
         status_writer: crate::status::StatusWriter::new(session_directory.join("adapter.json")),
         adapter_status: Value::Null,
+        terminal_fallback_reason,
         hub_query: None,
         hub_history: Vec::new(),
         hub_history_path: None,
@@ -3614,9 +3613,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
         if let Some(error) = state.overlay.take_native_error() {
             state.presented_candidate = None;
-            state.adapter_status["automatic_menu"] = json!(false);
-            state.adapter_status["disabled_reason"] =
-                json!(format!("companion Terminal overlay failed: {error}"));
+            state.overlay.fallback_to_ordinary();
+            state.terminal_fallback_reason =
+                Some(format!("companion Terminal overlay failed: {error}"));
+            state.adapter_status["terminal_connected"] = json!(false);
+            state.adapter_status["terminal_restore"] = json!("legacy_vt_model");
+            state.adapter_status["terminal_fallback_reason"] =
+                json!(state.terminal_fallback_reason);
+            render_overlay(&mut state, &mut frame, &mut output)?;
             state.status_writer.update(state.adapter_status.clone());
             state
                 .trace

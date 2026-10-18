@@ -456,9 +456,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $terminalArchive = python scripts/stage-terminal-release-asset.py scripts/terminal-dependency.json --output artifacts/terminal-dependency
-          if ($LASTEXITCODE -ne 0) { throw 'Pinned companion Terminal download failed' }
-          $env:BLUEBERRY_TERMINAL_PACKAGE = $terminalArchive.Trim()
           ./scripts/licenses.ps1 -OutputPath ./THIRD-PARTY-NOTICES.txt
           $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
           ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -OutputDirectory ./dist/ci
@@ -469,9 +466,41 @@ jobs:
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-transaction-journal.ps1
           if ($LASTEXITCODE -ne 0) { throw '5.1 transaction journal tests failed' }
           ./scripts/test-maintenance.ps1 -Executable ./target/release/blueberry.exe -Package $package
+          'History regression fixture; not a release candidate.' | Set-Content ./target/history-fixture-notes.txt
+          ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -ReleaseNotesPath ./target/history-fixture-notes.txt -OutputDirectory ./target/history-fixture-package
+          $historyPackage = (Get-ChildItem ./target/history-fixture-package/*.zip).FullName
+          ./scripts/test-install-history.ps1 -PackagePath $package -NextPackagePath $historyPackage
           ./scripts/test-download.ps1 -PackagePath $package
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-download.ps1 -PackagePath $package
           if ($LASTEXITCODE -ne 0) { throw '5.1 download selection tests failed' }
+      - name: Package and validate optional Terminal component
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $terminalArchive = python scripts/stage-terminal-release-asset.py scripts/terminal-dependency.json --output artifacts/terminal-dependency
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned companion Terminal download failed' }
+          ./scripts/release-terminal.ps1 -PackagePath $terminalArchive.Trim() -OutputDirectory ./dist/terminal
+          ./scripts/release-terminal.ps1 -PackagePath $terminalArchive.Trim() -OutputDirectory ./target/terminal-test-package -Version '1.24.12741.0-native4-test2'
+          $first = (Get-ChildItem ./dist/terminal/*.zip).FullName
+          $second = (Get-ChildItem ./target/terminal-test-package/*.zip).FullName
+          ./scripts/test-terminal-component.ps1 -PackageOne $first -PackageTwo $second
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-terminal-component.ps1 -PackageOne $first -PackageTwo $second
+          if ($LASTEXITCODE -ne 0) { throw '5.1 Terminal component tests failed' }
+          $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -PackageKind bundled -TerminalPackagePath $terminalArchive.Trim() -OutputDirectory ./target/migration-bundled-package
+          $bundled = (Get-ChildItem ./target/migration-bundled-package/*.zip).FullName
+          $core = (Get-ChildItem ./dist/ci/*.zip).FullName
+          ./scripts/test-terminal-migration.ps1 -BundledPackage $bundled -CorePackage $core
+      - name: Preserve optional Terminal component
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-terminal-component-windows-x64
+          path: |
+            dist/terminal/*.zip
+            dist/terminal/*.sha256
+          if-no-files-found: error
       - name: Preserve installation failure evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -487,6 +516,8 @@ jobs:
             target/maintenance-tests-*/**/intended-install.json
             target/journal-tests-*/**/transaction.json
             target/journal-tests-*/**/transaction.wal
+            target/install-history-*/results.json
+            target/terminal-migration-*/components/terminal/component-state.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:

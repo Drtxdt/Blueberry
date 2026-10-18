@@ -643,6 +643,8 @@ function Get-BlueberryEnvironmentSnapshot {
         # A restricted host may deny environment enumeration. PATH and
         # PATHEXT are still sent by Get-BlueberryPromptEndData.
     }
+    $snapshot['BLUEBERRY_SHELL_VERSION'] = [string]$PSVersionTable.PSVersion
+    $snapshot['BLUEBERRY_NATIVE_ARGUMENT_MODE'] = if ($PSVersionTable.PSVersion -lt [version]'7.3') { 'Legacy' } else { [string]$PSNativeCommandArgumentPassing }
     return $snapshot
 }
 

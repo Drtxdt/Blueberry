@@ -68,6 +68,16 @@ impl Overlay {
         self.reset_layout();
     }
 
+    pub fn fallback_to_ordinary(&mut self) {
+        #[cfg(windows)]
+        {
+            self.native = None;
+            self.native_mode = false;
+            self.native_retry = false;
+        }
+        self.reset_layout();
+    }
+
     pub fn take_native_error(&mut self) -> Option<String> {
         #[cfg(windows)]
         {

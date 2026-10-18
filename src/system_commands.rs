@@ -18,8 +18,14 @@ struct DiscoveryState {
     cancelled: bool,
     child: Option<Child>,
     job: Option<crate::latency_layers::DirectChildJob>,
+    cache: String,
 }
 pub struct Discovery(Arc<Mutex<DiscoveryState>>);
+impl Discovery {
+    pub fn cache_status(&self) -> String {
+        self.0.lock().unwrap().cache.clone()
+    }
+}
 impl Drop for Discovery {
     fn drop(&mut self) {
         let mut state = self.0.lock().unwrap();
@@ -34,17 +40,40 @@ pub fn start(
     shell: &Path,
     done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
 ) -> Result<Discovery> {
-    start_script(shell, include_str!("../shell/system-commands.ps1"), done)
+    start_cached(shell, false, done)
 }
+pub fn start_cached(
+    shell: &Path,
+    refresh: bool,
+    done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
+) -> Result<Discovery> {
+    start_worker(
+        shell,
+        include_str!("../shell/system-commands.ps1"),
+        Some(refresh),
+        done,
+    )
+}
+#[cfg(test)]
 fn start_script(
     shell: &Path,
     script: &str,
     done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
 ) -> Result<Discovery> {
+    start_worker(shell, script, None, done)
+}
+fn start_worker(
+    shell: &Path,
+    script: &str,
+    cache_mode: Option<bool>,
+    done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
+) -> Result<Discovery> {
+    let requested = std::time::SystemTime::now();
     let shared = Arc::new(Mutex::new(DiscoveryState {
         cancelled: false,
         child: None,
         job: None,
+        cache: "pending".into(),
     }));
     let process = shared.clone();
     let shell = shell.to_owned();
@@ -53,6 +82,37 @@ fn start_script(
         .name("blueberry module metadata".into())
         .spawn(move || {
             let result = (|| -> Result<Vec<ShellCommand>> {
+                ensure!(
+                    !process.lock().unwrap().cancelled,
+                    "system metadata cancelled"
+                );
+                let cache = cache_mode.and_then(|_| {
+                    crate::system_commands_cache::identity(&shell, &script)
+                        .ok()
+                        .and_then(|key| {
+                            crate::system_commands_cache::Cache::open(key, || {
+                                process.lock().unwrap().cancelled
+                            })
+                            .ok()
+                        })
+                });
+                if let Some(cache) = &cache
+                    && let Some(output) = cache.read(if cache_mode == Some(true) {
+                        Some(requested)
+                    } else {
+                        None
+                    })
+                    && let Ok(commands) = parse(&output)
+                {
+                    process.lock().unwrap().cache = "hit".into();
+                    return Ok(commands);
+                }
+                process.lock().unwrap().cache = if cache.is_some() {
+                    "rebuild"
+                } else {
+                    "unavailable"
+                }
+                .into();
                 ensure!(
                     !process.lock().unwrap().cancelled,
                     "system metadata cancelled"
@@ -144,7 +204,22 @@ fn start_script(
                     bytes.len() <= 4 * 1024 * 1024,
                     "system metadata output limit"
                 );
-                parse(&String::from_utf8(bytes)?)
+                let output = String::from_utf8(bytes)?;
+                let commands = parse(&output)?;
+                if let Some(cache) = cache {
+                    if crate::system_commands_cache::identity(&shell, &script)
+                        .ok()
+                        .as_ref()
+                        == Some(&cache.identity)
+                    {
+                        if cache.publish(&output).is_err() {
+                            process.lock().unwrap().cache = "write_failed".into();
+                        }
+                    } else {
+                        process.lock().unwrap().cache = "inventory_changed".into();
+                    }
+                }
+                Ok(commands)
             })();
             done(result);
         })
@@ -188,6 +263,42 @@ fn parse(output: &str) -> Result<Vec<ShellCommand>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn persistent_cache_child() -> Result<()> {
+        if std::env::var("BLUEBERRY_METADATA_CACHE_CHILD").as_deref() != Ok("1") {
+            return Ok(());
+        }
+        for expected in ["rebuild", "hit"] {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let discovery = start(&crate::pty::default_shell(), move |result| {
+                let _ = tx.send(result);
+            })?;
+            let commands = rx.recv_timeout(std::time::Duration::from_secs(40))??;
+            assert!(!commands.is_empty());
+            assert_eq!(discovery.cache_status(), expected);
+        }
+        Ok(())
+    }
+    #[test]
+    fn persistent_hit_avoids_metadata_helper_in_isolated_cache() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let output = Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "system_commands::tests::persistent_cache_child",
+                "--nocapture",
+            ])
+            .env("BLUEBERRY_METADATA_CACHE_CHILD", "1")
+            .env("LOCALAPPDATA", dir.path())
+            .output()?;
+        ensure!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(())
+    }
     #[test]
     fn metadata_analysis_does_not_execute_or_import_script_module() -> Result<()> {
         let dir = tempfile::tempdir()?;

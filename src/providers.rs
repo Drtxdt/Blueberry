@@ -2066,7 +2066,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
         ..ProviderResult::default()
     };
     git_watch_paths(&ctx, &mut result, needs.status_paths);
-    if ctx.subcommand.is_empty()
+    if (ctx.subcommand.is_empty() && query.provider.is_none())
         || (!needs.refs && !needs.remotes && !needs.worktrees && !needs.status_paths)
     {
         return result;
@@ -3881,6 +3881,145 @@ fn add_values<I>(
     }
 }
 
+fn python_test_paths(
+    query: &ProjectQuery,
+    manifest: &Path,
+    value: &toml::Value,
+    result: &mut ProviderResult,
+    cancelled_flag: &AtomicBool,
+) {
+    let root = manifest.parent().unwrap_or(&query.cwd);
+    let options = value
+        .get("tool")
+        .and_then(|v| v.get("pytest"))
+        .and_then(|v| v.get("ini_options"));
+    let strings = |name: &str| -> Vec<String> {
+        match options.and_then(|v| v.get(name)) {
+            Some(toml::Value::Array(values)) => values
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect(),
+            Some(toml::Value::String(value)) => {
+                value.split_whitespace().map(str::to_owned).collect()
+            }
+            _ => Vec::new(),
+        }
+    };
+    let mut paths = strings("testpaths");
+    let mut patterns = strings("python_files");
+    for name in ["pytest.ini", "setup.cfg"] {
+        let config = root.join(name);
+        add_watch_path(result, &config);
+        if let Ok(text) = read_limited(&config, MANIFEST_LIMIT) {
+            let mut active = false;
+            let mut option = None;
+            for raw in text.lines() {
+                let line = raw.trim();
+                if line.is_empty() || line.starts_with(['#', ';']) {
+                    continue;
+                }
+                if line.starts_with('[') {
+                    active = matches!(line, "[pytest]" | "[tool:pytest]");
+                    option = None;
+                    continue;
+                }
+                if !active {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    option = match key.trim() {
+                        "testpaths" => Some(false),
+                        "python_files" => Some(true),
+                        _ => None,
+                    };
+                    if let Some(pattern) = option {
+                        let target = if pattern { &mut patterns } else { &mut paths };
+                        *target = value.split_whitespace().map(str::to_owned).collect();
+                    }
+                } else if raw.starts_with(char::is_whitespace)
+                    && let Some(pattern) = option
+                {
+                    let target = if pattern { &mut patterns } else { &mut paths };
+                    target.extend(line.split_whitespace().map(str::to_owned));
+                } else {
+                    option = None;
+                }
+            }
+        }
+    }
+    if patterns.is_empty() {
+        patterns = vec!["test_*.py".into(), "*_test.py".into()];
+    }
+    let roots = if paths.is_empty() {
+        vec![root.to_path_buf()]
+    } else {
+        paths.iter().map(|p| root.join(p)).collect()
+    };
+    let mut stack = roots.into_iter().map(|p| (p, 0)).collect::<Vec<_>>();
+    let mut visited = 0;
+    let started = Instant::now();
+    while let Some((path, depth)) = stack.pop() {
+        visited += 1;
+        if cancelled(cancelled_flag)
+            || visited > 4096
+            || started.elapsed() > Duration::from_millis(250)
+        {
+            result.incomplete = true;
+            break;
+        }
+        if depth > 12 {
+            result.incomplete = true;
+            continue;
+        }
+        add_watch_path(result, &path);
+        let Ok(meta) = fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            if meta.file_attributes() & 0x400 != 0 {
+                continue;
+            }
+        }
+        if meta.is_dir() {
+            if path != root
+                && path.file_name().is_some_and(|n| {
+                    matches!(
+                        n.to_str(),
+                        Some(".git" | ".venv" | "venv" | "__pycache__" | "node_modules" | "target")
+                    )
+                })
+            {
+                continue;
+            }
+            if let Ok(entries) = fs::read_dir(&path) {
+                stack.extend(entries.flatten().map(|e| (e.path(), depth + 1)));
+            }
+        } else if path.file_name().is_some_and(|name| {
+            patterns
+                .iter()
+                .any(|pattern| wildcard_match(pattern, &name.to_string_lossy()))
+        }) {
+            let relative = path
+                .strip_prefix(&query.cwd)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .into_owned();
+            add_values(
+                result,
+                [relative],
+                "静态发现的 pytest 测试路径（未执行收集）",
+                "python.test",
+                &query.prefix,
+            );
+        }
+    }
+}
+
 fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
     let mut result = ProviderResult::default();
     if (active_scope(query, "python") == "dependencies"
@@ -3913,6 +4052,19 @@ fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provider
     }
 
     let Some(manifest) = find_upwards(&query.cwd, "pyproject.toml") else {
+        if active_scope(query, "python") == "tests"
+            && let Some(config) = find_upwards(&query.cwd, "pytest.ini")
+                .or_else(|| find_upwards(&query.cwd, "setup.cfg"))
+        {
+            result.project_root = config.parent().map(Path::to_path_buf);
+            python_test_paths(
+                query,
+                &config,
+                &toml::Value::Table(Default::default()),
+                &mut result,
+                cancelled_flag,
+            );
+        }
         return result;
     };
     result.project_root = manifest.parent().map(Path::to_path_buf);
@@ -3921,12 +4073,61 @@ fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provider
         result.incomplete = true;
         return result;
     }
-    if let Ok(text) = read_limited(&manifest, MANIFEST_LIMIT) {
-        let scope = query.provider.as_deref().unwrap_or("");
-        if scope.ends_with("scripts") || query.args.iter().any(|a| a == "run") {
-            let Ok(value) = text.parse::<toml::Value>() else {
-                return result.finish();
-            };
+    let value = match read_limited(&manifest, MANIFEST_LIMIT)
+        .map_err(|error| error.to_string())
+        .and_then(|text| toml::from_str::<toml::Value>(&text).map_err(|error| error.to_string()))
+    {
+        Ok(value) => value,
+        Err(error) => {
+            result
+                .diagnostics
+                .push(format!("无法读取 Python 项目清单：{error}"));
+            return result.finish();
+        }
+    };
+    match active_scope(query, "python") {
+        "tests" => python_test_paths(query, &manifest, &value, &mut result, cancelled_flag),
+        "groups" => {
+            let groups = value
+                .get("dependency-groups")
+                .and_then(toml::Value::as_table)
+                .into_iter()
+                .flat_map(|table| table.keys().cloned());
+            add_values(
+                &mut result,
+                groups,
+                "Python 依赖组",
+                "python.group",
+                &query.prefix,
+            );
+        }
+        "environments" => {
+            let project = manifest.parent().unwrap_or(&query.cwd);
+            let mut environments = vec![project.join(".venv")];
+            if let Some(active) = query.environment.get("VIRTUAL_ENV") {
+                environments.push(active.into());
+            }
+            for environment in environments {
+                add_watch_path(&mut result, &environment.join("pyvenv.cfg"));
+                if environment.is_dir() {
+                    if !environment.join("pyvenv.cfg").is_file() {
+                        result.diagnostics.push(format!(
+                            "Python 环境缺少 pyvenv.cfg：{}",
+                            environment.display()
+                        ));
+                        continue;
+                    }
+                    add_values(
+                        &mut result,
+                        [environment.display().to_string()],
+                        "Python 虚拟环境",
+                        "python.environment",
+                        &query.prefix,
+                    );
+                }
+            }
+        }
+        scope if scope == "scripts" || query.args.iter().any(|a| a == "run") => {
             let scripts = value
                 .get("project")
                 .and_then(|v| v.get("scripts"))
@@ -3949,10 +4150,8 @@ fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provider
                 "python.script",
                 &query.prefix,
             );
-        } else {
-            let Ok(value) = text.parse::<toml::Value>() else {
-                return result.finish();
-            };
+        }
+        _ => {
             let dependencies = value
                 .get("project")
                 .and_then(|v| v.get("dependencies"))

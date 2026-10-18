@@ -38,6 +38,7 @@ if (-not [Blueberry.Direct.Bridge]::EditorHooks) {
     $global:BlueberryDirectReadLine = $function:global:PSConsoleHostReadLine
     $global:BlueberryDirectHistoryPath = if ($env:BLUEBERRY_NO_HISTORY -eq '1') { $null } else { (Get-PSReadLineOption).HistorySavePath }
     function global:PSConsoleHostReadLine {
+        $env:BLUEBERRY_NATIVE_ARGUMENT_MODE = if ($PSVersionTable.PSVersion -lt [version]'7.3') { 'Legacy' } else { [string]$PSNativeCommandArgumentPassing }
         [Blueberry.Direct.Bridge]::Begin($ExecutionContext.SessionState.Path.CurrentFileSystemLocation.Path, $global:BlueberryDirectHistoryPath)
         try { & $global:BlueberryDirectReadLine }
         finally { [Blueberry.Direct.Bridge]::End() }

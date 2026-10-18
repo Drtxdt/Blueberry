@@ -155,6 +155,15 @@ enum Command {
     },
     /// Print the current theme using sample candidates.
     Theme,
+    /// Manage the optional enhanced Windows Terminal component.
+    Terminal {
+        #[arg(value_enum)]
+        action: blueberry::terminal_component::Action,
+        #[arg(long)]
+        package: Option<PathBuf>,
+        #[arg(long)]
+        install_root: Option<PathBuf>,
+    },
     /// Print or manage the dedicated Windows Terminal JSON fragment.
     TerminalProfile {
         #[arg(long)]
@@ -827,6 +836,13 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             .and_then(|status| status["psreadline_version"].as_str())
             .map(|version| serde_json::json!({"version":version}))
             .unwrap_or(serde_json::Value::Null);
+        value["terminal_capabilities"] = serde_json::json!({
+            "compiled_interface":value["build"]["companion_overlay_interface"],
+            "component":std::env::current_exe().ok().and_then(|exe|exe.parent().map(blueberry::terminal_component::status)),
+            "connected":adapter.as_ref().map(|status|status["terminal_connected"].clone()),
+            "rendering":adapter.as_ref().map(|status|status["terminal_restore"].clone()),
+            "fallback_reason":adapter.as_ref().map(|status|status["terminal_fallback_reason"].clone())
+        });
         value["editor"] = adapter.as_ref().map(|status| serde_json::json!({
             "mode":status["editor_mode"], "patch":status["editor_patch"],
             "dll_sha256":status["editor_dll_sha256"], "fallback_reason":status["editor_fallback_reason"]
@@ -1185,6 +1201,11 @@ fn execute() -> Result<u32> {
             }
             Ok(0)
         }
+        Command::Terminal {
+            action,
+            package,
+            install_root,
+        } => blueberry::terminal_component::run(action, package, install_root),
         Command::TerminalProfile {
             shell,
             install,

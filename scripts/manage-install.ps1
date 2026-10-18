@@ -97,14 +97,13 @@ function Assert-NoReparseComponents {
     foreach ($part in ($remainder.Split([char[]]@('\', '/'), [StringSplitOptions]::RemoveEmptyEntries))) {
         $current = Join-Path $current $part
         try {
-            # Get-Item -Force still returns a dangling link, while Test-Path
-            # alone treats that path as absent and would miss the reparse.
-            $item = Get-Item -LiteralPath $current -Force -ErrorAction Stop
+            # Native literal lookup handles bracketed names on PS5.1 and still
+            # observes dangling reparse points; Exists() alone would not.
+            $attributes = [IO.File]::GetAttributes($current)
         }
-        catch [System.Management.Automation.ItemNotFoundException] {
-            break
-        }
-        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        catch [IO.FileNotFoundException] { break }
+        catch [IO.DirectoryNotFoundException] { break }
+        if ($attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "路径包含符号链接、junction 或重解析点，拒绝访问: $current"
         }
     }
@@ -538,8 +537,14 @@ function Read-Package {
             $requiredItem = Get-RegularFileRecord -Path $requiredPath -Label "必要资产 $required"
             if ($requiredItem.Length -le 0) { throw "必要资产不能为空: $required" }
         }
-        if ($releaseManifest.ContainsKey('build') -and $releaseManifest.build.ContainsKey('companion_overlay_interface') -and
-            [int]$releaseManifest.build.companion_overlay_interface -eq 4) {
+        if (@($files | Where-Object { $_.path -like 'components/*' }).Count -gt 0) { throw 'Core package cannot own optional component files' }
+        $packageKind = if ($releaseManifest.ContainsKey('package_kind')) { [string]$releaseManifest.package_kind } else { 'legacy' }
+        if ($packageKind -notin @('core', 'bundled', 'legacy')) { throw 'Unsupported package kind' }
+        if ($packageKind -eq 'core' -and ($releaseManifest.ContainsKey('terminal_dependency') -or
+            @($files | Where-Object { $_.path -like 'terminal/*' }).Count -gt 0)) { throw 'Core package must not contain Terminal runtime' }
+        if ($packageKind -eq 'bundled' -or ($packageKind -eq 'legacy' -and
+            $releaseManifest.ContainsKey('build') -and $releaseManifest.build.ContainsKey('companion_overlay_interface') -and
+            [int]$releaseManifest.build.companion_overlay_interface -eq 4)) {
             foreach ($required in @('blueberry-terminal.cmd', 'terminal-dependency.json', 'terminal/.portable',
                     'terminal/WindowsTerminal.exe', 'terminal/Microsoft.Terminal.Settings.Model.dll')) {
                 if (-not $seen.Contains($required)) { throw "发布包缺少配套 Terminal 资产: $required" }
@@ -1349,9 +1354,61 @@ function New-ManifestForPayload {
         -ManagedFiles (Get-ManagedFileList -Map $ManagedHashes) -InstalledUtc $InstalledUtc
 }
 
+function Move-BundledTerminalToComponent {
+    param([string]$Root,$Package,$State)
+    if (-not $Package.manifest.ContainsKey('package_kind') -or $Package.manifest.package_kind -ne 'core') { return }
+    $files=@(Get-ActiveManagedFiles $State | Where-Object { $_.StartsWith('terminal/',[StringComparison]::OrdinalIgnoreCase) })
+    if ($files.Count -eq 0) { return }
+    $componentRoot=Get-ManagedPath -Root $Root -RelativePath 'components/terminal'
+    $componentState=Join-Path $componentRoot 'component-state.json'
+    if ([IO.File]::Exists($componentState)) {
+        $existing=Read-JsonHashtable $componentState
+        if ($existing.product -ne 'Blueberry.Terminal' -or $existing.metadata_sha256 -cne (Get-ManifestIntegrityHash $existing)) { throw 'Existing Terminal component state is invalid' }
+        return
+    }
+    # Assert-InstalledState already validated every source against the old
+    # installation manifest. Publish the independent immutable component
+    # before the core transaction may remove its old bundled copy.
+    $descriptor=Read-JsonHashtable (Get-ManagedPath -Root $Root -RelativePath 'terminal-dependency.json')
+    $dependency=$descriptor.terminal_dependency
+    $records=@(foreach ($relative in $files) {
+        $name=$relative.Substring('terminal/'.Length)
+        if ($name.StartsWith('settings/',[StringComparison]::OrdinalIgnoreCase)) { throw 'Bundled runtime must not own user settings' }
+        $source=Get-ManagedPath -Root $Root -RelativePath $relative
+        @{path=$name;bytes=(Get-RegularFileRecord -Path $source -Label 'Bundled Terminal file').Length;sha256=$State.managed_hashes[$relative]}
+    })
+    $identity=(Get-ByteSha256 ([Text.Encoding]::UTF8.GetBytes((ConvertTo-BlueberryCanonicalJson $records)))).ToLowerInvariant()
+    $versionRoot=Get-ManagedPath -Root $componentRoot -RelativePath "versions/$identity"
+    foreach ($record in $records) {
+        $source=Get-ManagedPath -Root $Root -RelativePath ('terminal/'+$record.path)
+        $destination=Get-ManagedPath -Root $versionRoot -RelativePath $record.path
+        if ([IO.File]::Exists($destination) -and (Get-Sha256 $destination) -ine $record.sha256) { throw 'Interrupted component migration has modified files' }
+        Copy-FileAtomic -Source $source -Destination $destination -ExpectedHash $record.sha256 -RelativePath $record.path
+    }
+    $settings=Get-ManagedPath -Root $Root -RelativePath 'terminal/settings'
+    if ([IO.Directory]::Exists($settings)) {
+        foreach ($file in Get-ChildItem -LiteralPath $settings -File -Recurse -Force) {
+            Assert-NoReparseComponents $file.FullName
+            $relative=Get-BlueberryRelativePath -Root $settings -Path $file.FullName
+            $destination=Get-ManagedPath -Root $versionRoot -RelativePath ('settings/'+$relative)
+            Copy-FileAtomic -Source $file.FullName -Destination $destination -ExpectedHash (Get-Sha256 $file.FullName) -RelativePath $relative
+        }
+    }
+    $version=([string]$dependency.asset_name) -replace '^blueberry-terminal-v','' -replace '-windows-x64.zip$',''
+    $manifest=@{schema_version=1;product='Blueberry.Terminal';kind='terminal';version=$version;platform='windows-x64';files=$records;terminal_dependency=$dependency;migrated_from='bundled'}
+    $manifestPath=Join-Path $versionRoot 'component.json'
+    Write-Utf8JsonAtomic -Path $manifestPath -Value $manifest
+    $records+=@{path='component.json';bytes=(Get-RegularFileRecord -Path $manifestPath -Label 'Migrated component manifest').Length;sha256=(Get-Sha256 $manifestPath)}
+    $versions=@{}
+    $versions[$identity]=@{version=$version;dependency=$dependency;files=$records}
+    Write-Utf8JsonAtomic -Path $componentState -Value @{schema_version=1;product='Blueberry.Terminal';installed=$true;current=$identity;history=@();versions=$versions}
+    Write-Host 'Migrated bundled Terminal into its independent component; user settings preserved.'
+}
+
 function Invoke-Upgrade {
     param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)]$Package, [Parameter(Mandatory = $true)]$State)
     Measure-InstallPhase 'validation' { Assert-InstalledState -Root $Root -State $State } -Files $State.managed_files.Count
+    Measure-InstallPhase 'component_migration' { Move-BundledTerminalToComponent -Root $Root -Package $Package -State $State }
     $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in $State.managed_files) { [void]$allowed.Add($relative) }
     Assert-PackageDestinations -Root $Root -Package $Package -AllowedExisting $allowed

@@ -165,7 +165,7 @@ impl Harness {
             native_viewport: None,
             decoder: Decoder::new(token),
             messages: VecDeque::new(),
-            screen: vt100::Parser::new(30, 120, 0),
+            screen: vt100::Parser::new(30, 120, 1024),
             trace: Vec::new(),
             protocol_seen: false,
             known_empty_buffer: false,

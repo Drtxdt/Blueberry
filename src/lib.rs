@@ -13,6 +13,7 @@ pub mod engine;
 pub mod host;
 pub mod hub;
 pub mod input;
+pub mod invocation;
 pub mod maintenance;
 pub mod menu;
 pub mod metrics;
@@ -42,6 +43,9 @@ pub mod specs;
 pub mod status;
 #[cfg(windows)]
 pub mod system_commands;
+#[cfg(windows)]
+mod system_commands_cache;
+pub mod terminal_component;
 pub mod terminal_profile;
 pub mod terminal_ui;
 pub mod tool_registry;

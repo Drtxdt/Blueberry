@@ -1375,3 +1375,78 @@ exit /b 0
     assert!(!invocation_log.to_ascii_lowercase().contains("update-index"));
     assert!(!root.path().join("index").exists());
 }
+
+#[test]
+fn python_workflow_sources_are_static_and_report_manifest_errors() {
+    let dir = tempdir().unwrap();
+    fs::create_dir(dir.path().join("tests 中文")).unwrap();
+    fs::write(
+        dir.path().join("tests 中文/check_case.py"),
+        "raise RuntimeError('never import this fixture')",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("pyproject.toml"),
+        r#"
+[project]
+name = "workflow"
+[project.scripts]
+hello = "app:main"
+[dependency-groups]
+test = ["pytest"]
+[tool.pytest.ini_options]
+testpaths = ["tests 中文"]
+python_files = ["check_*.py"]
+"#,
+    )
+    .unwrap();
+    let mut q = query("uv", &["run", "pytest"], "", dir.path());
+    set_provider(&mut q, "python.tests");
+    let result = collect(&q, &AtomicBool::new(false));
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result
+            .candidates
+            .iter()
+            .any(|c| c.value.contains("check_case.py"))
+    );
+    set_provider(&mut q, "python.groups");
+    assert!(
+        collect(&q, &AtomicBool::new(false))
+            .candidates
+            .iter()
+            .any(|c| c.value == "test")
+    );
+    set_provider(&mut q, "python.scripts");
+    assert!(
+        collect(&q, &AtomicBool::new(false))
+            .candidates
+            .iter()
+            .any(|c| c.value == "hello")
+    );
+    fs::write(dir.path().join("pyproject.toml"), "[broken").unwrap();
+    assert!(!collect(&q, &AtomicBool::new(false)).diagnostics.is_empty());
+}
+
+#[test]
+fn python_pytest_ini_without_pyproject_supports_continuation_lines() {
+    let dir = tempdir().unwrap();
+    fs::create_dir(dir.path().join("cases")).unwrap();
+    fs::write(
+        dir.path().join("cases/check_case.py"),
+        "raise RuntimeError('must not execute')",
+    )
+    .unwrap();
+    fs::write(dir.path().join("test_excluded.py"), "").unwrap();
+    fs::write(
+        dir.path().join("pytest.ini"),
+        "[pytest]\ntestpaths =\n    cases\npython_files =\n    check_*.py\n",
+    )
+    .unwrap();
+    let mut q = query("uv", &["run", "pytest"], "", dir.path());
+    set_provider(&mut q, "python.tests");
+    let result = collect(&q, &AtomicBool::new(false));
+    assert!(result.diagnostics.is_empty());
+    assert_eq!(result.candidates.len(), 1);
+    assert!(result.candidates[0].value.contains("check_case.py"));
+}

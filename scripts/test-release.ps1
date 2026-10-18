@@ -223,7 +223,7 @@ try {
     Assert-Test (Test-Path -LiteralPath $packageTwo -PathType Leaf) '第二版 ZIP 已生成'
     Assert-PerformanceArtifactsPackaged -PackagePath $packageTwo
 
-    $companionExpected = ((& $currentExe doctor --json | ConvertFrom-Json).build.PSObject.Properties['companion_overlay_interface'])
+    $companionExpected = (Get-Content -LiteralPath (Join-Path $outputTwo "blueberry-v$currentVersion-release.json") -Raw | ConvertFrom-Json).PSObject.Properties['terminal_dependency']
     $companionSettings = Join-Path $installRoot 'terminal/settings/settings.json'
 
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'Install'; PackagePath = $packageOne; InstallRoot = $installRoot }

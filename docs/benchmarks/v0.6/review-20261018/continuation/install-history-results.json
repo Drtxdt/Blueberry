@@ -1,0 +1,23 @@
+[
+  {
+    "initial_history": 0,
+    "package_sha256": "7B56F04759D166CA487F43125B76A9A3914D00673EB49836D7B1563B66BD2D35",
+    "status": "passed",
+    "install_root": "E:\\OpenSource\\shellsense-rs\\target\\install-history-c5f5054d5c52451bb656806d0f71711a\\history-0",
+    "elapsed_ms": 53295.1826
+  },
+  {
+    "initial_history": 1,
+    "package_sha256": "7B56F04759D166CA487F43125B76A9A3914D00673EB49836D7B1563B66BD2D35",
+    "status": "passed",
+    "install_root": "E:\\OpenSource\\shellsense-rs\\target\\install-history-c5f5054d5c52451bb656806d0f71711a\\history-1",
+    "elapsed_ms": 76235.3962
+  },
+  {
+    "initial_history": 5,
+    "package_sha256": "7B56F04759D166CA487F43125B76A9A3914D00673EB49836D7B1563B66BD2D35",
+    "status": "passed",
+    "install_root": "E:\\OpenSource\\shellsense-rs\\target\\install-history-c5f5054d5c52451bb656806d0f71711a\\history-5",
+    "elapsed_ms": 162938.9292
+  }
+]

@@ -45,7 +45,7 @@ name = "python"
 aliases = ["python3", "python.exe", "python3.exe"]
 help = "python"
 required = []
-providers = ["python.scripts", "python.dependencies", "python.environments"]
+providers = ["python.scripts", "python.dependencies", "python.environments", "python.groups", "python.tests"]
 resources = "local"
 
 [[tools]]
