@@ -321,14 +321,17 @@ impl Session {
             return;
         }
         self.values_requested = generation;
+        let context = ui.form.as_ref().unwrap().provider_context();
         thread::spawn(move || {
             let started = Instant::now();
-            let values = crate::hub::parameter_suggestions(&field, "", &cwd, &environment);
+            let values = crate::hub::parameter_suggestions(&field, &context, &cwd, &environment);
             let _ = tx.send(HostEvent::FormValues(
                 generation,
                 field.name,
                 values,
                 started.elapsed(),
+                cwd,
+                environment,
             ));
         });
     }
@@ -370,6 +373,14 @@ impl Session {
         let ui = self.ui.as_mut().context("no active workbench")?;
         ui.error = None;
         match key {
+            "Tab" if value["modifiers"].as_u64().unwrap_or(0) & 1 != 0 => {
+                if let Some(form) = ui.form.as_mut()
+                    && form.back()
+                {
+                    ui.input = form.current_value().to_owned();
+                    ui.generation = self.revision;
+                }
+            }
             "Enter" => {
                 if let Some(form) = ui.form.as_mut() {
                     match form.submit(&ui.input) {
@@ -382,7 +393,7 @@ impl Session {
                         }
                         Ok(false) => {
                             ui.input.clear();
-                            ui.generation += 1;
+                            ui.generation = self.revision;
                         }
                         Err(error) => ui.error = Some(format!("{error:#}")),
                     }
@@ -398,7 +409,7 @@ impl Session {
                         }
                         ui.form = Some(form);
                         ui.input.clear();
-                        ui.generation += 1;
+                        ui.generation = self.revision;
                     } else {
                         return Ok(self.edit_command(candidate.insert_text, token));
                     }
@@ -1049,7 +1060,6 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     w.cancel = true;
                                     w.query = None;
                                 });
-                                session.values_requested = 0;
                                 session.ui = Some(Workbench {
                                     input: String::new(),
                                     high_surrogate: None,
@@ -1057,7 +1067,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     project: false,
                                     templates: Default::default(),
                                     error: None,
-                                    generation: 0,
+                                    generation: session.revision,
                                 });
                                 pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                                 continue;
@@ -1101,7 +1111,23 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         Some("ui_key") if ready && automatic => {
                             trace.event("direct_ui_key", value["revision"].as_u64(), None, None);
                             trace.flush();
-                            let frame = session.ui_key(&value, &settings, &token, &history)?;
+                            let frame = match session.ui_key(&value, &settings, &token, &history) {
+                                Ok(frame) => frame,
+                                Err(error) => {
+                                    if let Some(ui) = session.ui.as_mut() {
+                                        if let Some(form) = ui.form.as_mut()
+                                            && form.current().is_none()
+                                        {
+                                            form.back();
+                                        }
+                                        ui.error = Some(format!("{error:#}"));
+                                        ui.generation = session.revision;
+                                        session.refresh_hub(&settings, &token, &history)
+                                    } else {
+                                        session.clear_frame(&token)
+                                    }
+                                }
+                            };
                             pipe.write_json(&frame)?;
                             session.request_values(tx.clone(), environment.clone());
                         }
@@ -1229,13 +1255,26 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if session.ui.is_some() {
                         pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                     }
-                } else if let HostEvent::FormValues(generation, name, values, _) = event {
+                } else if let HostEvent::FormValues(
+                    generation,
+                    name,
+                    values,
+                    _,
+                    cwd,
+                    captured_environment,
+                ) = event
+                {
                     if let Some(ui) = session.ui.as_mut()
+                        && cwd == session.cwd
+                        && captured_environment == environment
                         && ui.generation == generation
                         && let Some(form) = ui.form.as_mut()
                         && form.current().is_some_and(|field| field.name == name)
                     {
-                        form.set_values(&name, values);
+                        match values {
+                            Ok(values) => form.set_values(&name, values),
+                            Err(error) => ui.error = Some(error),
+                        }
                         pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                     }
                 } else if matches!(event, HostEvent::CommandsChanged) && session.ui.is_some() {

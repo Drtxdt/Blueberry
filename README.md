@@ -136,6 +136,7 @@ blueberry hub
 `blueberry config edit` 打开中文设置页，可调整外观、补全、快捷键、资源和学习开关。方向键或 Tab 选择，Enter 修改，`/` 搜索，Ctrl+M 只看修改项，Ctrl+1／2／3 应用默认、精简或手动触发预设，Ctrl+D 查看差异，Ctrl+S 保存。修改外观时可以预览效果。
 
 `blueberry tools` 打开可搜索的工具管理页，可查看入口、规则、动态能力和帮助学习状态，并按工具调整帮助及动态候选。`blueberry setup` 使用分步页面选择图标、补全方式和自动启动。
+工具页中的普通字符只用于搜索；F2 学习帮助、F3 查询版本、F4 切换帮助、F5 切换动态候选、Ctrl+Delete 清除学习缓存。保存失败时显示错误并保留原开关状态。
 引导第一页可实际按下补全、用途搜索和工作台快捷键；页面只标记终端送达的组合键，未点亮时可在设置中改键。
 
 `blueberry hub` 汇总收藏、模板、当前 PowerShell 会话历史、准确的 PSReadLine 历史文件和项目操作。会话中按 Ctrl+Alt+P 后直接输入关键词，Enter 将命令填回但不会执行，Tab 或 F1 查看预览，Esc 保留原编辑行。独立运行时，确认后的命令复制到剪贴板。详细格式见 [命令工作台](docs/workbench.md)。
@@ -148,6 +149,10 @@ blueberry hub --remove "启动开发服务"
 ```
 
 设置页保留 TOML 注释和高级配置。需要编辑自定义颜色、规格目录或命令说明时，选择“打开 TOML”。独立配置使用 `blueberry --config .\my-config.toml config edit`。Nerd Font 图标需要终端已配置相应字体。
+
+工具页、设置页和 setup 共用配置写入锁及原子替换。设置页保存字段差异，合并其他会话对不同字段的修改；同一字段冲突时报告错误并保留待编辑内容。表单中可按 Shift+Tab 返回上一字段，修改前置参数后会重新请求相关候选。
+
+可用 `blueberry terminal-profile --install --shell pwsh.exe` 注册官方 Windows Terminal 的专用启动入口；`--status` 查看，`--remove` 移除。无参数仍打印配置。入口使用微软的 [JSON fragment 扩展](https://learn.microsoft.com/en-us/windows/terminal/json-fragment-extensions)，不修改 Terminal 的 `settings.json`、默认终端或 PowerShell profile。
 
 普通命令行编辑期间，右键粘贴和文字选择沿用 Windows Terminal 的设置。多行右键粘贴会作为一次 PSReadLine 编辑插入，管道首行、空行、中文和光标右侧内容都会保留；外部程序请求鼠标输入时，Blueberry 将鼠标操作转交给该程序。
 

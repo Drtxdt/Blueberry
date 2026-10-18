@@ -16,7 +16,7 @@ use std::{
     io::{self, IsTerminal, Write},
     path::Path,
 };
-use toml_edit::{DocumentMut, value};
+use toml_edit::value;
 
 const SETUP_VERSION: u32 = 2;
 #[derive(Default, Deserialize, Serialize)]
@@ -278,32 +278,10 @@ fn draw(step: usize, choice: &Choices, path: &Path, keys: &config::KeyBindings) 
     Ok(())
 }
 fn write_config(path: &Path, choice: &Choices) -> Result<()> {
-    let text = match fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => config::example().to_owned(),
-        Err(error) => return Err(error).with_context(|| format!("无法读取 {}", path.display())),
-    };
-    let mut doc = text
-        .parse::<DocumentMut>()
-        .context("配置 TOML 无法解析；请先运行 blueberry config check")?;
-    doc["ui"]["icon_style"] = value(if choice.nerd { "nerd" } else { "unicode" });
-    doc["completion"]["auto_trigger"] = value(choice.auto);
-    let temp = path.with_extension("toml.tmp");
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?
-    }
-    fs::write(&temp, doc.to_string())?;
-    if path.exists() {
-        let backup = path.with_extension("toml.bak");
-        let _ = fs::remove_file(&backup);
-        fs::rename(path, &backup)?;
-        if let Err(error) = fs::rename(&temp, path) {
-            let _ = fs::rename(&backup, path);
-            return Err(error.into());
-        }
-        let _ = fs::remove_file(backup);
-    } else {
-        fs::rename(temp, path)?;
-    }
+    crate::config_store::edit(path, |doc| {
+        doc["ui"]["icon_style"] = value(if choice.nerd { "nerd" } else { "unicode" });
+        doc["completion"]["auto_trigger"] = value(choice.auto);
+        Ok(())
+    })?;
     Ok(())
 }

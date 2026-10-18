@@ -318,6 +318,63 @@ impl TemplateForm {
     pub fn current(&self) -> Option<&TemplateParameter> {
         self.fields.get(self.index)
     }
+    pub fn current_value(&self) -> &str {
+        self.current()
+            .and_then(|field| self.values.get(&field.name))
+            .map(String::as_str)
+            .unwrap_or("")
+    }
+    pub fn back(&mut self) -> bool {
+        if self.index == 0 {
+            return false;
+        }
+        self.index -= 1;
+        for field in self.fields.iter().skip(self.index + 1) {
+            self.values.remove(&field.name);
+        }
+        true
+    }
+    /// Build provider input from the form, never the unrelated editor buffer.
+    pub fn provider_context(&self) -> crate::model::InputContext {
+        if !self.template.tokens.is_empty() {
+            let mut words = Vec::new();
+            for token in &self.template.tokens {
+                if let Some(name) = token.strip_prefix('{').and_then(|s| s.strip_suffix('}')) {
+                    if self.current().is_some_and(|field| field.name == name) {
+                        break;
+                    }
+                    let value = self.values.get(name).cloned().or_else(|| {
+                        self.fields
+                            .iter()
+                            .find(|field| field.name == name)
+                            .map(|field| field.default.clone())
+                    });
+                    if let Some(value) = value.filter(|value| !value.is_empty()) {
+                        words.push(value);
+                    }
+                } else {
+                    words.push(token.clone());
+                }
+            }
+            return crate::model::InputContext {
+                command: words.first().cloned().unwrap_or_default(),
+                arguments: words.into_iter().skip(1).collect(),
+                ..Default::default()
+            };
+        }
+        let command = &self.template.command;
+        let end = self
+            .current()
+            .and_then(|field| {
+                [format!("{{{}}}", field.name), format!("<{}>", field.name)]
+                    .iter()
+                    .filter_map(|marker| command.find(marker))
+                    .min()
+            })
+            .unwrap_or(command.len());
+        let line = format!("{} ", fill_placeholders(&command[..end], &self.values));
+        crate::engine::CommandIndex::default().input_context(&line, line.len())
+    }
     pub fn set_values(&mut self, name: &str, values: Vec<String>) {
         if let Some(field) = self.fields.iter_mut().find(|field| field.name == name) {
             field.values = values;
@@ -404,7 +461,9 @@ pub fn form_completion(
             ..Default::default()
         }],
         incomplete: false,
-        argument_hint: format!("参数 {position}/{count} · {name} · Enter 下一项 · Esc 取消"),
+        argument_hint: format!(
+            "参数 {position}/{count} · {name} · Enter 下一项 · Shift+Tab 上一项 · Esc 取消"
+        ),
     }
 }
 impl TemplateParameter {
@@ -418,10 +477,10 @@ impl TemplateParameter {
 }
 pub fn parameter_suggestions(
     field: &TemplateParameter,
-    line: &str,
+    context: &crate::model::InputContext,
     cwd: &Path,
     environment: &BTreeMap<String, String>,
-) -> Vec<String> {
+) -> Result<Vec<String>, String> {
     let cancelled = AtomicBool::new(false);
     if matches!(field.kind.as_str(), "file" | "directory") {
         let mut cache = crate::paths::PathCache::default();
@@ -447,34 +506,41 @@ pub fn parameter_suggestions(
                 break;
             }
         }
-        return values;
+        return Ok(values);
     }
-    if !matches!(
-        field.source.as_str(),
-        "cargo.packages" | "cargo.features" | "cargo.tests" | "docker.compose.service"
-    ) {
-        return field.values.clone();
+    if field.source.is_empty() {
+        return Ok(field.values.clone());
     }
-    let mut words = line.split_whitespace();
-    let Some(command) = words.next() else {
-        return Vec::new();
-    };
+    if context.command.is_empty() {
+        return Err("模板未提供命令上下文".into());
+    }
     let mut environment = environment.clone();
     environment.remove("BLUEBERRY_REMOTE_REQUESTED");
-    let mut query = crate::providers::ProjectQuery::new(0, command, words, "", cwd, environment);
+    let mut query = crate::providers::ProjectQuery::new(
+        0,
+        &context.command,
+        &context.arguments,
+        "",
+        cwd,
+        environment,
+    );
     query.provider = Some(field.source.clone());
-    crate::providers::collect(&query, &cancelled)
+    let result = crate::providers::collect(&query, &cancelled);
+    if !result.diagnostics.is_empty() {
+        return Err(result.diagnostics.join("；"));
+    }
+    Ok(result
         .candidates
         .into_iter()
         .map(|candidate| candidate.value)
         .take(100)
-        .collect()
+        .collect())
 }
 pub fn quote_powershell_token(value: &str) -> String {
     if !value.is_empty()
         && value
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "_./:@+,-\\".contains(c))
+            .all(|c| c.is_ascii_alphanumeric() || "_./:+-\\".contains(c))
     {
         value.into()
     } else {
@@ -1192,22 +1258,25 @@ fn fill_interactive(item: &SavedCommand) -> Result<Option<String>> {
         return Ok(Some(form.finish()?));
     }
     loop {
+        let mut error = String::new();
         if let Some(field) = form.current().cloned()
             && (matches!(field.kind.as_str(), "file" | "directory") || !field.source.is_empty())
         {
             let values = parameter_suggestions(
                 &field,
-                &item.command,
+                &form.provider_context(),
                 &std::env::current_dir()?,
                 &std::env::vars().collect(),
             );
-            form.set_values(&field.name, values);
+            match values {
+                Ok(values) => form.set_values(&field.name, values),
+                Err(message) => error = message,
+            };
         }
         let field = form.current().cloned().context("参数表单已经结束")?;
         let name = field.label_or_name().to_owned();
         let (position, count) = form.position();
-        let mut value = String::new();
-        let mut error = String::new();
+        let mut value = form.current_value().to_owned();
         loop {
             let (cols, rows) = crossterm::terminal::size().unwrap_or((100, 30));
             let mut out = io::stdout();
@@ -1247,12 +1316,13 @@ fn fill_interactive(item: &SavedCommand) -> Result<Option<String>> {
                 crate::terminal_ui::fit(&form.preview(), cols as usize)
             )?;
             execute!(out, MoveTo(0, rows.saturating_sub(1)))?;
-            write!(out, "输入参数 · Enter 下一项 · Esc 取消")?;
+            write!(out, "输入参数 · Enter 下一项 · Shift+Tab 上一项 · Esc 取消")?;
             write!(out, "\x1b[?2026l")?;
             out.flush()?;
             match event::read()? {
                 Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
                     KeyCode::Esc => return Ok(None),
+                    KeyCode::BackTab if form.back() => break,
                     KeyCode::Enter => match form.submit(&value) {
                         Ok(finished) if finished => return Ok(Some(form.finish()?)),
                         Ok(_) => break,
@@ -1654,6 +1724,118 @@ mod store_tests {
 #[cfg(test)]
 mod template_tests {
     use super::*;
+
+    #[test]
+    fn structured_context_supplies_packages_features_and_back_navigation() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        fs::write(
+            directory.path().join("Cargo.toml"),
+            "[package]\nname = 'fixture'\nversion = '0.1.0'\n[features]\nfast = []\n",
+        )?;
+        let mut form = TemplateForm::new(CommandTemplate {
+            tokens: [
+                "cargo",
+                "test",
+                "-p",
+                "{package}",
+                "--features",
+                "{feature}",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+            parameters: vec![
+                TemplateParameter {
+                    name: "package".into(),
+                    kind: "dynamic".into(),
+                    source: "cargo.packages".into(),
+                    required: true,
+                    ..Default::default()
+                },
+                TemplateParameter {
+                    name: "feature".into(),
+                    kind: "dynamic".into(),
+                    source: "cargo.features".into(),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        })?;
+        let suggestions = parameter_suggestions(
+            form.current().unwrap(),
+            &form.provider_context(),
+            directory.path(),
+            &BTreeMap::new(),
+        );
+        assert!(
+            suggestions
+                .as_ref()
+                .unwrap()
+                .contains(&"fixture".to_owned()),
+            "{suggestions:?}"
+        );
+        assert!(!form.submit("fixture")?);
+        assert_eq!(
+            form.provider_context().arguments,
+            ["test", "-p", "fixture", "--features"]
+        );
+        assert!(
+            parameter_suggestions(
+                form.current().unwrap(),
+                &form.provider_context(),
+                directory.path(),
+                &BTreeMap::new()
+            )
+            .unwrap()
+            .contains(&"fast".to_owned())
+        );
+        assert!(form.back());
+        assert_eq!(form.current_value(), "fixture");
+        assert!(!form.back());
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_context_decodes_quoted_values_and_compose_uses_its_template() -> Result<()> {
+        let mut form = TemplateForm::new(CommandTemplate {
+            command: "cargo test -p {package} --features {feature}".into(),
+            ..Default::default()
+        })?;
+        form.submit("package with spaces")?;
+        assert_eq!(
+            form.provider_context().arguments,
+            ["test", "-p", "package with spaces", "--features"]
+        );
+        let directory = tempfile::tempdir()?;
+        fs::write(
+            directory.path().join("compose.yaml"),
+            "services:\n  api:\n    image: fixture\n",
+        )?;
+        let form = TemplateForm::new(CommandTemplate {
+            tokens: ["docker", "compose", "logs", "{service}"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+            parameters: vec![TemplateParameter {
+                name: "service".into(),
+                kind: "dynamic".into(),
+                source: "docker.compose.service".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        })?;
+        assert!(
+            parameter_suggestions(
+                form.current().unwrap(),
+                &form.provider_context(),
+                directory.path(),
+                &BTreeMap::new()
+            )
+            .unwrap()
+            .contains(&"api".to_owned())
+        );
+        Ok(())
+    }
 
     #[test]
     fn structured_form_applies_defaults_optional_fields_and_enum_rules() -> Result<()> {

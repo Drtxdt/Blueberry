@@ -155,8 +155,17 @@ enum Command {
     },
     /// Print the current theme using sample candidates.
     Theme,
-    /// Print a Windows Terminal profile to add to settings.json.
-    TerminalProfile,
+    /// Print or manage the dedicated Windows Terminal JSON fragment.
+    TerminalProfile {
+        #[arg(long)]
+        shell: Option<PathBuf>,
+        #[arg(long, conflicts_with_all = ["status", "remove"])]
+        install: bool,
+        #[arg(long, conflicts_with = "remove")]
+        status: bool,
+        #[arg(long)]
+        remove: bool,
+    },
     /// Print runtime and configuration diagnostics.
     Doctor {
         #[arg(long)]
@@ -1176,16 +1185,22 @@ fn execute() -> Result<u32> {
             }
             Ok(0)
         }
-        Command::TerminalProfile => {
+        Command::TerminalProfile {
+            shell,
+            install,
+            status,
+            remove,
+        } => {
             let executable = std::env::current_exe()?;
-            let profile = serde_json::json!({
-                "name":"Blueberry PowerShell",
-                "commandline":format!("\"{}\" run",executable.display()),
-                "startingDirectory":"%USERPROFILE%",
-                "guid":"{cda29eb9-0b16-4c08-bc90-75d9275a8ae9}",
-                "hidden":false
-            });
-            println!("{}", serde_json::to_string_pretty(&profile)?);
+            let profile = blueberry::terminal_profile::profile(&executable, shell.as_deref())?;
+            let output = if install || status || remove {
+                let root =
+                    std::env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is unavailable")?;
+                blueberry::terminal_profile::manage(Path::new(&root), profile, install, remove)?
+            } else {
+                profile
+            };
+            println!("{}", serde_json::to_string_pretty(&output)?);
             Ok(0)
         }
         Command::Doctor { json } => run_doctor(cli.config.as_deref(), json),

@@ -3641,7 +3641,27 @@ fn node_project_root(query: &ProjectQuery) -> Option<PathBuf> {
         .and_then(|manifest| manifest.parent().map(lexical_normalize))
 }
 
-pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProviderCandidate> {
+/// Identity belongs to the project and action, never its display position or description.
+#[derive(Clone, Debug)]
+pub struct ProjectAction {
+    pub id: String,
+    pub candidate: ProviderCandidate,
+}
+impl ProjectAction {
+    fn new(manifest: &Path, candidate: ProviderCandidate) -> Self {
+        use sha2::{Digest, Sha256};
+        let root = manifest.parent().unwrap_or(manifest);
+        let root = root
+            .canonicalize()
+            .unwrap_or_else(|_| lexical_normalize(root));
+        let identity = serde_json::to_vec(&(&candidate.source, root, &candidate.value))
+            .expect("project action identity serializes");
+        let id = format!("project-action:{:x}", Sha256::digest(identity));
+        Self { id, candidate }
+    }
+}
+
+pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
     let query = query.trim().to_lowercase();
     let mut actions = Vec::new();
     let matches = |words: &[&str]| {
@@ -3664,38 +3684,56 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProviderCandidate> {
                 vec!["运行脚本"]
             };
             if matches(&words) {
-                actions.push(ProviderCandidate {
-                    value: format!("npm run {name}"),
-                    description: format!("package.json 脚本 · {}", words[0]),
-                    kind: CandidateKind::Command,
-                    source: "project.action.node".into(),
-                });
+                actions.push(ProjectAction::new(
+                    &path,
+                    ProviderCandidate {
+                        value: format!("npm run {}", crate::hub::quote_powershell_token(name)),
+                        description: format!("package.json 脚本 · {}", words[0]),
+                        kind: CandidateKind::Command,
+                        source: "project.action.node".into(),
+                    },
+                ));
             }
         }
     }
-    if find_upwards(cwd, "Cargo.toml").is_some() && matches(&["测试", "运行测试"]) {
-        actions.push(ProviderCandidate {
-            value: "cargo test".into(),
-            description: "当前 Rust 项目测试".into(),
-            kind: CandidateKind::Command,
-            source: "project.action.cargo".into(),
-        });
+    if let Some(path) = find_upwards(cwd, "Cargo.toml")
+        && matches(&["测试", "运行测试"])
+    {
+        actions.push(ProjectAction::new(
+            &path,
+            ProviderCandidate {
+                value: "cargo test".into(),
+                description: "当前 Rust 项目测试".into(),
+                kind: CandidateKind::Command,
+                source: "project.action.cargo".into(),
+            },
+        ));
     }
-    if find_upwards(cwd, "go.mod").is_some() && matches(&["测试", "运行测试"]) {
-        actions.push(ProviderCandidate {
-            value: "go test ./...".into(),
-            description: "当前 Go 模块测试".into(),
-            kind: CandidateKind::Command,
-            source: "project.action.go".into(),
-        });
+    if let Some(path) = find_upwards(cwd, "go.mod")
+        && matches(&["测试", "运行测试"])
+    {
+        actions.push(ProjectAction::new(
+            &path,
+            ProviderCandidate {
+                value: "go test ./...".into(),
+                description: "当前 Go 模块测试".into(),
+                kind: CandidateKind::Command,
+                source: "project.action.go".into(),
+            },
+        ));
     }
-    if find_upwards(cwd, "pyproject.toml").is_some() && matches(&["测试", "运行测试"]) {
-        actions.push(ProviderCandidate {
-            value: "uv run pytest".into(),
-            description: "当前 Python 项目测试".into(),
-            kind: CandidateKind::Command,
-            source: "project.action.python".into(),
-        });
+    if let Some(path) = find_upwards(cwd, "pyproject.toml")
+        && matches(&["测试", "运行测试"])
+    {
+        actions.push(ProjectAction::new(
+            &path,
+            ProviderCandidate {
+                value: "uv run pytest".into(),
+                description: "当前 Python 项目测试".into(),
+                kind: CandidateKind::Command,
+                source: "project.action.python".into(),
+            },
+        ));
     }
     if let Some(path) = [
         "compose.yaml",
@@ -3723,12 +3761,18 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProviderCandidate> {
             {
                 let service = line.trim().trim_end_matches(':');
                 if matches(&["日志", "服务日志", "查看日志"]) {
-                    actions.push(ProviderCandidate {
-                        value: format!("docker compose logs -f {service}"),
-                        description: "当前 Compose 服务日志".into(),
-                        kind: CandidateKind::Command,
-                        source: "project.action.compose".into(),
-                    });
+                    actions.push(ProjectAction::new(
+                        &path,
+                        ProviderCandidate {
+                            value: format!(
+                                "docker compose logs -f {}",
+                                crate::hub::quote_powershell_token(service)
+                            ),
+                            description: "当前 Compose 服务日志".into(),
+                            kind: CandidateKind::Command,
+                            source: "project.action.compose".into(),
+                        },
+                    ));
                 }
             }
         }

@@ -4,6 +4,7 @@ mod bounded_process;
 pub mod cache_writer;
 pub mod completion;
 pub mod config;
+pub mod config_store;
 #[cfg(windows)]
 pub mod conpty;
 #[cfg(windows)]
@@ -41,6 +42,7 @@ pub mod specs;
 pub mod status;
 #[cfg(windows)]
 pub mod system_commands;
+pub mod terminal_profile;
 pub mod terminal_ui;
 pub mod tool_registry;
 pub mod tools_ui;

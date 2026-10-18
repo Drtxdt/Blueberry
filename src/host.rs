@@ -271,7 +271,14 @@ enum HostEvent {
     Reload,
     CommandsChanged,
     HistoryLoaded(u64, Vec<String>, bool, std::time::Duration),
-    FormValues(u64, String, Vec<String>, std::time::Duration),
+    FormValues(
+        u64,
+        String,
+        Result<Vec<String>, String>,
+        std::time::Duration,
+        PathBuf,
+        Arc<BTreeMap<String, String>>,
+    ),
 }
 
 #[derive(Clone)]
@@ -696,12 +703,12 @@ impl Worker {
                                     break;
                                 }
                                 result.candidates.push(Candidate {
-                                    label: action.value.clone(),
-                                    insert_text: action.value,
-                                    description: action.description,
-                                    kind: action.kind,
-                                    id: action.source.clone(),
-                                    source: action.source,
+                                    label: action.candidate.value.clone(),
+                                    insert_text: action.candidate.value,
+                                    description: action.candidate.description,
+                                    kind: action.candidate.kind,
+                                    id: action.id,
+                                    source: action.candidate.source,
                                     match_reason: "当前项目".into(),
                                     append_space: true,
                                     ..Default::default()
@@ -1210,16 +1217,11 @@ impl State {
         let Some(field) = self.hub_form.as_ref().and_then(|form| form.current()) else {
             return;
         };
-        if !matches!(field.kind.as_str(), "file" | "directory")
-            && !matches!(
-                field.source.as_str(),
-                "cargo.packages" | "cargo.features" | "cargo.tests" | "docker.compose.service"
-            )
-        {
+        if !matches!(field.kind.as_str(), "file" | "directory") && field.source.is_empty() {
             return;
         }
         let field = field.clone();
-        let line = self.line.clone();
+        let context = self.hub_form.as_ref().unwrap().provider_context();
         let environment = self.shell_environment.clone();
         let cwd = self.cwd.clone();
         let request = self.form_values_request;
@@ -1227,12 +1229,14 @@ impl State {
         let tx = self.event_tx.clone();
         thread::spawn(move || {
             let started = Instant::now();
-            let values = crate::hub::parameter_suggestions(&field, &line, &cwd, &environment);
+            let values = crate::hub::parameter_suggestions(&field, &context, &cwd, &environment);
             let _ = tx.send(HostEvent::FormValues(
                 request,
                 name,
                 values,
                 started.elapsed(),
+                cwd,
+                environment,
             ));
         });
     }
@@ -2133,6 +2137,15 @@ impl State {
                         return Ok(());
                     }
                     match key.code {
+                        KeyCode::BackTab if self.hub_form.is_some() => {
+                            let form = self.hub_form.as_mut().unwrap();
+                            if form.back() {
+                                self.hub_query = Some(form.current_value().to_owned());
+                                self.request_form_values();
+                                self.refresh_hub();
+                            }
+                            return Ok(());
+                        }
                         KeyCode::Char(ch)
                             if !key
                                 .modifiers
@@ -2214,6 +2227,7 @@ impl State {
                                 let command = match form.finish() {
                                     Ok(command) => command,
                                     Err(error) => {
+                                        form.back();
                                         self.notification = Some(format!("{error:#}"));
                                         return Ok(());
                                     }
@@ -3494,12 +3508,23 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         ui_dirty = true;
                     }
                 }
-                HostEvent::FormValues(request, name, values, elapsed) => {
-                    trace.event("hub_values", None, Some(elapsed), Some(values.len()));
+                HostEvent::FormValues(request, name, values, elapsed, cwd, environment) => {
+                    trace.event(
+                        "hub_values",
+                        None,
+                        Some(elapsed),
+                        Some(values.as_ref().map_or(0, Vec::len)),
+                    );
                     if request == state.form_values_request
+                        && cwd == state.cwd
+                        && environment == state.shell_environment
                         && let Some(form) = state.hub_form.as_mut()
+                        && form.current().is_some_and(|field| field.name == name)
                     {
-                        form.set_values(&name, values);
+                        match values {
+                            Ok(values) => form.set_values(&name, values),
+                            Err(error) => state.notification = Some(error),
+                        }
                         state.refresh_hub();
                         ui_dirty = true;
                     }
