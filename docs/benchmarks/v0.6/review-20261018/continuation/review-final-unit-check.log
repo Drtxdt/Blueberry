@@ -1,0 +1,189 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.78s
+     Running unittests src\lib.rs (target\debug\deps\blueberry-6f543e5245f22b59.exe)
+
+running 160 tests
+test beta_metrics::stage_tests::fast_partial_static_candidate_cannot_hide_slow_complete_menu ... ok
+test beta_metrics::stage_tests::hot_setup_rejects_partial_or_failed_discovery ... ok
+test beta_metrics::stage_tests::unpublished_setup_requires_legacy_schema_and_same_editor_identity ... ok
+test bounded_process::tests::cancellation_prevents_spawn_and_interrupts_running_capture ... ok
+test bounded_process::tests::streams_remain_separate_and_share_one_output_budget ... ok
+test bounded_process::tests::timeout_terminates_descendants ... ok
+test cache_writer::tests::incomplete_snapshot_is_skipped ... ok
+test cache_writer::tests::latest_complete_snapshot_wins_without_sleeping ... ok
+test completion::tests::directory_parameters_filter_real_filesystem_results ... ok
+test completion::tests::manifest_values_flow_through_real_context_and_replacement_rules ... ok
+test completion::tests::middle_insert_keeps_suffix_without_duplication ... ok
+test completion::tests::refresh_keeps_visible_candidate_but_final_empty_and_new_revision_do_not ... ok
+test config::tests::colors_accept_default_and_hex_only ... ok
+test config::tests::defaults_are_valid_and_example_round_trips ... ok
+test config::tests::description_overrides_are_optional_validated_and_reloaded ... ok
+test config::tests::explicit_missing_path_is_actionable ... ok
+test config::tests::load_validates_bounds_and_colors ... ok
+test config::tests::unknown_fields_are_rejected_with_their_name ... ok
+test config_store::tests::changing_a_value_preserves_its_inline_comment ... ok
+test config_store::tests::concurrent_fields_preserve_comments_and_unknown_content ... ok
+test config_store::tests::interrupted_config_writer_child ... ok
+test config_store::tests::invalid_files_and_external_edits_are_not_overwritten ... ok
+test config_store::tests::killed_writer_preserves_config_and_releases_lock ... 
+running 1 test
+ok
+test config_store::tests::merge_initializes_from_editor_defaults_and_preserves_bom ... ok
+test config_store::tests::merge_keeps_independent_edits_and_rejects_conflicts ... ok
+test config_store::tests::newly_created_tables_merge_independent_fields ... ok
+test config_store::tests::sharing_failure_leaves_original_readable ... ok
+test conpty::tests::loads_verified_runtime_by_absolute_path ... ok
+test conpty::tests::verified_assets_cannot_be_replaced_while_in_use ... ok
+test editor::tests::manifest_version_is_literal_and_handles_old_version ... ok
+test host::direct::tests::accept_requires_visible_identity_revision_and_utf16_buffer ... ok
+test host::direct::tests::automatic_selection_follows_late_best_candidate ... ok
+test host::direct::tests::command_batches_reject_old_prompts_wrong_snapshots_gaps_and_completed_replays ... ok
+test host::direct::tests::layout_rejects_old_or_changed_buffers ... ok
+test host::direct::tests::path_selection_survives_incomplete_refresh_and_layout_but_not_final_removal ... ok
+test host::direct::tests::stale_queries_and_surrogate_middle_are_rejected ... ok
+test host::direct::tests::visible_frame_keeps_its_replacement_when_same_identity_is_refreshed ... ok
+test host::presented_tests::late_completion_preserves_displayed_candidate_and_replacement ... ok
+test host::snapshot_tests::asynchronous_discovery_only_preserves_explicit_selection ... ok
+test host::snapshot_tests::batches_keep_previous_commands_until_complete_and_do_not_truncate ... ok
+test host::snapshot_tests::default_host_and_explicit_compatibility_transport ... ok
+test hub::history_tests::tail_budget_discards_an_incomplete_multiline_record ... ok
+test hub::store_tests::concurrent_writers_keep_every_favorite ... ok
+test hub::store_tests::denied_replacement_preserves_original ... ok
+test hub::store_tests::edits_preserve_templates_comments_and_unknown_fields ... ok
+test hub::store_tests::external_edit_between_read_and_replace_aborts_without_overwrite ... ok
+test hub::store_tests::interrupted_writer_child ... ok
+test hub::store_tests::killed_process_after_sync_keeps_original_and_releases_lock ... 
+running 1 test
+ok
+test hub::store_tests::malformed_or_future_commands_are_never_replaced ... ok
+test hub::template_tests::builtin_workflows_render_optional_flags_and_rewind_context ... ok
+test hub::template_tests::failed_final_render_keeps_the_current_field_editable ... ok
+test hub::template_tests::guided_form_preserves_existing_text_and_suffix ... ok
+test hub::template_tests::legacy_command_form_keeps_placeholder_behavior ... ok
+test hub::template_tests::legacy_context_decodes_quoted_values_and_compose_uses_its_template ... ok
+test hub::template_tests::structured_context_supplies_packages_features_and_back_navigation ... ok
+test hub::template_tests::structured_form_applies_defaults_optional_fields_and_enum_rules ... ok
+test input::tests::mouse_modes_preserve_sgr_coordinates_and_release ... ok
+test input::tests::native_editor_escape_is_a_complete_key_record ... ok
+test input::tests::native_history_keys_and_delete_ack_bindings_keep_modifiers ... ok
+test input::tests::unicode_and_ctrl_c_are_forwarded ... ok
+test invocation::tests::session_functions_aliases_and_program_type_select_the_binder ... ok
+test invocation::tests::syntax_literals_and_expressions_have_distinct_semantics ... ok
+test knowledge::tests::clap_options_values_and_commands ... ok
+test knowledge::tests::prose_is_not_a_command ... ok
+test knowledge::tests::tooltip_survives_and_paths_do_not ... ok
+test menu::tests::chinese_description_truncates_by_terminal_cells_and_can_be_hidden ... ok
+test menu::tests::details_and_loading_fit_small_viewports ... ok
+test menu::tests::invalid_manual_color_does_not_become_terminal_control_data ... ok
+test menu::tests::labels_and_descriptions_cannot_inject_escapes ... ok
+test menu::tests::narrow_terminals_hide_descriptions_without_panicking ... ok
+test menu::tests::selected_page_follows_selection_and_matches_are_styled ... ok
+test menu::tests::unicode_rows_are_bounded_and_have_the_declared_width ... ok
+test metrics::statistics_tests::even_samples_use_average_median_and_nearest_rank_p95 ... ok
+test native_observer::tests::mismatched_digest_is_rejected_before_loading_any_code ... ok
+test native_observer::tests::native_interface_without_model_cannot_silently_use_legacy_observation ... ok
+test native_overlay::tests::handshake_timeout_and_eof_do_not_leave_a_reader ... ok
+test native_overlay::tests::owner_and_fenced_version_are_required ... ok
+test native_overlay::tests::production_terminal_round_trip_resize_and_owner_eof ... ignored, requires the frozen CI production-buffer DLL and digest
+test native_overlay::tests::real_pipe_confirmed_submission_requires_authoritative_close ... ok
+test native_overlay::tests::stale_and_retired_frames_cannot_be_resurrected ... ok
+test overlay::tests::erasing_overlay_restores_terminal_contents_cursor_and_colors ... ok
+test overlay::tests::resizing_through_a_wide_character_keeps_the_parser_writable ... ok
+test overlay::tests::unchanged_menu_writes_nothing_but_selection_and_position_redraw ... ok
+test packs::tests::approval_is_bound_to_exact_repository_contents ... ok
+test packs::tests::scripts_and_shell_operators_are_rejected ... ok
+test paths::tests::braced_environment_names_and_paths_are_valid_power_shell_text ... ok
+test paths::tests::directories_environment_and_invalidation ... ok
+test paths::tests::environment_path_suffix_does_not_duplicate_existing_quote ... ok
+test paths::tests::environment_paths_keep_expression_and_quote_spaces_with_double_quotes ... ok
+test paths::tests::files_close_open_quotes_while_directories_stay_open ... ok
+test paths::tests::single_quoted_environment_path_is_literal_and_not_expanded ... ok
+test paths::tests::tilde_is_kept_for_power_shell_paths_but_expanded_for_native_commands ... ok
+test pipe::windows_pipe::tests::a_disconnected_client_is_reported_without_waiting ... ok
+test pipe::windows_pipe::tests::direct_child_exit_cancels_pending_connection ... ok
+test pipe::windows_pipe::tests::direct_connection_waits_for_slow_profile_without_polling ... ok
+test pipe::windows_pipe::tests::direct_disconnect_releases_pending_read ... ok
+test pipe::windows_pipe::tests::direct_pending_read_does_not_block_duplex_writes ... ok
+test pipe::windows_pipe::tests::native_ack_cancellation_releases_connect_and_read_waits ... ok
+test pipe::windows_pipe::tests::native_acknowledgements_are_separate_bytes_and_report_eof ... ok
+test pipe::windows_pipe::tests::oversized_frame_is_rejected_before_the_write ... ok
+test pipe::windows_pipe::tests::preserves_message_order_and_unicode ... ok
+test pipe::windows_pipe::tests::rejects_a_client_with_the_wrong_process_identity ... ok
+test probe::native_observation_tests::native_snapshot_cannot_outrun_its_observation_timestamp ... ignored, requires the frozen CI native DLL and digest
+test product_probe::tests::first_echo_can_wrap_but_must_immediately_follow_the_actual_prompt ... ok
+test product_probe::tests::metadata_rejects_echo_fragments_and_incomplete_output ... ok
+test protocol::tests::ascii_escaped_unicode_paste_survives_the_pipe_fallback_frame_size ... ok
+test protocol::tests::cursor_queries_are_handled_at_every_split_without_swallowing_styling ... ok
+test protocol::tests::offset_units_are_not_interchangeable ... ok
+test protocol::tests::osc_survives_every_chunk_boundary_and_semicolon_in_json ... ok
+test protocol::tests::unrelated_osc_is_unchanged ... ok
+test providers::spawn_budget_tests::queued_creation_does_not_expire_a_command_before_it_runs ... ok
+test pty::tests::extracted_adapter_embeds_compiled_legacy_json ... ok
+test pty::tests::initial_public_key_snapshot_contains_every_adapter_chord ... ok
+test pty::tests::legacy_module_filter_keeps_sql_and_custom_powershell_directories ... ok
+test ranking::tests::acknowledged_selections_flush_on_exit_and_clear_is_durable ... ok
+test ranking::tests::an_existing_session_observes_an_external_clear_at_the_next_prompt ... ok
+test ranking::tests::clearing_reports_an_unwritable_statistics_location ... ok
+test ranking::tests::external_clear_does_not_resurrect_an_unflushed_selection ... ok
+test ranking::tests::match_quality_dominates_frequency_and_typos_are_explicit_candidates ... ok
+test ranking::tests::persisted_statistics_contain_only_hashes_counts_and_times ... ok
+test reload::tests::missing_config_parent_is_followed_by_real_notify_events ... ok
+test reload::tests::missing_nested_specs_directory_is_followed_by_real_notify_events ... ok
+test selection::tests::deterministic_reordered_refreshes_follow_the_same_policy ... ok
+test selection::tests::manual_selection_survives_partial_loss_but_final_loss_resets_it ... ok
+test selection::tests::navigation_and_refresh_preserve_identity_until_context_changes ... ok
+test sources::tests::edit_revisions_keep_the_same_watch_registrations ... ok
+test sources::tests::latest_request_gets_complete_directory_snapshot_and_cancel_stops_followups ... ok
+test sources::tests::recursive_provider_watch_invalidates_nested_files_and_prunes_old_roots ... ok
+test status::tests::a_newer_status_supersedes_a_blocked_snapshot ... ok
+test status::tests::status_is_published_after_a_temporary_windows_handle_releases ... ok
+test system_commands::tests::cancelled_metadata_reaps_hanging_helper_and_descendant ... ok
+test system_commands::tests::helper_start_failure_is_reported_by_background_worker ... ok
+test system_commands::tests::incomplete_or_corrupt_output_is_not_a_snapshot ... ok
+test system_commands::tests::metadata_analysis_does_not_execute_or_import_script_module ... ok
+test system_commands::tests::persistent_cache_child ... ok
+test system_commands::tests::persistent_hit_avoids_metadata_helper_in_isolated_cache ... ok
+test system_commands_cache::tests::atomic_cache_rejects_corruption_and_stale_refresh ... ok
+test system_commands_cache::tests::concurrent_refresh_waits_for_atomic_snapshot ... ok
+test system_commands_cache::tests::inventory_changes_when_module_members_change ... ok
+test terminal_profile::tests::lifecycle_preserves_other_terminal_files ... ok
+test tools_ui::tasks::tests::dropping_worker_cancels_active_task ... ok
+test tools_ui::tasks::tests::duplicates_coalesce_and_cancelled_completion_cannot_publish ... ok
+test trace::tests::disabled_trace_has_no_file_and_enabled_events_are_numeric ... ok
+test vt_input::tests::legacy_modified_and_unicode_keys_are_preserved ... ok
+test vt_input::tests::malformed_legacy_mouse_coordinates_return_an_error_without_panicking ... ok
+test vt_input::tests::native_console_records_keep_zero_unicode_and_key_state ... ok
+test vt_input::tests::split_prefixes_and_paste_are_not_prematurely_returned ... ok
+test vt_input::tests::unknown_control_sequences_keep_parameters_until_the_final_byte ... ok
+test vt_input::tests::win32_optional_fields_and_invalid_records ... ok
+test windows_input::tests::decoded_multiline_batch_coalesces_but_trailing_enter_executes ... ok
+test windows_input::tests::direct_records_decode_sequences_and_adjacent_escape ... ok
+test windows_input::tests::malformed_and_oversized_sequences_recover_before_next_key ... ok
+test windows_input::tests::native_key_semantics_preserve_shortcuts_and_altgr ... ok
+test windows_input::tests::native_probe_keystrokes_preserve_text_escape_and_protocol_chords ... ok
+test windows_input::tests::paste_handles_native_ascii_crlf_and_alt_code_emoji_records ... ok
+test windows_input::tests::unmarked_clipboard_transaction_survives_reader_batches ... ok
+test windows_input::tests::unmarked_multiline_injection_is_coalesced_without_timing ... ok
+test windows_input::tests::unmarked_win32_envelope_batch_decodes_before_coalescing ... ok
+test windows_input::tests::win32_envelopes_decode_nested_vt_and_surrogates ... ok
+test windows_input::tests::win32_mode_after_direct_input_keeps_paste_and_enter_separate ... ok
+
+test result: ok. 158 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 18.14s
+
+     Running tests\cli.rs (target\debug\deps\cli-cfa31871b332dea0.exe)
+
+running 4 tests
+test complete_explain_json_reports_context_catalog_and_candidate_sources ... ok
+test json_completion_preserves_fields_and_uses_custom_chinese_descriptions ... ok
+test specs_check_and_list_json_expose_validation_and_sources ... ok
+test specs_check_returns_failure_and_diagnostic_for_invalid_schema ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.95s
+
+     Running tests\invocation.rs (target\debug\deps\invocation-4d498a60fde858dc.exe)
+
+running 1 test
+test real_native_argv_roundtrips_legacy_and_standard_modes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+

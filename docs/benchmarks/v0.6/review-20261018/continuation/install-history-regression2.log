@@ -1,0 +1,118 @@
+已安装 Blueberry 0.5.3 到 E:\OpenSource\shellsense-rs\target\install-history-c5f5054d5c52451bb656806d0f71711a\history-0（unsigned）
+BLUEBERRY_MAINTENANCE_METRIC {"files":30,"elapsed_ms":113.7335,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":2317.2415,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3058.8114,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":2998.1573,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":2896.7104,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":351.996,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/d195a06801784dcaacefe150f68632dd
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3024.2002,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":2989.6182,"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":2678.1099,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":481.0177,"succeeded":true,"bytes":null,"phase":"commit"}
+已回滚到 Blueberry 0.5.3（unsigned）；回滚前的完整受管文件和元数据保存在 previous/44391feef9b942859855a5e84a620f7e
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":90,"elapsed_ms":425.7123,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":2939.0301,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3066.5017,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3293.5596,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3481.1184,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":544.3024,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/ade8a0ccbd004564a17b8939efbb4fff
+已安装 Blueberry 0.5.3 到 E:\OpenSource\shellsense-rs\target\install-history-c5f5054d5c52451bb656806d0f71711a\history-1（unsigned）
+BLUEBERRY_MAINTENANCE_METRIC {"files":30,"elapsed_ms":80.0323,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3068.5596,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3254.9884,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3225.0158,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3090.3418,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":311.4728,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/3113c6ac549a4a9d9c25fed2b0022279
+BLUEBERRY_MAINTENANCE_METRIC {"files":60,"elapsed_ms":212.7159,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3391.7213,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3246.9815,"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3148.5046,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3227.5768,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":419.8911,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/3d1e122d2bea473f9bcdb3d0ab95106c
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":2985.6801,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3259.419,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3067.6593,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":710.6465,"succeeded":true,"bytes":null,"phase":"commit"}
+已回滚到 Blueberry 0.5.3（unsigned）；回滚前的完整受管文件和元数据保存在 previous/4ad9652696df46678468e72ba4d6f73f
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":120,"elapsed_ms":468.0554,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3210.4731,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3129.755,"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3274.1289,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3357.5468,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":772.2432,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/bfda5c6e35a6430bbde1bfd747e2ea5e
+已安装 Blueberry 0.5.3 到 E:\OpenSource\shellsense-rs\target\install-history-c5f5054d5c52451bb656806d0f71711a\history-5（unsigned）
+BLUEBERRY_MAINTENANCE_METRIC {"files":30,"elapsed_ms":112.1881,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3248.2238,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3257.7361,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3188.134,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3242.9503,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":267.4338,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/c8804a6235e34dc49d2ff985f2161a2d
+BLUEBERRY_MAINTENANCE_METRIC {"files":60,"elapsed_ms":195.8072,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3147.8558,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3288.9944,"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3327.3962,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3216.6315,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":452.2391,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/ed6356a89c58464a8c097c44e4277557
+BLUEBERRY_MAINTENANCE_METRIC {"files":90,"elapsed_ms":401.7711,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3366.399,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3528.6136,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3481.4047,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3321.4447,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":525.2663,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/ba6c057dc64943cc80b35f31098acfc0
+BLUEBERRY_MAINTENANCE_METRIC {"files":120,"elapsed_ms":391.8128,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3349.4366,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3516.9549,"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3162.3706,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":2983.5326,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":779.9148,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/02ad74b37854483b9df7dfc22669620d
+BLUEBERRY_MAINTENANCE_METRIC {"files":150,"elapsed_ms":635.427,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3018.1951,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3171.7726,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3122.2486,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3162.8643,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":876.498,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/4ae15dc290c14251be87009c10b7bce8
+BLUEBERRY_MAINTENANCE_METRIC {"files":180,"elapsed_ms":656.3201,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3220.7505,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3278.8175,"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3419.1321,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3194.5037,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":981.6756,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/1e5ad793758b4ca99d291330f38364ef
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3239.3655,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3142.6141,"succeeded":true,"bytes":18120872,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3448.0008,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":1133.6307,"succeeded":true,"bytes":null,"phase":"commit"}
+已回滚到 Blueberry 0.5.3（unsigned）；回滚前的完整受管文件和元数据保存在 previous/e9d713c968374933a1b2516bef030cd8
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":240,"elapsed_ms":928.6394,"succeeded":true,"bytes":null,"phase":"validation"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3218.1919,"succeeded":true,"bytes":null,"phase":"backup"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":2951.0895,"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":29,"elapsed_ms":3101.4403,"succeeded":true,"bytes":null,"phase":"snapshot_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":28,"elapsed_ms":3165.1546,"succeeded":true,"bytes":null,"phase":"payload_copy"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":1,"elapsed_ms":1823.3369,"succeeded":true,"bytes":null,"phase":"commit"}
+BLUEBERRY_MAINTENANCE_METRIC {"files":0,"elapsed_ms":0.0,"succeeded":true,"bytes":0,"phase":"journal"}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/4d3599e8a24746e3b2a5d6009ad04a7d
+Installation history matrix passed; retained evidence: E:\OpenSource\shellsense-rs\target\install-history-c5f5054d5c52451bb656806d0f71711a
