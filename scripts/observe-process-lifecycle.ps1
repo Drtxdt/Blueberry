@@ -42,6 +42,35 @@ function Drain-LifecycleEvents {
         }
     }
 }
+function Resolve-LifecycleEvents($Events, [int]$RootProcessId) {
+    $live=@{}
+    $rows=[Collections.Generic.List[object]]::new()
+    $rootObserved=$false
+    foreach ($event in @($Events | Sort-Object time,@{Expression={if ($_.kind -eq 'start') {0} else {1}}})) {
+        if ($event.kind -eq 'start') {
+            $isRoot=($event.pid -eq $RootProcessId -and -not $rootObserved)
+            if ($isRoot -or $live.ContainsKey($event.parent_pid)) {
+                $node=[ordered]@{
+                    pid=$event.pid; parent_pid=$event.parent_pid; name=$event.name
+                    parent_started_utc=if ($live.ContainsKey($event.parent_pid)) {$live[$event.parent_pid].started_utc} else {$null}
+                    started_utc=[DateTime]::FromFileTimeUtc($event.time).ToString('o')
+                    stopped_utc=$null
+                }
+                $rows.Add($node)
+                $live[$event.pid]=$node
+                if ($isRoot) { $rootObserved=$true }
+            }
+        } elseif ($live.ContainsKey($event.pid)) {
+            $live[$event.pid].stopped_utc=[DateTime]::FromFileTimeUtc($event.time).ToString('o')
+            $live.Remove($event.pid)
+        }
+    }
+    return @{
+        processes=@($rows.ToArray())
+        reconciled=($rootObserved -and $live.Count -eq 0 -and
+            @($rows | Where-Object { -not $_.stopped_utc }).Count -eq 0)
+    }
+}
 try {
     # Subscription must succeed before launching the owned workload. On an
     # access-denied host the receipt records failure and no program is started.
@@ -82,29 +111,9 @@ try {
     foreach ($source in $subscriptions) { Unregister-Event -SourceIdentifier $source }
     if ($null -ne $stdoutTask) { [IO.File]::WriteAllText((Join-Path $output 'stdout.log'),$stdoutTask.GetAwaiter().GetResult()) }
     if ($null -ne $stderrTask) { [IO.File]::WriteAllText((Join-Path $output 'stderr.log'),$stderrTask.GetAwaiter().GetResult()) }
-    $live=@{}
-    $rows=[Collections.Generic.List[object]]::new()
-    $rootObserved=$false
-    foreach ($event in @($events | Sort-Object time,@{Expression={if ($_.kind -eq 'start') {0} else {1}}})) {
-        if ($event.kind -eq 'start') {
-            $isRoot=($event.pid -eq $receipt.root_pid -and -not $rootObserved)
-            if ($isRoot -or $live.ContainsKey($event.parent_pid)) {
-                $node=[ordered]@{
-                    pid=$event.pid; parent_pid=$event.parent_pid; name=$event.name
-                    started_utc=[DateTime]::FromFileTimeUtc($event.time).ToString('o')
-                    stopped_utc=$null
-                }
-                $rows.Add($node)
-                $live[$event.pid]=$node
-                if ($isRoot) { $rootObserved=$true }
-            }
-        } elseif ($live.ContainsKey($event.pid)) {
-            $live[$event.pid].stopped_utc=[DateTime]::FromFileTimeUtc($event.time).ToString('o')
-            $live.Remove($event.pid)
-        }
-    }
-    $receipt.processes=@($rows.ToArray())
-    $receipt.lifecycle_reconciled=($rootObserved -and $live.Count -eq 0 -and -not $receipt.error)
+    $resolved=Resolve-LifecycleEvents $events $receipt.root_pid
+    $receipt.processes=$resolved.processes
+    $receipt.lifecycle_reconciled=($resolved.reconciled -and -not $receipt.error)
     $receipt.completed_at_utc=[DateTime]::UtcNow.ToString('o')
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'lifecycle.json') -Encoding utf8
     if ($null -ne $process) { $process.Dispose() }

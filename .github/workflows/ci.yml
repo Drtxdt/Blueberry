@@ -109,6 +109,9 @@ jobs:
       - name: Resource sampler initialization regression
         if: runner.os == 'Windows'
         run: python -m unittest discover -s tests -p 'test_resource*.py'
+      - name: Process lifecycle observer boundaries
+        if: runner.os == 'Windows'
+        run: python -m unittest discover -s tests -p 'test_process_lifecycle.py'
       - name: Private Terminal acknowledgement channel / CLR and CoreCLR
         if: runner.os == 'Windows'
         shell: pwsh
