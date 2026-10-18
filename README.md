@@ -25,7 +25,16 @@ Blueberry 是一个使用 Rust 构建的终端 IDE 风格补全工具，可以�
 
 也可以从 [Releases](https://github.com/Drtxdt/Blueberry/releases) 下载 Windows x64 ZIP，解压后运行 `blueberry.exe`。指定版本、升级、回滚和卸载步骤见 [安装指南](docs/installation.md)。
 
-开发中的下一版将自动配套安装固定的便携 Windows Terminal，并增加 `blueberry-terminal` 启动入口，用于跨缩放完整恢复历史内容；现有 Terminal 设置及系统默认终端保留。组件与 Blueberry 同包下载、校验、升级和回滚。当前公开的 0.5.2 尚无此入口。
+开发中的下一版默认安装核心包，不下载 Terminal。推荐使用 `blueberry terminal-profile --install --shell pwsh.exe` 在官方 Windows Terminal 注册专用入口。修改版 Terminal 作为可选增强包，通过 `blueberry terminal install --package <增强包.zip>` 安装，再由 `blueberry-terminal` 启动；组件独立升级、回滚和卸载，核心升级保留组件设置。当前公开的 0.5.2 尚无这些管理入口。
+
+| 运行环境 | 菜单与编辑行为 |
+| --- | --- |
+| 官方 Windows Terminal、VS Code 等普通终端 | 输入行下方预留菜单区域，必要时滚动，只清理菜单自己的内容 |
+| 已连接增强接口的修改版 Terminal | 原位置覆层，由终端保存并恢复完整历史属性 |
+| 增强组件已安装但当前连接不可用 | 使用普通终端模式，`doctor --json` 报告实际连接和降级原因 |
+| 未匹配的 PSReadLine | 手动打开补全、用途搜索和工作台，保留原生编辑、历史和用户键位 |
+
+组件安装和编译支持不代表当前会话已连接增强接口。最终包的实际能力与人工验收状态见[候选验收记录](docs/v0.5.3-validation.md)。
 
 ## 快速开始
 

@@ -1,0 +1,8 @@
+Source: 541cff92d1ea3ddc3e52d50a8f484aedd6aade8e
+CI: https://github.com/Drtxdt/Blueberry/actions/runs/39124662325/job/117667151212
+Excerpt of actual Windows core job output; full log remains attached to this job.
+2026-10-18T11:50:12.4181796Z test system_commands_cache::tests::atomic_cache_rejects_corruption_and_stale_refresh ... ok
+2026-10-18T11:50:12.4297527Z test system_commands_cache::tests::concurrent_refresh_waits_for_atomic_snapshot ... ok
+2026-10-18T11:50:12.4907932Z test system_commands_cache::tests::inventory_changes_when_module_members_change ... ok
+2026-10-18T11:50:12.6054728Z test system_commands_cache::tests::inventory_tracks_runtime_and_module_removal ... ok
+2026-10-18T11:50:12.6939342Z test result: ok. 161 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 16.83s
