@@ -13,6 +13,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @unittest.skipUnless(SHELL, 'PowerShell 7 is required')
 class MatrixTests(unittest.TestCase):
+    def test_formal_fixture_rejects_project_ancestor_before_launch(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'Cargo.toml').write_text('[workspace]\n', encoding='utf-8')
+            output = root / 'nested' / 'results'
+            command = [SHELL, '-NoProfile', '-File', str(ROOT / 'scripts/run-editor-matrix.ps1'),
+                       '-Executable', SHELL, '-Probe', SHELL, '-Original200', SHELL,
+                       '-Original245', SHELL, '-OutputDirectory', str(output),
+                       '-Shell7', SHELL, '-Formal', '-Samples', '300', '-StartupPairs', '30',
+                       '-ExpectedExecutableSha256', 'A'*64, '-ExpectedProbeSha256', 'A'*64]
+            result = subprocess.run(command, capture_output=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('neutral directory outside project ancestors', result.stderr.decode('utf-8', errors='replace'))
+            self.assertFalse(output.exists())
+
     def run_matrix(self, continue_on_failure=True, corrupt='', native_json=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

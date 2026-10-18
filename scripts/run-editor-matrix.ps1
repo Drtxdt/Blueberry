@@ -23,6 +23,19 @@ $probeHash=(Get-FileHash -LiteralPath $Probe -Algorithm SHA256).Hash
 if ($Formal -and ($Samples -lt 300 -or $StartupPairs -lt 30 -or -not $ExpectedExecutableSha256 -or -not $ExpectedProbeSha256)) {
     throw 'Formal qualification requires 300 samples, 30 startup pairs, and both frozen SHA-256 values.'
 }
+if ($Formal) {
+    # The raw-evidence directory also owns the hot fixtures. A neutral cwd
+    # alone cannot prevent project discovery from walking their ancestors.
+    $ancestor=[IO.DirectoryInfo]::new([IO.Path]::GetFullPath($OutputDirectory))
+    while ($null -ne $ancestor) {
+        foreach ($marker in @('.git','Cargo.toml','package.json','pyproject.toml')) {
+            if (Test-Path -LiteralPath (Join-Path $ancestor.FullName $marker)) {
+                throw "Formal fixtures require a neutral directory outside project ancestors: $($ancestor.FullName) ($marker)"
+            }
+        }
+        $ancestor=$ancestor.Parent
+    }
+}
 if ($ExpectedExecutableSha256 -and $exeHash -ine $ExpectedExecutableSha256) { throw 'EXE identity mismatch' }
 if ($ExpectedProbeSha256 -and $probeHash -ine $ExpectedProbeSha256) { throw 'Probe identity mismatch' }
 $nativeOutputEncoding=[Console]::OutputEncoding
