@@ -508,6 +508,21 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
     // Do not concatenate Esc with Ctrl+A: VT input may decode that as an
     // Alt chord. Observe the actual cleared ReadLine buffer before continuing.
     harness.send(b"\x01\x7f")?;
+    // Establish an editor-side barrier. Older empty buffer events can remain
+    // queued after acceptance, so observing "" alone is not a fresh clear.
+    let marker = format!(
+        "# clear-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos()
+    );
+    harness.send_text(&marker)?;
+    let observed = request_buffer(harness, &marker)?;
+    ensure!(
+        observed["line"] == marker,
+        "clear barrier did not replace the previous line: {observed}"
+    );
+    harness.send(b"\x01\x7f")?;
     // Here the line has been cleared, so there is no continuation handler to
     // serialize with. Read it without the public trigger's empty-line menu.
     harness.send(&protocol_chord('s'))?;
@@ -515,10 +530,6 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
         if harness.event("buffer", PTY_TIMEOUT)?["line"] == "" {
             return wait_until(harness, "cleared menu", PTY_TIMEOUT, |screen| {
                 !screen.lines().any(|line| line.contains("› "))
-                    && screen
-                        .lines()
-                        .last()
-                        .is_some_and(|line| line.trim_end().ends_with('>'))
             });
         }
     }
@@ -870,7 +881,11 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     clear_line(&mut host.harness)?;
     host.harness.send_text("giXYZ")?;
     host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
-    let _ = request_buffer(&mut host.harness, "giXYZ")?;
+    let state = request_buffer(&mut host.harness, "giXYZ")?;
+    ensure!(
+        state["line"] == "giXYZ" && state["cursor"] == 2,
+        "right-hand fixture buffer/cursor differs: {state}"
+    );
     select_candidate(&mut host.harness, "git")?;
     let _ = accept_selected(&mut host.harness)?;
     wait_until(

@@ -1621,6 +1621,14 @@ impl State {
                 let Some(cursor) = protocol::utf16_to_byte(line, cursor16 as usize) else {
                     return Ok(());
                 };
+                // Unsolicited editor callbacks can publish multiple distinct
+                // buffers after one input batch. Never relabel an earlier
+                // completion's replacement range with the new buffer identity.
+                if !self.workbench.active && (self.line != line || self.cursor != cursor) {
+                    self.invalidate();
+                    self.presented_candidate = None;
+                }
+                let revision = self.revision;
                 self.line = line.into();
                 self.cursor = cursor;
                 self.overlay.set_menu_row(

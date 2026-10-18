@@ -570,8 +570,22 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // The column outside the 79-cell overlay can legitimately retain shell
     // text. Check the border itself and independently verify the native screen.
     let snapshot_path = host._data_dir.path().join("resize-24-80.json");
-    console_snapshot::capture(&host.harness, &snapshot_path)?;
-    let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
+    let resize_deadline = Instant::now() + Duration::from_secs(5);
+    let actual: serde_json::Value = loop {
+        console_snapshot::capture(&host.harness, &snapshot_path)?;
+        let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
+        if actual["width"] == 80
+            && actual["height"] == 24
+            && has_border_width(actual["screen"].as_str().unwrap_or_default(), 79)
+        {
+            break actual;
+        }
+        ensure!(
+            Instant::now() < resize_deadline,
+            "Native narrow menu did not finish repainting: {actual}"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    };
     ensure!(
         actual["width"] == 80
             && actual["height"] == 24
