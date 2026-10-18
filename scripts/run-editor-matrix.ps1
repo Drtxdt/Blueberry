@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory)][string]$Original200,
     [Parameter(Mandatory)][string]$Original245,
     [Parameter(Mandatory)][string]$OutputDirectory,
-    [string]$Shell7 = (Get-Command pwsh.exe -ErrorAction Stop).Source,
+    [string]$Shell7 = (Get-Command pwsh.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
     [string]$Shell51 = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe",
     [int]$Samples = 30,
     [int]$StartupPairs = 10,

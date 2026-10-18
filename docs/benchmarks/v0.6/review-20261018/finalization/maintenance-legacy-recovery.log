@@ -1,0 +1,32 @@
+已安装 Blueberry 0.5.3 到 E:\OpenSource\shellsense-rs\target\maintenance-tests-92872ec6eac146fcb7c96ea9d0479029\install（unsigned）
+{
+  "id": "e68a563a6404429fb6b694ab2803ee16",
+  "status": "cancellation_requested"
+}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"session_wait","files":0,"bytes":0,"succeeded":true,"elapsed_ms":5.662}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"journal","files":61,"bytes":16439,"succeeded":true,"elapsed_ms":15.062}
+上次维护已完整提交；已核验安装文件。
+{
+  "created_utc": "2026-10-18T10:30:26.8378139Z",
+  "expected_manifest_sha256": "3417A6F3DDC844066BB6DA566A7B2B1653BEDCCF9A397B22888AAB6F1F33C6DD",
+  "id": "fea776590a564a47a351b5caec46e0f9",
+  "install_root": "E:\\OpenSource\\shellsense-rs\\target\\maintenance-tests-92872ec6eac146fcb7c96ea9d0479029\\install",
+  "message": "资源已校验，等待相关会话自然退出",
+  "operation": "Rollback",
+  "package": null,
+  "package_sha256": null,
+  "schema": 1,
+  "status": "queued"
+}
+已排队：相关 Blueberry 会话自然退出后自动执行。使用 blueberry maintenance status 查看结果。
+维护日志：E:\OpenSource\shellsense-rs\target\maintenance-tests-92872ec6eac146fcb7c96ea9d0479029\.blueberry-maintenance-1b0dc081d4a6ebae\worker.log
+BLUEBERRY_MAINTENANCE:{"created_utc":"2026-10-18T10:31:29.0097477Z","expected_manifest_sha256":"804E82755559CD5801376296A5A2432DAF3B4A2C3FB9F4FC1F626B70EF28ABB5","id":"f952cb9846fb4aaf81624283a0e86aa3","install_root":"E:\u005cOpenSource\u005cshellsense-rs\u005ctarget\u005cmaintenance-tests-92872ec6eac146fcb7c96ea9d0479029\u005cinstall","message":"\u8d44\u6e90\u5df2\u6821\u9a8c\uff0c\u7b49\u5f85\u76f8\u5173\u4f1a\u8bdd\u81ea\u7136\u9000\u51fa","operation":"Upgrade","package":"E:\u005cOpenSource\u005cshellsense-rs\u005ctarget\u005cmaintenance-tests-92872ec6eac146fcb7c96ea9d0479029\u005c.blueberry-maintenance-1b0dc081d4a6ebae\u005cf952cb9846fb4aaf81624283a0e86aa3\u005cblueberry-v0.5.3-windows-x64.zip","package_sha256":"CF23D784013A79DC68356A638D2A58CB913A2E061249A78363C547691725BAFD","schema":1,"status":"queued","target_version":"0.5.3"}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"session_wait","files":0,"bytes":0,"succeeded":true,"elapsed_ms":4.6419}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"recovery","files":29,"bytes":null,"succeeded":true,"elapsed_ms":74.8868}
+已从持久事务备份恢复中断前的安装；可重新提交维护操作。
+BLUEBERRY_MAINTENANCE:{"created_utc":"2026-10-18T10:31:39.4232245Z","expected_manifest_sha256":"804E82755559CD5801376296A5A2432DAF3B4A2C3FB9F4FC1F626B70EF28ABB5","id":"f79b9345c8004d52bc481ea2086b3a5d","install_root":"E:\u005cOpenSource\u005cshellsense-rs\u005ctarget\u005cmaintenance-tests-92872ec6eac146fcb7c96ea9d0479029\u005cinstall","message":"\u8d44\u6e90\u5df2\u6821\u9a8c\uff0c\u7b49\u5f85\u76f8\u5173\u4f1a\u8bdd\u81ea\u7136\u9000\u51fa","operation":"Upgrade","package":"E:\u005cOpenSource\u005cshellsense-rs\u005ctarget\u005cmaintenance-tests-92872ec6eac146fcb7c96ea9d0479029\u005c.blueberry-maintenance-1b0dc081d4a6ebae\u005cf79b9345c8004d52bc481ea2086b3a5d\u005cblueberry-v0.5.3-windows-x64.zip","package_sha256":"CF23D784013A79DC68356A638D2A58CB913A2E061249A78363C547691725BAFD","schema":1,"status":"queued","target_version":"0.5.3"}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"session_wait","files":0,"bytes":0,"succeeded":true,"elapsed_ms":3.6605}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"recovery","files":29,"bytes":null,"succeeded":true,"elapsed_ms":58.6547}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"journal","files":2,"bytes":528,"succeeded":true,"elapsed_ms":8.6998}
+已从持久事务备份恢复中断前的安装；可重新提交维护操作。
+Maintenance lifecycle passed; retained evidence: E:\OpenSource\shellsense-rs\target\maintenance-tests-92872ec6eac146fcb7c96ea9d0479029

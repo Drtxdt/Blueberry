@@ -18,6 +18,18 @@ $state = [pscustomobject]@{
 $transaction = Measure-InstallPhase 'backup' { New-Transaction $root $state } -Files @(Get-ActiveManagedFiles -State $state).Count
 if ($transaction.records.Count -ne 1) { throw 'Historical snapshot was unnecessarily backed up' }
 $headerHash = Get-Sha256 $transaction.journal
+# A failed durable append must prevent the production copy operation and must
+# not mark the path touched in memory (otherwise a retry could skip the WAL).
+$walPath = Join-Path $directory 'transaction.wal'
+$lockedWal = [IO.File]::Open($walPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+$rejected = $false
+try {
+    try {
+        Copy-BytesAtomic -Bytes ([Text.Encoding]::UTF8.GetBytes('must not appear')) -Destination (Join-Path $root 'active.txt') -RelativePath 'active.txt' -Transaction $transaction
+    } catch { $rejected = $true }
+} finally { $lockedWal.Dispose() }
+if (-not $rejected -or $transaction.wal_sequence -ne 0 -or $transaction.touched.Contains('active.txt') -or
+    [IO.File]::ReadAllText((Join-Path $root 'active.txt')) -ne 'before') { throw 'Failed write-ahead append changed target or retry state' }
 Add-TransactionTouched $transaction 'active.txt'
 [IO.File]::WriteAllText((Join-Path $root 'active.txt'), 'after')
 for ($i=0; $i -lt 128; $i++) { Add-TransactionTouched $transaction "new/$i.txt" }

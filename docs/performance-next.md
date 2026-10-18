@@ -267,3 +267,5 @@ CSI s/u 观测器修复后的独立四方对照预检三组合全部完整有效
 2026-10-18 继续验证：工作台重复历史请求已修复，12 个工作流 10 轮通过；argv 覆盖 exe/cmd/bat。CI 原版编辑器改用官方固定摘要包。尚未冻结，正式性能/入口数据与最终包验收继续进行；不据缺失数据判定版本。
 
 自动 profile 入口现可用 `scripts/prepare-profile-entry.ps1 -Shell <PS7> -Executable <冻结EXE> -Destination <新目录>` 准备，再以 `product-probe --shell <新目录>/pwsh.exe --profile-entry --iterations 30 --output <新报告>` 采集。原生与候选共享隔离 PSHOME，实际自动执行生成的受管区块；夹具摘要固定后不可重建 EXE。PS5.1 不支持通过复制 EXE 重定向 PSHOME，不能伪装成相同隔离方式。两对本机 debug 预检通过，尚未正式采样。新增 first_visible_* 与 complete_* 候选时间，计时后存活进程快照不能当作完整启动进程生命周期。
+
+自动 profile 和正式矩阵脚本在 PATH 含多个 pwsh.exe 时选择第一个应用命令，避免把多个路径拼接为无效 Shell。隔离 profile 预检及 7 项矩阵脚本回归通过；不改变正式采样待完成状态。

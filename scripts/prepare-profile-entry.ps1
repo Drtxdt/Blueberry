@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory)][string]$Destination
 )
 $ErrorActionPreference='Stop'
-$Shell=(Resolve-Path -LiteralPath $Shell).Path
+$Shell=if (Test-Path -LiteralPath $Shell -PathType Leaf) { (Resolve-Path -LiteralPath $Shell).Path } else { (Get-Command $Shell -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
 $Executable=(Resolve-Path -LiteralPath $Executable).Path
 $version=& $Shell -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.Major'
 if ($LASTEXITCODE -ne 0 -or [int]$version -lt 7) { throw 'Isolated automatic profile fixture requires portable PowerShell 7; PS5.1 PSHOME cannot be redirected by copying its EXE.' }

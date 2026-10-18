@@ -2022,6 +2022,71 @@ fn direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute()
 }
 
 #[test]
+fn direct_malformed_cargo_form_keeps_completion_and_native_history_alive() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    std::fs::write(dir.path().join("Cargo.toml"), "[workspace\nbroken")?;
+    let snapshot = dir.path().join("error-buffer.json");
+    let mut h = start(dir.path())?;
+    h.send_text(&format!(
+        "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ $line=''; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); [IO.File]::WriteAllText('{}', (@{{line=$line;cursor=$cursor}} | ConvertTo-Json -Compress)) }}\r",
+        snapshot.display().to_string().replace('\'', "''")
+    ))?;
+    wait_editor_begin(&mut h, dir.path(), 2)?;
+    h.send_text("cargo test -p --release")?;
+    h.send(&b"\x1b[D".repeat(" --release".len()))?;
+    h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
+    h.wait_text("继续填写", TIMEOUT)?;
+    h.send(b"\r")?;
+    h.wait_text("填写参数：工作区包", TIMEOUT)?;
+    h.wait_text("Cargo.toml", TIMEOUT)?;
+    h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    while h.viewport_contents().contains("填写参数") {
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "form error could not be canceled: {}",
+            h.viewport_contents()
+        );
+        let _ = h.pump(Duration::from_millis(25));
+    }
+    for (expected, cursor) in [
+        ("cargo test -p --release", Some(13)),
+        ("Write-Output BB_DIRECT_FORM_RECOVERED", None),
+    ] {
+        h.send(b"\x1b[24~")?;
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        let value = loop {
+            if let Ok(bytes) = std::fs::read(&snapshot)
+                && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
+                && value["line"] == expected
+            {
+                break value;
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "native buffer unavailable after form error"
+            );
+            let _ = h.pump(Duration::from_millis(25));
+        };
+        if let Some(cursor) = cursor {
+            ensure!(
+                value["cursor"] == cursor,
+                "cancel changed original cursor: {value}"
+            );
+            h.send(b"\x01\x7f")?;
+            h.send_text("git ")?;
+            h.wait_text("archive", TIMEOUT)?;
+            h.send(b"\x01\x7f")?;
+            h.send_text("Write-Output BB_DIRECT_FORM_RECOVERED\r")?;
+            h.wait_line("BB_DIRECT_FORM_RECOVERED", TIMEOUT)?;
+            wait_editor_begin(&mut h, dir.path(), 3)?;
+            h.send(b"\x1b[A")?;
+        }
+    }
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_form_confirmation_precedes_immediately_following_typing() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let mut h = start(dir.path())?;

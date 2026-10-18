@@ -153,6 +153,64 @@ fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
 }
 
 #[test]
+fn malformed_cargo_form_keeps_completion_and_native_history_alive() -> Result<()> {
+    let mut host = start_host()?;
+    fs::write(host._cwd.path().join("Cargo.toml"), "[workspace\nbroken")?;
+    clear_line(&mut host.harness)?;
+    let original = "cargo test -p --release";
+    host.harness.send_text(original)?;
+    host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
+    read_real_buffer(
+        &mut host.harness,
+        "before malformed form",
+        original,
+        Some(13),
+    )?;
+    host.harness.send(b"\x1b[112;7u")?;
+    wait_for_presented_hub_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    host.harness.send(b"\r")?;
+    host.harness.wait_text("填写参数：工作区包", PTY_TIMEOUT)?;
+    host.harness.wait_text("Cargo.toml", PTY_TIMEOUT)?;
+    host.harness.send_text("\x1b")?;
+    read_real_buffer(
+        &mut host.harness,
+        "cancel malformed form",
+        original,
+        Some(13),
+    )?;
+    clear_line(&mut host.harness)?;
+    host.harness.send_text("git ")?;
+    host.harness.wait_text("archive", PTY_TIMEOUT)?;
+    clear_line(&mut host.harness)?;
+    send_command(
+        &mut host.harness,
+        "Write-Output BB_FORM_RECOVERED",
+        "BB_FORM_RECOVERED",
+    )?;
+    host.harness.send(b"\x1b[A")?;
+    // History browsing intentionally defers automatic buffer-query chords.
+    // Observe the current cursor row, not an earlier echoed command/output.
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let screen = host.harness.screen_snapshot();
+        let row = screen
+            .rows(0, screen.size().1)
+            .nth(screen.cursor_position().0 as usize)
+            .unwrap_or_default();
+        if row.contains("Write-Output BB_FORM_RECOVERED") {
+            break;
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "native history did not recall after form error"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    }
+    clear_line(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
 fn nested_builtin_workflows_fill_without_execution() -> Result<()> {
     let mut host = start_host()?;
     let mode_path = host._cwd.path().join("workflow-mode.txt");
@@ -1124,7 +1182,10 @@ fn terminal_history_search_exit_serializes_following_typing_and_delete() -> Resu
         let mut host = start_host()?;
         send_command(
             &mut host.harness,
-            "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output SEARCH_BURST_SEEDED",
+            // PSReadLine 2.0.0 Windows mode does not bind Ctrl+G to Abort.
+            // Exercise an explicitly configured abort key, plus the default
+            // Escape path below, without assuming the machine's edit mode.
+            "Set-PSReadLineKeyHandler -Chord Ctrl+g -Function Abort; [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output SEARCH_BURST_SEEDED",
             "SEARCH_BURST_SEEDED",
         )?;
         // Search entry and its first query also arrive in one burst.

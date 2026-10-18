@@ -111,3 +111,14 @@ PS5.1/2.0.0 完整矩阵进一步暴露真实产品问题：同一输入批次�
 首可见静态/动态候选与完整候选分别记录，旧字段继续表示完整候选。计时结束后记录父子进程树；这是当时存活进程的快照，不是覆盖瞬时启动进程的完整生命周期跟踪。PS7 自动 profile 与直接 EXE 各两对交替诊断均通过，原始 JSON 在 finalization；自动 profile 的首版退出夹具失败保留在 target/profile-entry-diagnostic.log。这些 debug 样本不用于正式性能或版本判断。37 项发布证据测试完成（36 通过、1 既有跳过），观察器 2 项单元和全目标 Clippy 通过。
 
 PS7/pipe 工作台历史修复后完整组通过：Beta 18、终端模式 3、工具页 2，原有辅助/特定环境用例按规则跳过。证据 finalization/ps7-history-finalization.log。增强 Terminal 入口、瞬时进程生命周期、正式三轮性能与最终包验收仍在推进。
+
+
+## 2026-10-18 维护故障边界与 CI 入口修正
+
+- 隔离维护全生命周期通过，预提交恢复分别验证 schema 1 兼容读取与 schema 2 WAL；保留原有 300 秒期限。日志：`benchmarks/v0.6/review-20261018/finalization/maintenance-legacy-recovery.log`。
+- 将 WAL 文件独占锁定后调用实际 Copy-BytesAtomic，写前记录失败时目标文件、touched 集合和序号均不变；PS5.1、PS7 两次通过，日志同目录 `journal-failure-boundary-ps51.log` / `journal-failure-boundary-ps7.log`。
+- 自动 profile 夹具现在解析 PATH 中的 Shell 名称，并明确选择第一个应用命令；本机存在两个 pwsh.exe 时已验证成功。CI 39119200177 的 PS7/pipe 因旧 Resolve-Path 不能处理裸 pwsh.exe 失败，不计作产品或性能通过。
+- 同次 CI 的 PS5.1/2.0.0 搜索退出用例发现 Ctrl+G 被当作字面控制字符。检查上游 2.0.0 KeyBindings.cs/History.cs：Windows 默认模式没有 Abort 绑定，只有 Emacs 默认模式提供 Ctrl+G。测试现在显式配置 Ctrl+G=Abort，同时保留默认 Esc 退出路径；产品不改用户键位。失败原始工件 12133831021（run 39119200177，ZIP SHA-256 4455c3d3fd2d679474d9260c97c09ec47f581cfad92f946740707bfda9d23135）保留在 artifacts/ci-d904-history。
+- 38e0a43 的 run 39118585941 功能矩阵全部通过，打包尚在进行；此记录不等于最终冻结或发布批准。
+
+三个受支持组合（PS5.1/2.0.0、PS5.1/2.4.5、PS7/2.4.5）新增 Direct/Nested 损坏 Cargo 表单恢复均通过：Esc 保留原行/光标，后续 git 补全和原生历史可用；显式 Abort 与默认 Esc 的突发输入测试均通过。原始日志 finalization/form-error-final-*.log、search-exit-final-*.log。全目标 Clippy、7 项性能矩阵脚本回归通过。启动器三类宿主环境测试是隔离环境模拟，不代替真实 GUI 启动验收。

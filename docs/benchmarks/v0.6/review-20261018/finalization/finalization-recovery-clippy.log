@@ -1,0 +1,80 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\blueberry-0agpt580npt8i\s-hnbora1l7s-120ig86-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\blueberry-2atmmkapf5b2s\s-hnbora1um1-0e7jy0h-working`
+
+warning: `blueberry` (lib) generated 1 warning
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\blueberry-2unfpf8494cfj\s-hnborbp6ee-0h4d42x-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\startup_host-1wgx6y5f1auqg\s-hnborbpdda-0mgmato-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\tools_terminal-2a4nqq6nzvggn\s-hnborbpnwr-0uinzdr-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\specs-03xo6gf7u6c86\s-hnborbpuox-1fss5d2-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\hub_terminal-1nwlv84dcoe7c\s-hnborbq136-0pdh3uq-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\release_metrics-1ckm7n14ac4qp\s-hnborbqabu-1mbdsyf-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\engine-3efs8119xujhu\s-hnborbqjl6-1mgvrsq-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\host-1fbkvfrp35ih1\s-hnborbqsq3-1n62c93-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\cli-0shtnvmafl1b4\s-hnborbr9zs-1prpxm0-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\blueberry-3mjyj4o42sild\s-hnborbrobk-1y6ieqo-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\native_terminal-3t5khgupicrnz\s-hnborbrr6m-06w9mif-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\comparison_probe-19iurmb9ky6v6\s-hnborbs2ck-02fod45-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\invocation-1n3hdoheamdz5\s-hnborbs9rp-1r7psoe-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\input_protocol-0bd0wf4v4ebyt\s-hnborbsl4z-10gwl4f-working`
+
+warning: `blueberry` (test "startup_host") generated 1 warning
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\terminal_modes-27zqqztekcayl\s-hnborbsuoi-0ftuxef-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\knowledge-25mfgfev3oumt\s-hnborbtd1x-0hhjv87-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\providers-0c2fgehh3h3yh\s-hnborbtpk5-0h3oite-working`
+
+warning: `blueberry` (test "cli") generated 1 warning
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\project_actions-2w3cfev1pcwg5\s-hnborbtwe3-1bphgaq-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\commands_store-29xexott2yx2f\s-hnborbtz48-17lwpby-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\packs_cli-2cmfn1xhm67px\s-hnborbu9ac-06omwhm-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\console_attributes_probe-3swz803xuwhaz\s-hnborbuexw-1k7f3y2-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\terminal_beta-1tgy52hikkgcv\s-hnborbutdr-03pdbr8-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\terminal_rectangles-1w8fi4gal8kby\s-hnborbuwy7-16rbtpb-working`
+
+warning: `blueberry` (test "tools_terminal") generated 1 warning
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\E:\OpenSource\shellsense-rs\target\debug\incremental\direct_terminal-3k6hlt989libz\s-hnborbv7x7-0nncmn9-working`
+
+warning: `blueberry` (test "specs") generated 1 warning
+warning: `blueberry` (lib test) generated 1 warning
+warning: `blueberry` (test "hub_terminal") generated 1 warning
+warning: `blueberry` (test "packs_cli") generated 1 warning
+warning: `blueberry` (test "native_terminal") generated 1 warning
+warning: `blueberry` (test "project_actions") generated 1 warning
+warning: `blueberry` (test "host") generated 1 warning
+warning: `blueberry` (test "release_metrics") generated 1 warning
+warning: `blueberry` (test "terminal_rectangles") generated 1 warning
+warning: `blueberry` (test "invocation") generated 1 warning
+warning: `blueberry` (test "commands_store") generated 1 warning
+warning: `blueberry` (test "knowledge") generated 1 warning
+warning: `blueberry` (test "engine") generated 1 warning
+warning: `blueberry` (example "console_attributes_probe") generated 1 warning
+warning: `blueberry` (test "input_protocol") generated 1 warning
+warning: `blueberry` (bin "blueberry" test) generated 1 warning
+warning: `blueberry` (test "terminal_modes") generated 1 warning
+warning: `blueberry` (test "providers") generated 1 warning
+warning: `blueberry` (example "comparison_probe") generated 1 warning
+warning: `blueberry` (bin "blueberry") generated 1 warning
+warning: `blueberry` (test "terminal_beta") generated 1 warning
+warning: `blueberry` (test "direct_terminal") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.70s

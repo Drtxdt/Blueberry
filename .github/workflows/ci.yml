@@ -117,9 +117,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ./tests/terminal-launcher.tests.ps1
-          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/terminal-launcher.tests.ps1
-          if ($LASTEXITCODE -ne 0) { throw '5.1 companion launcher tests failed' }
+          foreach ($origin in @('explorer','windows-terminal','vscode')) {
+            ./tests/terminal-launcher.tests.ps1 -InheritedHost $origin
+            & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/terminal-launcher.tests.ps1 -InheritedHost $origin
+            if ($LASTEXITCODE -ne 0) { throw "5.1 companion launcher tests failed: $origin" }
+          }
       - run: cargo run --locked -- --version
       - run: cargo run --locked -- specs check
       - name: Repeat concurrent favorites writers
@@ -221,6 +223,12 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/repeat-rust-test.ps1 -Target host -Test host_finds_real_cargo_and_merges_more_than_512_shell_commands -Count 100
+      - name: Repeat Windows PowerShell native history exit bursts
+        env:
+          BLUEBERRY_TEST_TRANSPORT: pipe
+        shell: pwsh
+        run: |
+          ./scripts/repeat-rust-test.ps1 -Target terminal_beta -Test terminal_history_search_exit_serializes_following_typing_and_delete -Count 10
       - name: Repeat pipe session command snapshot regression
         env:
           BLUEBERRY_TEST_TRANSPORT: pipe
