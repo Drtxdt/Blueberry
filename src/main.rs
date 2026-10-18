@@ -55,6 +55,9 @@ enum Command {
         host_mode: host::HostMode,
         #[arg(long)]
         host_executable: Option<PathBuf>,
+        /// Launch a prepared isolated PowerShell profile entry instead of the EXE.
+        #[arg(long)]
+        profile_entry: bool,
         /// Diagnostic only: writes numeric candidate traces, invalid for acceptance.
         #[arg(long)]
         diagnostic_trace_directory: Option<PathBuf>,
@@ -1063,10 +1066,11 @@ fn execute() -> Result<u32> {
             iterations,
             host_mode,
             host_executable,
+            profile_entry,
             diagnostic_trace_directory,
             output,
         } => {
-            let report = blueberry::product_probe::run_with_trace(
+            let report = blueberry::product_probe::run_with_entry(
                 &host_executable.unwrap_or(std::env::current_exe()?),
                 &shell,
                 iterations,
@@ -1075,6 +1079,7 @@ fn execute() -> Result<u32> {
                     host::HostMode::Nested => "nested",
                 },
                 diagnostic_trace_directory.as_deref(),
+                profile_entry,
             )?;
             let text = serde_json::to_string_pretty(&report)?;
             if let Some(path) = output {

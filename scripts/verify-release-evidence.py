@@ -157,6 +157,8 @@ def check_versions(versions, expected, count, label):
 
 def check_startup(path, executable_hash, profile, enforce_gate=True):
     report = read_json(path)
+    require(report.get("actual_entry", "direct_executable") == "direct_executable",
+            f"{profile}: automatic profile measurements cannot substitute for direct startup")
     shell_major, psreadline = check_identity(report, executable_hash, profile)
     require(report.get("schema") == 3 and report.get("measurement") == "complete_product", f"{profile}: startup must measure the complete product")
     require(report.get("host_mode") == "direct" and report.get("actual_host_modes") == ["direct"] * report.get("iterations", 0)

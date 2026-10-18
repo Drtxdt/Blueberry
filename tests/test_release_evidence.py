@@ -700,6 +700,14 @@ esac
         with self.assertRaisesRegex(ValueError, "expected 30 samples"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
+    def test_profile_entry_cannot_replace_direct_entry_samples(self):
+        path = self.root / self.evidence["startup_reports"]["ps7-2.4.5"]
+        report = json.loads(path.read_text(encoding="utf-8"))
+        report["actual_entry"] = "isolated_automatic_profile"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "cannot substitute for direct startup"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
     def test_startup_requires_alternation_and_enabled_menu(self):
         path = self.root / self.evidence["startup_reports"]["ps7-2.4.5"]
         report = json.loads(path.read_text(encoding="utf-8"))

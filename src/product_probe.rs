@@ -117,6 +117,8 @@ struct Sample {
     first_key: f64,
     first_static: Option<f64>,
     first_dynamic: Option<f64>,
+    first_visible_static: Option<f64>,
+    first_visible_dynamic: Option<f64>,
     status: Value,
 }
 
@@ -142,6 +144,7 @@ fn measure(
     candidate: bool,
     host_mode: &str,
     trace_path: Option<&Path>,
+    profile_entry: bool,
 ) -> Result<Sample> {
     let mut env = BTreeMap::from([
         ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
@@ -151,6 +154,13 @@ fn measure(
         ("TERM".into(), "xterm-256color".into()),
     ]);
     crate::probe::inherit_native_observer_environment(&mut env);
+    if profile_entry && candidate {
+        env.insert("BLUEBERRY_ACTIVE".into(), String::new());
+        env.insert(
+            "BLUEBERRY_PROFILE_PROBE_DATA".into(),
+            directory.join("data").to_string_lossy().into_owned(),
+        );
+    }
     env.insert(
         "APPDATA".into(),
         directory
@@ -194,9 +204,16 @@ fn measure(
     if candidate && let Some(path) = trace_path {
         args.extend(["--trace".into(), path.to_string_lossy().into_owned()]);
     }
+    if candidate && profile_entry {
+        args = vec!["-NoLogo".into()];
+    }
     let start = Instant::now();
     let mut harness = Harness::start(
-        if candidate { executable } else { shell },
+        if candidate && !profile_entry {
+            executable
+        } else {
+            shell
+        },
         &args,
         directory,
         &env,
@@ -213,13 +230,19 @@ fn measure(
     })?;
     let first_input = elapsed(&harness, start)?;
     let first_key = elapsed(&harness, key_start)?;
+    let mut first_visible_static = None;
+    let mut first_visible_dynamic = None;
     let (first_static, first_dynamic, mut status) = if candidate {
+        wait(&mut harness, "first visible static candidate", |screen| {
+            screen.lines().any(|line| line.contains("› "))
+        })?;
+        first_visible_static = Some(elapsed(&harness, key_start)?);
         wait(&mut harness, "first complete static menu", |screen| {
             beta_metrics::has_complete_status(screen)
                 && screen.lines().any(|line| line.contains("› "))
         })?;
         let first_static = elapsed(&harness, key_start)?;
-        let status = adapter(&directory.join("data"))?;
+        let mut status = adapter(&directory.join("data"))?;
         ensure!(
             status["transport"] == "pipe",
             "actual product transport degraded"
@@ -247,6 +270,12 @@ fn measure(
         })?;
         let dynamic_start = Instant::now();
         harness.send_text("cd bb-product-probe-dir")?;
+        wait(&mut harness, "first visible dynamic candidate", |screen| {
+            screen
+                .lines()
+                .any(|line| line.contains("bb-product-probe-dir") && line.contains("› "))
+        })?;
+        first_visible_dynamic = Some(elapsed(&harness, dynamic_start)?);
         wait(&mut harness, "first complete dynamic menu", |screen| {
             beta_metrics::has_complete_status(screen)
                 && screen
@@ -254,6 +283,11 @@ fn measure(
                     .any(|line| line.contains("bb-product-probe-dir") && line.contains("› "))
         })?;
         let first_dynamic = elapsed(&harness, dynamic_start)?;
+        status["process_tree_after_timing"] = json!(
+            harness
+                .process_id()
+                .and_then(crate::process_metrics::snapshot_tree)
+        );
         harness.finish(TIMEOUT)?;
         (Some(first_static), Some(first_dynamic), status)
     } else {
@@ -293,6 +327,11 @@ fn measure(
             "invalid plain DLL identity"
         );
         status["editor"] = json!({"module_path":fields[0],"dll_path":fields[1],"assembly":fields[2],"dll_sha256":fields[3]});
+        status["process_tree_after_timing"] = json!(
+            harness
+                .process_id()
+                .and_then(crate::process_metrics::snapshot_tree)
+        );
         harness.finish(TIMEOUT)?;
         (None, None, status)
     };
@@ -302,6 +341,8 @@ fn measure(
         first_key,
         first_static,
         first_dynamic,
+        first_visible_static,
+        first_visible_dynamic,
         status,
     })
 }
@@ -316,10 +357,53 @@ pub fn run_with_trace(
     host_mode: &str,
     trace_directory: Option<&Path>,
 ) -> Result<Value> {
+    run_with_entry(
+        executable,
+        shell,
+        iterations,
+        host_mode,
+        trace_directory,
+        false,
+    )
+}
+
+pub fn run_with_entry(
+    executable: &Path,
+    shell: &Path,
+    iterations: u16,
+    host_mode: &str,
+    trace_directory: Option<&Path>,
+    profile_entry: bool,
+) -> Result<Value> {
     ensure!(
         iterations > 0 && matches!(host_mode, "direct" | "nested"),
         "invalid product probe options"
     );
+    let entry_fixture = if profile_entry {
+        ensure!(
+            host_mode == "direct" && trace_directory.is_none(),
+            "profile entry requires Direct and cannot add diagnostic trace arguments"
+        );
+        let home = shell.parent().context("profile entry shell directory")?;
+        let fixture: Value =
+            serde_json::from_slice(&std::fs::read(home.join("blueberry-profile-probe.json"))?)?;
+        ensure!(
+            fixture["executable_sha256"] == metrics::executable_sha256(executable)?,
+            "profile entry executable changed"
+        );
+        ensure!(
+            fixture["shell_sha256"] == metrics::executable_sha256(shell)?,
+            "profile entry shell changed"
+        );
+        ensure!(
+            fixture["profile_sha256"]
+                == metrics::executable_sha256(&home.join("Microsoft.PowerShell_profile.ps1"))?,
+            "profile entry profile changed"
+        );
+        Some(fixture)
+    } else {
+        None
+    };
     let frozen = environment(shell)?;
     // Probe setup is outside both members of every pair and reported separately.
     // Nested product setup remains inside the measured child process lifetime.
@@ -350,6 +434,8 @@ pub fn run_with_trace(
     let mut keys = Vec::new();
     let mut static_menus = Vec::new();
     let mut dynamic_menus = Vec::new();
+    let mut visible_static_menus = Vec::new();
+    let mut visible_dynamic_menus = Vec::new();
     let mut shells = Vec::new();
     let mut psreadline = Vec::new();
     let mut transports = Vec::new();
@@ -358,6 +444,7 @@ pub fn run_with_trace(
     let mut editors = Vec::new();
     let mut plain_editors = Vec::new();
     let mut observers = Vec::new();
+    let mut process_trees = Vec::new();
     let mut orders = Vec::new();
     for index in 0..iterations {
         let directory = root.join(format!("pair-{index}"));
@@ -380,6 +467,7 @@ pub fn run_with_trace(
                 mode,
                 host_mode,
                 trace_path.as_deref(),
+                profile_entry,
             )
             .with_context(|| {
                 format!("pair {index}, {}", if mode { "candidate" } else { "plain" })
@@ -397,6 +485,7 @@ pub fn run_with_trace(
             "paired observer identities differ"
         );
         observers.push(product.status["native_observer"].clone());
+        process_trees.push(json!({"plain":baseline.status["process_tree_after_timing"], "candidate":product.status["process_tree_after_timing"]}));
         if let Some(first) = plain_editors.first() {
             ensure!(
                 first == &baseline.status["editor"],
@@ -426,6 +515,8 @@ pub fn run_with_trace(
         keys.push(product.first_key);
         static_menus.push(product.first_static.unwrap());
         dynamic_menus.push(product.first_dynamic.unwrap());
+        visible_static_menus.push(product.first_visible_static.unwrap());
+        visible_dynamic_menus.push(product.first_visible_dynamic.unwrap());
         shells.push(product.status["shell_version"].clone());
         psreadline.push(product.status["psreadline_version"].clone());
         transports.push(product.status["transport"].clone());
@@ -463,6 +554,23 @@ pub fn run_with_trace(
         .unwrap()
         .extend(frozen.as_object().unwrap().clone());
     report["plain_editors"] = json!(plain_editors);
+    report["actual_entry"] = json!(if profile_entry {
+        "isolated_automatic_profile"
+    } else {
+        "direct_executable"
+    });
+    report["entry_fixture"] = json!(entry_fixture);
+    if profile_entry {
+        report["profile_autostart"] = json!(
+            "candidate executes the generated managed block during automatic profile loading; plain suppresses it with BLUEBERRY_ACTIVE=1"
+        );
+    }
+    // Retain historical fields (which required a complete menu) for existing
+    // evidence readers; expose unambiguous first/complete observations too.
+    report["first_visible_static_candidate"] = stats(&visible_static_menus);
+    report["first_visible_dynamic_candidate"] = stats(&visible_dynamic_menus);
+    report["complete_static_candidates"] = stats(&static_menus);
+    report["complete_dynamic_candidates"] = stats(&dynamic_menus);
     report["diagnostic_only"] = json!(cfg!(debug_assertions) || trace_directory.is_some());
     report["probe_build_profile"] = json!(env!("BLUEBERRY_BUILD_PROFILE"));
     report["probe_source_commit"] = json!(env!("BLUEBERRY_BUILD_COMMIT"));
@@ -470,6 +578,10 @@ pub fn run_with_trace(
     report["probe_executable_sha256"] =
         json!(metrics::executable_sha256(&std::env::current_exe()?)?);
     report["native_observers"] = json!(observers);
+    report["process_trees_after_timing"] = json!(process_trees);
+    report["process_tree_observation"] = json!(
+        "untimed snapshot after candidate measurements; transient startup processes are not captured"
+    );
     report["screen_pixels"] = json!("not_measured");
     Ok(report)
 }

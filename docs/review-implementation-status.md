@@ -103,3 +103,11 @@ PS5.1/2.0.0 完整矩阵进一步暴露真实产品问题：同一输入批次�
 - 5c3652c 本地 PS7/pipe 完整回归中工作台历史停留“正在加载”：history_pending 同时充当请求排队和后台合并状态，回复清除 native_request 后可能连续重发并使合并结果过期。现独立 history_queued，仅每次打开工作台发送一次。12 个工作流连续 10 轮全部通过；完整矩阵继续验证。证据 finalization/workflow-history-repeat.log。
 - 真实 argv 扩展至 exe/cmd/bat × PS5.1/PS7 Legacy/Standard/Windows，含空值、尾反斜杠、双引号、分号和中文，全部通过。证据 finalization/batch-invocation-regression.log。
 - CI 39117885633 的 PS5.1/2.4.5 在 Save-Module 的 PSGallery 注册/源参数失败，尚未开始产品测试。所有矩阵改用固定 SHA-256 的官方原版包，保留原版与私有编辑器分离。损坏缓存不覆盖、路径越界不落盘两项测试通过；全目标 Clippy 通过（本机沙箱硬链接缓存降级复制警告不影响结果）。
+
+## 真实自动 profile 入口观察器
+
+`product-probe --profile-entry` 仅接受 `scripts/prepare-profile-entry.ps1` 创建的隔离 PowerShell 7 副本，启动不带 `-Command` / `-File`，由 PowerShell 自动加载 AllUsersCurrentHost profile 并执行生成的受管区块；实际产品递归保护保持有效。夹具只增加隔离 data-dir 参数及外层进程退出收尾。报告绑定 Shell、EXE、profile 摘要，原生基线在同一副本内抑制自启动。现有直接启动验收器拒绝以 profile 数据替代 Direct 数据。
+
+首可见静态/动态候选与完整候选分别记录，旧字段继续表示完整候选。计时结束后记录父子进程树；这是当时存活进程的快照，不是覆盖瞬时启动进程的完整生命周期跟踪。PS7 自动 profile 与直接 EXE 各两对交替诊断均通过，原始 JSON 在 finalization；自动 profile 的首版退出夹具失败保留在 target/profile-entry-diagnostic.log。这些 debug 样本不用于正式性能或版本判断。37 项发布证据测试完成（36 通过、1 既有跳过），观察器 2 项单元和全目标 Clippy 通过。
+
+PS7/pipe 工作台历史修复后完整组通过：Beta 18、终端模式 3、工具页 2，原有辅助/特定环境用例按规则跳过。证据 finalization/ps7-history-finalization.log。增强 Terminal 入口、瞬时进程生命周期、正式三轮性能与最终包验收仍在推进。
