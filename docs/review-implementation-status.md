@@ -99,3 +99,7 @@ PS5.1/2.0.0 完整矩阵进一步暴露真实产品问题：同一输入批次�
 
 
 - 连续缩放超时的观察器问题已复现：console snapshot 辅助程序使用阻塞 output()，期间 ConPTY 光标查询没有及时回应，迟到的 CPR 成为 ReadLine 输入。采集现在以子进程 try_wait 配合 Harness 持续 pump，保留 5 秒上限及真实 Console 尺寸/候选断言。PS5.1/2.4.5/OSC 固定二进制连续 10 次通过；CI e9fad3b 的 PS7 OSC/pipe 失败为同类 CPR 残片，待新 CI 长重复验证。
+
+- 5c3652c 本地 PS7/pipe 完整回归中工作台历史停留“正在加载”：history_pending 同时充当请求排队和后台合并状态，回复清除 native_request 后可能连续重发并使合并结果过期。现独立 history_queued，仅每次打开工作台发送一次。12 个工作流连续 10 轮全部通过；完整矩阵继续验证。证据 finalization/workflow-history-repeat.log。
+- 真实 argv 扩展至 exe/cmd/bat × PS5.1/PS7 Legacy/Standard/Windows，含空值、尾反斜杠、双引号、分号和中文，全部通过。证据 finalization/batch-invocation-regression.log。
+- CI 39117885633 的 PS5.1/2.4.5 在 Save-Module 的 PSGallery 注册/源参数失败，尚未开始产品测试。所有矩阵改用固定 SHA-256 的官方原版包，保留原版与私有编辑器分离。损坏缓存不覆盖、路径越界不落盘两项测试通过；全目标 Clippy 通过（本机沙箱硬链接缓存降级复制警告不影响结果）。

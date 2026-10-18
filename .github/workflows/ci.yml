@@ -170,10 +170,8 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
-          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
-            Register-PSRepository -Default -ErrorAction Stop
-          }
-          Save-Module PSReadLine -RequiredVersion '${{ matrix.psreadline }}' -Path $root -Repository PSGallery -Force
+          python scripts/prepare-original-editor.py --version '${{ matrix.psreadline }}' --root $root
+          if ($LASTEXITCODE -ne 0) { throw 'Original editor preparation failed' }
           $manifest = Join-Path $root 'PSReadLine/${{ matrix.psreadline }}/PSReadLine.psd1'
           "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
           & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -Command "Import-Module '$manifest' -Force; if ((Get-Module PSReadLine).Version.ToString() -ne '${{ matrix.psreadline }}') { exit 1 }; Get-Module PSReadLine | Select Name,Version,Path"
@@ -290,10 +288,8 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
-          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
-            Register-PSRepository -Default -ErrorAction Stop
-          }
-          Save-Module PSReadLine -RequiredVersion '2.4.5' -Path $root -Repository PSGallery -Force
+          python scripts/prepare-original-editor.py --version '2.4.5' --root $root
+          if ($LASTEXITCODE -ne 0) { throw 'Original editor preparation failed' }
           $manifest = Join-Path $root 'PSReadLine/2.4.5/PSReadLine.psd1'
           "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
           Import-Module $manifest -Force
@@ -382,7 +378,8 @@ jobs:
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'protocol-modules'
           foreach ($version in @('2.0.0', '2.4.5')) {
-            Save-Module PSReadLine -RequiredVersion $version -Path $root -Repository PSGallery -Force
+            python scripts/prepare-original-editor.py --version $version --root $root
+            if ($LASTEXITCODE -ne 0) { throw 'Original editor preparation failed' }
           }
           foreach ($combination in @(@('powershell.exe','2.0.0'), @('powershell.exe','2.4.5'), @('pwsh.exe','2.4.5'))) {
             $env:BLUEBERRY_TEST_SHELL = (Get-Command $combination[0]).Source
@@ -531,9 +528,9 @@ jobs:
             target/journal-tests-*/**/transaction.json
             target/journal-tests-*/**/transaction.wal
             target/install-history-*/results.json
-              target/public-upgrade.log
-              target/public-upgrade-*/receipt.json
-              target/public-upgrade-*/original-install.json
+            target/public-upgrade.log
+            target/public-upgrade-*/receipt.json
+            target/public-upgrade-*/original-install.json
             target/terminal-migration-*/components/terminal/component-state.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4

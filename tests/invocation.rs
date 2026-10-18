@@ -81,6 +81,15 @@ fn real_native_argv_roundtrips_legacy_and_standard_modes() -> Result<()> {
         "中文",
         "$env:HOME",
     ];
+    let mut programs = vec![python.clone()];
+    for extension in ["cmd", "bat"] {
+        let wrapper = dir.path().join(format!("argv.{extension}"));
+        std::fs::write(
+            &wrapper,
+            format!("@echo off\r\nsetlocal DisableDelayedExpansion\r\n\"{python}\" %*\r\n"),
+        )?;
+        programs.push(wrapper.to_string_lossy().into_owned());
+    }
     for (shell, setting, mode) in [
         ("powershell.exe", "", ArgumentMode::NativeLegacy),
         (
@@ -99,31 +108,38 @@ fn real_native_argv_roundtrips_legacy_and_standard_modes() -> Result<()> {
             ArgumentMode::NativeStandard,
         ),
     ] {
-        let output = dir.path().join("argv.json");
-        let mut words = vec![
-            Word::Syntax(format!("& {}", literal(&python, ArgumentMode::PowerShell))),
-            Word::Literal(probe.display().to_string()),
-            Word::Literal(output.display().to_string()),
-        ];
-        let context = blueberry::engine::CommandIndex::default().input_context("fixture ", 8);
-        words.extend(expected.iter().map(|value| {
-            Word::Expression(blueberry::engine::format_value_with_mode(
-                value, "fixture ", &context, 8, mode,
-            ))
-        }));
-        let command = format!("{setting} {}", Invocation { words }.render(mode));
-        let result = std::process::Command::new(shell)
-            .args(["-NoProfile", "-NonInteractive", "-Command", &command])
-            .output()
-            .with_context(|| format!("start {shell}"))?;
-        ensure!(
-            result.status.success(),
-            "{shell}: {}",
-            String::from_utf8_lossy(&result.stderr)
-        );
-        let actual: Vec<String> = serde_json::from_slice(&std::fs::read(&output)?)?;
-        assert_eq!(actual, expected, "{shell} {setting}");
-        std::fs::remove_file(output)?;
+        for program in &programs {
+            let mode = if program != &python && setting.contains("'Windows'") {
+                ArgumentMode::NativeLegacy
+            } else {
+                mode
+            };
+            let output = dir.path().join("argv.json");
+            let mut words = vec![
+                Word::Syntax(format!("& {}", literal(program, ArgumentMode::PowerShell))),
+                Word::Literal(probe.display().to_string()),
+                Word::Literal(output.display().to_string()),
+            ];
+            let context = blueberry::engine::CommandIndex::default().input_context("fixture ", 8);
+            words.extend(expected.iter().map(|value| {
+                Word::Expression(blueberry::engine::format_value_with_mode(
+                    value, "fixture ", &context, 8, mode,
+                ))
+            }));
+            let command = format!("{setting} {}", Invocation { words }.render(mode));
+            let result = std::process::Command::new(shell)
+                .args(["-NoProfile", "-NonInteractive", "-Command", &command])
+                .output()
+                .with_context(|| format!("start {shell}"))?;
+            ensure!(
+                result.status.success(),
+                "{shell}: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            let actual: Vec<String> = serde_json::from_slice(&std::fs::read(&output)?)?;
+            assert_eq!(actual, expected, "{shell} {setting} {program}");
+            std::fs::remove_file(output)?;
+        }
     }
     Ok(())
 }

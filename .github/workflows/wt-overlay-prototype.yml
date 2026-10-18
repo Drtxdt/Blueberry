@@ -185,7 +185,8 @@ jobs:
           python scripts/prepare-conpty.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           foreach ($version in @('2.0.0', '2.4.5')) {
-            Save-Module PSReadLine -RequiredVersion $version -Path (Join-Path $env:RUNNER_TEMP "native-modules/$version") -Repository PSGallery -Force
+            python scripts/prepare-original-editor.py --version $version --root (Join-Path $env:RUNNER_TEMP "native-modules/$version")
+            if ($LASTEXITCODE -ne 0) { throw "Original editor preparation failed" }
           }
       - name: Native client and observation ordering regressions
         shell: pwsh

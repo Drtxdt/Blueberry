@@ -1206,6 +1206,7 @@ struct State {
     hub_history_path: Option<PathBuf>,
     history_ready: bool,
     history_pending: bool,
+    history_queued: bool,
     history_request: u64,
     event_tx: SyncSender<HostEvent>,
     form_values_request: u64,
@@ -1916,7 +1917,7 @@ impl State {
         if self.interaction_mode == InteractionMode::History && self.workbench.query().is_none() {
             return Ok(());
         }
-        if self.history_pending
+        if self.history_queued
             && self.history_ready
             && self.ready
             && self.prompt
@@ -1924,6 +1925,7 @@ impl State {
             && self.pending_query.is_none()
             && !self.commands_inflight
         {
+            self.history_queued = false;
             self.native_request = Some(self.revision);
             self.write_payload("request",&json!({"id":self.revision.to_string(),"kind":"history","limit":self.config.workbench.history_limit}))?;
             writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
@@ -2781,6 +2783,7 @@ impl State {
                 self.workbench.open();
                 self.workbench.form = None;
                 self.history_pending = self.history_ready;
+                self.history_queued = self.history_ready;
                 self.details = false;
                 self.selected = 0;
                 self.refresh_hub();
@@ -3210,6 +3213,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         hub_history_path: None,
         history_ready: false,
         history_pending: false,
+        history_queued: false,
         history_request: 0,
         event_tx: tx.clone(),
         form_values_request: 0,
