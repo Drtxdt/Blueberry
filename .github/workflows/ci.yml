@@ -465,10 +465,29 @@ jobs:
           ./scripts/test-release.ps1 -BlueberryExecutable ./target/release/blueberry.exe
           $package = (Get-ChildItem ./dist/ci/*.zip).FullName
           ./scripts/test-install-51.ps1 -PackagePath $package
+          ./scripts/test-transaction-journal.ps1
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-transaction-journal.ps1
+          if ($LASTEXITCODE -ne 0) { throw '5.1 transaction journal tests failed' }
           ./scripts/test-maintenance.ps1 -Executable ./target/release/blueberry.exe -Package $package
           ./scripts/test-download.ps1 -PackagePath $package
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-download.ps1 -PackagePath $package
           if ($LASTEXITCODE -ne 0) { throw '5.1 download selection tests failed' }
+      - name: Preserve installation failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-installation-evidence
+          path: |
+            target/maintenance-tests-*/**/*.log
+            target/maintenance-tests-*/**/operation.json
+            target/maintenance-tests-*/**/transaction.json
+            target/maintenance-tests-*/**/transaction.wal
+            target/maintenance-tests-*/**/install.json
+            target/maintenance-tests-*/**/intended-install.json
+            target/journal-tests-*/**/transaction.json
+            target/journal-tests-*/**/transaction.wal
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           retention-days: 90

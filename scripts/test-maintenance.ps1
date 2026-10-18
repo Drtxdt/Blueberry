@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([Parameter(Mandatory)][string]$Executable, [Parameter(Mandatory)][string]$Package)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -184,8 +184,14 @@ try {
         param($Manager,$Root,$Journal)
         . $Manager -Action Upgrade -FunctionsOnly -InstallRoot $Root
         $data=Read-JsonHashtable $Journal
-        $data.outcome='prepared'; $data.committed_manifest_sha256=$null
-        Write-Utf8JsonAtomic -Path $Journal -Value $data
+        if ($data.schema -eq 2) {
+            $wal = Join-Path (Split-Path $Journal) 'transaction.wal'
+            $lines = [IO.File]::ReadAllLines($wal)
+            [IO.File]::WriteAllText($wal, (($lines[0..($lines.Count-2)] -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
+        } else {
+            $data.outcome='prepared'; $data.committed_manifest_sha256=$null
+            Write-Utf8JsonAtomic -Path $Journal -Value $data
+        }
     } $manager $root $journal
     $state.status='running'
     [IO.File]::WriteAllText($statePath,($state|ConvertTo-Json -Depth 20),[Text.UTF8Encoding]::new($false))
