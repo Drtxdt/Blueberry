@@ -7,6 +7,14 @@ use std::{
 };
 use toml_edit::{DocumentMut, Item};
 
+/// Preserve a field's inline comment and spacing when a UI changes its value.
+pub fn set_value(target: &mut Item, mut replacement: Item) {
+    if let (Some(old), Some(new)) = (target.as_value(), replacement.as_value_mut()) {
+        *new.decor_mut() = old.decor().clone();
+    }
+    *target = replacement;
+}
+
 fn read(path: &Path) -> Result<Option<Vec<u8>>> {
     match fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
@@ -143,8 +151,13 @@ fn merge_table(
         } else {
             format!("{prefix}.{key}")
         };
+        let empty = toml_edit::Table::new();
+        let previous_table = match before {
+            None => Some(&empty as &dyn toml_edit::TableLike),
+            Some(item) => item.as_table_like(),
+        };
         if let (Some(before), Some(after), Some(current)) = (
-            before.and_then(Item::as_table_like),
+            previous_table,
             after.and_then(Item::as_table_like),
             disk.get_mut(&key).and_then(Item::as_table_like_mut),
         ) {
@@ -184,6 +197,40 @@ pub fn merge(path: &Path, baseline: &[u8], desired: &[u8], existed: bool) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn newly_created_tables_merge_independent_fields() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("config.toml");
+        let base = b"# shared baseline\n[ui]\nicons = true\n";
+        fs::write(&path, base)?;
+        let mut desired = document(base)?;
+        desired["tools"]["git"]["help"] = toml_edit::value(false);
+        edit(&path, |disk| {
+            disk["tools"]["git"]["dynamic"] = toml_edit::value(false);
+            Ok(())
+        })?;
+        let merged = merge(&path, base, desired.to_string().as_bytes(), true)?;
+        let doc = document(&merged)?;
+        assert_eq!(doc["tools"]["git"]["help"].as_bool(), Some(false));
+        assert_eq!(doc["tools"]["git"]["dynamic"].as_bool(), Some(false));
+        assert!(String::from_utf8(merged)?.contains("# shared baseline"));
+        Ok(())
+    }
+    #[test]
+    fn changing_a_value_preserves_its_inline_comment() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("config.toml");
+        fs::write(&path, "[tools.git]\nhelp = true # keep this explanation\n")?;
+        let bytes = edit(&path, |doc| {
+            set_value(&mut doc["tools"]["git"]["help"], toml_edit::value(false));
+            Ok(())
+        })?;
+        assert_eq!(
+            String::from_utf8(bytes)?,
+            "[tools.git]\nhelp = false # keep this explanation\n"
+        );
+        Ok(())
+    }
     #[test]
     fn interrupted_config_writer_child() -> Result<()> {
         if let Some(path) = std::env::var_os("BLUEBERRY_TEST_CONFIG_CHILD") {

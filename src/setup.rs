@@ -279,8 +279,11 @@ fn draw(step: usize, choice: &Choices, path: &Path, keys: &config::KeyBindings) 
 }
 fn write_config(path: &Path, choice: &Choices) -> Result<()> {
     crate::config_store::edit(path, |doc| {
-        doc["ui"]["icon_style"] = value(if choice.nerd { "nerd" } else { "unicode" });
-        doc["completion"]["auto_trigger"] = value(choice.auto);
+        crate::config_store::set_value(
+            &mut doc["ui"]["icon_style"],
+            value(if choice.nerd { "nerd" } else { "unicode" }),
+        );
+        crate::config_store::set_value(&mut doc["completion"]["auto_trigger"], value(choice.auto));
         Ok(())
     })?;
     Ok(())

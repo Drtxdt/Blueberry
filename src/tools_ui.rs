@@ -530,7 +530,7 @@ fn set_override(
         .map(Path::to_path_buf)
         .unwrap_or_else(config::default_path);
     let bytes = crate::config_store::edit(&path, |doc| {
-        doc["tools"][command][key] = value(enabled);
+        crate::config_store::set_value(&mut doc["tools"][command][key], value(enabled));
         let updated: config::Config = toml::from_str(&doc.to_string())?;
         updated.validate()?;
         Ok(())

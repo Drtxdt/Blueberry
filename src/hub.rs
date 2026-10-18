@@ -329,8 +329,11 @@ impl TemplateForm {
             return false;
         }
         self.index -= 1;
-        for field in self.fields.iter().skip(self.index + 1) {
+        for field in self.fields.iter_mut().skip(self.index + 1) {
             self.values.remove(&field.name);
+            if !field.source.is_empty() || matches!(field.kind.as_str(), "file" | "directory") {
+                field.values.clear();
+            }
         }
         true
     }
@@ -1789,9 +1792,12 @@ mod template_tests {
             .unwrap()
             .contains(&"fast".to_owned())
         );
+        form.set_values("feature", vec!["stale-feature".into()]);
         assert!(form.back());
         assert_eq!(form.current_value(), "fixture");
         assert!(!form.back());
+        assert!(!form.submit("fixture")?);
+        assert!(form.current().unwrap().values.is_empty());
         Ok(())
     }
 
