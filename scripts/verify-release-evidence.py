@@ -253,6 +253,7 @@ def check_nested(path, executable_hash, profile, variant):
 
 def check_resources(path, executable_hash, commit, profile, environment, manual):
     report = read_json(path)
+    require(report.get("mode_scope", "four_way") == "four_way", "Optimization-only resources cannot replace final four-way qualification")
     check_frozen_report(report, commit, environment, f"{profile} resources")
     require(report.get("schema") == 2 and report.get("formal") is True and report.get("measurement_complete") is True,
             f"{profile}: resource collection incomplete")

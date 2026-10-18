@@ -387,6 +387,14 @@ esac
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash
         )
 
+    def test_optimization_resource_side_cannot_replace_final_matrix(self):
+        path = self.root / next(iter(self.evidence['resource_reports'].values()))
+        report = json.loads(path.read_text(encoding='utf-8'))
+        report['mode_scope'] = 'candidate_only'
+        path.write_text(json.dumps(report), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'Optimization-only resources'):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
     def test_raw_artifact_logs_and_binary_records_preserve_bytes(self):
         records = {"raw/session.log": b"all observations, including slow samples\n",
                    "raw/diagnostic.zip": b"opaque original diagnostic bytes\x00\xff"}

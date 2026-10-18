@@ -269,3 +269,7 @@ CSI s/u 观测器修复后的独立四方对照预检三组合全部完整有效
 自动 profile 入口现可用 `scripts/prepare-profile-entry.ps1 -Shell <PS7> -Executable <冻结EXE> -Destination <新目录>` 准备，再以 `product-probe --shell <新目录>/pwsh.exe --profile-entry --iterations 30 --output <新报告>` 采集。原生与候选共享隔离 PSHOME，实际自动执行生成的受管区块；夹具摘要固定后不可重建 EXE。PS5.1 不支持通过复制 EXE 重定向 PSHOME，不能伪装成相同隔离方式。两对本机 debug 预检通过，尚未正式采样。新增 first_visible_* 与 complete_* 候选时间，计时后存活进程快照不能当作完整启动进程生命周期。
 
 自动 profile 和正式矩阵脚本在 PATH 含多个 pwsh.exe 时选择第一个应用命令，避免把多个路径拼接为无效 Shell。隔离 profile 预检及 7 项矩阵脚本回归通过；不改变正式采样待完成状态。
+
+优化轮次的资源 A/B 可用 `run-resource-matrix.py --candidate-only` 只采集计划中当前产品一侧，仍要求至少五个独立 30 秒正式会话；替换为公开 0.5.2 时保留其实际构建与私有编辑器身份。该报告标为 `mode_scope=candidate_only`，发布验证器明确拒绝以它代替最终四方资源矩阵。优化前后分别运行并在第二批交换顺序，最终四方矩阵继续使用默认参数。
+
+瞬时子进程诊断使用 `scripts/observe-process-lifecycle.ps1 -Executable <探针> -Arguments <参数数组> -OutputDirectory <新目录>`，订阅成功后才启动工作负载，记录进程开始/退出与父 PID。WMI 事件订阅需要本机允许的权限；2026-10-18 非提权 PS7 CIM 订阅取消，PS5.1 WMI 明确返回 Access denied，尚无成功本机事件记录。脚本输出明确为独立诊断，子探针的计时不得用于门槛；事件丢失计数不可用时不能声称无损跟踪。缺失退出事件或权限失败保留不完整回执，不退化成轮询快照冒充完整生命周期。

@@ -3,6 +3,8 @@
 Run one plan for each supported Shell/editor combination under the owned
 benchmark coordinator. Raw snapshots, failed sessions and identities survive
 errors. Formal sessions always observe at least 30 seconds, five times/mode.
+--candidate-only isolates an optimization A/B side or an additional public
+reference; its report cannot replace the final four-way resource matrix.
 """
 import argparse
 import hashlib
@@ -75,6 +77,7 @@ def run(options):
         machine_id=environment['COMPUTERNAME'], power_policy=hashlib.sha256(power).hexdigest().upper(),
         terminal_rows=30, terminal_columns=120, trace='disabled', os_cache_cleared=False,
         sessions_per_mode=options.sessions, requested_seconds=30, measurement_complete=False,
+        mode_scope='candidate_only' if options.candidate_only else 'four_way',
         performance_passed=None, observed_stages=dict(memory='process_tree_snapshots', cpu='one_core_process_tree'),
         orders=[], sessions=[], dependencies=frozen)
     receipt = out / 'resources.json'
@@ -82,6 +85,8 @@ def run(options):
     try:
         for repeat in range(options.sessions):
             order = COMPARISON.rotate(repeat)
+            if options.candidate_only:
+                order = [mode for mode in order if mode == 'candidate']
             manifest['orders'].append(order)
             for mode in order:
                 spec = plan['modes'][mode]
@@ -153,4 +158,6 @@ if __name__ == '__main__':
     parser.add_argument('--sampler', type=Path, default=Path(__file__).with_name('measure-process-tree.ps1'))
     parser.add_argument('--sessions', type=int, default=5)
     parser.add_argument('--formal', action='store_true')
+    parser.add_argument('--candidate-only', action='store_true',
+                        help='Optimization/reference side only; does not satisfy final four-way qualification')
     run(parser.parse_args())
