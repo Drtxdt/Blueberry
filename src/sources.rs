@@ -25,6 +25,7 @@ pub struct SourceRequest {
     pub context: InputContext,
     pub cwd: PathBuf,
     pub environment: Arc<BTreeMap<String, String>>,
+    pub argument_mode: crate::invocation::ArgumentMode,
     pub paths: bool,
     pub directories_only: bool,
     pub project: bool,
@@ -446,11 +447,12 @@ fn collect_lane(
             }
             update.candidates.push(Candidate {
                 label: value.clone(),
-                insert_text: engine::format_value(
+                insert_text: engine::format_value_with_mode(
                     &value,
                     &request.line,
                     &request.context,
                     request.cursor,
+                    request.argument_mode,
                 ),
                 description: candidate.description,
                 kind: candidate.kind,
@@ -533,6 +535,7 @@ mod tests {
             context: InputContext::default(),
             cwd: root.path().into(),
             environment: Arc::new(BTreeMap::new()),
+            argument_mode: crate::invocation::ArgumentMode::PowerShell,
             paths: true,
             directories_only: false,
             project: false,
@@ -604,6 +607,7 @@ mod tests {
             context: InputContext::default(),
             cwd: base.path().to_path_buf(),
             environment: Arc::new(BTreeMap::new()),
+            argument_mode: crate::invocation::ArgumentMode::PowerShell,
             paths: false,
             directories_only: false,
             project: false,
@@ -645,6 +649,7 @@ mod tests {
             context: InputContext::default(),
             cwd: project.clone(),
             environment: Arc::new(BTreeMap::new()),
+            argument_mode: crate::invocation::ArgumentMode::PowerShell,
             paths: false,
             directories_only: false,
             project: false,

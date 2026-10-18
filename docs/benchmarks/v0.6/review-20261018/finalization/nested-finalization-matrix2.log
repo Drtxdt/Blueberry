@@ -1,0 +1,41 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.79s
+     Running tests\terminal_beta.rs (target\debug\deps\terminal_beta-f353bf963113fca4.exe)
+
+running 18 tests
+test loading_notice_is_not_a_selectable_candidate ... ok
+test nested_builtin_workflows_fill_without_execution ... ok
+test terminal_beta_cancel_during_buffer_callback_is_delivered_to_editor ... ok
+test terminal_beta_learning_records_only_an_applied_edit ... ok
+test terminal_beta_multiline_continuation_keeps_safe_context_and_suppresses_unknown_text ... ok
+test terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range ... ok
+test terminal_beta_paste_and_history_mode_preserve_psreadline_editing ... ok
+test terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode ... ok
+test terminal_guided_form_cancel_preserves_original_line ... ok
+test terminal_guided_package_form_fills_without_execution_and_cancel_preserves_line ... ok
+test terminal_history_keeps_workbench_shortcut_available ... ok
+test terminal_history_native_keys_wait_for_actual_deletion ... ok
+test terminal_history_search_exit_serializes_following_typing_and_delete ... ok
+test terminal_history_search_stays_native_until_a_real_edit ... ok
+test terminal_purpose_search_inserts_command_tokens_and_restores_normal_completion ... ok
+test terminal_static_function_metadata_refreshes_values_without_execution ... ok
+test terminal_tab_accepts_displayed_candidate_after_unpainted_worker_reply ... ok
+test terminal_workbench_reloads_external_store_and_keeps_last_good_snapshot ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.99s
+
+     Running tests\terminal_modes.rs (target\debug\deps\terminal_modes-685e00711987d92a.exe)
+
+running 6 tests
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-WmjABt
+test alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f12 ... ok
+test conpty_mouse_input_record_helper ... ignored, launched by conpty_mouse_passthrough_for_external_program
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-rnLCl8
+test conpty_mouse_passthrough_for_external_program ... ok
+test conpty_native_mouse_passthrough_for_external_program ... ignored, requires Windows 11 / Server 2025 native ConPTY mouse support; CI runs explicitly
+test console_snapshot_helper ... ignored, read-only console snapshot helper invoked by resize regressions
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-QtZK4V
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 3 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 15.81s
+

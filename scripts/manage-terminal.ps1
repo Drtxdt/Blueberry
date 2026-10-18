@@ -103,6 +103,13 @@ try {
             Add-Type -AssemblyName System.IO.Compression.FileSystem
             $archive=[IO.Compression.ZipFile]::OpenRead($package)
             try {
+                if ($archive.Entries.Count -gt 4096) { throw 'Terminal package has too many entries' }
+                [long]$totalBytes=0
+                foreach ($entry in $archive.Entries) {
+                    if ($entry.Length -gt 536870912) { throw 'Unsafe Terminal package entry' }
+                    $totalBytes += $entry.Length
+                    if ($totalBytes -gt 2147483648) { throw 'Terminal package exceeds total extracted size limit' }
+                }
                 $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
                 foreach ($entry in $archive.Entries) {
                     if ($entry.FullName.EndsWith('/')) { continue }

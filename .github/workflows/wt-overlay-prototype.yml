@@ -206,6 +206,8 @@ jobs:
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             cargo test --test direct_terminal direct_without_inherited_module_path_keeps_editor_and_menu_above_input -- --exact --test-threads=1
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            cargo test --test direct_terminal direct_above_menu_resize_preserves -- --ignored --test-threads=1 --nocapture
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
       - uses: actions/upload-artifact@v4
         if: always()
@@ -215,3 +217,4 @@ jobs:
           path: |
             artifacts/native-terminal-regressions/
             artifacts/native-client/
+            target/input-protocol-evidence/

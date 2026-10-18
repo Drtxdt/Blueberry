@@ -56,7 +56,12 @@ fn real_native_argv_roundtrips_legacy_and_standard_modes() -> Result<()> {
             Word::Literal(probe.display().to_string()),
             Word::Literal(output.display().to_string()),
         ];
-        words.extend(expected.iter().map(|value| Word::Literal((*value).into())));
+        let context = blueberry::engine::CommandIndex::default().input_context("fixture ", 8);
+        words.extend(expected.iter().map(|value| {
+            Word::Expression(blueberry::engine::format_value_with_mode(
+                value, "fixture ", &context, 8, mode,
+            ))
+        }));
         let command = format!("{setting} {}", Invocation { words }.render(mode));
         let result = std::process::Command::new(shell)
             .args(["-NoProfile", "-NonInteractive", "-Command", &command])

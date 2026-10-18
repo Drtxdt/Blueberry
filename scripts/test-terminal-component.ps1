@@ -29,6 +29,23 @@ Check ((State).current -eq $first) 'Rollback did not select previous version'
 Check ([IO.File]::ReadAllText($settings) -ceq '{"font":"Latest preference"}') 'Rollback lost latest user settings'
 Run-Component Upgrade $PackageTwo
 Check ((State).current -eq $second) 'Re-upgrade failed'
+# Invalid input must not change the active component or its state bytes.
+$statePath=Join-Path $root 'components/terminal/component-state.json'
+$stateBytes=[IO.File]::ReadAllBytes($statePath)
+$stateHash=(Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash
+$oversized=Join-Path $root 'too-many-entries.zip'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive=[IO.Compression.ZipFile]::Open($oversized,[IO.Compression.ZipArchiveMode]::Create)
+try { foreach ($index in 0..4096) { [void]$archive.CreateEntry("entry-$index") } } finally { $archive.Dispose() }
+$failed=$false
+try { Run-Component Upgrade $oversized } catch { $failed=$_.Exception.Message -like '*too many entries*' }
+Check $failed 'Oversized entry count was not rejected before extraction'
+Check ((Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash -ceq $stateHash) 'Rejected package changed active state'
+[IO.File]::WriteAllText($statePath,'{"schema_version":1,"product":"Blueberry.Terminal","metadata_sha256":"damaged"}')
+$failed=$false
+try { Run-Component Status } catch { $failed=$true } finally { [IO.File]::WriteAllBytes($statePath,$stateBytes) }
+Check $failed 'Damaged component state was accepted'
+Check ((State).current -eq $second) 'State recovery selected another component'
 # A blocked deletion leaves a retryable inactive state and retains settings.
 $locked=Join-Path $root "components/terminal/versions/$second/WindowsTerminal.exe"
 $handle=[IO.File]::Open($locked,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)

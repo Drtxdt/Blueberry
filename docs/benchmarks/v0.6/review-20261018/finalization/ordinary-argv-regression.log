@@ -1,0 +1,46 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.24s
+     Running tests\engine.rs (target\debug\deps\engine-a2c6267c9d714fb4.exe)
+
+running 23 tests
+test alias_description_overrides_keep_raw_targets_through_alias_chain ... ok
+test alias_to_child_item_uses_filesystem_fallback ... ok
+test cache_round_trip_uses_explicit_environment_context ... ok
+test cache_version_two_rejects_old_and_partial_snapshots ... ok
+test call_operator_and_pipeline_start_new_command_segments ... ok
+test description_overrides_use_exact_spec_keys ... ok
+test descriptions_prefer_actual_name_then_alias_target_then_catalog ... ok
+test discovery_counts_missing_and_empty_path_boundaries ... ok
+test discovery_is_incremental_and_has_no_8192_entry_cutoff ... ok
+test discovery_uses_pathext_and_first_path_entry ... ok
+test filesystem_completion_follows_local_directory_symlinks ... ok
+test inline_choice_replaces_the_whole_option_and_preserves_context_override ... ok
+test links_follow_local_relative_chains_skip_dangling_and_remote_targets ... ok
+test live_definitions_override_module_declarations_case_insensitively ... ok
+test quoted_filesystem_candidates_are_literal_and_bounded ... ok
+test replacing_session_commands_restores_shadowed_path_command ... ok
+test requested_contexts_work_through_the_real_line_lexer ... ok
+test separators_are_quote_aware_and_suffix_is_replaced ... ok
+test session_command_priority_prefers_alias_then_function_then_cmdlet ... ok
+test shell_commands_enable_static_specs_and_alias_mapping ... ok
+test short_commands_rank_before_longer_names_without_inventing_commands ... ok
+test unicode_cursor_and_replacement_are_byte_offsets ... ok
+test unknown_descriptions_identify_source_and_session_kind ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+
+     Running tests\invocation.rs (target\debug\deps\invocation-4d498a60fde858dc.exe)
+
+running 1 test
+test real_native_argv_roundtrips_legacy_and_standard_modes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+
+     Running tests\project_actions.rs (target\debug\deps\project_actions-d15d32a0db0bc929.exe)
+
+running 2 tests
+test action_identity_survives_reordering_and_is_scoped_to_project ... ok
+test dynamic_action_values_are_literal_powershell_arguments ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

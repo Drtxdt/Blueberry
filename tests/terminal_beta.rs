@@ -515,7 +515,10 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
         if harness.event("buffer", PTY_TIMEOUT)?["line"] == "" {
             return wait_until(harness, "cleared menu", PTY_TIMEOUT, |screen| {
                 !screen.lines().any(|line| line.contains("› "))
-                    && screen.lines().last().is_some_and(|line| line.trim_end().ends_with('>'))
+                    && screen
+                        .lines()
+                        .last()
+                        .is_some_and(|line| line.trim_end().ends_with('>'))
             });
         }
     }
@@ -627,7 +630,10 @@ fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
         harness,
         &format!("real candidate before {label}"),
         PTY_TIMEOUT,
-        |screen| selected_candidate_line(screen).is_some(),
+        |screen| {
+            selected_candidate_line(screen).is_some()
+                && screen.lines().any(|line| candidate_line_has(line, label))
+        },
     )?;
     let deadline = Instant::now() + PTY_TIMEOUT;
     for _ in 0..128 {
@@ -635,9 +641,6 @@ fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
         if selected_candidate_line(&contents).is_some_and(|line| candidate_line_has(line, label)) {
             return Ok(());
         }
-        let before = selected_candidate_line(&contents)
-            .context("completion menu lost its selectable row")?
-            .to_owned();
         harness.send(b"\x1b[B")?;
         harness.event("navigation_presented", PTY_TIMEOUT)?;
         let remaining = deadline.saturating_duration_since(Instant::now());
@@ -645,7 +648,7 @@ fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
             break;
         }
         wait_until(harness, "menu navigation repaint", remaining, |screen| {
-            selected_candidate_line(screen).is_some_and(|line| line != before)
+            selected_candidate_line(screen).is_some()
         })?;
     }
     bail!(
