@@ -492,6 +492,20 @@ jobs:
           $bundled = (Get-ChildItem ./target/migration-bundled-package/*.zip).FullName
           $core = (Get-ChildItem ./dist/ci/*.zip).FullName
           ./scripts/test-terminal-migration.ps1 -BundledPackage $bundled -CorePackage $core
+      - name: Upgrade the original public 0.5.2 installation
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory ./target/public-v0.5.2 | Out-Null
+          $base = 'https://github.com/Drtxdt/Blueberry/releases/download/v0.5.2/'
+          foreach ($name in @('install.ps1','blueberry-v0.5.2-windows-x64.zip','blueberry-v0.5.2-windows-x64.zip.sha256')) {
+            Invoke-WebRequest ($base + $name) -OutFile (Join-Path ./target/public-v0.5.2 $name)
+          }
+          $previous = './target/public-v0.5.2/blueberry-v0.5.2-windows-x64.zip'
+          if ((Get-FileHash $previous).Hash -ine '921E22454E89106E553479D58804ACFAB88D23238D9CD3956C920C625972267D') { throw 'Public baseline identity changed' }
+          if ((Get-FileHash ./target/public-v0.5.2/install.ps1).Hash -ine '314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C') { throw 'Public installer identity changed' }
+          $core = (Get-ChildItem ./dist/ci/*.zip).FullName
+          ./scripts/test-public-upgrade.ps1 -PreviousInstaller ./target/public-v0.5.2/install.ps1 -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
+          if (!$?) { Get-Content ./target/public-upgrade.log; throw 'Public baseline upgrade failed' }
       - name: Preserve optional Terminal component
         uses: actions/upload-artifact@v4
         with:
@@ -517,6 +531,9 @@ jobs:
             target/journal-tests-*/**/transaction.json
             target/journal-tests-*/**/transaction.wal
             target/install-history-*/results.json
+              target/public-upgrade.log
+              target/public-upgrade-*/receipt.json
+              target/public-upgrade-*/original-install.json
             target/terminal-migration-*/components/terminal/component-state.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4

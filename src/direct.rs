@@ -82,20 +82,13 @@ struct Session {
     selection: crate::selection::SelectionState,
     cwd: PathBuf,
     ui: Option<Workbench>,
+    high_surrogate: Option<u16>,
     values_requested: u64,
     history_pending: bool,
     history_partial: bool,
     details: bool,
 }
-struct Workbench {
-    input: String,
-    high_surrogate: Option<u16>,
-    form: Option<crate::hub::TemplateForm>,
-    project: bool,
-    templates: BTreeMap<String, crate::hub::CommandTemplate>,
-    error: Option<String>,
-    generation: u64,
-}
+use crate::workbench::Workbench;
 
 impl Session {
     fn new() -> Self {
@@ -115,6 +108,7 @@ impl Session {
             selection: Default::default(),
             cwd: PathBuf::new(),
             ui: None,
+            high_surrogate: None,
             values_requested: 0,
             history_pending: false,
             history_partial: false,
@@ -179,13 +173,12 @@ impl Session {
                 self.selected,
                 &mut completion,
             );
-        } else if let Some(id) = &self.selected_id
-            && let Some(index) = completion
-                .candidates
-                .iter()
-                .position(|c| c.identity() == id)
-        {
-            self.selected = index;
+        } else if let Some(ui) = self.ui.as_mut() {
+            self.selected = ui.refreshed_selection(
+                self.last_completion.as_deref(),
+                self.selected,
+                &mut completion,
+            );
         }
         self.selected = self
             .selected
@@ -278,30 +271,14 @@ impl Session {
     }
     fn refresh_hub(&mut self, settings: &Config, token: &str, history: &[String]) -> Value {
         let ui = self.ui.as_mut().expect("active workbench");
-        let completion = if let Some(form) = &ui.form {
-            crate::hub::form_completion(form, &ui.input, self.line.len())
-        } else {
-            let (candidates, templates) = crate::hub::search_with_history_guided(
-                settings,
-                &ui.input,
-                history,
-                None,
-                crate::hub::guided_template(&self.line, self.cursor),
-            );
-            ui.templates = templates;
-            Completion {
-                replace_start: 0,
-                replace_end: self.line.len(),
-                candidates,
-                incomplete: self.history_pending,
-                argument_hint: if self.history_partial {
-                    "工作台 · 部分历史 · Enter 填回 · Esc 取消"
-                } else {
-                    "工作台 · Enter 填回 · Esc 取消"
-                }
-                .into(),
-            }
-        };
+        let completion = ui.completion(
+            settings,
+            &self.line,
+            self.cursor,
+            history,
+            self.history_pending,
+            self.history_partial,
+        );
         self.render(completion, settings, token)
     }
     fn request_values(
@@ -375,79 +352,55 @@ impl Session {
         ui.error = None;
         match key {
             "Tab" if value["modifiers"].as_u64().unwrap_or(0) & 1 != 0 => {
-                if let Some(form) = ui.form.as_mut()
-                    && form.back()
-                {
-                    ui.input = form.current_value().to_owned();
+                if ui.back() {
                     ui.generation = self.revision;
                 }
             }
             "Enter" => {
-                if let Some(form) = ui.form.as_mut() {
-                    match form.advance(&ui.input, ui.project, &self.cwd) {
-                        Ok(Some(command)) => {
-                            return Ok(self.edit_command(command, token));
-                        }
-                        Ok(None) => {
-                            ui.input.clear();
-                            ui.generation = self.revision;
-                        }
-                        Err(error) => ui.error = Some(format!("{error:#}")),
+                if ui.form.is_some() {
+                    if let Ok(Some(command)) = ui.advance(&self.cwd) {
+                        return Ok(self.edit_command(command, token));
                     }
+                    ui.generation = self.revision;
                 } else if let Some((_, _, candidate, _)) = seen {
-                    ui.project = candidate.id.starts_with("hub:project:");
-                    if ui.project {
-                        crate::packs::verify_approval(&self.cwd)?;
-                    }
-                    if let Some(template) = ui.templates.get(&candidate.id).cloned() {
-                        let form = crate::hub::TemplateForm::new(template)?
-                            .with_shell(shell.0, shell.1, &self.cwd);
-                        if form.is_empty() {
-                            return Ok(self.edit_command(form.finish()?, token));
-                        }
-                        ui.form = Some(form);
-                        ui.input.clear();
-                        ui.generation = self.revision;
-                    } else {
-                        return Ok(self.edit_command(candidate.insert_text, token));
+                    match ui.activate(&candidate, shell.0, shell.1, &self.cwd) {
+                        Ok(Some(command)) => return Ok(self.edit_command(command, token)),
+                        Ok(None) => ui.generation = self.revision,
+                        Err(_) => {}
                     }
                 }
             }
             "Backspace" => {
-                ui.high_surrogate = None;
+                self.high_surrogate = None;
                 ui.input.pop();
                 self.selected = 0;
             }
-            "UpArrow" | "DownArrow" => {
-                if let Some(field) = ui.form.as_ref().and_then(|form| form.current()) {
-                    if !field.values.is_empty() {
-                        let forward = key == "DownArrow";
-                        let index = field.values.iter().position(|v| v == &ui.input);
-                        let next = match index {
-                            Some(index) if forward => (index + 1) % field.values.len(),
-                            Some(0) => field.values.len() - 1,
-                            Some(index) => index - 1,
-                            None => 0,
-                        };
-                        ui.input = field.values[next].clone();
-                    }
-                } else if let Some((_, _, _, completion)) = seen {
+            "UpArrow" | "DownArrow" | "PageUp" | "PageDown" => {
+                if ui.form.is_some() && matches!(key, "UpArrow" | "DownArrow") {
+                    ui.cycle(key == "DownArrow");
+                } else if let Some((_, identity, _, completion)) = seen {
                     let count = completion.candidates.len();
                     if count > 0 {
-                        self.selected = if key == "DownArrow" {
-                            (self.selected + 1) % count
+                        let current = completion
+                            .candidates
+                            .iter()
+                            .position(|c| c.identity() == identity)
+                            .unwrap_or(0);
+                        self.selected = if matches!(key, "PageUp" | "PageDown") {
+                            ui.page(current, count, settings.ui.max_rows, key == "PageDown")
                         } else {
-                            (self.selected + count - 1) % count
+                            ui.navigate(current, count, key == "DownArrow")
                         };
+                        self.last_completion = Some(completion);
                     }
                 }
             }
             _ if value["modifiers"].as_u64().unwrap_or(0) & 6 == 0 => {
                 let unit = value["character_unit"].as_u64().unwrap_or(0) as u16;
                 if (0xd800..=0xdbff).contains(&unit) {
-                    ui.high_surrogate = Some(unit);
+                    self.high_surrogate = Some(unit);
                 } else if (0xdc00..=0xdfff).contains(&unit) {
-                    if let Some(high) = ui.high_surrogate.take() {
+                    if let Some(high) = self.high_surrogate.take() {
                         ui.input.push(
                             char::from_u32(
                                 0x10000 + (u32::from(high) - 0xd800) * 0x400 + u32::from(unit)
@@ -459,7 +412,7 @@ impl Session {
                 } else if let Some(ch) =
                     char::from_u32(u32::from(unit)).filter(|ch| !ch.is_control())
                 {
-                    ui.high_surrogate = None;
+                    self.high_surrogate = None;
                     ui.input.push(ch);
                 }
                 self.selected = 0;
@@ -725,6 +678,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         Some("trace_point") if ready && trace.enabled() => {
                             let stage = match value["stage"].as_str() {
                                 Some("editor_confirmed") => "editor_confirmed",
+                                Some("editor_edit_applied") => "editor_edit_applied",
                                 Some("editor_refresh_enter") => "editor_refresh_enter",
                                 Some("editor_menu_written") => "editor_menu_written",
                                 Some("editor_frame_received") => "editor_frame_received",
@@ -878,6 +832,14 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 Some(launch_started.elapsed()),
                                 None,
                             );
+                        }
+                        Some("terminal_fallback") if ready => {
+                            adapter_status["terminal_connected"] = json!(false);
+                            adapter_status["terminal_restore"] = json!("reserved_below_input");
+                            adapter_status["terminal_fallback_reason"] =
+                                value["terminal_fallback_reason"].clone();
+                            status_writer.update(adapter_status.clone());
+                            session.visible.clear();
                         }
                         Some("begin" | "end") if ready => {
                             let revision = value["revision"]
@@ -1074,12 +1036,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 });
                                 session.ui = Some(Workbench {
                                     input: String::new(),
-                                    high_surrogate: None,
+                                    active: true,
                                     form: None,
                                     project: false,
                                     templates: Default::default(),
                                     error: None,
                                     generation: session.revision,
+                                    ..Default::default()
                                 });
                                 pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                                 continue;

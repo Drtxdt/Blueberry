@@ -351,6 +351,24 @@ impl Harness {
         }
         None
     }
+    #[cfg(windows)]
+    pub fn native_history(&self) -> Result<String> {
+        self.native
+            .as_ref()
+            .context("history validation requires the frozen native observer")?
+            .lock()
+            .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+            .history()
+    }
+    #[cfg(windows)]
+    pub fn native_cell_colors(&self, row: u32, column: u32) -> Result<[u32; 4]> {
+        self.native
+            .as_ref()
+            .context("history validation requires the frozen native observer")?
+            .lock()
+            .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+            .cell_colors(row, column)
+    }
     pub fn observation_start(&self, external: Instant) -> Instant {
         #[cfg(windows)]
         if self.native.is_some() {

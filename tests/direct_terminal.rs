@@ -1,6 +1,9 @@
 #![cfg(all(windows, debug_assertions))]
+
 //! Inherited-console tests run in an outer observing ConPTY, never a second
 //! product ConPTY. Every session uses an isolated directory and no history.
+#[path = "support/workflow_cases.rs"]
+mod workflow_cases;
 use anyhow::{Context, Result, ensure};
 use blueberry::probe::Harness;
 use std::{collections::BTreeMap, time::Duration};
@@ -1860,13 +1863,13 @@ fn direct_above_menu_preserves_truecolor_prompt_cells() -> Result<()> {
 }
 
 #[test]
-#[ignore = "known release blocker: resized overlays quantize historical RGB; run explicitly against the frozen CI EXE"]
+#[ignore = "requires frozen CI EXE and native history observer DLL"]
 fn direct_above_menu_resize_preserves_truecolor_history() -> Result<()> {
     check_above_menu_resized_history(true)
 }
 
 #[test]
-#[ignore = "known release blocker: CHAR_INFO cannot retain combining glyphs and exact history wrapping; run explicitly against the frozen CI EXE"]
+#[ignore = "requires frozen CI EXE and native history observer DLL"]
 fn direct_above_menu_resize_preserves_unicode_and_wrapped_history() -> Result<()> {
     // Keep this independent of RGB: a colour assertion must not conceal a
     // second regression in the character/soft-wrap restoration path.
@@ -1877,9 +1880,10 @@ fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
     let evidence =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
     std::fs::create_dir_all(&evidence)?;
-    let dir = tempfile::Builder::new()
+    let mut dir = tempfile::Builder::new()
         .prefix("direct-resize-prompt-colors-")
         .tempdir_in(evidence)?;
+    dir.disable_cleanup(true);
     let setup = dir.path().join("setup.ps1");
     std::fs::write(
         &setup,
@@ -1899,18 +1903,21 @@ fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
         ))?;
         wait_editor_begin(&mut h, dir.path(), 2)?;
         h.wait_text("RGB-PROMPT-中🚀é", TIMEOUT)?;
-        let before = h.screen_snapshot();
-        let row = (0..before.size().0)
-            .find(|row| {
-                before
-                    .rows(0, before.size().1)
-                    .nth(*row as usize)
-                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
-            })
-            .context("original history row missing")?;
+        let before = h.native_history()?;
+        std::fs::write(dir.path().join("native-history-before.txt"), &before)?;
+        let row = before
+            .lines()
+            .position(|line| line.starts_with("RGB-PROMPT-"))
+            .context("original native history row missing")?;
         ensure!(
-            before.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67),
-            "fixture lacks truecolor"
+            h.native_cell_colors(row as u32, 0)?
+                == [
+                    3,
+                    123 | (45 << 8) | (67 << 16),
+                    3,
+                    23 | (89 << 8) | (145 << 16)
+                ],
+            "fixture lacks original RGB attributes"
         );
         h.send(b"git sw")?;
         h.wait_text("switch", TIMEOUT)?;
@@ -1924,41 +1931,40 @@ fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
         while std::time::Instant::now() < until {
             let _ = h.pump(Duration::from_millis(10));
         }
-        // The compact viewport is allowed to scroll history away to reserve
-        // menu rows. Grow it again so ConPTY re-emits the retained history;
-        // the vt100 observer itself does not reflow truncated visible rows.
-        h.resize(30, 120)?;
-        let until = std::time::Instant::now() + Duration::from_millis(500);
-        while std::time::Instant::now() < until {
-            let _ = h.pump(Duration::from_millis(10));
-        }
-        let after = h.screen_snapshot();
-        let row = (0..after.size().0)
-            .find(|row| {
-                after
-                    .rows(0, after.size().1)
-                    .nth(*row as usize)
-                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
-            })
-            .context("history disappeared after menu resize and Esc")?;
+        // Native TerminalCore retains and reflows logical scrollback. Read it
+        // directly; replaying or growing the lossy VT model is not evidence.
+        let after = h.native_history()?;
+        std::fs::write(dir.path().join("native-history-after.txt"), &after)?;
+        std::fs::write(
+            dir.path().join("native-observer.json"),
+            serde_json::to_vec_pretty(&h.native_observer_identity())?,
+        )?;
+        let row = after
+            .lines()
+            .position(|line| line.starts_with("RGB-PROMPT-"))
+            .context("native history disappeared after menu resize and Esc")?;
+        let colors = h.native_cell_colors(row as u32, 0)?;
+        std::fs::write(
+            dir.path().join("native-history-colors.json"),
+            serde_json::to_vec(&colors)?,
+        )?;
         if check_rgb {
             ensure!(
-                after.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67)
-                    && after.cell(row, 0).unwrap().bgcolor() == vt100::Color::Rgb(23, 89, 145),
-                "resized history lost full RGB attributes: {:?}",
-                after.cell(row, 0)
+                colors
+                    == [
+                        3,
+                        123 | (45 << 8) | (67 << 16),
+                        3,
+                        23 | (89 << 8) | (145 << 16)
+                    ],
+                "resized native history lost RGB: {colors:?}"
             );
         }
-        ensure!(
-            after.contents().contains("中🚀é"),
-            "resized history lost Unicode"
-        );
         let expected = format!("RGB-PROMPT-中🚀é{}", "x".repeat(55));
-        let contents = after.contents();
-        let logical_text = contents.lines().collect::<String>();
+        let logical_text = after.lines().map(str::trim_end).collect::<String>();
         ensure!(
             logical_text.contains(&expected),
-            "resized history clipped or changed the wrapped fixture"
+            "resized native history clipped or changed the wrapped Unicode fixture"
         );
         h.finish(TIMEOUT)
     })();
@@ -2121,52 +2127,7 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
         ))?;
         wait_editor_begin(&mut h, dir.path(), 2)?;
         let legacy = std::fs::read_to_string(&mode)? == "True";
-        let cases: &[(&str, &[&str], &str)] = &[
-            ("切换 Git 分支", &["main"], "git switch main"),
-            (
-                "创建 Git 分支",
-                &["feature-中文", ""],
-                "git switch -c 'feature-中文'",
-            ),
-            (
-                "添加 Git worktree 工作目录",
-                &["../work tree", "feature", "main"],
-                "git worktree add '../work tree' -b feature main",
-            ),
-            (
-                "进入 Git worktree 工作目录",
-                &["../work tree"],
-                "Set-Location '../work tree'",
-            ),
-            (
-                "查看 Git 提交日志",
-                &["main", ""],
-                "git log --oneline main --",
-            ),
-            ("查看 Git 差异", &["main", ""], "git diff main --"),
-            (
-                "创建 Python uv 虚拟环境",
-                &["", "3.12"],
-                "uv venv --python 3.12",
-            ),
-            ("同步 Python uv 项目依赖", &["test"], "uv sync --group test"),
-            ("运行 Python uv 项目脚本", &["hello"], "uv run hello"),
-            (
-                "运行 Python uv pytest 测试",
-                &["tests", "smoke"],
-                "uv run pytest tests -k smoke",
-            ),
-            (
-                "构建 Rust Cargo 工作区",
-                &["fixture", ""],
-                "cargo build -p fixture",
-            ),
-            (
-                "运行 Rust Cargo 测试",
-                &["fixture", "", "integration"],
-                "cargo test -p fixture --test integration",
-            ),
-        ];
+        let cases = workflow_cases::CASES;
         for (name, values, expected) in cases {
             let expected = if legacy && expected.starts_with("git worktree add") {
                 expected.replace("'../work tree'", "'\"../work tree\"'")
@@ -2220,6 +2181,10 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
                 );
                 let _ = h.pump(Duration::from_millis(10));
             }
+            let applied_before = read_events()
+                .iter()
+                .filter(|event| event["event"] == "editor_edit_applied")
+                .count();
             h.send(b"\r")?;
             for (index, value) in values.iter().enumerate() {
                 h.wait_text(&format!("参数 {}/{}", index + 1, values.len()), TIMEOUT)?;
@@ -2229,7 +2194,12 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
                 h.send(b"\r")?;
             }
             let deadline = std::time::Instant::now() + TIMEOUT;
-            while h.viewport_contents().contains("填写参数") {
+            while read_events()
+                .iter()
+                .filter(|event| event["event"] == "editor_edit_applied")
+                .count()
+                <= applied_before
+            {
                 ensure!(
                     std::time::Instant::now() < deadline,
                     "workflow did not finish: {name}"

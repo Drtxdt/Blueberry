@@ -3644,11 +3644,16 @@ fn node_project_root(query: &ProjectQuery) -> Option<PathBuf> {
 /// Identity belongs to the project and action, never its display position or description.
 #[derive(Clone, Debug)]
 pub struct ProjectAction {
+    pub invocation: crate::invocation::Invocation,
     pub id: String,
     pub candidate: ProviderCandidate,
 }
 impl ProjectAction {
-    fn new(manifest: &Path, candidate: ProviderCandidate) -> Self {
+    fn new(
+        manifest: &Path,
+        candidate: ProviderCandidate,
+        words: Vec<crate::invocation::Word>,
+    ) -> Self {
         use sha2::{Digest, Sha256};
         let root = manifest.parent().unwrap_or(manifest);
         let root = root
@@ -3657,11 +3662,16 @@ impl ProjectAction {
         let identity = serde_json::to_vec(&(&candidate.source, root, &candidate.value))
             .expect("project action identity serializes");
         let id = format!("project-action:{:x}", Sha256::digest(identity));
-        Self { id, candidate }
+        Self {
+            id,
+            candidate,
+            invocation: crate::invocation::Invocation { words },
+        }
     }
 }
 
 pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
+    use crate::invocation::Word::{Literal, Syntax};
     let query = query.trim().to_lowercase();
     let mut actions = Vec::new();
     let matches = |words: &[&str]| {
@@ -3692,6 +3702,11 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
                         kind: CandidateKind::Command,
                         source: "project.action.node".into(),
                     },
+                    vec![
+                        Syntax("npm".into()),
+                        Syntax("run".into()),
+                        Literal(name.clone()),
+                    ],
                 ));
             }
         }
@@ -3707,6 +3722,7 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
                 kind: CandidateKind::Command,
                 source: "project.action.cargo".into(),
             },
+            vec![Syntax("cargo".into()), Syntax("test".into())],
         ));
     }
     if let Some(path) = find_upwards(cwd, "go.mod")
@@ -3720,6 +3736,11 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
                 kind: CandidateKind::Command,
                 source: "project.action.go".into(),
             },
+            vec![
+                Syntax("go".into()),
+                Syntax("test".into()),
+                Literal("./...".into()),
+            ],
         ));
     }
     if let Some(path) = find_upwards(cwd, "pyproject.toml")
@@ -3733,6 +3754,11 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
                 kind: CandidateKind::Command,
                 source: "project.action.python".into(),
             },
+            vec![
+                Syntax("uv".into()),
+                Syntax("run".into()),
+                Syntax("pytest".into()),
+            ],
         ));
     }
     if let Some(path) = [
@@ -3772,6 +3798,13 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
                             kind: CandidateKind::Command,
                             source: "project.action.compose".into(),
                         },
+                        vec![
+                            Syntax("docker".into()),
+                            Syntax("compose".into()),
+                            Syntax("logs".into()),
+                            Syntax("-f".into()),
+                            Literal(service.into()),
+                        ],
                     ));
                 }
             }

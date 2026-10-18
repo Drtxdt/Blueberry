@@ -20,6 +20,7 @@ type Create = unsafe extern "C" fn(u16, u16, u16, Response, *mut c_void) -> *mut
 type Destroy = unsafe extern "C" fn(*mut c_void);
 type Write = unsafe extern "C" fn(*mut c_void, *const u8, u32) -> i32;
 type Snapshot = unsafe extern "C" fn(*mut c_void, *mut u16, u32, *mut u32) -> i32;
+type CellColors = unsafe extern "C" fn(*mut c_void, u32, u32, *mut u32) -> i32;
 type Resize = unsafe extern "C" fn(*mut c_void, u16, u16) -> i32;
 type Version = unsafe extern "C" fn() -> u32;
 
@@ -191,18 +192,32 @@ impl NativeObserver {
         result
     }
     fn snapshot_inner(&self) -> Result<String> {
+        self.read_snapshot(self.snapshot, 2 * 1024 * 1024)
+    }
+    /// Explicit diagnostic scan; never called from the timed output reader.
+    pub(crate) fn history(&self) -> Result<String> {
+        let read: Snapshot = unsafe { self._library.symbol(b"bb_native_model_history\0")? };
+        self.read_snapshot(read, 32 * 1024 * 1024)
+    }
+    pub(crate) fn cell_colors(&self, row: u32, column: u32) -> Result<[u32; 4]> {
+        self.check_error()?;
+        let read: CellColors = unsafe { self._library.symbol(b"bb_native_model_cell_colors\0")? };
+        let mut colors = [0; 4];
+        let status = unsafe { read(self.handle, row, column, colors.as_mut_ptr()) };
+        ensure!(status >= 0, "native history cell read failed: {status:#x}");
+        Ok(colors)
+    }
+    fn read_snapshot(&self, read: Snapshot, bound: u32) -> Result<String> {
         self.check_error()?;
         for _ in 0..3 {
             let mut needed = 0;
-            let status =
-                unsafe { (self.snapshot)(self.handle, std::ptr::null_mut(), 0, &mut needed) };
+            let status = unsafe { read(self.handle, std::ptr::null_mut(), 0, &mut needed) };
             ensure!(
-                status == 0x8007007au32 as i32 && (1..=2 * 1024 * 1024).contains(&needed),
+                status == 0x8007007au32 as i32 && (1..=bound).contains(&needed),
                 "native observer snapshot size failed: {status:#x}"
             );
             let mut text = vec![0u16; needed as usize];
-            let status =
-                unsafe { (self.snapshot)(self.handle, text.as_mut_ptr(), needed, &mut needed) };
+            let status = unsafe { read(self.handle, text.as_mut_ptr(), needed, &mut needed) };
             if status == 0x8007007au32 as i32 {
                 continue;
             }

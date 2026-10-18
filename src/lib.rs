@@ -51,6 +51,7 @@ pub mod terminal_ui;
 pub mod tool_registry;
 pub mod tools_ui;
 pub mod trace;
+mod workbench;
 
 #[cfg(windows)]
 pub(crate) mod vt_input;

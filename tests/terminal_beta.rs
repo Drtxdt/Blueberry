@@ -14,6 +14,8 @@ use std::{
     time::{Duration, Instant},
 };
 use tempfile::{TempDir, tempdir};
+#[path = "support/workflow_cases.rs"]
+mod workflow_cases;
 
 const PTY_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -148,6 +150,68 @@ fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
         Some("cargo test -p".len() as u64),
     )?;
     Ok(())
+}
+
+#[test]
+fn nested_builtin_workflows_fill_without_execution() -> Result<()> {
+    let mut host = start_host()?;
+    let mode_path = host._cwd.path().join("workflow-mode.txt");
+    send_command(
+        &mut host.harness,
+        &format!(
+            "[IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -ne 'Standard')); Write-Output BB_WORKFLOW_READY",
+            mode_path.to_string_lossy().replace('\'', "''")
+        ),
+        "BB_WORKFLOW_READY",
+    )?;
+    // This fixture's git.cmd selects Legacy under PS7 Windows mode as well.
+    let legacy_git = fs::read_to_string(mode_path)? == "True";
+    for (name, values, expected) in workflow_cases::CASES {
+        clear_line(&mut host.harness)?;
+        host.harness.send(b"\x1b[112;7u")?;
+        host.harness.wait_text("工作台", PTY_TIMEOUT)?;
+        host.harness.send_text(name)?;
+        let deadline = Instant::now() + PTY_TIMEOUT;
+        loop {
+            let event = host.harness.event(
+                "hub_presented",
+                deadline.saturating_duration_since(Instant::now()),
+            )?;
+            if event["label"] == *name && event["query"] == *name && event["incomplete"] == false {
+                break;
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "workflow query was not painted: {name}"
+            );
+        }
+        host.harness.send(b"\r")?;
+        for (index, value) in values.iter().enumerate() {
+            host.harness
+                .wait_text(&format!("参数 {}/{}", index + 1, values.len()), PTY_TIMEOUT)?;
+            host.harness.send_text(value)?;
+            host.harness.send(b"\r")?;
+        }
+        let edit = host.harness.event("edit_result", PTY_TIMEOUT)?;
+        ensure!(edit["applied"] == true, "workflow rejected: {name}: {edit}");
+        let expected = if legacy_git && expected.starts_with("git worktree add") {
+            expected.replace("'../work tree'", "'\"../work tree\"'")
+        } else {
+            (*expected).to_owned()
+        };
+        let buffer = read_real_buffer(&mut host.harness, name, &expected, None)?;
+        ensure!(
+            buffer["line"] == expected,
+            "workflow changed native edit: {name}: {buffer}"
+        );
+    }
+    clear_line(&mut host.harness)?;
+    send_command(
+        &mut host.harness,
+        "Write-Output BB_WORKFLOW_EDITABLE",
+        "BB_WORKFLOW_EDITABLE",
+    )?;
+    host.harness.finish(PTY_TIMEOUT)
 }
 
 #[test]
@@ -444,11 +508,14 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
     // Do not concatenate Esc with Ctrl+A: VT input may decode that as an
     // Alt chord. Observe the actual cleared ReadLine buffer before continuing.
     harness.send(b"\x01\x7f")?;
-    harness.send(ctrl_space_records())?;
+    // Here the line has been cleared, so there is no continuation handler to
+    // serialize with. Read it without the public trigger's empty-line menu.
+    harness.send(&protocol_chord('s'))?;
     loop {
         if harness.event("buffer", PTY_TIMEOUT)?["line"] == "" {
             return wait_until(harness, "cleared menu", PTY_TIMEOUT, |screen| {
                 !screen.lines().any(|line| line.contains("› "))
+                    && screen.lines().last().is_some_and(|line| line.trim_end().ends_with('>'))
             });
         }
     }
@@ -572,6 +639,7 @@ fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
             .context("completion menu lost its selectable row")?
             .to_owned();
         harness.send(b"\x1b[B")?;
+        harness.event("navigation_presented", PTY_TIMEOUT)?;
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
             break;

@@ -1057,6 +1057,46 @@ function Get-BlueberryAstBufferContext {
     return $context
 }
 
+function Get-BlueberryReservedMenuRow {
+    param([string]$Line, [int]$Cursor)
+    if ($env:BLUEBERRY_RESERVED_MENU -ne '1') { return $null }
+    $width=[Math]::Max(1,[Console]::WindowWidth)
+    $height=[Console]::WindowHeight
+    $top=[Console]::WindowTop
+    $row=[Console]::CursorTop
+    $column=[Console]::CursorLeft
+    $first=$row
+    # Legacy editors expose no layout contract. Reserve conservatively for
+    # right-hand text, including wide Unicode and continuation lines.
+    $tail=$Line.Substring([Math]::Min($Cursor,$Line.Length))
+    $tailRows=0
+    foreach ($part in $tail.Split("`n")) { $tailRows += [int][Math]::Ceiling(($part.Length*2.0)/$width) }
+    $tailRows += [Math]::Max(0,$tail.Split("`n").Count-1)
+    $last=$row+$tailRows
+    $bounds=$null
+    $api=[Microsoft.PowerShell.PSConsoleReadLine]
+    if ($null -ne $api.GetMethod('GetEditorBufferBounds')) {
+        $bounds=$api::GetEditorBufferBounds()
+        $first=[Math]::Min($row,$bounds[0])
+        $last=[Math]::Max($row,$bounds[1])
+    }
+    $desired=[Math]::Min(12,[Math]::Max(0,$height-($last-$first+1)))
+    $missing=[Math]::Max(0,$desired-($top+$height-1-$last))
+    if ($missing -gt 0) {
+        [Console]::SetCursorPosition(0,$top+$height-1)
+        [Console]::Write(("`n"*$missing))
+        $shift=$missing-([Console]::CursorTop-($top+$height-1))
+        [Console]::SetCursorPosition($column,[Math]::Max(0,$row-$shift))
+        if ($null -ne $bounds -and $null -ne $api.GetMethod('RestoreEditorLayout')) {
+            $api::RestoreEditorLayout([Math]::Max(0,$bounds[2]-$shift),$bounds[3])
+        } else {
+            $api::InvokePrompt($null,[Math]::Max(0,$first-$shift))
+        }
+        $last-=$shift
+    }
+    return [Math]::Max(0,$last-[Console]::WindowTop+1)
+}
+
 function Send-BlueberryBuffer {
     [CmdletBinding()]
     param()
@@ -1069,6 +1109,8 @@ function Send-BlueberryBuffer {
             line   = [string]$line
             cursor = [int]$cursor
         }
+        $menuRow=Get-BlueberryReservedMenuRow -Line $line -Cursor $cursor
+        if ($null -ne $menuRow) { $data.menu_row=[int]$menuRow }
         if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
             # Shared Windows performance counter for the diagnostic path.
             # The report stores timings only; it never stores this line.
@@ -1464,7 +1506,7 @@ function Read-BlueberryRequest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('native', 'command_metadata', 'history', 'commands_reset', 'commands_next')]
+        [ValidateSet('native', 'command_metadata', 'history', 'commands_reset', 'commands_next', 'reserve_menu')]
         [string[]]$ExpectedKind
     )
 
@@ -2679,9 +2721,12 @@ function Invoke-BlueberryDirectProbeKey {
 function Invoke-BlueberryNativeKeyHandler {
     [CmdletBinding()]
     param()
-    $request = Read-BlueberryRequest -ExpectedKind @('native', 'command_metadata', 'history')
+    $request = Read-BlueberryRequest -ExpectedKind @('native', 'command_metadata', 'history', 'reserve_menu')
     if ($null -ne $request) {
-        if ($request.kind -eq 'history') {
+        if ($request.kind -eq 'reserve_menu') {
+            $env:BLUEBERRY_RESERVED_MENU='1'
+            Send-BlueberryBuffer
+        } elseif ($request.kind -eq 'history') {
             $snapshot = Get-BlueberryHistorySnapshot -Limit ([int]$request.limit)
             Send-BlueberryEvent -Event 'history' -Data ([ordered]@{
                 request_id = [string]$request.id

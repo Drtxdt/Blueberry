@@ -733,7 +733,9 @@ namespace Blueberry.Direct {
                 string text = Json.String(frame, "text");
                 if (start < 0 || length < 0 || start > line.Length - length || SplitsPair(line, start) || SplitsPair(line, start + length)) return false;
                 Clear(); expectedUiEditRevision=-1;
-                replace(start, length, text, null, null); nativeHistory=false; nativeEditPending=false; acceptingFrame = null; displayed = null; interaction="completion"; manualActive=false; if(AutomaticMenu) Query("query"); return true;
+                replace(start, length, text, null, null);
+                TracePoint("editor_edit_applied",revision,Json.Long(frame,"frame_id"),Stopwatch.GetTimestamp());
+                nativeHistory=false; nativeEditPending=false; acceptingFrame = null; displayed = null; interaction="completion"; manualActive=false; if(AutomaticMenu) Query("query"); return true;
             }
             if (acceptingFrame != null) return false;
             object lines;
@@ -745,7 +747,15 @@ namespace Blueberry.Direct {
                 Query("layout"); return false;
             }
             long painted=diagnostic ? Stopwatch.GetTimestamp() : 0;
-            if (!Paint((List<object>)lines, layout, (int)Json.Long(frame, "width"))) { displayed = null; ResetNavigation(); return false; }
+            bool hadNative=nativeOverlay!=null;
+            if (!Paint((List<object>)lines, layout, (int)Json.Long(frame, "width"))) {
+                displayed = null; ResetNavigation();
+                if(hadNative && nativeOverlay==null) {
+                    interaction=Json.String(frame,"interaction") ?? "completion";
+                    Query("layout");
+                }
+                return false;
+            }
             TracePoint("editor_menu_written",revision,Json.Long(frame,"frame_id"),Stopwatch.GetTimestamp());
             if(diagnostic) TraceStage("direct_console_menu_output",Stopwatch.GetTimestamp()-painted,((List<object>)lines).Count);
             if(diagnostic && frameReceived!=0) TraceStage("direct_frame_to_paint",Stopwatch.GetTimestamp()-frameReceived,1);
@@ -917,6 +927,11 @@ namespace Blueberry.Direct {
             int top=layout.Below>=height ? layout.Last+1 : layout.First-height;
             if(nativeOverlay!=null) {
                 nativeFrameEligible=nativeOverlay.Paint(lines,top-info.Window.Top,width);
+                if(!nativeFrameEligible && (!nativeOverlay.IsConnected || nativeOverlay.Error!=null)) {
+                    terminalFallbackReason="companion Terminal paint failed: "+nativeOverlay.Error;
+                    nativeOverlay.Dispose(); nativeOverlay=null;
+                    Send(new Dictionary<string,object>{{"event","terminal_fallback"},{"terminal_fallback_reason",terminalFallbackReason}});
+                }
                 return nativeFrameEligible;
             }
             // Ordinary terminals own only newly reserved rows below the input.

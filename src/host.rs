@@ -84,8 +84,8 @@ fn render_overlay(
             })
             .or_else(|| {
                 state
-                    .hub_query
-                    .as_ref()
+                    .workbench
+                    .query()
                     .filter(|query| !query.is_empty())
                     .map(|_| Candidate {
                         label: "无匹配命令".into(),
@@ -98,7 +98,7 @@ fn render_overlay(
         } else {
             &state.completion.candidates
         };
-        let query = state.hub_query.as_deref().unwrap_or_else(|| {
+        let query = state.workbench.query().unwrap_or_else(|| {
             state
                 .line
                 .get(state.completion.replace_start..state.cursor)
@@ -119,12 +119,12 @@ fn render_overlay(
                 detail_page: state.detail_page,
                 argument_hint: (!state.completion.candidates.is_empty())
                     .then_some(state.completion.argument_hint.as_str()),
-                searching: state.searching && state.hub_query.is_none(),
+                searching: state.searching && state.workbench.query().is_none(),
                 diagnostic: state.notification.as_deref().or_else(|| {
                     state.completion.candidates.is_empty().then_some(
                         if state.completion.incomplete {
                             "环境刷新中"
-                        } else if state.hub_query.as_ref().is_some_and(|q| !q.is_empty()) {
+                        } else if state.workbench.query().is_some_and(|q| !q.is_empty()) {
                             "无匹配命令"
                         } else {
                             "提示 · 请继续输入"
@@ -702,9 +702,22 @@ impl Worker {
                                 if result.candidates.len() >= q.limit {
                                     break;
                                 }
+                                let command = match action.invocation.words.first() {
+                                    Some(crate::invocation::Word::Syntax(command)) => {
+                                        command.as_str()
+                                    }
+                                    _ => "",
+                                };
+                                let rendered =
+                                    action.invocation.render(crate::invocation::shell_mode(
+                                        command,
+                                        &q.environment,
+                                        &shell_commands,
+                                        &q.cwd,
+                                    ));
                                 result.candidates.push(Candidate {
-                                    label: action.candidate.value.clone(),
-                                    insert_text: action.candidate.value,
+                                    label: rendered.clone(),
+                                    insert_text: rendered,
                                     description: action.candidate.description,
                                     kind: action.candidate.kind,
                                     id: action.id,
@@ -1187,7 +1200,8 @@ struct State {
     status_writer: crate::status::StatusWriter,
     adapter_status: Value,
     terminal_fallback_reason: Option<String>,
-    hub_query: Option<String>,
+    reserve_menu_pending: bool,
+    workbench: crate::workbench::Workbench,
     hub_history: Vec<String>,
     hub_history_path: Option<PathBuf>,
     history_ready: bool,
@@ -1207,22 +1221,19 @@ struct State {
     history_keys: Vec<Event>,
     native_delete_sequence: u64,
     pending_history_paste: Option<(String, u64)>,
-    hub_form: Option<crate::hub::TemplateForm>,
-    hub_form_project: bool,
-    hub_templates: BTreeMap<String, crate::hub::CommandTemplate>,
 }
 
 impl State {
     fn request_form_values(&mut self) {
         self.form_values_request = self.form_values_request.wrapping_add(1);
-        let Some(field) = self.hub_form.as_ref().and_then(|form| form.current()) else {
+        let Some(field) = self.workbench.form.as_ref().and_then(|form| form.current()) else {
             return;
         };
         if !matches!(field.kind.as_str(), "file" | "directory") && field.source.is_empty() {
             return;
         }
         let field = field.clone();
-        let context = self.hub_form.as_ref().unwrap().provider_context();
+        let context = self.workbench.form.as_ref().unwrap().provider_context();
         let environment = self.shell_environment.clone();
         let cwd = self.cwd.clone();
         let request = self.form_values_request;
@@ -1242,65 +1253,30 @@ impl State {
         });
     }
     fn cycle_form_value(&mut self, forward: bool) -> bool {
-        let Some(field) = self.hub_form.as_ref().and_then(|form| form.current()) else {
-            return false;
-        };
-        if field.values.is_empty() {
+        if !self.workbench.cycle(forward) {
             return false;
         }
-        let current = self.hub_query.as_deref().unwrap_or("");
-        let index = field.values.iter().position(|value| value == current);
-        let next = match index {
-            Some(index) if forward => (index + 1) % field.values.len(),
-            Some(0) => field.values.len() - 1,
-            Some(index) => index - 1,
-            None => {
-                if forward {
-                    0
-                } else {
-                    field.values.len() - 1
-                }
-            }
-        };
-        *self.hub_query.as_mut().unwrap() = field.values[next].clone();
         self.refresh_hub();
         true
     }
     fn refresh_hub(&mut self) {
-        let Some(query) = self.hub_query.as_deref() else {
-            return;
-        };
-        if let Some(form) = self.hub_form.as_ref() {
-            self.completion = crate::hub::form_completion(form, query, self.line.len());
-            self.selected = 0;
-            self.dismissed = false;
-            self.searching = true;
+        if !self.workbench.active {
             return;
         }
-        let selected = self
-            .completion
-            .candidates
-            .get(self.selected)
-            .map(|c| c.identity().to_owned());
-        let guided = crate::hub::guided_template(&self.line, self.cursor);
-        let (candidates, templates) = crate::hub::search_with_history_guided(
+        let mut completion = self.workbench.completion(
             &self.config,
-            query,
+            &self.line,
+            self.cursor,
             &self.hub_history,
-            None,
-            guided,
+            self.history_pending,
+            false,
         );
-        self.hub_templates = templates;
-        self.selected = selected
-            .and_then(|id| candidates.iter().position(|c| c.identity() == id))
-            .unwrap_or(0);
-        self.completion = Completion {
-            replace_start: 0,
-            replace_end: self.line.len(),
-            candidates,
-            incomplete: self.history_pending,
-            argument_hint: "输入关键词搜索；Enter 填回，Tab/F1 预览，Esc 返回".into(),
-        };
+        self.selected = self.workbench.refreshed_selection(
+            Some(&self.completion),
+            self.selected,
+            &mut completion,
+        );
+        self.completion = completion;
         self.menu_focus = true;
         self.explicit = true;
         self.dismissed = false;
@@ -1427,7 +1403,7 @@ impl State {
                 status["terminal_restore"] = json!(if self.overlay.is_native() {
                     "native_overlay_v4"
                 } else {
-                    "legacy_vt_model"
+                    "reserved_below_input"
                 });
                 self.adapter_status = status.clone();
                 self.status_writer.update(status);
@@ -1647,12 +1623,17 @@ impl State {
                 };
                 self.line = line.into();
                 self.cursor = cursor;
+                self.overlay.set_menu_row(
+                    value["menu_row"]
+                        .as_u64()
+                        .and_then(|row| u16::try_from(row).ok()),
+                );
                 self.context = decode_context(line, &value["context"]);
-                if self.hub_query.is_some() {
+                if self.workbench.active {
                     // A serialized editor response can arrive after the hub
                     // opens. Keep its confirmed line, but never replace hub or
                     // form entries with ordinary completion results.
-                    if self.hub_form.is_none() {
+                    if self.workbench.form.is_none() {
                         self.refresh_hub();
                     }
                     return Ok(());
@@ -1924,7 +1905,7 @@ impl State {
     fn query(&mut self, writer: &mut impl Write) -> Result<()> {
         // Metadata/enumerator keys also interrupt PSReadLine's consecutive
         // history cursor. Defer every automatic protocol key until editing.
-        if self.interaction_mode == InteractionMode::History && self.hub_query.is_none() {
+        if self.interaction_mode == InteractionMode::History && self.workbench.query().is_none() {
             return Ok(());
         }
         if self.history_pending
@@ -1955,10 +1936,26 @@ impl State {
             )?;
             writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
             writer.flush()?;
+        } else if self.reserve_menu_pending
+            && self.ready
+            && self.prompt
+            && self.pending_query.is_none()
+            && self.native_request.is_none()
+            && !self.commands_inflight
+        {
+            self.write_payload(
+                "request",
+                &json!({"id":self.revision.to_string(),"kind":"reserve_menu"}),
+            )?;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
+            writer.flush()?;
+            self.reserve_menu_pending = false;
+            self.pending_query = Some(self.revision);
+            self.dirty = false;
         } else if self.dirty
             && self.ready
             && self.prompt
-            && self.hub_query.is_none()
+            && self.workbench.query().is_none()
             && self.pending_query.is_none()
             && self.native_request.is_none()
         {
@@ -2026,6 +2023,37 @@ impl State {
         Ok(())
     }
 
+    fn fill_workbench(&mut self, command: String, writer: &mut impl Write) -> Result<()> {
+        self.workbench.form = None;
+        self.workbench.project = false;
+        self.workbench.close();
+        self.searching = false;
+        self.completion = Completion {
+            replace_start: 0,
+            replace_end: self.line.len(),
+            candidates: vec![Candidate {
+                label: command.clone(),
+                insert_text: command,
+                description: "已填写命令模板".into(),
+                kind: crate::model::CandidateKind::Command,
+                id: "hub:resolved-template".into(),
+                source: "Blueberry 工作台/模板".into(),
+                append_space: false,
+                ..Default::default()
+            }],
+            incomplete: false,
+            argument_hint: String::new(),
+        };
+        self.selected = 0;
+        self.presented_candidate = PresentedCandidate::capture(
+            self.revision,
+            &self.line,
+            self.cursor,
+            &self.completion,
+            self.selected,
+        );
+        self.accept(writer)
+    }
     fn accept(&mut self, writer: &mut impl Write) -> Result<()> {
         let Some(presented) = self.presented_candidate.as_ref().filter(|shown| {
             shown.revision == self.revision
@@ -2091,7 +2119,7 @@ impl State {
                 return Ok(());
             }
         }
-        if self.hub_query.is_some() {
+        if self.workbench.active {
             if matches!(&event,Event::Key(key) if key.kind==crossterm::event::KeyEventKind::Release)
             {
                 return Ok(());
@@ -2099,7 +2127,7 @@ impl State {
             use crossterm::event::{KeyCode, KeyModifiers};
             match event {
                 Event::Paste(text) => {
-                    if let Some(query) = self.hub_query.as_mut() {
+                    if let Some(query) = self.workbench.query_mut() {
                         query.push_str(&text.replace(['\r', '\n'], " "));
                     }
                     self.refresh_hub();
@@ -2120,8 +2148,12 @@ impl State {
                         }
                         // Coalesced resizes can return to the original size
                         // after the outer terminal has reflowed menu cells.
-                        self.overlay.reset_layout();
+                        self.overlay.resized();
                         self.repaint = !self.overlay.is_native();
+                        if !self.overlay.is_native() && self.prompt && self.ready {
+                            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 's'))?;
+                            self.pending_query = Some(self.revision);
+                        }
                     }
                     return Ok(());
                 }
@@ -2130,9 +2162,9 @@ impl State {
                         .is_some_and(|i| matches!(i, Input::Hub))
                         || key.code == KeyCode::Esc
                     {
-                        self.hub_query = None;
-                        self.hub_form = None;
-                        self.hub_form_project = false;
+                        self.workbench.close();
+                        self.workbench.form = None;
+                        self.workbench.project = false;
                         self.form_values_request = self.form_values_request.wrapping_add(1);
                         self.searching = false;
                         self.invalidate();
@@ -2140,10 +2172,8 @@ impl State {
                         return Ok(());
                     }
                     match key.code {
-                        KeyCode::BackTab if self.hub_form.is_some() => {
-                            let form = self.hub_form.as_mut().unwrap();
-                            if form.back() {
-                                self.hub_query = Some(form.current_value().to_owned());
+                        KeyCode::BackTab if self.workbench.form.is_some() => {
+                            if self.workbench.back() {
                                 self.request_form_values();
                                 self.refresh_hub();
                             }
@@ -2154,45 +2184,43 @@ impl State {
                                 .modifiers
                                 .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                         {
-                            self.hub_query.as_mut().unwrap().push(ch);
+                            self.workbench.query_mut().unwrap().push(ch);
                             self.refresh_hub();
                             return Ok(());
                         }
                         KeyCode::Backspace => {
-                            self.hub_query.as_mut().unwrap().pop();
+                            self.workbench.query_mut().unwrap().pop();
                             self.refresh_hub();
                             return Ok(());
                         }
-                        KeyCode::Up => {
-                            if self.cycle_form_value(false) {
+                        KeyCode::Up | KeyCode::Down => {
+                            let forward = key.code == KeyCode::Down;
+                            if self.cycle_form_value(forward) {
                                 return Ok(());
                             }
-                            if !self.completion.candidates.is_empty() {
-                                self.selected = self
-                                    .selected
-                                    .checked_sub(1)
-                                    .unwrap_or(self.completion.candidates.len() - 1);
-                            }
-                            return Ok(());
-                        }
-                        KeyCode::Down => {
-                            if self.cycle_form_value(true) {
-                                return Ok(());
-                            }
-                            if !self.completion.candidates.is_empty() {
-                                self.selected =
-                                    (self.selected + 1) % self.completion.candidates.len();
-                            }
+                            self.selected = self.workbench.navigate(
+                                self.selected,
+                                self.completion.candidates.len(),
+                                forward,
+                            );
                             return Ok(());
                         }
                         KeyCode::PageUp => {
-                            self.selected =
-                                self.selected.saturating_sub(self.config.ui.max_rows.max(1));
+                            self.selected = self.workbench.page(
+                                self.selected,
+                                self.completion.candidates.len(),
+                                self.config.ui.max_rows,
+                                false,
+                            );
                             return Ok(());
                         }
                         KeyCode::PageDown => {
-                            self.selected = (self.selected + self.config.ui.max_rows.max(1))
-                                .min(self.completion.candidates.len().saturating_sub(1));
+                            self.selected = self.workbench.page(
+                                self.selected,
+                                self.completion.candidates.len(),
+                                self.config.ui.max_rows,
+                                true,
+                            );
                             return Ok(());
                         }
                         KeyCode::Tab | KeyCode::F(1) => {
@@ -2201,52 +2229,21 @@ impl State {
                             return Ok(());
                         }
                         KeyCode::Enter => {
-                            if self.hub_form.is_some() {
-                                let value = self.hub_query.as_ref().cloned().unwrap_or_default();
-                                let form = self.hub_form.as_mut().unwrap();
-                                let command =
-                                    match form.advance(&value, self.hub_form_project, &self.cwd) {
-                                        Ok(command) => command,
-                                        Err(error) => {
-                                            self.notification = Some(format!("{error:#}"));
-                                            return Ok(());
-                                        }
-                                    };
+                            if self.workbench.form.is_some() {
+                                let command = match self.workbench.advance(&self.cwd) {
+                                    Ok(command) => command,
+                                    Err(error) => {
+                                        self.notification = Some(format!("{error:#}"));
+                                        return Ok(());
+                                    }
+                                };
                                 let Some(command) = command else {
-                                    *self.hub_query.as_mut().unwrap() = String::new();
+                                    *self.workbench.query_mut().unwrap() = String::new();
                                     self.request_form_values();
                                     self.refresh_hub();
                                     return Ok(());
                                 };
-                                self.hub_form = None;
-                                self.hub_form_project = false;
-                                self.hub_query = None;
-                                self.searching = false;
-                                self.completion = Completion {
-                                    replace_start: 0,
-                                    replace_end: self.line.len(),
-                                    candidates: vec![Candidate {
-                                        label: command.clone(),
-                                        insert_text: command,
-                                        description: "已填写命令模板".into(),
-                                        kind: crate::model::CandidateKind::Command,
-                                        id: "hub:resolved-template".into(),
-                                        source: "Blueberry 工作台/模板".into(),
-                                        append_space: false,
-                                        ..Default::default()
-                                    }],
-                                    incomplete: false,
-                                    argument_hint: String::new(),
-                                };
-                                self.selected = 0;
-                                self.presented_candidate = PresentedCandidate::capture(
-                                    self.revision,
-                                    &self.line,
-                                    self.cursor,
-                                    &self.completion,
-                                    self.selected,
-                                );
-                                return self.accept(writer);
+                                return self.fill_workbench(command, writer);
                             }
                             if let Some(candidate) = self.completion.candidates.get(self.selected) {
                                 if self
@@ -2257,44 +2254,27 @@ impl State {
                                 {
                                     return Ok(());
                                 }
-                                let project = candidate.id.starts_with("hub:project:");
-                                if project
-                                    && let Err(error) = crate::packs::verify_approval(&self.cwd)
-                                {
-                                    self.notification =
-                                        Some(format!("项目命令包已变更：{error:#}"));
-                                    self.refresh_hub();
-                                    return Ok(());
-                                }
-                                let template = self
-                                    .hub_templates
-                                    .get(&candidate.id)
-                                    .cloned()
-                                    .unwrap_or_else(|| crate::hub::CommandTemplate {
-                                        command: candidate.insert_text.clone(),
-                                        ..Default::default()
-                                    });
-                                let form = match crate::hub::TemplateForm::new(template) {
-                                    Ok(form) => form.with_shell(
-                                        &self.shell_environment,
-                                        &self.commands_snapshot.previous,
-                                        &self.cwd,
-                                    ),
+                                match self.workbench.activate(
+                                    candidate,
+                                    &self.shell_environment,
+                                    &self.commands_snapshot.previous,
+                                    &self.cwd,
+                                ) {
+                                    Ok(Some(command)) => {
+                                        return self.fill_workbench(command, writer);
+                                    }
+                                    Ok(None) => {
+                                        self.request_form_values();
+                                        self.refresh_hub();
+                                        return Ok(());
+                                    }
                                     Err(error) => {
                                         self.notification = Some(format!("{error:#}"));
                                         return Ok(());
                                     }
-                                };
-                                if !form.is_empty() {
-                                    self.hub_form = Some(form);
-                                    self.hub_form_project = project;
-                                    *self.hub_query.as_mut().unwrap() = String::new();
-                                    self.request_form_values();
-                                    self.refresh_hub();
-                                    return Ok(());
                                 }
                             }
-                            self.hub_query = None;
+                            self.workbench.close();
                             self.searching = false;
                             return self.accept(writer);
                         }
@@ -2647,14 +2627,16 @@ impl State {
                         })?;
                         self.parser.screen_mut().set_size(rows, cols);
                     }
-                    // The outer terminal can reflow old overlay cells during a
-                    // resize. Repaint the shell model instead of erasing only
-                    // the overlay's obsolete row coordinates. This is also
-                    // required when coalesced events return to the old size.
-                    self.overlay.reset_layout();
+                    // Keep the old menu identity until owned cells have been
+                    // inspected after reflow, including coalesced round trips.
+                    self.overlay.resized();
                     // Native Terminal restores before its own reflow. Repainting
                     // a cropped VT model would discard rich historical attributes.
                     self.repaint = !self.overlay.is_native();
+                    if !self.overlay.is_native() && self.prompt && self.ready {
+                        writer.write_all(&input::protocol_chord(&self.protocol_prefix, 's'))?;
+                        self.pending_query = Some(self.revision);
+                    }
                 }
                 return Ok(());
             }
@@ -2788,8 +2770,8 @@ impl State {
                     work.cancel = true;
                     work.query = None;
                 });
-                self.hub_query = Some(String::new());
-                self.hub_form = None;
+                self.workbench.open();
+                self.workbench.form = None;
                 self.history_pending = self.history_ready;
                 self.details = false;
                 self.selected = 0;
@@ -3000,6 +2982,11 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
     };
     // The screen model owns a fresh viewport. CSI 2J preserves scrollback.
+    #[cfg(windows)]
+    env.insert(
+        "BLUEBERRY_RESERVED_MENU".into(),
+        if overlay.is_native() { "0" } else { "1" }.into(),
+    );
     std::io::stdout().write_all(b"\x1b[2J\x1b[H")?;
     std::io::stdout().flush()?;
     let pty::Session {
@@ -3209,7 +3196,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
         status_writer: crate::status::StatusWriter::new(session_directory.join("adapter.json")),
         adapter_status: Value::Null,
         terminal_fallback_reason,
-        hub_query: None,
+        reserve_menu_pending: false,
+        workbench: Default::default(),
         hub_history: Vec::new(),
         hub_history_path: None,
         history_ready: false,
@@ -3229,9 +3217,6 @@ pub fn run(options: RunOptions) -> Result<u32> {
         history_keys: Vec::new(),
         native_delete_sequence: 0,
         pending_history_paste: None,
-        hub_form: None,
-        hub_form_project: false,
-        hub_templates: BTreeMap::new(),
     };
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
@@ -3242,6 +3227,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
     loop {
         frame.clear();
         let mut ui_dirty = false;
+        #[cfg(debug_assertions)]
+        let mut navigation_input = false;
         let mut eof = false;
         let event = if exit_code.is_some() {
             match rx.recv_timeout(std::time::Duration::from_millis(100)) {
@@ -3357,6 +3344,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     // protocol replies are handled before a new request.
                     let mut input_frame = Vec::with_capacity(inputs.len() * 8);
                     for input in inputs {
+                        #[cfg(debug_assertions)]
+                        {
+                            navigation_input |= matches!(&input, Event::Key(key) if matches!(key.code, crossterm::event::KeyCode::Up | crossterm::event::KeyCode::Down) && key.kind != crossterm::event::KeyEventKind::Release);
+                        }
                         if state.overlay.is_native()
                             && !matches!(&input, Event::Key(key) if key.kind == crossterm::event::KeyEventKind::Release)
                         {
@@ -3394,6 +3385,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             || matches!(&input, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release);
                         // Restore the old coordinates before changing the model size.
                         if matches!(&input, Event::Resize(..)) {
+                            state.overlay.resized();
                             erase_overlay(
                                 &mut state.overlay,
                                 state.parser.screen(),
@@ -3429,7 +3421,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if revision == state.revision
                         && state.prompt
                         && !state.dismissed
-                        && state.hub_query.is_none()
+                        && state.workbench.query().is_none()
                         && state.interaction_mode == InteractionMode::Completion
                         && !state.native_menu =>
                 {
@@ -3439,7 +3431,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         Some(queued_at.elapsed()),
                         Some(completion.candidates.len()),
                     );
-                    if state.hub_query.is_none()
+                    if state.workbench.query().is_none()
                         && state.cursor == state.line.len()
                         && !state.line.contains(['\n', '\r'])
                     {
@@ -3488,7 +3480,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if let Some(status) = crate::packs::cached_status() {
                         state.notification = Some(status);
                     }
-                    if state.hub_query.is_some() {
+                    if state.workbench.active {
                         state.refresh_hub();
                     }
                     ui_dirty = true;
@@ -3501,7 +3493,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         if partial {
                             state.notification = Some("部分历史：已按读取预算截取最近记录".into());
                         }
-                        if state.hub_query.is_some() {
+                        if state.workbench.active {
                             state.refresh_hub();
                         }
                         ui_dirty = true;
@@ -3517,7 +3509,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if request == state.form_values_request
                         && cwd == state.cwd
                         && environment == state.shell_environment
-                        && let Some(form) = state.hub_form.as_mut()
+                        && let Some(form) = state.workbench.form.as_mut()
                         && form.current().is_some_and(|field| field.name == name)
                     {
                         match values {
@@ -3595,8 +3587,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
             ui_dirty = true;
         }
         if std::mem::take(&mut state.repaint) {
-            frame.extend_from_slice(b"\x1b[2J\x1b[H");
-            frame.extend_from_slice(&state.parser.screen().state_formatted());
+            erase_overlay(
+                &mut state.overlay,
+                state.parser.screen(),
+                &mut frame,
+                &mut output,
+            )?;
             ui_dirty = true;
         }
         if std::mem::take(&mut state.bell) {
@@ -3617,7 +3613,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
             state.terminal_fallback_reason =
                 Some(format!("companion Terminal overlay failed: {error}"));
             state.adapter_status["terminal_connected"] = json!(false);
-            state.adapter_status["terminal_restore"] = json!("legacy_vt_model");
+            state.adapter_status["terminal_restore"] = json!("reserved_below_input");
+            state.reserve_menu_pending = true;
             state.adapter_status["terminal_fallback_reason"] =
                 json!(state.terminal_fallback_reason);
             render_overlay(&mut state, &mut frame, &mut output)?;
@@ -3662,8 +3659,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
             frame.extend_from_slice(MOUSE_OFF);
         }
         #[cfg(debug_assertions)]
+        if navigation_input && let Some(token) = &probe_token {
+            let value = json!({"event":"navigation_presented", "label":state.presented_candidate.as_ref().map(|shown|shown.candidate.label.as_str())});
+            frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
+        }
+        #[cfg(debug_assertions)]
         if ui_dirty
-            && state.hub_query.is_some()
+            && state.workbench.active
             && let Some(token) = &probe_token
             && let Some(shown) = &state.presented_candidate
         {
@@ -3671,6 +3673,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
             // mistake a partially repainted selector for a completed frame.
             let value = json!({"event":"hub_presented", "revision":shown.revision,
                 "label":shown.candidate.label, "id":shown.candidate.id,
+                "query":state.workbench.query(),
                 "incomplete":state.completion.incomplete});
             frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
         }

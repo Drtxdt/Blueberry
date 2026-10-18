@@ -5,6 +5,8 @@ use std::io::{self, Write};
 pub struct Overlay {
     rows: Option<(u16, u16)>,
     painted: Option<Painted>,
+    menu_row: Option<u16>,
+    resized: bool,
     #[cfg(windows)]
     native: Option<crate::native_overlay::NativeOverlay>,
     #[cfg(windows)]
@@ -25,6 +27,13 @@ struct Painted {
 }
 
 impl Overlay {
+    pub fn set_menu_row(&mut self, row: Option<u16>) {
+        self.menu_row = row;
+    }
+    pub fn resized(&mut self) {
+        self.menu_row = None;
+        self.resized = true;
+    }
     #[cfg(windows)]
     pub fn with_native(client: crate::native_overlay::NativeOverlay) -> Self {
         Self {
@@ -48,6 +57,8 @@ impl Overlay {
     pub fn reset_layout(&mut self) {
         self.rows = None;
         self.painted = None;
+        self.menu_row = None;
+        self.resized = false;
     }
 
     pub fn new_prompt(&mut self) {
@@ -108,29 +119,29 @@ impl Overlay {
     }
 
     pub fn erase(&mut self, screen: &vt100::Screen, output: &mut impl Write) -> io::Result<()> {
-        self.painted = None;
+        let painted = self.painted.take();
         #[cfg(windows)]
         if self.native_mode {
             self.rows = None;
+            self.resized = false;
             if let Some(Err(error)) = self.native.as_ref().map(|native| native.close(output)) {
                 self.native_failed(error);
             }
             return Ok(());
         }
         if let Some((top, height)) = self.rows.take() {
-            let (_, cols) = screen.size();
             write!(output, "\x1b[?25l")?;
-            for (index, row) in screen
-                .rows_formatted(0, cols)
-                .enumerate()
-                .skip(top.into())
-                .take(height.into())
+            let owned = painted
+                .as_ref()
+                .map(|p| owned_console_rows(p, screen.size(), self.resized));
+            for row in owned
+                .unwrap_or_else(|| (top..top.saturating_add(height).min(screen.size().0)).collect())
             {
-                write!(output, "\x1b[{};1H\x1b[0m\x1b[2K", index + 1)?;
-                output.write_all(&row)?;
+                write!(output, "\x1b[{};1H\x1b[0m\x1b[2K", row + 1)?;
             }
             restore_cursor(screen, output)?;
         }
+        self.resized = false;
         Ok(())
     }
 
@@ -173,9 +184,14 @@ impl Overlay {
         if rows < 4 || cols < 8 {
             return self.erase(screen, output);
         }
-        let below = rows.saturating_sub(cursor_row + 1);
+        let menu_row = self.menu_row.unwrap_or(cursor_row + 1).max(cursor_row + 1);
+        let below = rows.saturating_sub(menu_row);
         let above = cursor_row;
-        let available = below.max(above);
+        let available = if self.is_native() {
+            below.max(above)
+        } else {
+            below
+        };
         if available < 3 {
             return self.erase(screen, output);
         }
@@ -205,11 +221,15 @@ impl Overlay {
             return self.erase(screen, output);
         }
         let top = if below >= height {
-            cursor_row + 1
+            menu_row
         } else {
             cursor_row - height
         };
-        let left = cursor_col.min(cols.saturating_sub(frame.width + 1));
+        let left = if self.is_native() {
+            cursor_col.min(cols.saturating_sub(frame.width + 1))
+        } else {
+            0
+        };
         let painted = Painted {
             top,
             left,
@@ -217,7 +237,7 @@ impl Overlay {
             cursor: (cursor_row, cursor_col),
             frame,
         };
-        if self.painted.as_ref() == Some(&painted) {
+        if !self.resized && self.painted.as_ref() == Some(&painted) {
             return Ok(());
         }
         #[cfg(windows)]
@@ -300,6 +320,110 @@ impl Overlay {
 fn restore_cursor(screen: &vt100::Screen, output: &mut impl Write) -> io::Result<()> {
     output.write_all(&screen.cursor_state_formatted())?;
     output.write_all(&screen.attributes_formatted())
+}
+
+/// Inspect only character ownership. Historical cells are never replayed from
+/// CHAR_INFO or the VT model; their Unicode and RGB remain terminal-owned.
+fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec<u16> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::Console::{
+            CHAR_INFO, CONSOLE_SCREEN_BUFFER_INFO, COORD, GetConsoleScreenBufferInfo, GetStdHandle,
+            ReadConsoleOutputW, SMALL_RECT, STD_OUTPUT_HANDLE,
+        };
+        let handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
+        let mut info = CONSOLE_SCREEN_BUFFER_INFO::default();
+        if unsafe { GetConsoleScreenBufferInfo(handle, &mut info) } != 0 {
+            let width = (info.srWindow.Right - info.srWindow.Left + 1).max(1);
+            let mut owned = Vec::new();
+            for line in &painted.frame.lines {
+                let mut parser = vt100::Parser::new(1, painted.size.1, 0);
+                parser.process(line.as_bytes());
+                let text = parser.screen().contents();
+                owned.push(text.trim().to_owned());
+                if resized {
+                    use unicode_segmentation::UnicodeSegmentation;
+                    use unicode_width::UnicodeWidthStr;
+                    let mut part = String::new();
+                    let mut cells = 0;
+                    for glyph in text.graphemes(true) {
+                        let next = UnicodeWidthStr::width(glyph);
+                        if cells + next > width as usize {
+                            owned.push(part.trim().to_owned());
+                            part.clear();
+                            cells = 0;
+                        }
+                        part.push_str(glyph);
+                        cells += next;
+                    }
+                    owned.push(part.trim().to_owned());
+                }
+            }
+            let mut result = Vec::new();
+            let first = if resized { 0 } else { painted.top };
+            let end = if resized {
+                size.0
+            } else {
+                painted
+                    .top
+                    .saturating_add(painted.frame.lines.len() as u16)
+                    .min(size.0)
+            };
+            for y in first..end {
+                let mut area = SMALL_RECT {
+                    Left: info.srWindow.Left,
+                    Right: info.srWindow.Right,
+                    Top: info.srWindow.Top + y as i16,
+                    Bottom: info.srWindow.Top + y as i16,
+                };
+                let mut cells = vec![CHAR_INFO::default(); width as usize];
+                if unsafe {
+                    ReadConsoleOutputW(
+                        handle,
+                        cells.as_mut_ptr(),
+                        COORD { X: width, Y: 1 },
+                        COORD { X: 0, Y: 0 },
+                        &mut area,
+                    )
+                } == 0
+                {
+                    continue;
+                }
+                let text = String::from_utf16_lossy(
+                    &cells
+                        .iter()
+                        .filter(|cell| {
+                            cell.Attributes & 0x0200 == 0
+                                || unsafe { (0xdc00..=0xdfff).contains(&cell.Char.UnicodeChar) }
+                        })
+                        .map(|cell| unsafe { cell.Char.UnicodeChar })
+                        .collect::<Vec<_>>(),
+                );
+                let text = text.trim_matches([' ', '\0']);
+                if !text.is_empty()
+                    && owned.iter().any(|line| {
+                        line == text
+                            || (text.contains('\u{fffd}')
+                                && line
+                                    .chars()
+                                    .map(|ch| if ch as u32 > 0xffff { '\u{fffd}' } else { ch })
+                                    .collect::<String>()
+                                    == text)
+                    })
+                {
+                    result.push(y);
+                }
+            }
+            return result;
+        }
+    }
+    let _ = resized;
+    (painted.top
+        ..painted
+            .top
+            .saturating_add(painted.frame.lines.len() as u16)
+            .min(size.0))
+        .collect()
 }
 
 #[cfg(test)]

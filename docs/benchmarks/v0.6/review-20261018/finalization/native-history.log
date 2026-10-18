@@ -1,0 +1,10 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.70s
+     Running tests\direct_terminal.rs (target\debug\deps\direct_terminal-16474eefb2441229.exe)
+
+running 2 tests
+test direct_above_menu_resize_preserves_truecolor_history ... ok
+test direct_above_menu_resize_preserves_unicode_and_wrapped_history ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 38 filtered out; finished in 6.93s
+
