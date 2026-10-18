@@ -9,6 +9,21 @@ use blueberry::probe::Harness;
 use std::{collections::BTreeMap, time::Duration};
 const TIMEOUT: Duration = Duration::from_secs(20);
 
+fn direct_fixture() -> Result<tempfile::TempDir> {
+    // Keep the live fixture outside repository ancestry, and retain both
+    // passing and failing traces at a path uploaded by Windows CI.
+    let evidence = std::env::var_os("RUNNER_TEMP")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("blueberry-direct-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let mut directory = tempfile::Builder::new()
+        .prefix("direct-")
+        .tempdir_in(evidence)?;
+    directory.disable_cleanup(true);
+    Ok(directory)
+}
+
 #[path = "support/console_snapshot.rs"]
 mod console_snapshot;
 
@@ -188,7 +203,7 @@ fn native_unicode_input_helper() -> Result<()> {
 fn console_output_transport_experiment() -> Result<()> {
     let mut samples = Vec::new();
     for mode in 0..3 {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         let script = dir.path().join("experiment.ps1");
         let log = dir.path().join("qpc.csv");
         std::fs::write(&script, include_str!("output-fence.ps1"))?;
@@ -253,7 +268,7 @@ fn console_output_transport_experiment() -> Result<()> {
 
 #[test]
 fn compiled_bridge_codec_runs_in_selected_shell() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let bootstrap = blueberry::host::direct::ensure_bootstrap(dir.path())?;
     let script = dir.path().join("codec.ps1");
     std::fs::write(
@@ -282,7 +297,7 @@ fn compiled_bridge_codec_runs_in_selected_shell() -> Result<()> {
 
 #[test]
 fn plain_psreadline_preserves_the_same_unicode_input() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let module = std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE")
         .unwrap_or("PSReadLine".into())
         .replace('\'', "''");
@@ -514,7 +529,7 @@ fn wait_editor_begin(h: &mut Harness, directory: &std::path::Path, count: usize)
 #[test]
 fn direct_empty_up_keeps_native_history_until_a_real_edit() -> Result<()> {
     for delay in [0, 40] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         let mut h = start_with_delay(dir.path(), delay)?;
         let result = (|| -> Result<()> {
             h.send(b"function global:TabExpansion2 { param($inputScript,$cursorColumn,$options) $m=[Collections.ObjectModel.Collection[Management.Automation.CompletionResult]]::new(); $m.Add([Management.Automation.CompletionResult]::new('git status','git status','Command','fixture')); [Management.Automation.CommandCompletion]::new($m,0,0,$inputScript.Length) }; [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git sw'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st')\r")?;
@@ -605,7 +620,7 @@ fn direct_empty_up_keeps_native_history_until_a_real_edit() -> Result<()> {
 #[test]
 fn direct_history_respects_disabled_policy_and_custom_up_binding() -> Result<()> {
     for custom in [false, true] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         if !custom {
             std::fs::write(
                 dir.path().join("config.toml"),
@@ -699,7 +714,7 @@ fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() ->
 #[test]
 fn direct_empty_line_cancels_menu_and_disabled_autotrigger_preserves_typing() -> Result<()> {
     for automatic in [true, false] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         if !automatic {
             std::fs::write(
                 dir.path().join("config.toml"),
@@ -744,7 +759,7 @@ fn direct_empty_line_cancels_menu_and_disabled_autotrigger_preserves_typing() ->
 
 #[test]
 fn direct_menu_accept_is_fill_only_and_shell_still_edits_unicode() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     send_unicode_input(&mut harness, "Write-Output '中文😀👩‍💻终端'\r")?;
@@ -782,7 +797,7 @@ fn direct_menu_accept_is_fill_only_and_shell_still_edits_unicode() -> Result<()>
 
 #[test]
 fn direct_runtime_custom_binding_is_preserved() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     harness.send(b"Set-PSReadLineKeyHandler -Chord g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('CUSTOM') }; Write-Output 'binding-installed'\r")?;
@@ -795,7 +810,7 @@ fn direct_runtime_custom_binding_is_preserved() -> Result<()> {
 
 #[test]
 fn direct_runtime_builtin_rebinding_takes_priority_over_menu_accept() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(
@@ -812,7 +827,7 @@ fn direct_runtime_builtin_rebinding_takes_priority_over_menu_accept() -> Result<
 
 #[test]
 fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let user = dir.path().join("user profile");
     for edition in ["PowerShell", "WindowsPowerShell"] {
         let documents = user.join("Documents").join(edition);
@@ -873,7 +888,7 @@ $global:LASTEXITCODE = 37
 
 #[test]
 fn direct_preserves_command_status_across_prompt_lifecycle() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(b"cmd.exe /d /c exit 7\r")?;
@@ -885,7 +900,7 @@ fn direct_preserves_command_status_across_prompt_lifecycle() -> Result<()> {
 
 #[test]
 fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.send(b"if ((Get-Command Get-FileHash -ErrorAction Stop).Source -eq 'Microsoft.PowerShell.Utility' -and (Get-Command ConvertTo-Json -ErrorAction Stop)) { Write-Output 'MODULE-AUTOLOAD-OK' }\r")?;
     wait_output_line(&mut h, "MODULE-AUTOLOAD-OK")?;
@@ -894,7 +909,7 @@ fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<(
 
 #[test]
 fn direct_autoloads_a_module_under_a_sql_style_powershell_directory() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let modules = dir.path().join("SQL/Tools/PowerShell/Modules");
     let module = modules.join("BlueberrySqlRootFixture");
     std::fs::create_dir_all(&module)?;
@@ -940,7 +955,7 @@ fn direct_autoloads_a_module_under_a_sql_style_powershell_directory() -> Result<
 
 #[test]
 fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = Harness::start(
         std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
         &[
@@ -1042,7 +1057,7 @@ fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> R
 
 #[test]
 fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     // No command execution/autoload is allowed before these first-prompt checks.
     for prefix in ["get", "GET", "get-"] {
@@ -1063,7 +1078,7 @@ fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() 
 
 #[test]
 fn direct_refreshes_large_runtime_snapshots_and_removals() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.send_text("1..705 | ForEach-Object { Set-Alias -Name ('bb-session-'+$_) -Value Get-Help }; function bb-runtime { 'old' }; 'SNAPSHOT-READY'\r")?;
     wait_output_line(&mut h, "SNAPSHOT-READY")?;
@@ -1099,8 +1114,8 @@ fn direct_commands_are_isolated_between_live_sessions() -> Result<()> {
         atomic::{AtomicBool, Ordering},
         mpsc,
     };
-    let first = tempfile::tempdir()?;
-    let second = tempfile::tempdir()?;
+    let first = direct_fixture()?;
+    let second = direct_fixture()?;
     let stop = Arc::new(AtomicBool::new(false));
     let observer_stop = stop.clone();
     let (ready, ready_rx) = mpsc::channel();
@@ -1151,7 +1166,7 @@ fn direct_commands_are_isolated_between_live_sessions() -> Result<()> {
 
 #[test]
 fn direct_tracks_imported_and_removed_module_exports() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     std::fs::write(
         dir.path().join("Commands.psm1"),
         "function Get-BlueberryModuleOnly { 'MODULE-RESULT' }; Export-ModuleMember -Function Get-BlueberryModuleOnly",
@@ -1211,7 +1226,7 @@ fn editor_equivalence(vi: bool) -> Result<()> {
     };
     let mut results = Vec::new();
     for direct in [false, true] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         let snapshot = dir.path().join("snapshot.txt");
         let setup = dir.path().join("setup.ps1");
         std::fs::write(&setup, include_str!("editor-equivalence.ps1"))?;
@@ -1328,7 +1343,7 @@ fn editor_equivalence(vi: bool) -> Result<()> {
 
 #[test]
 fn editor_callback_exception_unregisters_without_losing_native_input() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let script = dir.path().join("inject-callback.ps1");
     let fault = dir.path().join("fault.txt");
     std::fs::write(
@@ -1379,7 +1394,7 @@ fn direct_ctrl_c_during_native_process_preserves_session_and_prompt() -> Result<
 }
 
 fn check_native_interrupt(parent_shell: bool) -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = if parent_shell {
         let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
             .map(std::path::PathBuf::from)
@@ -1450,7 +1465,7 @@ fn check_native_interrupt(parent_shell: bool) -> Result<()> {
 
 #[test]
 fn direct_dismiss_external_program_and_ctrl_c_restore_shell() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(b"git sw")?;
@@ -1482,7 +1497,7 @@ fn direct_dismiss_external_program_and_ctrl_c_restore_shell() -> Result<()> {
 
 #[test]
 fn direct_selected_frame_navigation_survives_resize_and_disconnect() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     harness.send(b"git sw")?;
@@ -1543,7 +1558,7 @@ fn path_fixture(root: &std::path::Path) -> Result<()> {
 #[test]
 fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result<()> {
     for delay in [0, 40] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         path_fixture(dir.path())?;
         let mut h = start_with_delay(dir.path(), delay)?;
         let result = (|| -> Result<()> {
@@ -1593,7 +1608,7 @@ fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result
 
 #[test]
 fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     path_fixture(dir.path())?;
     let mut h = start(dir.path())?;
     let result = (|| -> Result<()> {
@@ -1658,7 +1673,7 @@ fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() ->
 
 #[test]
 fn direct_pending_path_navigation_yields_to_typing_and_discards_late_frames() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     path_fixture(dir.path())?;
     let mut h = start_with_delay(dir.path(), 100)?;
     let result = (|| -> Result<()> {
@@ -1979,7 +1994,7 @@ fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
 
 #[test]
 fn direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     harness.send(b"git switch -c  --track")?;
@@ -2023,7 +2038,7 @@ fn direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute()
 
 #[test]
 fn direct_malformed_cargo_form_keeps_completion_and_native_history_alive() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     std::fs::write(dir.path().join("Cargo.toml"), "[workspace\nbroken")?;
     let snapshot = dir.path().join("error-buffer.json");
     let mut h = start(dir.path())?;
@@ -2088,7 +2103,7 @@ fn direct_malformed_cargo_form_keeps_completion_and_native_history_alive() -> Re
 
 #[test]
 fn direct_form_confirmation_precedes_immediately_following_typing() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(b"git switch -c  --track")?;
@@ -2109,7 +2124,7 @@ fn direct_form_confirmation_precedes_immediately_following_typing() -> Result<()
 
 #[test]
 fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let discovery = dir.path().join("unmatched.psd1");
     std::fs::write(&discovery, "ModuleVersion = '2.3.6'")?;
     let config = dir.path().join("config.toml");
@@ -2172,7 +2187,7 @@ fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
 
 #[test]
 fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let snapshot = dir.path().join("workflow-buffer.txt");
     let setup = dir.path().join("setup.ps1");
     let mode = dir.path().join("argument-mode.txt");
@@ -2250,12 +2265,51 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
                 .iter()
                 .filter(|event| event["event"] == "editor_edit_applied")
                 .count();
+            let mut form_keys_before = read_events()
+                .iter()
+                .filter(|event| event["event"] == "direct_ui_key")
+                .count();
             h.send(b"\r")?;
             for (index, value) in values.iter().enumerate() {
-                h.wait_text(&format!("参数 {}/{}", index + 1, values.len()), TIMEOUT)?;
+                let deadline = std::time::Instant::now() + TIMEOUT;
+                loop {
+                    let events = read_events();
+                    let keys = events
+                        .iter()
+                        .filter(|event| event["event"] == "direct_ui_key")
+                        .collect::<Vec<_>>();
+                    let painted = events
+                        .iter()
+                        .rev()
+                        .find(|event| event["event"] == "editor_menu_written")
+                        .and_then(|event| event["revision"].as_u64())
+                        .unwrap_or(0);
+                    let revised = keys
+                        .last()
+                        .and_then(|event| event["revision"].as_u64())
+                        .unwrap_or(u64::MAX);
+                    let screen = h.viewport_contents();
+                    if keys.len() > form_keys_before
+                        && painted >= revised
+                        && screen.contains("填写参数：")
+                        && screen.contains(&format!("参数 {}/{}", index + 1, values.len()))
+                    {
+                        break;
+                    }
+                    ensure!(
+                        std::time::Instant::now() < deadline,
+                        "workflow field not painted: {name}/{}: {screen}",
+                        index + 1
+                    );
+                    let _ = h.pump(Duration::from_millis(10));
+                }
                 if !value.is_empty() {
                     h.send_text(value)?;
                 }
+                form_keys_before = read_events()
+                    .iter()
+                    .filter(|event| event["event"] == "direct_ui_key")
+                    .count();
                 h.send(b"\r")?;
             }
             let deadline = std::time::Instant::now() + TIMEOUT;
@@ -2267,7 +2321,8 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
             {
                 ensure!(
                     std::time::Instant::now() < deadline,
-                    "workflow did not finish: {name}"
+                    "workflow did not finish: {name}: {}",
+                    h.viewport_contents()
                 );
                 let _ = h.pump(Duration::from_millis(10));
             }
