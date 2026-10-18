@@ -1649,7 +1649,7 @@ fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() ->
     })();
     if let Err(error) = result {
         let _ = h.save_evidence(dir.path());
-        let _ = console_snapshot::capture(&h, &dir.path().join("native-screen.json"));
+        let _ = console_snapshot::capture(&mut h, &dir.path().join("native-screen.json"));
         let _ = h.stop();
         return Err(error).with_context(|| format!("bottom menu: {}", dir.keep().display()));
     }
@@ -1784,7 +1784,7 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
     })();
     if let Err(error) = result {
         let _ = h.save_evidence(dir.path());
-        let _ = console_snapshot::capture(&h, &dir.path().join("native-failure.json"));
+        let _ = console_snapshot::capture(&mut h, &dir.path().join("native-failure.json"));
         let _ = h.stop();
         return Err(error).with_context(|| format!("multiline overlay: {}", dir.keep().display()));
     }

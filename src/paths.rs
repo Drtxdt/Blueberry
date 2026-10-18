@@ -47,11 +47,38 @@ impl PathCache {
         directories_only: bool,
         cancel: &AtomicBool,
     ) -> PathResult {
+        self.complete_with_mode(
+            line,
+            _cursor,
+            context,
+            cwd,
+            environment,
+            directories_only,
+            cancel,
+            crate::invocation::ArgumentMode::PowerShell,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn complete_with_mode(
+        &mut self,
+        line: &str,
+        _cursor: usize,
+        context: &InputContext,
+        cwd: &Path,
+        environment: &BTreeMap<String, String>,
+        directories_only: bool,
+        cancel: &AtomicBool,
+        mode: crate::invocation::ArgumentMode,
+    ) -> PathResult {
         let mut result = PathResult::default();
         if context.suppressed {
             return result;
         }
-        let original_prefix = context.prefix.as_str();
+        let decoded = (mode == crate::invocation::ArgumentMode::NativeLegacy)
+            .then(|| decode_legacy_path(&context.prefix))
+            .flatten();
+        let original_prefix = decoded.as_deref().unwrap_or(&context.prefix);
         let (head, prefix) = if original_prefix.starts_with('-') {
             original_prefix
                 .find('=')
@@ -247,6 +274,10 @@ impl PathCache {
         } else {
             0
         };
+        let preserves_expression = !single_quoted
+            && prefix.char_indices().any(|(index, ch)| {
+                ch == '$' && environment_expression_end(prefix, index, prefix.len()).is_some()
+            });
         for (name, is_dir) in entries {
             if cancel.load(Ordering::Relaxed) {
                 result.incomplete = true;
@@ -263,13 +294,18 @@ impl PathCache {
                     String::new()
                 }
             );
-            let formatted = format_path_value(
-                head,
-                &insert,
-                preserve_env_prefix.min(display_value.len()),
-                raw_value,
-                *is_dir,
-            );
+            let formatted =
+                if mode == crate::invocation::ArgumentMode::NativeLegacy && !preserves_expression {
+                    crate::invocation::literal(&format!("{head}{insert}"), mode)
+                } else {
+                    format_path_value(
+                        head,
+                        &insert,
+                        preserve_env_prefix.min(display_value.len()),
+                        raw_value,
+                        *is_dir,
+                    )
+                };
             result.candidates.push(Candidate {
                 label: name.clone(),
                 insert_text: formatted,
@@ -286,6 +322,28 @@ impl PathCache {
         }
         result
     }
+}
+
+// Completion can reopen a directory emitted as one legacy Windows argv word.
+// Double quotes cannot be part of a Windows filename; only undo the wrapper
+// and doubled closing backslashes produced by the shared literal renderer.
+fn decode_legacy_path(value: &str) -> Option<String> {
+    let body = value.strip_prefix('"')?;
+    let closing = body.find('"')?;
+    let inner = &body[..closing];
+    let suffix = &body[closing + 1..];
+    if suffix.contains('"') {
+        return None;
+    }
+    let tail = inner.len() - inner.trim_end_matches('\\').len();
+    if tail % 2 != 0 {
+        return None;
+    }
+    Some(format!(
+        "{}{}{suffix}",
+        &inner[..inner.len() - tail],
+        "\\".repeat(tail / 2)
+    ))
 }
 
 fn raw_value_part(raw: &str) -> &str {

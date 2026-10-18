@@ -77,8 +77,8 @@ pub fn write_attached() -> Result<()> {
     Ok(())
 }
 
-pub fn capture(harness: &Harness, path: &Path) -> Result<()> {
-    let result = std::process::Command::new(std::env::current_exe()?)
+pub fn capture(harness: &mut Harness, path: &Path) -> Result<()> {
+    let mut child = std::process::Command::new(std::env::current_exe()?)
         .args(["console_snapshot_helper", "--exact", "--ignored"])
         .env(
             "BLUEBERRY_SNAPSHOT_PID",
@@ -89,7 +89,22 @@ pub fn capture(harness: &Harness, path: &Path) -> Result<()> {
         )
         .env("BLUEBERRY_SNAPSHOT_PATH", path)
         .creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW)
-        .output()?;
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while child.try_wait()?.is_none() {
+        // ConPTY may request a cursor report during reflow. Keep servicing
+        // replies while the snapshot helper starts; a blocking output() can
+        // deliver a late CPR to ReadLine as ordinary keyboard characters.
+        let _ = harness.pump(std::time::Duration::from_millis(5));
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            anyhow::bail!("console snapshot helper timed out");
+        }
+    }
+    let result = child.wait_with_output()?;
     ensure!(
         result.status.success(),
         "console snapshot failed: {} {}",

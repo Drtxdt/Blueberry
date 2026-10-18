@@ -572,7 +572,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     let snapshot_path = host._data_dir.path().join("resize-24-80.json");
     let resize_deadline = Instant::now() + Duration::from_secs(5);
     let actual: serde_json::Value = loop {
-        console_snapshot::capture(&host.harness, &snapshot_path)?;
+        console_snapshot::capture(&mut host.harness, &snapshot_path)?;
         let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
         if actual["width"] == 80
             && actual["height"] == 24

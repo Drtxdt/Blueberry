@@ -468,7 +468,7 @@ fn collect_lane(
         update.watch_paths = result.watch_paths;
         update.recursive_watch_paths = result.recursive_watch_paths;
     } else if index == 1 && request.paths {
-        let result = paths.complete(
+        let result = paths.complete_with_mode(
             &request.line,
             request.cursor,
             &request.context,
@@ -476,6 +476,7 @@ fn collect_lane(
             &request.environment,
             request.directories_only,
             cancel,
+            request.argument_mode,
         );
         update.candidates = result.candidates;
         update.incomplete = result.incomplete;
