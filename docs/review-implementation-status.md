@@ -180,7 +180,7 @@ artifacts/lifecycle-direct-20261019。服务/代理启动及自行选择调试�
 2026-10-19 15:25（UTC+8）：独立矩阵 artifacts/direct-final3-20261019 完整完成。
 三个支持组合各自 Direct 全套 36 通过、7 项既有跳过，随后各 30 次工作流全部通过。
 冻结二进制摘要、计划、完整套件日志、90 份重复日志和协调器回执打包为
-finalization/direct-three-combinations-20261019.zip；这是本机修复回归，不是最终 CI 包验收。
+artifacts/finalization-raw-20261019/direct-three-combinations-20261019.zip；这是本机修复回归，不是最终 CI 包验收。
 早两次运行保留：首次工作进程以 0xc000013a 退出；第二次新进程组的 Ctrl+C 继承语义
 使中断测试失败。最终工作进程使用 CREATE_NO_WINDOW，不设置禁用 Ctrl+C 的新进程组。
 
@@ -192,10 +192,10 @@ artifacts/lifecycle-profile-identity-20261019，工作负载退出 0，32 个进
 4 项测试通过，避免只凭事件齐全误报采样成功。正式配对样本与最终同源包仍待完成。
 
 2026-10-19：profile 多个同名模块、晚醒补全接受、晚醒工作流的专项在三个支持组合均通过，
-共 9 项真实 ConPTY 回归。记录见 finalization/direct-identity-three-combinations-20261019.zip。
+共 9 项真实 ConPTY 回归。记录见 artifacts/finalization-raw-20261019/direct-identity-three-combinations-20261019.zip。
 普通单模块 Direct 启动沿用已有模块记录，仅出现数组时解析实际 cmdlet 所属模块。
 补全接受和排队导航同样先处理已到达响应，再检查期限，仍保持原来的有界等待与修订保护。
-生命周期原始事件、负载输出、成功配对与首轮失败记录见 finalization/startup-lifecycles-20261019.zip。
+生命周期原始事件、负载输出、成功配对与首轮失败记录见 artifacts/finalization-raw-20261019/startup-lifecycles-20261019.zip。
 
 正式 R2 采样期间继续静态核对剩余门槛：Python 测试路径发现补上目录条目的入队预算，
 避免单个大目录先积累全部子项再检查原有 4096 路径/250 ms 限制。新增空 PATH 下
@@ -205,3 +205,5 @@ artifacts/lifecycle-profile-identity-20261019，工作负载退出 0，32 个进
 PS7/PS5.1 分别执行；日志与事务证据在独立目录保存，最终卸载并删除专有磁盘映像。
 目前只完成静态语法检查，执行结果以新 CI 为准，不计作已经通过；本机不运行这些诊断，
 不干扰冻结 R2 采样，也不修改本机安装或现有磁盘。
+
+2026-10-19 证据存放修正：三个本机回归 ZIP 已移至忽略的 artifacts/finalization-raw-20261019，Git 仅保留 finalization/raw-evidence-location.json 的文件摘要。Actions 上传身份尚未生成；须在正式采样完成后按既有独立上传流程补齐，当前不能将本机记录称为远端已交付工件。

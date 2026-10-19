@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "status": "local_sealed_pending_actions_upload",
+  "local_root": "artifacts\\finalization-raw-20261019",
+  "files": {
+    "direct-identity-three-combinations-20261019.zip": "E4677E790CE35ADF1BC10455F2FAA757C4690889A07B763225D24610E114A523",
+    "direct-three-combinations-20261019.zip": "38CFEA03EDDBC946D6E4123FBB329769EB0F032F52B9BF274332441BA68C268B",
+    "startup-lifecycles-20261019.zip": "FDE6DB940A3E92003BEBAA58EEFA9B6697FF29AFCAEB8A91E8D7065E33D56858"
+  },
+  "actions_run_id": null,
+  "actions_artifact_id": null
+}
