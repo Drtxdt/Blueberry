@@ -3307,7 +3307,7 @@ function Send-BlueberryCapabilities {
         # cannot mistake a silent fallback for a pipe run.
         transport    = if ($script:BLUEBERRY_PIPE_ENABLED) { 'pipe' } else { 'osc' }
         shell_version = [string]$PSVersionTable.PSVersion
-        psreadline_version = if ($null -ne (Get-Module PSReadLine)) { [string](Get-Module PSReadLine).Version } else { $null }
+        psreadline_version = if ($null -ne (Get-Module PSReadLine)) { [string](Get-Command Get-PSReadLineOption -CommandType Cmdlet -ErrorAction Stop).Module.Version } else { $null }
         capabilities = $capabilityMap
     })
 }

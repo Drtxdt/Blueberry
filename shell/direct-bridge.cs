@@ -440,12 +440,14 @@ namespace Blueberry.Direct {
             // Acceptance is already an explicit ordered operation. Arrows never
             // block the editor; Tab drains their responses before binding an edit.
             long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/2;
-            while (navigationPending && connected && Stopwatch.GetTimestamp()<deadline) {
+            while (navigationPending && connected) {
                 Refresh();
                 if (!navigationPending) break;
                 lock(frameLock) { if(reliableFrames.Count>0 || pending!=null) continue; }
+                if(Stopwatch.GetTimestamp()>=deadline) break;
                 int remaining=(int)Math.Max(1,(deadline-Stopwatch.GetTimestamp())*1000/Stopwatch.Frequency);
                 arrived.WaitOne(remaining);
+                if(testUiWakeDelay>0) Thread.Sleep(testUiWakeDelay);
             }
             if (navigationPending) { Query("cancel"); return; }
             if (displayed!=null) Accept();
@@ -711,12 +713,14 @@ namespace Blueberry.Direct {
             // Explicit acceptance is ordered before the next editor keystroke.
             // Ordinary typing never enters this wait on the integrated path.
             long deadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 2;
-            while (connected && Stopwatch.GetTimestamp() < deadline) {
+            while (connected) {
                 Refresh();
                 if (acceptingFrame == null) return;
                 lock(frameLock) { if(reliableFrames.Count>0 || pending!=null) continue; }
+                if(Stopwatch.GetTimestamp()>=deadline) break;
                 int remaining = (int)Math.Max(1, (deadline-Stopwatch.GetTimestamp())*1000/Stopwatch.Frequency);
                 arrived.WaitOne(remaining);
+                if(testUiWakeDelay>0) Thread.Sleep(testUiWakeDelay);
             }
             acceptingFrame = null;
             Query("cancel"); // Revoke a timed-out edit before later typing.

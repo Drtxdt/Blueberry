@@ -16,6 +16,11 @@ if (-not $blueberryDirectModule) {
     }
     $blueberryDirectModule = Get-Module PSReadLine
 }
+# Profiles can import more than one manifest with this name. The command's
+# owning module identifies the loaded editor rather than an array of labels.
+if ($blueberryDirectModule -is [array]) {
+    $blueberryDirectModule = (Get-Command Get-PSReadLineOption -CommandType Cmdlet -ErrorAction Stop).Module
+}
 $blueberryDirectModuleImported = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }
 if ($env:BLUEBERRY_NO_HISTORY -eq '1') { Set-PSReadLineOption -HistorySaveStyle SaveNothing }
 $blueberryDirectModuleLoaded = if ($blueberryDirectScriptEnter) { [Diagnostics.Stopwatch]::GetTimestamp() } else { 0 }

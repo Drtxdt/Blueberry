@@ -114,7 +114,8 @@ def observe(argv, output, timeout):
     receipt = dict(schema=1, diagnostic_only=True, formal_timing_eligible=False,
                    observer='Windows DEBUG_PROCESS', observer_sha256=batch.sha(__file__),
                    argv=argv, scope='Owned debug-inherited descendants; excludes service/broker launches and descendants selecting their own debugger',
-                   lifecycle_reconciled=False, processes=[], error=None)
+                   lifecycle_reconciled=False, workload_succeeded=False, workload_exit_code=None,
+                   processes=[], error=None)
     live = {}
     initial_breakpoint = set()
     process_handle = thread_handle = None
@@ -173,6 +174,9 @@ def observe(argv, output, timeout):
                             record = live.pop(event.pid)
                             record.update(observed_exit_ns=detail['observed_ns'], exit_code=event.data.exit_code)
                             detail['exit_code'] = event.data.exit_code
+                            if event.pid == root_pid:
+                                receipt['workload_exit_code'] = event.data.exit_code
+                                receipt['workload_succeeded'] = event.data.exit_code == 0
                         elif event.kind == 6 and event.data.file:  # LOAD_DLL_DEBUG_EVENT
                             kernel.CloseHandle(event.data.file)
                         elif event.kind == 1:
@@ -215,5 +219,6 @@ if __name__ == '__main__':
     if not command or not 0 < args.timeout <= 3600:
         parser.error('Supply a command and a timeout in (0, 3600]')
     result = observe(command, args.output, args.timeout)
-    print(json.dumps(dict(lifecycle_reconciled=result['lifecycle_reconciled'], error=result['error'])))
-    raise SystemExit(0 if result['lifecycle_reconciled'] else 1)
+    print(json.dumps({key: result[key] for key in
+                     ('lifecycle_reconciled', 'workload_succeeded', 'workload_exit_code', 'error')}))
+    raise SystemExit(0 if result['lifecycle_reconciled'] and result['workload_succeeded'] else 1)

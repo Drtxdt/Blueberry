@@ -877,6 +877,9 @@ $global:BlueberryProfileCount++
 function global:bb-profile-function { 'PROFILE-FUNCTION' }
 Set-Alias -Name bb-profile-alias -Value bb-profile-function -Scope Global
 Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('PROFILE_BINDING') }
+# A second manifest record must not replace the actual cmdlet/assembly identity.
+New-Module -Name PSReadLine -ScriptBlock {} | Import-Module -Global
+$global:BlueberryProfileModuleCount = @(Get-Module PSReadLine).Count
 $global:LASTEXITCODE = 37
 "#,
         )?;
@@ -918,6 +921,8 @@ $global:LASTEXITCODE = 37
     h.send(b"\x01\x7f")?;
     h.send(b"[Console]::WriteLine(('PROFILE:{0}:{1}' -f $global:BlueberryProfileCount, $LASTEXITCODE))\r")?;
     wait_output_line(&mut h, "PROFILE:1:37")?;
+    h.send_text("if ($global:BlueberryProfileModuleCount -ge 2) { Write-Output 'MULTIPLE-MODULE-RECORDS' }\r")?;
+    wait_output_line(&mut h, "MULTIPLE-MODULE-RECORDS")?;
     h.send(b"\x07")?;
     h.wait_text("PROFILE_BINDING", TIMEOUT)?;
     h.send(b"\x01\x7f")?;
@@ -2231,6 +2236,18 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
 #[test]
 fn queued_workflow_responses_survive_a_late_editor_wake() -> Result<()> {
     exercise_builtin_workflows(true)
+}
+
+#[test]
+fn queued_completion_acceptance_survives_a_late_editor_wake() -> Result<()> {
+    let dir = direct_fixture()?;
+    std::fs::write(dir.path().join("delay-ui-wake"), "600")?;
+    let mut h = start(dir.path())?;
+    h.send_text("git sw")?;
+    h.wait_text("switch", TIMEOUT)?;
+    h.send(b"\tX")?;
+    h.wait_text("git switch X", TIMEOUT)?;
+    h.finish(TIMEOUT)
 }
 
 fn exercise_builtin_workflows(delay_wake: bool) -> Result<()> {

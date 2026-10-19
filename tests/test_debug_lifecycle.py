@@ -60,6 +60,14 @@ class DebugLifecycleTests(unittest.TestCase):
             self.assertEqual(receipt['processes'], [])
             self.assertTrue(receipt['error'])
 
+    def test_complete_events_do_not_hide_workload_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, receipt = self.observe(directory, [sys.executable, '-c', 'raise SystemExit(7)'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(receipt['lifecycle_reconciled'])
+            self.assertFalse(receipt['workload_succeeded'])
+            self.assertEqual(receipt['workload_exit_code'], 7)
+
 
 if __name__ == '__main__':
     unittest.main()

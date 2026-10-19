@@ -292,7 +292,7 @@ fn measure(
         (Some(first_static), Some(first_dynamic), status)
     } else {
         harness.send(b"\x01\x7f")?;
-        harness.send_text("Write-Output ('BB_PRODUCT_META:' + $PSVersionTable.PSVersion.ToString() + ':' + (Get-Module PSReadLine).Version.ToString() + ':BB_PRODUCT_META_END')\r")?;
+        harness.send_text("Write-Output ('BB_PRODUCT_META:' + $PSVersionTable.PSVersion.ToString() + ':' + (Get-Command Get-PSReadLineOption -CommandType Cmdlet -ErrorAction Stop).Module.Version.ToString() + ':BB_PRODUCT_META_END')\r")?;
         wait(&mut harness, "plain version metadata", |screen| {
             shell_metadata(screen).is_some()
         })?;
@@ -303,7 +303,7 @@ fn measure(
         // upstream binary, so the label alone is not a reproducible baseline.
         let metadata_path = directory.join("plain-editor.txt");
         let command = format!(
-            "[IO.File]::WriteAllLines('{}', [string[]]@((Get-Module PSReadLine).Path,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.FullName,[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes([Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location))).Replace('-',''))); Write-Output 'BB_PLAIN_IDENTITY_DONE'\r",
+            "[IO.File]::WriteAllLines('{}', [string[]]@((Get-Command Get-PSReadLineOption -CommandType Cmdlet -ErrorAction Stop).Module.Path,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location,[Microsoft.PowerShell.PSConsoleReadLine].Assembly.FullName,[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes([Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location))).Replace('-',''))); Write-Output 'BB_PLAIN_IDENTITY_DONE'\r",
             metadata_path.to_string_lossy().replace('\'', "''")
         );
         harness.send_text(&command)?;

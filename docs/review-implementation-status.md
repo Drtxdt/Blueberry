@@ -176,3 +176,23 @@ PS5.1/2.0.0 连续 30 次通过，全目标 Clippy 和格式检查通过；其�
 原生/直接 Blueberry 启动配对已取得相配的创建/退出记录，保留在
 artifacts/lifecycle-direct-20261019。服务/代理启动及自行选择调试器的后代不在该观察器
 覆盖范围；不声称替代增强 Terminal GUI 入口的独立验收。WMI 主机权限复测仍拒绝访问。
+
+2026-10-19 15:25（UTC+8）：独立矩阵 artifacts/direct-final3-20261019 完整完成。
+三个支持组合各自 Direct 全套 36 通过、7 项既有跳过，随后各 30 次工作流全部通过。
+冻结二进制摘要、计划、完整套件日志、90 份重复日志和协调器回执打包为
+finalization/direct-three-combinations-20261019.zip；这是本机修复回归，不是最终 CI 包验收。
+早两次运行保留：首次工作进程以 0xc000013a 退出；第二次新进程组的 Ctrl+C 继承语义
+使中断测试失败。最终工作进程使用 CREATE_NO_WINDOW，不设置禁用 Ctrl+C 的新进程组。
+
+自动 profile 生命周期首轮虽记录完整，但探针因多个 PSReadLine 模块记录形成版本数组而
+退出 1，不能算启动配对成功。身份读取现改用实际 cmdlet 所属模块；Direct/Nested 报告
+同样修正，并加入 profile 保留多个同名模块的回归。新隔离副本的自动 profile 诊断已成功：
+artifacts/lifecycle-profile-identity-20261019，工作负载退出 0，32 个进程创建/退出相配。
+观察器显式区分 workload_succeeded 与 lifecycle_reconciled，新增失败工作负载回归后
+4 项测试通过，避免只凭事件齐全误报采样成功。正式配对样本与最终同源包仍待完成。
+
+2026-10-19：profile 多个同名模块、晚醒补全接受、晚醒工作流的专项在三个支持组合均通过，
+共 9 项真实 ConPTY 回归。记录见 finalization/direct-identity-three-combinations-20261019.zip。
+普通单模块 Direct 启动沿用已有模块记录，仅出现数组时解析实际 cmdlet 所属模块。
+补全接受和排队导航同样先处理已到达响应，再检查期限，仍保持原来的有界等待与修订保护。
+生命周期原始事件、负载输出、成功配对与首轮失败记录见 finalization/startup-lifecycles-20261019.zip。
