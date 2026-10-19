@@ -518,6 +518,16 @@ jobs:
           $bundled = (Get-ChildItem ./target/migration-bundled-package/*.zip).FullName
           $core = (Get-ChildItem ./dist/ci/*.zip).FullName
           ./scripts/test-terminal-migration.ps1 -BundledPackage $bundled -CorePackage $core
+      - name: Real NTFS disk-full and permission failures
+        shell: pwsh
+        run: |
+          $core = (Get-ChildItem ./dist/ci/*.zip).FullName
+          $nextCore = (Get-ChildItem ./target/history-fixture-package/*.zip).FullName
+          $terminal = (Get-ChildItem ./dist/terminal/*.zip).FullName
+          $nextTerminal = (Get-ChildItem ./target/terminal-test-package/*.zip).FullName
+          ./scripts/test-storage-failures.ps1 -CorePackage $core -NextCorePackage $nextCore -TerminalPackage $terminal -NextTerminalPackage $nextTerminal
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-storage-failures.ps1 -CorePackage $core -NextCorePackage $nextCore -TerminalPackage $terminal -NextTerminalPackage $nextTerminal
+          if ($LASTEXITCODE -ne 0) { throw '5.1 physical storage failure tests failed' }
       - name: Upgrade the original public 0.5.2 installation
         shell: pwsh
         run: |
@@ -561,6 +571,9 @@ jobs:
             target/public-upgrade-*/receipt.json
             target/public-upgrade-*/original-install.json
             target/terminal-migration-*/components/terminal/component-state.json
+            target/storage-failures-*/**/*.json
+            target/storage-failures-*/**/*.log
+            target/storage-failures-*/**/*.wal
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:

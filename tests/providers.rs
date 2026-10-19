@@ -1450,3 +1450,44 @@ fn python_pytest_ini_without_pyproject_supports_continuation_lines() {
     assert_eq!(result.candidates.len(), 1);
     assert!(result.candidates[0].value.contains("check_case.py"));
 }
+
+#[test]
+fn python_workflow_without_uv_recovers_after_environment_metadata_repair() {
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("pyproject.toml"),
+        "[project]\nname='fixture'\n[project.scripts]\nhello='app:main'\n",
+    )
+    .unwrap();
+    let environment = dir.path().join("broken environment 中文");
+    fs::create_dir(&environment).unwrap();
+    let mut q = query("uv", &["run"], "", dir.path());
+    q.environment.insert("PATH".into(), String::new());
+    q.environment.insert(
+        "VIRTUAL_ENV".into(),
+        environment.to_string_lossy().into_owned(),
+    );
+    set_provider(&mut q, "python.environments");
+    let broken = collect(&q, &AtomicBool::new(false));
+    assert!(broken.candidates.is_empty());
+    assert!(broken.diagnostics.iter().any(|d| d.contains("pyvenv.cfg")));
+    assert!(broken.watch_paths.contains(&environment.join("pyvenv.cfg")));
+    // Static discovery checks metadata without invoking an interpreter.
+    fs::write(environment.join("pyvenv.cfg"), "home = fixture-python\n").unwrap();
+    let repaired = collect(&q, &AtomicBool::new(false));
+    assert!(
+        repaired
+            .candidates
+            .iter()
+            .any(|c| c.value == environment.to_string_lossy())
+    );
+    set_provider(&mut q, "python.scripts");
+    let cancelled = collect(&q, &AtomicBool::new(true));
+    assert!(cancelled.candidates.is_empty());
+    assert!(
+        collect(&q, &AtomicBool::new(false))
+            .candidates
+            .iter()
+            .any(|c| c.value == "hello")
+    );
+}

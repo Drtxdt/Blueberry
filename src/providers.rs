@@ -4030,7 +4030,19 @@ fn python_test_paths(
                 continue;
             }
             if let Ok(entries) = fs::read_dir(&path) {
-                stack.extend(entries.flatten().map(|e| (e.path(), depth + 1)));
+                for entry in entries.flatten() {
+                    // Bound admission as well as traversal: a single large
+                    // directory must not allocate an unbounded pending stack
+                    // before the next cancellation/deadline check.
+                    if cancelled(cancelled_flag)
+                        || visited + stack.len() >= 4096
+                        || started.elapsed() > Duration::from_millis(250)
+                    {
+                        result.incomplete = true;
+                        break;
+                    }
+                    stack.push((entry.path(), depth + 1));
+                }
             }
         } else if path.file_name().is_some_and(|name| {
             patterns
