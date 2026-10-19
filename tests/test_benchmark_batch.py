@@ -6,6 +6,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
+from types import SimpleNamespace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +18,27 @@ SPEC.loader.exec_module(BATCH)
 
 
 class BatchTests(unittest.TestCase):
+    def test_detached_launch_denial_is_recorded_without_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan = root / "plan.json"
+            BATCH.write(plan, dict(schema=1, tasks=[dict(name="first", argv=[sys.executable, "-c", "pass"],
+                cwd=str(root), timeout_seconds=5, report=str(root / "report.json"),
+                completion_field="measurement_complete")]))
+            with mock.patch.object(BATCH, "os", SimpleNamespace(name="nt", replace=os.replace)), \
+                    mock.patch.object(BATCH.subprocess, "Popen", side_effect=PermissionError("breakaway denied")) as launch:
+                with self.assertRaises(PermissionError):
+                    BATCH.detach(plan, root / "batch")
+                self.assertEqual(launch.call_count, 1)
+                self.assertEqual(launch.call_args.kwargs["creationflags"], 0x01000008)
+                receipt = BATCH.read(root / "batch.launch.json")
+                self.assertEqual(receipt["status"], "failed")
+                self.assertFalse(receipt["measurement_complete"])
+                self.assertFalse((root / "batch").exists())
+                with self.assertRaises(FileExistsError):
+                    BATCH.detach(plan, root / "batch")
+                self.assertEqual(launch.call_count, 1)
+
     def execute(self, root, source, timeout=10):
         report = root / "report.json"
         task = dict(name="first", argv=[sys.executable, "-c", source], cwd=str(root),
@@ -67,10 +90,13 @@ class BatchTests(unittest.TestCase):
             try:
                 import time
                 deadline = time.monotonic() + 10
-                while not (root / "child.json").exists():
-                    self.assertLess(time.monotonic(), deadline, "Worker did not start")
-                    time.sleep(.02)
-                pid = int((root / "child.json").read_text())
+                while True:
+                    try:
+                        pid = int((root / "child.json").read_text())
+                        break
+                    except (FileNotFoundError, ValueError):
+                        self.assertLess(time.monotonic(), deadline, "Worker did not publish its PID")
+                        time.sleep(.02)
             finally:
                 process.kill()
                 process.wait(timeout=10)

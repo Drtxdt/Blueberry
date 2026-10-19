@@ -2,12 +2,41 @@
 
 //! Inherited-console tests run in an outer observing ConPTY, never a second
 //! product ConPTY. Every session uses an isolated directory and no history.
+#[path = "support/incremental_trace.rs"]
+mod incremental_trace;
 #[path = "support/workflow_cases.rs"]
 mod workflow_cases;
 use anyhow::{Context, Result, ensure};
 use blueberry::probe::Harness;
 use std::{collections::BTreeMap, time::Duration};
 const TIMEOUT: Duration = Duration::from_secs(20);
+
+fn workflow_trace(
+    h: &mut Harness,
+    trace: &mut incremental_trace::Trace,
+) -> Result<incremental_trace::State> {
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    loop {
+        let _ = h.pump(Duration::from_millis(1));
+        if trace.poll()? {
+            return Ok(trace.state);
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "trace reader fell behind"
+        );
+    }
+}
+
+fn workflow_text(h: &mut Harness, text: &str) -> Result<()> {
+    // Exercise form input without blocking the terminal observer behind a
+    // whole native-key batch. Burst/paste semantics have separate regressions.
+    for character in text.chars() {
+        h.send_text(&character.to_string())?;
+        let _ = h.pump(Duration::from_millis(1));
+    }
+    Ok(())
+}
 
 fn direct_fixture() -> Result<tempfile::TempDir> {
     // Keep the live fixture outside repository ancestry, and retain both
@@ -373,6 +402,15 @@ fn start_delayed_executable_with_pages(
             ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
             ("TERM".into(), "xterm-256color".into()),
             ("BLUEBERRY_TEST_FRAME_DELAY_MS".into(), delay.to_string()),
+            (
+                "BLUEBERRY_TEST_UI_WAKE_DELAY_MS".into(),
+                if directory.join("delay-ui-wake").exists() {
+                    "600"
+                } else {
+                    "0"
+                }
+                .into(),
+            ),
             (
                 "BLUEBERRY_TEST_TERMINAL_PAGES".into(),
                 if terminal_pages { "1" } else { "0" }.into(),
@@ -2187,7 +2225,19 @@ fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
 
 #[test]
 fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
+    exercise_builtin_workflows(false)
+}
+
+#[test]
+fn queued_workflow_responses_survive_a_late_editor_wake() -> Result<()> {
+    exercise_builtin_workflows(true)
+}
+
+fn exercise_builtin_workflows(delay_wake: bool) -> Result<()> {
     let dir = direct_fixture()?;
+    if delay_wake {
+        std::fs::write(dir.path().join("delay-ui-wake"), "600")?;
+    }
     let snapshot = dir.path().join("workflow-buffer.txt");
     let setup = dir.path().join("setup.ps1");
     let mode = dir.path().join("argument-mode.txt");
@@ -2201,13 +2251,14 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
     )?;
     let mut h = start(dir.path())?;
     let result = (|| -> Result<()> {
-        h.send_text(&format!(
-            ". '{}'\r",
-            setup.display().to_string().replace('\'', "''")
-        ))?;
+        // The fixture is already the Shell's working directory. Avoid sending
+        // a long temporary absolute path as hundreds of synchronous native
+        // key records before the observer can service cursor queries.
+        workflow_text(&mut h, ". .\\setup.ps1\r")?;
         wait_editor_begin(&mut h, dir.path(), 2)?;
         let legacy = std::fs::read_to_string(&mode)? == "True";
         let cases = workflow_cases::CASES;
+        let mut trace = incremental_trace::Trace::open(&dir.path().join("trace.jsonl"))?;
         for (name, values, expected) in cases {
             let expected = if legacy && expected.starts_with("git worktree add") {
                 expected.replace("'../work tree'", "'\"../work tree\"'")
@@ -2216,38 +2267,13 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
             };
             h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
             h.wait_text("工作台", TIMEOUT)?;
-            let trace_path = dir.path().join("trace.jsonl");
-            let read_events = || -> Vec<serde_json::Value> {
-                std::fs::read_to_string(&trace_path)
-                    .unwrap_or_default()
-                    .lines()
-                    .filter_map(|line| serde_json::from_str(line).ok())
-                    .collect()
-            };
-            let before = read_events()
-                .iter()
-                .filter(|event| event["event"] == "direct_ui_key")
-                .count();
-            h.send_text(name)?;
+            let before = workflow_trace(&mut h, &mut trace)?.keys;
+            workflow_text(&mut h, name)?;
             let deadline = std::time::Instant::now() + TIMEOUT;
             loop {
-                let events = read_events();
-                let keys = events
-                    .iter()
-                    .filter(|event| event["event"] == "direct_ui_key")
-                    .collect::<Vec<_>>();
-                let painted = events
-                    .iter()
-                    .rev()
-                    .find(|event| event["event"] == "editor_menu_written")
-                    .and_then(|event| event["revision"].as_u64())
-                    .unwrap_or(0);
-                let revised = keys
-                    .last()
-                    .and_then(|event| event["revision"].as_u64())
-                    .unwrap_or(u64::MAX);
-                if keys.len() >= before + name.encode_utf16().count()
-                    && painted >= revised
+                let state = workflow_trace(&mut h, &mut trace)?;
+                if state.keys >= before + name.encode_utf16().count()
+                    && state.painted_revision >= state.key_revision.unwrap_or(u64::MAX)
                     && h.viewport_contents()
                         .lines()
                         .any(|row| row.contains('›') && row.contains(name))
@@ -2261,36 +2287,17 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
                 );
                 let _ = h.pump(Duration::from_millis(10));
             }
-            let applied_before = read_events()
-                .iter()
-                .filter(|event| event["event"] == "editor_edit_applied")
-                .count();
-            let mut form_keys_before = read_events()
-                .iter()
-                .filter(|event| event["event"] == "direct_ui_key")
-                .count();
+            let state = workflow_trace(&mut h, &mut trace)?;
+            let applied_before = state.applied;
+            let mut form_keys_before = state.keys;
             h.send(b"\r")?;
             for (index, value) in values.iter().enumerate() {
                 let deadline = std::time::Instant::now() + TIMEOUT;
                 loop {
-                    let events = read_events();
-                    let keys = events
-                        .iter()
-                        .filter(|event| event["event"] == "direct_ui_key")
-                        .collect::<Vec<_>>();
-                    let painted = events
-                        .iter()
-                        .rev()
-                        .find(|event| event["event"] == "editor_menu_written")
-                        .and_then(|event| event["revision"].as_u64())
-                        .unwrap_or(0);
-                    let revised = keys
-                        .last()
-                        .and_then(|event| event["revision"].as_u64())
-                        .unwrap_or(u64::MAX);
+                    let state = workflow_trace(&mut h, &mut trace)?;
                     let screen = h.viewport_contents();
-                    if keys.len() > form_keys_before
-                        && painted >= revised
+                    if state.keys > form_keys_before
+                        && state.painted_revision >= state.key_revision.unwrap_or(u64::MAX)
                         && screen.contains("填写参数：")
                         && screen.contains(&format!("参数 {}/{}", index + 1, values.len()))
                     {
@@ -2304,21 +2311,13 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
                     let _ = h.pump(Duration::from_millis(10));
                 }
                 if !value.is_empty() {
-                    h.send_text(value)?;
+                    workflow_text(&mut h, value)?;
                 }
-                form_keys_before = read_events()
-                    .iter()
-                    .filter(|event| event["event"] == "direct_ui_key")
-                    .count();
+                form_keys_before = workflow_trace(&mut h, &mut trace)?.keys;
                 h.send(b"\r")?;
             }
             let deadline = std::time::Instant::now() + TIMEOUT;
-            while read_events()
-                .iter()
-                .filter(|event| event["event"] == "editor_edit_applied")
-                .count()
-                <= applied_before
-            {
+            while workflow_trace(&mut h, &mut trace)?.applied <= applied_before {
                 ensure!(
                     std::time::Instant::now() < deadline,
                     "workflow did not finish: {name}: {}",
@@ -2343,7 +2342,19 @@ fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
             h.send(b"\x01\x7f")?;
         }
         h.send_text("Write-Output 'WORKFLOWS-STILL-EDITABLE'\r")?;
-        h.wait_line("WORKFLOWS-STILL-EDITABLE", TIMEOUT)?;
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        while !h
+            .viewport_contents()
+            .lines()
+            .any(|line| line.trim() == "WORKFLOWS-STILL-EDITABLE")
+        {
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "post-workflow command output missing: {}",
+                h.viewport_contents()
+            );
+            let _ = h.pump(Duration::from_millis(10));
+        }
         h.finish(TIMEOUT)
     })();
     if let Err(error) = result {

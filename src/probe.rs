@@ -63,6 +63,7 @@ pub struct Harness {
     protocol_seen: bool,
     known_empty_buffer: bool,
     last_capabilities: Option<Value>,
+    cursor_replies: VecDeque<Value>,
 }
 
 impl Harness {
@@ -77,6 +78,10 @@ impl Harness {
         std::fs::write(
             directory.join("probe-capabilities.json"),
             serde_json::to_vec_pretty(&self.last_capabilities)?,
+        )?;
+        std::fs::write(
+            directory.join("probe-cursor-replies.json"),
+            serde_json::to_vec_pretty(&self.cursor_replies)?,
         )?;
         Ok(())
     }
@@ -170,6 +175,7 @@ impl Harness {
             protocol_seen: false,
             known_empty_buffer: false,
             last_capabilities: None,
+            cursor_replies: VecDeque::new(),
             last_output_arrival: None,
             last_output_qpc: None,
             diagnostic,
@@ -247,6 +253,23 @@ impl Harness {
                         continue;
                     }
                     let (row, col) = self.screen.screen().cursor_position();
+                    if self.diagnostic {
+                        #[cfg(windows)]
+                        let reply_qpc = crate::latency_layers::qpc().ok();
+                        #[cfg(not(windows))]
+                        let reply_qpc: Option<i64> = None;
+                        if self.cursor_replies.len() == 256 {
+                            self.cursor_replies.pop_front();
+                        }
+                        self.cursor_replies.push_back(json!({
+                            "query_qpc": qpc,
+                            "reply_qpc": reply_qpc,
+                            "queue_delay_ms": arrived.elapsed().as_secs_f64() * 1000.0,
+                            "row": row + 1,
+                            "column": col + 1,
+                            "private": private,
+                        }));
+                    }
                     // A terminal cursor response is not an editor keystroke.
                     // Preserve the last confirmed empty-buffer state, especially
                     // when ConPTY asks for its position after prompt_end.

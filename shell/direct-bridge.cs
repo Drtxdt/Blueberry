@@ -61,6 +61,13 @@ namespace Blueberry.Direct {
         static long receivedQpc;
         static readonly bool diagnostic=Environment.GetEnvironmentVariable("BLUEBERRY_DIRECT_TRACE")=="1";
         static readonly int testFrameDelay = TestFrameDelay();
+        static readonly int testUiWakeDelay = TestUiWakeDelay();
+        static int TestUiWakeDelay() {
+            int delay;
+            return diagnostic && Environment.GetEnvironmentVariable("BLUEBERRY_NO_HISTORY")=="1"
+                && Int32.TryParse(Environment.GetEnvironmentVariable("BLUEBERRY_TEST_UI_WAKE_DELAY_MS"),out delay)
+                && delay>=0 && delay<=1000 ? delay : 0;
+        }
         static int TestFrameDelay() {
             int delay;
             return Environment.GetEnvironmentVariable("BLUEBERRY_NO_HISTORY")=="1"
@@ -607,13 +614,20 @@ namespace Blueberry.Direct {
             displayed=null;
             if(key.Key==ConsoleKey.Escape) interaction="completion";
             if(EditorHooks && operation=="ui_key" && (key.Key==ConsoleKey.Enter || key.Key==ConsoleKey.Tab)) {
+                long waiting=diagnostic ? Stopwatch.GetTimestamp() : 0;
                 long deadline=Stopwatch.GetTimestamp()+Stopwatch.Frequency/2;
-                while(connected && Stopwatch.GetTimestamp()<deadline) {
-                    if(Refresh()) return;
+                while(connected) {
+                    if(Refresh()) { if(diagnostic) TraceStage("direct_ui_response",Stopwatch.GetTimestamp()-waiting,1); return; }
                     lock(frameLock) { if(reliableFrames.Count>0 || pending!=null) continue; }
+                    // A wake can be scheduled after its deadline even though
+                    // the response arrived in time. Drain it before expiring
+                    // the operation, rather than discarding a queued form.
+                    if(Stopwatch.GetTimestamp()>=deadline) break;
                     int remaining=(int)Math.Max(1,(deadline-Stopwatch.GetTimestamp())*1000/Stopwatch.Frequency);
                     arrived.WaitOne(remaining);
+                    if(testUiWakeDelay>0) Thread.Sleep(testUiWakeDelay);
                 }
+                if(diagnostic) TraceStage("direct_ui_timeout",Stopwatch.GetTimestamp()-waiting,Thread.CurrentThread.ManagedThreadId==editorThread ? 1 : 0);
                 interaction="completion"; Query("cancel");
                 return;
             }

@@ -169,6 +169,11 @@ def run(plan_path, folder):
                 with (folder / (task["name"] + ".log")).open("wb") as log:
                     process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--worker", str(spec)],
                                                stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT,
+                                               # A hidden worker console must not inherit the
+                                               # caller's console. Do not disable Ctrl+C with
+                                               # CREATE_NEW_PROCESS_GROUP: Shell descendants
+                                               # must retain their normal interrupt behavior.
+                                               creationflags=0x08000000 if os.name == "nt" else 0,
                                                start_new_session=os.name != "nt")
                     # The helper waits on stdin. Assign it before it can spawn
                     # the real worker or any probe, avoiding an ownership race.
@@ -211,11 +216,49 @@ def run(plan_path, folder):
     return receipt
 
 
+def detach(plan_path, folder):
+    """Do not report spawn success as measurement success, or silently fall
+    back into a caller-owned Job which would lose a long run on interruption.
+    The detached coordinator still owns/kills every measurement worker Job.
+    """
+    if os.name != "nt":
+        raise OSError("Detached benchmark launch is Windows-only")
+    plan_path, folder = Path(plan_path).resolve(strict=True), Path(folder).resolve()
+    validate(read(plan_path))
+    assert not folder.exists(), "Refusing existing benchmark directory"
+    receipt_path = folder.with_name(folder.name + ".launch.json")
+    log_path = folder.with_name(folder.name + ".launch.log")
+    receipt = dict(schema=1, status="preparing", measurement_complete=False,
+                   plan=str(plan_path), plan_sha256=sha(plan_path),
+                   report=str(folder / "batch.json"), started_at_utc=now())
+    # Exclusive reservation also prevents two launchers racing on one output.
+    with receipt_path.open("x", encoding="utf-8") as stream:
+        json.dump(receipt, stream)
+    try:
+        with log_path.open("xb") as log:
+            process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()),
+                "--plan", str(plan_path), "--output", str(folder)],
+                stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                # DETACHED_PROCESS keeps the launch hidden. Breakaway is an
+                # explicit Windows permission check; no fallback bypasses it.
+                creationflags=0x00000008 | 0x01000000, close_fds=True)
+        receipt.update(status="started", owner=process_identity(process.pid))
+        assert receipt["owner"] is not None, "Coordinator exited during launch; inspect launch log"
+    except BaseException as error:
+        receipt.update(status="failed", error=str(error) or type(error).__name__)
+        raise
+    finally:
+        write(receipt_path, receipt)
+    print(json.dumps(receipt, ensure_ascii=False))
+    return receipt
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--inspect", type=Path)
+    parser.add_argument("--detach", action="store_true", help="Windows: start an owned coordinator outside the caller's Job; fail if breakaway is denied")
     parser.add_argument("--worker", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
@@ -229,7 +272,10 @@ def main():
         return 0
     if not (args.plan and args.output):
         parser.error("--plan and --output required")
-    run(args.plan, args.output)
+    if args.detach:
+        detach(args.plan, args.output)
+    else:
+        run(args.plan, args.output)
     return 0
 
 

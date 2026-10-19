@@ -738,6 +738,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 Some("direct_history_enter") => "direct_history_enter",
                                 Some("direct_history_native_key") => "direct_history_native_key",
                                 Some("direct_response_wait") => "direct_response_wait",
+                                Some("direct_ui_response") => "direct_ui_response",
+                                Some("direct_ui_timeout") => "direct_ui_timeout",
                                 Some("direct_original_edit") => "direct_original_edit",
                                 Some("direct_confirmed_query_send") => {
                                     "direct_confirmed_query_send"
