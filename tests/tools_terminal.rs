@@ -4,10 +4,16 @@ use blueberry::probe::Harness;
 use std::{
     collections::BTreeMap,
     fs,
-    path::Path,
+    path::PathBuf,
     process::Command,
     time::{Duration, Instant},
 };
+
+fn product() -> PathBuf {
+    std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into())
+}
 
 fn wait(harness: &mut Harness, text: &str, timeout: Duration) -> Result<()> {
     let deadline = Instant::now() + timeout;
@@ -39,7 +45,7 @@ fn ordinary_search_is_read_only_and_toggle_state_is_current() -> Result<()> {
             ("TERM".into(), "xterm-256color".into()),
         ]);
         let mut harness = Harness::start(
-            Path::new(env!("CARGO_BIN_EXE_blueberry")),
+            &product(),
             &[
                 "--config".into(),
                 config.display().to_string(),
@@ -144,7 +150,7 @@ fn hanging_version_and_help_leave_search_resize_and_exit_responsive() -> Result<
             ("TERM".into(), "xterm-256color".into()),
         ]);
         let mut harness = Harness::start(
-            Path::new(env!("CARGO_BIN_EXE_blueberry")),
+            &product(),
             &["tools".into()],
             directory.path(),
             &env,

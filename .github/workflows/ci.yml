@@ -499,6 +499,49 @@ jobs:
           ./scripts/test-download.ps1 -PackagePath $package
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-download.ps1 -PackagePath $package
           if ($LASTEXITCODE -ne 0) { throw '5.1 download selection tests failed' }
+      - name: Exercise the packaged release executable through real ConPTY
+        shell: pwsh
+        run: |
+          $package = (Get-ChildItem ./dist/ci/*.zip).FullName
+          $destination = Join-Path $env:RUNNER_TEMP ('blueberry-package-acceptance-' + [Guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $package -DestinationPath $destination
+          $env:BLUEBERRY_TEST_PRODUCT_EXE = Join-Path $destination 'blueberry.exe'
+          $before = (Get-FileHash $env:BLUEBERRY_TEST_PRODUCT_EXE).Hash
+          $manifest = Get-Content (Join-Path $destination 'release.json') -Raw | ConvertFrom-Json
+          $expected = @($manifest.files | Where-Object path -eq 'blueberry.exe')[0].sha256
+          if ($before -ine $expected) { throw 'Packaged executable identity mismatch' }
+          $records = @()
+          try {
+            foreach ($combination in @(@('powershell.exe','2.0.0'), @('powershell.exe','2.4.5'), @('pwsh.exe','2.4.5'))) {
+              $moduleRoot = Join-Path $env:RUNNER_TEMP ('package-editor-' + $combination[1])
+              python scripts/prepare-original-editor.py --version $combination[1] --root $moduleRoot
+              if ($LASTEXITCODE -ne 0) { throw 'Package editor preparation failed' }
+              $env:BLUEBERRY_TEST_SHELL = (Get-Command $combination[0]).Source
+              $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $moduleRoot "PSReadLine/$($combination[1])/PSReadLine.psd1"
+              cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+              if ($LASTEXITCODE -ne 0) { throw 'Packaged input protocol regression failed' }
+              $records += @{shell=$env:BLUEBERRY_TEST_SHELL; editor=$combination[1]; executable_sha256=$before; status='passed'}
+            }
+            cargo test --locked --test tools_terminal --test hub_terminal -- --test-threads=1 --nocapture
+            if ($LASTEXITCODE -ne 0) { throw 'Packaged standalone UI regression failed' }
+            if ((Get-FileHash $env:BLUEBERRY_TEST_PRODUCT_EXE).Hash -ne $before) { throw 'Packaged executable changed during validation' }
+            @{package_sha256=(Get-FileHash $package).Hash; executable_sha256=$before; input_protocol=$records; standalone_ui='passed'} |
+              ConvertTo-Json -Depth 6 | Set-Content ./target/packaged-interaction.json -Encoding UTF8
+          } finally {
+            Remove-Item Env:BLUEBERRY_TEST_PRODUCT_EXE -ErrorAction SilentlyContinue
+            Remove-Item Env:BLUEBERRY_TEST_SHELL -ErrorAction SilentlyContinue
+            Remove-Item Env:BLUEBERRY_TEST_PSREADLINE_MODULE -ErrorAction SilentlyContinue
+          }
+      - name: Preserve packaged interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-packaged-interaction
+          path: |
+            target/packaged-interaction.json
+            target/input-protocol-evidence
+          if-no-files-found: ignore
       - name: Package and validate optional Terminal component
         shell: pwsh
         env:
