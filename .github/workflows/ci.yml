@@ -257,6 +257,9 @@ jobs:
       - name: Repeat Windows PowerShell workflow forms
         shell: pwsh
         run: ./scripts/repeat-rust-test.ps1 -Target direct_terminal -Test builtin_workflows_fill_native_editor_without_executing -Count 30
+      - name: Automatic Windows PowerShell profile entry
+        shell: pwsh
+        run: ./scripts/test-ci-profile-entry.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -Executable target/debug/blueberry.exe -OutputDirectory target/ci-profile-entry
       - name: Preserve nested terminal evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -266,6 +269,7 @@ jobs:
           path: |
             target/nested-terminal-evidence
             target/startup-terminal-evidence
+            target/ci-profile-entry
             target/input-protocol-evidence
             ${{ runner.temp }}/blueberry-direct-evidence
           if-no-files-found: ignore

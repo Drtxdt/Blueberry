@@ -364,6 +364,7 @@ pub fn run_with_trace(
         host_mode,
         trace_directory,
         false,
+        None,
     )
 }
 
@@ -374,6 +375,7 @@ pub fn run_with_entry(
     host_mode: &str,
     trace_directory: Option<&Path>,
     profile_entry: bool,
+    profile_fixture: Option<&Path>,
 ) -> Result<Value> {
     ensure!(
         iterations > 0 && matches!(host_mode, "direct" | "nested"),
@@ -385,8 +387,15 @@ pub fn run_with_entry(
             "profile entry requires Direct and cannot add diagnostic trace arguments"
         );
         let home = shell.parent().context("profile entry shell directory")?;
-        let fixture: Value =
-            serde_json::from_slice(&std::fs::read(home.join("blueberry-profile-probe.json"))?)?;
+        let default_fixture = home.join("blueberry-profile-probe.json");
+        let fixture_path = profile_fixture.unwrap_or(&default_fixture);
+        let fixture: Value = serde_json::from_slice(&std::fs::read(fixture_path)?)?;
+        let profile_path = Path::new(
+            fixture["profile"]
+                .as_str()
+                .context("profile entry fixture must identify its profile")?,
+        );
+        ensure!(profile_path.is_absolute(), "profile path must be absolute");
         ensure!(
             fixture["executable_sha256"] == metrics::executable_sha256(executable)?,
             "profile entry executable changed"
@@ -396,8 +405,7 @@ pub fn run_with_entry(
             "profile entry shell changed"
         );
         ensure!(
-            fixture["profile_sha256"]
-                == metrics::executable_sha256(&home.join("Microsoft.PowerShell_profile.ps1"))?,
+            fixture["profile_sha256"] == metrics::executable_sha256(profile_path)?,
             "profile entry profile changed"
         );
         Some(fixture)

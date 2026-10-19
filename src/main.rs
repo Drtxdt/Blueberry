@@ -58,6 +58,9 @@ enum Command {
         /// Launch a prepared isolated PowerShell profile entry instead of the EXE.
         #[arg(long)]
         profile_entry: bool,
+        /// Prepared profile identity outside PSHOME (for disposable CI accounts).
+        #[arg(long, requires = "profile_entry")]
+        profile_fixture: Option<PathBuf>,
         /// Diagnostic only: writes numeric candidate traces, invalid for acceptance.
         #[arg(long)]
         diagnostic_trace_directory: Option<PathBuf>,
@@ -1067,6 +1070,7 @@ fn execute() -> Result<u32> {
             host_mode,
             host_executable,
             profile_entry,
+            profile_fixture,
             diagnostic_trace_directory,
             output,
         } => {
@@ -1080,6 +1084,7 @@ fn execute() -> Result<u32> {
                 },
                 diagnostic_trace_directory.as_deref(),
                 profile_entry,
+                profile_fixture.as_deref(),
             )?;
             let text = serde_json::to_string_pretty(&report)?;
             if let Some(path) = output {
