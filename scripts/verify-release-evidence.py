@@ -479,7 +479,7 @@ def check_comparison(path, executable_hash, commit, profile, manual):
             require(all(order == list(COMPARISON_MODES[index % 4:] + COMPARISON_MODES[:index % 4]) for index, order in enumerate(orders)), f"{label}/{scenario}/{cache_mode}: hot order is not rotated")
 
 
-def check_performance_waiver(evidence, root, commit):
+def check_performance_waiver(evidence, root, commit, ci_branch="main"):
     waiver = evidence["performance_waiver"]
     require(VERSION in PERFORMANCE_WAIVERS, "No performance waiver authorized for this release")
     require(isinstance(waiver, dict) and waiver.get("version") == VERSION
@@ -513,15 +513,19 @@ def check_performance_waiver(evidence, root, commit):
     else:
         for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
             require(evidence.get(field) == {}, "deferred formal performance reports must be empty; retain exploratory data separately")
+    check_functional_ci(evidence, root, commit, ci_branch)
+
+
+def check_functional_ci(evidence, root, commit, ci_branch="main"):
     record = evidence.get("functional_ci", {})
     path = report_path(root, record.get("report"))
     require(sha256_file(path) == record.get("sha256", "").upper(), "functional CI evidence hash mismatch")
     data = read_json(path)
     run = data.get("run", {})
     require(run.get("id") == evidence["ci"]["run_id"] and run.get("head_sha") == commit
-            and run.get("event") == "push" and run.get("head_branch") == "main"
+            and run.get("event") == "push" and run.get("head_branch") == ci_branch
             and run.get("name") == "Blueberry CI" and run.get("conclusion") == "success",
-            "functional evidence must be from the successful final main CI run")
+            f"functional evidence must be from the successful final {ci_branch} CI run")
     jobs = data.get("jobs", [])
     required = {"format", "Core / ubuntu-24.04", "Core / macos-15", "Core / windows-2022",
                 "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
@@ -674,10 +678,20 @@ def check_embedded_terminal(package_path, terminal_package, dependency, package_
         require(installed.read("terminal/.portable") and installed.read("blueberry-terminal.cmd"), "portable launch entry missing")
 
 
-def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None, terminal_package=None):
+def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None, terminal_package=None, *, candidate_branch=None):
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
     evidence = read_json(evidence_path)
+    ci_branch = candidate_branch if candidate_branch is not None else "main"
+    if candidate_branch is not None:
+        require(isinstance(candidate_branch, str) and candidate_branch.startswith("codex/")
+                and len(candidate_branch) > len("codex/") and not any(c.isspace() for c in candidate_branch),
+                "candidate validation requires an explicit codex branch")
+        require(evidence.get("delivery_kind") == "unpublished_candidate",
+                "candidate evidence must identify an unpublished candidate")
+    else:
+        require(evidence.get("delivery_kind") != "unpublished_candidate",
+                "unpublished candidate evidence cannot authorize a public release")
     for artifact in evidence.get("raw_artifacts", []):
         require(type(artifact.get("run_id")) is int and artifact["run_id"] > 0
                 and type(artifact.get("artifact_id")) is int and artifact["artifact_id"] > 0
@@ -700,8 +714,10 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
     if ci_run_id is not None:
         require(ci.get("run_id") == ci_run_id, "evidence refers to a different CI run than the downloaded artifact")
     require(ci.get("source_commit", "").lower() == commit.lower() and ci.get("status") == "success"
-            and ci.get("branch") == "main" and ci.get("event") == "push" and type(ci.get("run_id")) is int and ci["run_id"] > 0
-            and ci.get("package_sha256", "").upper() == package_hash, "successful frozen main CI package record missing")
+            and ci.get("branch") == ci_branch and ci.get("event") == "push" and type(ci.get("run_id")) is int and ci["run_id"] > 0
+            and ci.get("package_sha256", "").upper() == package_hash, f"successful frozen {ci_branch} CI package record missing")
+    if candidate_branch is not None:
+        check_functional_ci(evidence, evidence_path.parent, commit, ci_branch)
     with zipfile.ZipFile(package_path) as archive:
         names = [entry.filename for entry in archive.infolist() if not entry.is_dir()]
         require(len(names) == len(set(names)), "package contains duplicate file paths")
@@ -761,7 +777,7 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         require(isinstance(manifest.get("terminal_dependency"), dict), "package companion identity missing")
         check_embedded_terminal(package_path, terminal_package, evidence["terminal_dependency"], manifest["terminal_dependency"])
     if "performance_waiver" in evidence:
-        check_performance_waiver(evidence, evidence_path.parent, commit)
+        check_performance_waiver(evidence, evidence_path.parent, commit, ci_branch)
         if VERSION != "0.5.3":
             check_manual_acceptance(evidence, executable_hash, commit)
             check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
@@ -869,14 +885,16 @@ def main():
                         help="original ZIP downloaded from this repository's public v0.5.0-beta.6 release")
     parser.add_argument("--bundle-out", type=Path, help="write a ZIP of verified raw reports")
     parser.add_argument("--terminal-package", type=Path, help="original portable Terminal CI artifact, shipped separately")
+    parser.add_argument("--candidate-branch", help="validate an unpublished candidate from this exact codex branch; does not qualify a public release")
     args = parser.parse_args()
+    label = "unpublished candidate" if args.candidate_branch is not None else "release"
     try:
-        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package, args.ci_run_id, args.terminal_package)
+        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package, args.ci_run_id, args.terminal_package, candidate_branch=args.candidate_branch)
         if args.bundle_out:
             bundle(args.evidence, args.bundle_out)
     except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:
-        parser.exit(1, f"release evidence rejected: {error}\n")
-    print(f"release evidence accepted: {VERSION}, {args.commit}, EXE {executable_hash}")
+        parser.exit(1, f"{label} evidence rejected: {error}\n")
+    print(f"{label} evidence accepted: {VERSION}, {args.commit}, EXE {executable_hash}")
 
 
 if __name__ == "__main__":

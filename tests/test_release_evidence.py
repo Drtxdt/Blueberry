@@ -387,6 +387,48 @@ esac
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash
         )
 
+    def test_candidate_requires_explicit_branch_and_complete_successful_ci(self):
+        branch = "codex/v053-reliability-performance"
+        self.evidence["delivery_kind"] = "unpublished_candidate"
+        self.evidence["ci"]["branch"] = branch
+        names = ["format", "Core / ubuntu-24.04", "Core / macos-15", "Core / windows-2022",
+                 "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+                 "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
+                 "PowerShell 7 / PSReadLine 2.4.5 / pipe", "package"]
+        data = {"run": {"id": 123, "head_sha": self.commit, "head_branch": branch,
+                        "event": "push", "name": "Blueberry CI", "conclusion": "success"},
+                "jobs": [{"name": name, "conclusion": "success"} for name in names]}
+        path = self.root / "candidate-ci.json"
+        def save():
+            path.write_text(json.dumps(data), encoding="utf-8")
+            self.evidence["functional_ci"] = {"report": path.name, "sha256": validator.sha256_file(path)}
+            self.save_evidence()
+        def verify():
+            return validator.verify(self.evidence_path, self.package, self.commit,
+                                    self.beta6_package, candidate_branch=branch)
+        save()
+        self.assertEqual(verify(), self.exe_hash)
+        with self.assertRaisesRegex(ValueError, "cannot authorize a public release"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        with self.assertRaisesRegex(ValueError, "explicit codex branch"):
+            validator.verify(self.evidence_path, self.package, self.commit,
+                             self.beta6_package, candidate_branch="main")
+        data["jobs"][-1]["conclusion"] = "failure"
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            verify()
+        data["jobs"][-1]["conclusion"] = "success"
+        data["run"]["head_branch"] = "codex/other"
+        save()
+        with self.assertRaisesRegex(ValueError, "successful final"):
+            verify()
+        data["run"]["head_branch"] = branch
+        save()
+        self.evidence["manual_acceptance"]["windows_terminal"]["ime"] = False
+        self.save_evidence()
+        with self.assertRaises(ValueError):
+            verify()
+
     def test_optimization_resource_side_cannot_replace_final_matrix(self):
         path = self.root / next(iter(self.evidence['resource_reports'].values()))
         report = json.loads(path.read_text(encoding='utf-8'))
