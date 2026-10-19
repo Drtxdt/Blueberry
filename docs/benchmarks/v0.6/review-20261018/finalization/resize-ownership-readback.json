@@ -39,5 +39,40 @@
     "setup.ps1": "06376E16CEDD35D4395329DC3E3821F4848D5D9C8424D719B06F877343E5C620",
     "trace.jsonl": "5B6986980F6D0DCDF6596AE6B108E12C4FED833BBF8FF7134AE736906BA3DA2D"
   },
-  "finding": "Native resized and subsequent failure snapshots both lack HEAD and RIGHT. Ownership readback failure can bypass resize reflow because Clear previously returned on zero owned rows. Candidate fix preserves geometry independently; deterministic fault regression awaits CI."
+  "finding": "Native resized and subsequent failure snapshots both lack HEAD and RIGHT. Ownership readback failure can bypass resize reflow because Clear previously returned on zero owned rows. Candidate fix preserves geometry independently; deterministic fault regression awaits CI.",
+  "verification": {
+    "source_commit": "b747328417e0b9c8d97fe64843d92b3c5193a887",
+    "push_run_id": 39225504824,
+    "status": "three_supported_direct_combinations_passed",
+    "jobs": [
+      {
+        "profile": "ps51-2.0.0",
+        "job_id": 117970680058,
+        "direct_passed": 38,
+        "existing_ignored": 7,
+        "workflow_repetitions_passed": 30,
+        "log_sha256": "824C84C9E82D15C8D221C12814127DA7263A91BB4CD5E643CC009B05AFA610DC",
+        "local_log": "artifacts/b747-job-117970680058.log"
+      },
+      {
+        "profile": "ps51-2.4.5",
+        "job_id": 117970680062,
+        "direct_passed": 38,
+        "existing_ignored": 7,
+        "workflow_repetitions_passed": 30,
+        "log_sha256": "975801842D3066CA4F1EF2D3F2576CCD8AA7896441C7F2854F9F9997EFD925ED",
+        "local_log": "artifacts/b747-job-117970680062.log"
+      },
+      {
+        "profile": "ps7-2.4.5",
+        "job_id": 117970680171,
+        "direct_passed": 38,
+        "existing_ignored": 7,
+        "workflow_repetitions_passed": 30,
+        "log_sha256": "8B824F4D4B42565F255013E49A869137E85733C3A13CFB5F42AC582C6EF19624",
+        "local_log": "artifacts/b747-ps7-pipe-ci.log"
+      }
+    ],
+    "limitation": "Forced readback failure and the original multiline regression passed. This validates the fixed path; it does not prove every earlier intermittent failure had the same cause."
+  }
 }
