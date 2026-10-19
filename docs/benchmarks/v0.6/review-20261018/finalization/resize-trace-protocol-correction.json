@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "source_commit": "e3f04ac914f79813423d0a645c112a9249f8f04b",
+  "run_id": 39238282046,
+  "job_id": 118012609063,
+  "artifact_id": 12181140704,
+  "artifact_sha256": "2D63A1A310E96874ED95D903F96E4A4E4715A9B8761F994290E356337EB071C0",
+  "full_archive_sha_locally_verified": true,
+  "fixture": "direct-multiline-zvZPkQ",
+  "disabled_reason": "direct service disabled: unknown direct timestamp phase",
+  "finding": "The new resize trace events were missing from the server's accepted timestamp phases. Traced regression sessions disabled completion before navigation could acknowledge resize.",
+  "correction": "Accept exactly editor_resize_reflow and editor_resize_reflow_failed; retain rejection of unknown phases.",
+  "verification": "Pending remote CI; no local runtime tests during frozen R2 measurement",
+  "release_ready": false
+}

@@ -681,6 +681,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 Some("editor_edit_applied") => "editor_edit_applied",
                                 Some("editor_refresh_enter") => "editor_refresh_enter",
                                 Some("editor_menu_written") => "editor_menu_written",
+                                Some("editor_resize_reflow") => "editor_resize_reflow",
+                                Some("editor_resize_reflow_failed") => "editor_resize_reflow_failed",
                                 Some("editor_frame_received") => "editor_frame_received",
                                 Some("direct_script_enter") => "direct_script_enter",
                                 Some("direct_command_enter") => "direct_command_enter",
