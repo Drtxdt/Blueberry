@@ -426,7 +426,9 @@ jobs:
           if-no-files-found: ignore
   package:
     if: ${{ !inputs.evidence_manifest }}
-    needs: [format, core, powershell-51, powershell-7, native-mouse]
+    # Exercise packaging faults while long interaction repetitions run.
+    # Final evidence still requires every functional job and this job to pass.
+    needs: [format, core]
     runs-on: windows-2022
     permissions:
       contents: read
