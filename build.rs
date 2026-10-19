@@ -716,6 +716,10 @@ fn embed_direct_bridge() {
             "/optimize+".to_owned(),
             format!("/out:{}", dll.display()),
             "/reference:System.Core.dll".to_owned(),
+            output
+                .join("direct-diagnostics.cs")
+                .to_string_lossy()
+                .into_owned(),
             env::current_dir()
                 .expect("build directory")
                 .join("shell")
@@ -840,7 +844,61 @@ fn embed_conpty() {
     .unwrap();
 }
 
+fn generate_direct_diagnostics() {
+    println!("cargo:rerun-if-changed=shell/direct-diagnostics.json");
+    println!("cargo:rerun-if-changed=shell/direct-diagnostics.cs");
+    let contract: serde_json::Value = serde_json::from_slice(
+        &fs::read("shell/direct-diagnostics.json").expect("read diagnostic contract"),
+    )
+    .expect("parse diagnostic contract");
+    assert_eq!(contract["version"], 1);
+    let mut rust = String::from(
+        "fn diagnostic_stage(value: &serde_json::Value) -> Option<&'static str> { match value[\"event\"].as_str()? {\n",
+    );
+    let mut cs = String::from(
+        "namespace Blueberry.Direct { public static class DiagnosticContract { public static bool Valid(System.Collections.Generic.Dictionary<string,object> value) { string kind=Json.String(value,\"event\"), stage=Json.String(value,\"stage\"); switch(kind) {\n",
+    );
+    for (event, spec) in contract["events"].as_object().expect("diagnostic events") {
+        assert_eq!(spec["unknown_stage"], "ignore");
+        assert_eq!(spec["invalid_fields"], "ignore");
+        writeln!(rust, "{event:?} => {{").unwrap();
+        writeln!(cs, "case {event:?}: {{").unwrap();
+        for field in spec["required_integer_fields"].as_array().unwrap() {
+            let field = field.as_str().unwrap();
+            writeln!(rust, "value[{field:?}].as_i64()?;").unwrap();
+            writeln!(
+                cs,
+                "if(!value.ContainsKey({field:?}) || !(value[{field:?}] is long)) return false;"
+            )
+            .unwrap();
+        }
+        rust.push_str("match value[\"stage\"].as_str()? {\n");
+        cs.push_str("switch(stage) {\n");
+        for stage in spec["stages"].as_array().unwrap() {
+            let stage = stage.as_str().unwrap();
+            assert!(stage.bytes().all(|c| c.is_ascii_lowercase() || c == b'_'));
+            writeln!(rust, "{stage:?} => Some({stage:?}),").unwrap();
+            writeln!(cs, "case {stage:?}: return true;").unwrap();
+        }
+        rust.push_str("_ => None, } },\n");
+        cs.push_str("default: return false; } }\n");
+    }
+    rust.push_str("_ => None, } }\n");
+    cs.push_str("default: return false; } } } }\n");
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
+    fs::write(output.join("direct-diagnostics.rs"), rust).expect("write Rust diagnostics");
+    fs::write(output.join("direct-diagnostics.cs"), &cs).expect("write C# diagnostics");
+    assert_eq!(
+        fs::read_to_string("shell/direct-diagnostics.cs")
+            .expect("read standalone C# contract")
+            .replace("\r\n", "\n"),
+        cs,
+        "Stale standalone diagnostic contract: copy OUT_DIR/direct-diagnostics.cs to shell/direct-diagnostics.cs"
+    );
+}
+
 fn main() {
+    generate_direct_diagnostics();
     #[cfg(windows)]
     embed_conpty();
     #[cfg(windows)]

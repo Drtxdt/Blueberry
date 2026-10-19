@@ -1,6 +1,7 @@
 //! Default Windows inherited-console host. PSReadLine is the sole input reader
 //! and console writer. This service reuses the nested host's completion worker.
 use super::*;
+include!(concat!(env!("OUT_DIR"), "/direct-diagnostics.rs"));
 use anyhow::{bail, ensure};
 use std::{
     os::windows::io::{AsHandle, AsRawHandle},
@@ -676,39 +677,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }
                     match value["event"].as_str() {
                         Some("trace_point") if ready && trace.enabled() => {
-                            let stage = match value["stage"].as_str() {
-                                Some("editor_confirmed") => "editor_confirmed",
-                                Some("editor_edit_applied") => "editor_edit_applied",
-                                Some("editor_refresh_enter") => "editor_refresh_enter",
-                                Some("editor_menu_written") => "editor_menu_written",
-                                Some("editor_resize_reflow") => "editor_resize_reflow",
-                                Some("editor_resize_reflow_failed") => {
-                                    "editor_resize_reflow_failed"
-                                }
-                                Some("editor_frame_received") => "editor_frame_received",
-                                Some("direct_script_enter") => "direct_script_enter",
-                                Some("direct_command_enter") => "direct_command_enter",
-                                Some("direct_explicit_module_ready") => {
-                                    "direct_explicit_module_ready"
-                                }
-                                Some("direct_module_loaded") => "direct_module_loaded",
-                                Some("direct_bridge_jit_started") => "direct_bridge_jit_started",
-                                Some("direct_bridge_jit_finished") => "direct_bridge_jit_finished",
-                                Some("direct_module_lookup") => "direct_module_lookup",
-                                Some("direct_module_imported") => "direct_module_imported",
-                                Some("direct_background_jit_started") => {
-                                    "direct_background_jit_started"
-                                }
-                                Some("direct_background_jit_finished") => {
-                                    "direct_background_jit_finished"
-                                }
-                                Some("direct_assembly_loaded") => "direct_assembly_loaded",
-                                Some("editor_loop_enter") => "editor_loop_enter",
-                                Some("editor_begin_complete") => "editor_begin_complete",
-                                Some("editor_key_received") => "editor_key_received",
-                                Some("editor_native_dispatch") => "editor_native_dispatch",
-                                Some("editor_native_complete") => "editor_native_complete",
-                                _ => bail!("unknown direct timestamp phase"),
+                            let Some(stage) = diagnostic_stage(&value) else {
+                                continue;
                             };
                             trace.point(
                                 stage,
@@ -718,39 +688,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             );
                         }
                         Some("trace") if ready && trace.enabled() => {
-                            let stage = match value["stage"].as_str() {
-                                Some("direct_binding_snapshot") => "direct_binding_snapshot",
-                                Some("direct_binding_registration") => {
-                                    "direct_binding_registration"
-                                }
-                                Some("direct_bridge_initialization") => {
-                                    "direct_bridge_initialization"
-                                }
-                                Some("direct_readline_begin") => "direct_readline_begin",
-                                Some("direct_session_command_batch") => {
-                                    "direct_session_command_batch"
-                                }
-                                Some("direct_session_command_send") => {
-                                    "direct_session_command_send"
-                                }
-                                Some("direct_background_jit") => "direct_background_jit",
-                                Some("direct_bridge_jit") => "direct_bridge_jit",
-                                Some("direct_background_jit_failed") => {
-                                    "direct_background_jit_failed"
-                                }
-                                Some("direct_binding_audit") => "direct_binding_audit",
-                                Some("direct_history_enter") => "direct_history_enter",
-                                Some("direct_history_native_key") => "direct_history_native_key",
-                                Some("direct_response_wait") => "direct_response_wait",
-                                Some("direct_ui_response") => "direct_ui_response",
-                                Some("direct_ui_timeout") => "direct_ui_timeout",
-                                Some("direct_original_edit") => "direct_original_edit",
-                                Some("direct_confirmed_query_send") => {
-                                    "direct_confirmed_query_send"
-                                }
-                                Some("direct_console_menu_output") => "direct_console_menu_output",
-                                Some("direct_frame_to_paint") => "direct_frame_to_paint",
-                                _ => bail!("unknown numeric direct trace phase"),
+                            let Some(stage) = diagnostic_stage(&value) else {
+                                continue;
                             };
                             trace.event(
                                 stage,
@@ -762,6 +701,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 trace.flush();
                             }
                         }
+                        Some("trace_point" | "trace") if ready => {}
                         Some("hello") => {
                             ensure!(
                                 !ready

@@ -1,10 +1,18 @@
 name: Blueberry CI
 on:
   push:
-    branches: ['**']
+    branches: ['main']
   pull_request:
   workflow_dispatch:
     inputs:
+      stability_only:
+        description: Run only the frozen targeted stability checks
+        type: boolean
+        default: false
+      stability_repeats:
+        description: Isolated repetitions per targeted regression (1 first, then 30-100)
+        type: string
+        default: '1'
       evidence_manifest:
         description: Sealed local raw-evidence manifest basename; empty runs normal CI
         type: string
@@ -24,7 +32,16 @@ on:
   workflow_call:
 permissions:
   contents: read
+concurrency:
+  # Manual/frozen runs have unique groups and are never cancelled by PR work.
+  group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.event_name == 'push' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 jobs:
+  stability:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.stability_only }}
+    uses: ./.github/workflows/stability-targeted.yml
+    with:
+      repeats: ${{ inputs.stability_repeats }}
   evidence-upload:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.evidence_manifest != '' && github.actor == github.repository_owner }}
     runs-on: [self-hosted, Windows, X64, '${{ inputs.evidence_runner_label }}']
@@ -52,7 +69,7 @@ jobs:
         shell: pwsh
         run: python scripts/verify-evidence-upload.py
   format:
-    if: ${{ !inputs.evidence_manifest }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +85,7 @@ jobs:
           BENCHMARK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
-    if: ${{ !inputs.evidence_manifest }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
     name: Core / ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -105,7 +122,7 @@ jobs:
           cargo clippy --lib --features allocation-diagnostics --locked -- -D warnings
           cargo test --lib --features allocation-diagnostics --locked allocation_diagnostics::tests
       - name: Core tests (no interactive shell)
-        run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge --test terminal_rectangles -- --test-threads=1
+        run: cargo test --locked --lib --test direct_diagnostics --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge --test terminal_rectangles -- --test-threads=1
       - name: Resource sampler initialization regression
         if: runner.os == 'Windows'
         run: python -m unittest discover -s tests -p 'test_resource*.py'
@@ -143,7 +160,7 @@ jobs:
           path: target/store-evidence
           if-no-files-found: ignore
   powershell-51:
-    if: ${{ !inputs.evidence_manifest }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
     strategy:
@@ -274,7 +291,7 @@ jobs:
             ${{ runner.temp }}/blueberry-direct-evidence
           if-no-files-found: ignore
   powershell-7:
-    if: ${{ !inputs.evidence_manifest }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
     strategy:
@@ -370,7 +387,7 @@ jobs:
             ${{ runner.temp }}/blueberry-direct-evidence
           if-no-files-found: ignore
   native-mouse:
-    if: ${{ !inputs.evidence_manifest }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
     env:
@@ -429,7 +446,7 @@ jobs:
           path: target/input-protocol-evidence
           if-no-files-found: ignore
   package:
-    if: ${{ !inputs.evidence_manifest }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
     # Exercise packaging faults while long interaction repetitions run.
     # Final evidence still requires every functional job and this job to pass.
     needs: [format, core]

@@ -44,7 +44,7 @@ def main():
             compiler = Path(os.environ['SystemRoot'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
             subprocess.run([str(compiler), '/nologo', '/target:exe', '/optimize+', '/codepage:65001',
                             '/out:'+str(executable), '/reference:System.Core.dll', str(probe),
-                            str(repository/'shell/direct-bridge.cs'), str(repository/'shell/native-overlay.cs')], check=True)
+                            str(repository/'shell/direct-bridge.cs'), str(repository/'shell/direct-diagnostics.cs'), str(repository/'shell/native-overlay.cs')], check=True)
             args = [str(executable), str(receipt)]
         else:
             args = [sys.executable, str(probe)]

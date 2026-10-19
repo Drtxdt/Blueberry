@@ -1,11 +1,16 @@
 name: Windows Terminal native overlay prototype
 on:
   push:
-    branches: ['codex/v053-reliability-performance', 'main']
+    branches: ['main']
     paths: ['experiments/wt-overlay/**', 'shell/native-overlay.cs', 'shell/direct-bridge.cs', 'shell/integration.ps1', 'src/direct.rs', 'src/native_overlay.rs', 'src/native_observer.rs', 'src/overlay.rs', 'src/host.rs', 'src/probe.rs', 'tests/native_terminal.rs', 'tests/direct_terminal.rs', 'tests/host.rs', '.github/workflows/wt-overlay-prototype.yml']
   workflow_dispatch:
+  pull_request:
+    paths: ['experiments/wt-overlay/**', 'shell/**', 'src/direct.rs', 'src/native_overlay.rs', 'src/native_observer.rs', 'src/overlay.rs', 'src/host.rs', 'src/probe.rs', 'tests/native_terminal.rs', 'tests/direct_terminal.rs', 'tests/host.rs', '.github/workflows/wt-overlay-prototype.yml']
 permissions:
   contents: read
+concurrency:
+  group: native-${{ github.event_name == 'pull_request' && github.head_ref || github.event_name == 'push' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 jobs:
   native-buffer-proof:
     # The pinned Terminal core still requires the VS 2022 UWP v143 toolset.

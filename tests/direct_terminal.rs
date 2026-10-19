@@ -304,6 +304,10 @@ fn compiled_bridge_codec_runs_in_selected_shell() -> Result<()> {
         &script,
         format!("\u{feff}{}", include_str!("direct-bridge.tests.ps1")),
     )?;
+    std::fs::write(
+        dir.path().join("direct-diagnostics.json"),
+        include_str!("../shell/direct-diagnostics.json"),
+    )?;
     let result = std::process::Command::new(blueberry::pty::default_shell())
         .args([
             "-NoProfile",
@@ -388,6 +392,10 @@ fn start_delayed_executable_with_pages(
         "--trace".into(),
         directory.join("trace.jsonl").to_string_lossy().into_owned(),
     ];
+    let trace_disabled = directory.join("trace-disabled").is_file();
+    if trace_disabled {
+        args.truncate(args.len() - 2);
+    }
     if directory.join("config.toml").is_file() {
         args.extend([
             "--config".into(),
@@ -427,8 +435,62 @@ fn start_delayed_executable_with_pages(
         ]),
         String::new(),
     )?;
-    wait_editor_begin(&mut harness, directory, 1)?;
+    if trace_disabled {
+        harness.wait_text("PS ", TIMEOUT)?;
+    } else {
+        wait_editor_begin(&mut harness, directory, 1)?;
+    }
     Ok(harness)
+}
+
+#[test]
+fn unknown_diagnostic_events_do_not_disable_completion() -> Result<()> {
+    for tracing in [true, false] {
+        let dir = direct_fixture()?;
+        if !tracing {
+            std::fs::write(dir.path().join("trace-disabled"), "1")?;
+        }
+        // Deliberately bypass the sender validator to exercise receiver policy.
+        std::fs::write(
+            dir.path().join("diagnostics.ps1"),
+            r#"
+$flags=[Reflection.BindingFlags]'NonPublic,Static'
+$bridge=[Blueberry.Direct.Bridge]
+$pipe=$bridge.GetField('pipe',$flags).GetValue($null)
+$token=$bridge.GetField('token',$flags).GetValue($null)
+$gate=$bridge.GetField('writeLock',$flags).GetValue($null)
+foreach ($kind in @('trace','trace_point')) {
+    foreach ($stage in @('future_diagnostic','editor_resize_reflow')) {
+        $message=[Collections.Generic.Dictionary[string,object]]::new()
+        $message['event']=$kind; $message['stage']=$stage; $message['token']=$token
+        $message['qpc']='invalid'
+        $bytes=[Text.Encoding]::UTF8.GetBytes([Blueberry.Direct.Json]::Encode($message)+"`n")
+        [Threading.Monitor]::Enter($gate)
+        try { $pipe.Write($bytes,0,$bytes.Length); $pipe.Flush() } finally { [Threading.Monitor]::Exit($gate) }
+    }
+}
+Write-Output 'DIAGNOSTICS-INJECTED'
+"#,
+        )?;
+        let mut h = start(dir.path())?;
+        let result = (|| -> Result<()> {
+            h.send_text(". .\\diagnostics.ps1\r")?;
+            h.wait_line("DIAGNOSTICS-INJECTED", TIMEOUT)?;
+            h.send_text("git sw")?;
+            h.wait_text("switch", TIMEOUT)?;
+            h.send(b"\t")?;
+            h.wait_text("git switch", TIMEOUT)?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error).with_context(|| {
+                format!("diagnostics tracing={tracing}: {}", dir.keep().display())
+            });
+        }
+    }
+    Ok(())
 }
 
 #[test]
@@ -565,10 +627,55 @@ fn wait_editor_begin(h: &mut Harness, directory: &std::path::Path, count: usize)
         {
             return Ok(());
         }
-        ensure!(
-            std::time::Instant::now() < deadline,
-            "editor did not enter its input loop"
-        );
+        if std::time::Instant::now() >= deadline {
+            let events: Vec<serde_json::Value> = trace
+                .lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            let adapter = std::fs::read_dir(directory)
+                .into_iter()
+                .flatten()
+                .filter_map(Result::ok)
+                .find_map(|entry| std::fs::read(entry.path().join("adapter.json")).ok())
+                .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+            let disabled = adapter.as_ref().and_then(|a| a["disabled_reason"].as_str());
+            let hello = events.iter().rev().find(|e| e["event"] == "direct_hello");
+            let last_frame = events
+                .iter()
+                .rev()
+                .find(|e| e["event"] == "editor_menu_written");
+            let classification = if disabled.is_some() {
+                "service_disabled"
+            } else if hello.is_none() {
+                "handshake_not_observed"
+            } else {
+                "readline_begin_not_observed"
+            };
+            let _ = h.save_evidence(directory);
+            let native_capture =
+                console_snapshot::capture(h, &directory.join("readline-timeout-native.json"))
+                    .err()
+                    .map(|error| format!("{error:#}"));
+            std::fs::write(
+                directory.join("readline-timeout.json"),
+                serde_json::to_vec_pretty(&serde_json::json!({
+                    "classification": classification,
+                    "expected_begin_count": count,
+                    "observed_begin_count": events.iter().filter(|e| e["event"] == "direct_readline_begin").count(),
+                    "timeout_seconds": TIMEOUT.as_secs(),
+                    "process": h.process_status(),
+                    "adapter": adapter,
+                    "handshake": hello,
+                    "last_painted_frame": last_frame,
+                    "trace_tail": &events[events.len().saturating_sub(80)..],
+                    "native_capture_error": native_capture,
+                }))?,
+            )?;
+            anyhow::bail!(
+                "expected ReadLine trace not observed within 20 seconds ({classification}); evidence: {}",
+                directory.display()
+            );
+        }
         let _ = h.pump(Duration::from_millis(5));
     }
 }
@@ -1864,6 +1971,19 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
         h.resize(10, 60)?;
         if resize_after_clear {
             std::fs::write(dir.path().join("resize-complete.txt"), "ready")?;
+            // F7 is a user handler: it revokes the displayed frame before
+            // dispatch. A queued arrow before a replacement is visible belongs
+            // to native editing, not to an invisible menu. Observe the new
+            // native frame before exercising its navigation contract.
+            let screen = wait_native_selected_path(
+                &mut h,
+                &dir.path().join("native-after-clear-resize.json"),
+                "nav-00.txt",
+            )?;
+            ensure!(
+                screen.contains("HEAD") && screen.contains("RIGHT"),
+                "clear/resize covered the input before navigation: {screen}"
+            );
         }
         h.send(b"\x1b[B")?;
         wait_selected_path(&mut h, "nav-01.txt")?;

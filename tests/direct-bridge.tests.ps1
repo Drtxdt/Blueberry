@@ -1,6 +1,23 @@
 param([Parameter(Mandatory=$true)][string]$AssemblyPath)
 $ErrorActionPreference = 'Stop'
 $null = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $AssemblyPath)))
+$contract = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'direct-diagnostics.json') -Raw | ConvertFrom-Json
+foreach ($event in $contract.events.PSObject.Properties) {
+    foreach ($stage in $event.Value.stages) {
+        $diagnostic = [Collections.Generic.Dictionary[string,object]]::new()
+        $diagnostic['event']=$event.Name; $diagnostic['stage']=$stage; $diagnostic['qpc']=[long]123
+        if (-not [Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw "Declared diagnostic rejected: $stage" }
+        foreach ($field in $event.Value.required_integer_fields) {
+            $diagnostic.Remove($field) | Out-Null
+            if ([Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw "Missing diagnostic field accepted: $field" }
+            $diagnostic[$field]='invalid'
+            if ([Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw "Invalid diagnostic field accepted: $field" }
+            $diagnostic[$field]=[long]123
+        }
+        $diagnostic['stage']='future_event'
+        if ([Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw 'Unknown diagnostic accepted' }
+    }
+}
 function Assert-Rejected([string]$Text) {
     $rejected = $false
     try { $null = [Blueberry.Direct.Json]::Parse($Text) } catch { $rejected = $true }

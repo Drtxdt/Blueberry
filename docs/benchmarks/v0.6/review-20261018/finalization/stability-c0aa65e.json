@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "baseline_sha": "c0aa65e8ce1d4b063a5b6497d6c910daaf049635",
+  "baseline_branch": "codex/stability-c0aa65e",
+  "status": "targeted_fixes_pending_execution",
+  "pr_run": 39240946775,
+  "ps7_pipe_job": 118021315060,
+  "ps51_245_job": 118021315139,
+  "native_job": 118026356543,
+  "ps7_artifact": 12182316647,
+  "ps7_artifact_sha256": "97CD28F283A0C614D2243CFC793B8F08E12C47ED20CC006DF943E703CBBE02D6",
+  "full_artifact_digest_verified": true,
+  "fixture": "direct-multiline-sqaHn4",
+  "observations": [
+    "PS7 pipe and PS5.1/2.4.5 each passed 38 Direct tests, failed only direct_resize_after_menu_clear_reflows_input, with 7 ignored.",
+    "The failing adapter reports disabled_reason null; editor_resize_reflow is accepted and subsequent frames are painted.",
+    "F7 custom handler revokes displayed frame. Down native dispatch QPC 10736141524 precedes replacement menu paint QPC 10736347703. It cannot be asserted to navigate an invisible menu.",
+    "Failed native screen retains HEAD, RIGHT and nav-00; corrected fixture must observe replacement native menu before navigation, then still assert buffer preservation.",
+    "Native history test failure log contains a fresh PS prompt. Viewport prompt count cannot increase after 40 sentinel lines scroll the old prompt away; wait for prompt_end plus actual visible prompt instead."
+  ],
+  "constraints": [
+    "No rendering algorithm changes in this correction.",
+    "20-second regression deadline unchanged.",
+    "Unknown diagnostic events and invalid diagnostic fields must be ignored; unknown control events remain fatal to the sidecar.",
+    "Run shared contracts before terminal integration; one isolated pass before 30-100 repetitions.",
+    "No local runtime tests or compilation during active R2 batch.",
+    "No release-ready claim or version decision from partial evidence."
+  ]
+}

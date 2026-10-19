@@ -816,6 +816,8 @@ namespace Blueberry.Direct {
         }
         static void Send(Dictionary<string, object> message) {
             if (!connected) return;
+            string kind=Json.String(message,"event");
+            if((kind=="trace" || kind=="trace_point") && !DiagnosticContract.Valid(message)) return;
             message["token"] = token;
             byte[] bytes = Encoding.UTF8.GetBytes(Json.Encode(message) + "\n");
             if (bytes.Length > 1048576) { connected = false; return; }

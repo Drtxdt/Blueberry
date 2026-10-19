@@ -40,12 +40,18 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
         ),
     )?;
     let mut host = start_host(cwd.path())?;
-    let prompts = prompt_count(&host.harness.contents());
     host.harness.send_text(&format!(
         ". '{}'\r",
         setup.display().to_string().replace('\'', "''")
     ))?;
-    wait_for_next_prompt(&mut host.harness, prompts, "history fixture prompt")?;
+    // The fixture deliberately scrolls the previous prompt out of the viewport.
+    // Visible prompt counts cannot be used as a monotonically increasing clock.
+    host.harness.event("prompt_end", PTY_TIMEOUT)?;
+    wait_until(&mut host.harness, "history fixture prompt", |screen| {
+        screen.lines().last().is_some_and(|line| {
+            line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
+        })
+    })?;
     let colors = [
         3,
         123 | (45 << 8) | (67 << 16),

@@ -402,6 +402,19 @@ impl Harness {
     pub fn process_id(&self) -> Option<u32> {
         self.session.child.process_id()
     }
+    /// Read-only failure evidence; never interprets a missing trace as a hang.
+    pub fn process_status(&mut self) -> Value {
+        let pid = self.process_id();
+        match self.session.child.try_wait() {
+            Ok(Some(status)) => {
+                serde_json::json!({"pid":pid,"state":"exited","exit_code":status.exit_code()})
+            }
+            Ok(None) => serde_json::json!({"pid":pid,"state":"running"}),
+            Err(error) => {
+                serde_json::json!({"pid":pid,"state":"unknown","error":error.to_string()})
+            }
+        }
+    }
     pub fn capabilities(&self) -> Option<&Value> {
         self.last_capabilities.as_ref()
     }
