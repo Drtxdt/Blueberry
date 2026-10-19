@@ -38,6 +38,23 @@ pub fn edit(path: &Path, change: impl FnOnce(&mut DocumentMut) -> Result<()>) ->
     })
 }
 
+fn acquire_lock(lock: &fs::File, timeout: std::time::Duration) -> Result<()> {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        match lock.try_lock() {
+            Ok(()) => return Ok(()),
+            Err(fs::TryLockError::Error(error)) => return Err(error).context("无法锁定配置"),
+            Err(fs::TryLockError::WouldBlock) => {
+                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                if remaining.is_zero() {
+                    bail!("配置正在由其他程序保存；等待超时，未修改文件，请重试");
+                }
+                std::thread::sleep(remaining.min(std::time::Duration::from_millis(10)));
+            }
+        }
+    }
+}
+
 fn edit_initial(
     path: &Path,
     initial: &[u8],
@@ -54,13 +71,9 @@ fn edit_initial(
         .create(true)
         .truncate(false)
         .open(path.with_extension("toml.lock"))?;
-    let lock_deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
-    while let Err(error) = lock.try_lock() {
-        if std::time::Instant::now() >= lock_deadline {
-            bail!("无法锁定配置：{error}");
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    // Several independent saves may each sync to a slow Windows volume. Give
+    // their queue a separate bounded budget from atomic replacement retries.
+    acquire_lock(&lock, std::time::Duration::from_secs(5))?;
     let original = read(path)?;
     let initial = original.as_deref().unwrap_or(initial);
     let mut doc = document(initial)?;
@@ -197,6 +210,47 @@ pub fn merge(path: &Path, baseline: &[u8], desired: &[u8], existed: bool) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn queued_writer_waits_for_slow_save_and_lock_timeout_is_bounded() -> Result<()> {
+        use std::{sync::mpsc, time::Duration};
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("config.toml");
+        let original = "# retained\n[ui]\nicons = true\n";
+        fs::write(&path, original)?;
+        let lock_path = path.with_extension("toml.lock");
+        let held = fs::File::create(&lock_path)?;
+        held.lock()?;
+        let contender = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&lock_path)?;
+        assert!(acquire_lock(&contender, Duration::from_millis(40)).is_err());
+        assert_eq!(fs::read_to_string(&path)?, original);
+        let (started_tx, started_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let worker_path = path.clone();
+        let worker = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            let result = edit(&worker_path, |doc| {
+                doc["ui"]["icons"] = toml_edit::value(false);
+                Ok(())
+            });
+            done_tx.send(result).unwrap();
+        });
+        started_rx.recv_timeout(Duration::from_secs(5))?;
+        let early = done_rx.recv_timeout(Duration::from_millis(650));
+        drop(held);
+        assert!(matches!(early, Err(mpsc::RecvTimeoutError::Timeout)));
+        let bytes = done_rx.recv_timeout(Duration::from_secs(5))??;
+        worker.join().unwrap();
+        assert!(String::from_utf8(bytes)?.contains("# retained"));
+        assert_eq!(
+            document(&fs::read(path)?)?["ui"]["icons"].as_bool(),
+            Some(false)
+        );
+        Ok(())
+    }
+
     #[test]
     fn newly_created_tables_merge_independent_fields() -> Result<()> {
         let directory = tempfile::tempdir()?;
