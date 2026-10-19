@@ -2,7 +2,7 @@ name: Windows Terminal native overlay prototype
 on:
   push:
     branches: ['codex/v053-reliability-performance', 'main']
-    paths: ['experiments/wt-overlay/**', 'shell/native-overlay.cs', 'shell/direct-bridge.cs', 'src/native_overlay.rs', 'src/native_observer.rs', 'src/overlay.rs', 'src/host.rs', 'src/probe.rs', 'tests/native_terminal.rs', '.github/workflows/wt-overlay-prototype.yml']
+    paths: ['experiments/wt-overlay/**', 'shell/native-overlay.cs', 'shell/direct-bridge.cs', 'shell/integration.ps1', 'src/direct.rs', 'src/native_overlay.rs', 'src/native_observer.rs', 'src/overlay.rs', 'src/host.rs', 'src/probe.rs', 'tests/native_terminal.rs', 'tests/direct_terminal.rs', 'tests/host.rs', '.github/workflows/wt-overlay-prototype.yml']
   workflow_dispatch:
 permissions:
   contents: read

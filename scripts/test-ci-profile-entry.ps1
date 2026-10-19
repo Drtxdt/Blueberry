@@ -23,7 +23,8 @@ $userRoot=[IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')+'\'
 if (-not $profilePath.StartsWith($userRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Profile is outside the disposable runner account.' }
 $existed=Test-Path -LiteralPath $profilePath -PathType Leaf
 if ($existed -and ((Get-Item -LiteralPath $profilePath -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Profile is a link.' }
-$original=if ($existed) { [IO.File]::ReadAllBytes($profilePath) } else { [byte[]]@() }
+[byte[]]$original=@()
+if ($existed) { $original=@([IO.File]::ReadAllBytes($profilePath)) }
 if ($existed) { [IO.File]::WriteAllBytes((Join-Path $root 'original-profile.bin'),$original) }
 $prepared=Join-Path $root 'managed-profile.ps1'
 [IO.File]::WriteAllText($prepared,'',[Text.UTF8Encoding]::new($true))
