@@ -52,6 +52,7 @@ $blueberryStateDefaults = [ordered]@{
     BLUEBERRY_PROMPT_WRAPPED      = $false
     BLUEBERRY_ORIGINAL_READLINE   = $null
     BLUEBERRY_READLINE_WRAPPED    = $false
+    BLUEBERRY_READLINE_ACTIVE     = $false
     BLUEBERRY_PSREADLINE_AVAILABLE = $false
     BLUEBERRY_KEY_HANDLERS        = [ordered]@{ buffer = $false; apply = $false; commands = $false; native = $false; paste = $false; enter = $false; shift_enter = $false }
     BLUEBERRY_NATIVE_DELETES = $null
@@ -3400,6 +3401,8 @@ function Initialize-BlueberryReadLine {
         if (-not $script:BLUEBERRY_READLINE_WRAPPED) {
             function global:PSConsoleHostReadLine {
                 $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
+                $savedReadLineActive = $script:BLUEBERRY_READLINE_ACTIVE
+                $script:BLUEBERRY_READLINE_ACTIVE = $true
                 try {
                     $acceptedLine = & $script:BLUEBERRY_ORIGINAL_READLINE @args
                     $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
@@ -3411,6 +3414,7 @@ function Initialize-BlueberryReadLine {
                     Send-BlueberryEvent -Event 'execute'
                     return $acceptedLine
                 } finally {
+                    $script:BLUEBERRY_READLINE_ACTIVE = $savedReadLineActive
                     # PSReadLine's original function may intentionally update the
                     # native exit code; only adapter operations are restored.
                     $global:LASTEXITCODE = $savedLastExitCode
@@ -3672,10 +3676,17 @@ function Initialize-BlueberryPrompt {
             }
         }
 
-        Send-BlueberryEvent -Event 'prompt_start' -Data ([ordered]@{
-            cwd = Get-BlueberryWorkingDirectory
-        })
-        Send-BlueberryEvent -Event 'prompt_end' -Data (Get-BlueberryPromptEndData)
+        if ($script:BLUEBERRY_READLINE_ACTIVE) {
+            # PSReadLine invokes Prompt again during resize/InvokePrompt while
+            # the same editable line is alive. Do not reset the host's pending
+            # input or command snapshot as if a command had just finished.
+            Send-BlueberryEvent -Event 'prompt_redraw'
+        } else {
+            Send-BlueberryEvent -Event 'prompt_start' -Data ([ordered]@{
+                cwd = Get-BlueberryWorkingDirectory
+            })
+            Send-BlueberryEvent -Event 'prompt_end' -Data (Get-BlueberryPromptEndData)
+        }
 
         $global:LASTEXITCODE = $promptState.lastExitCode
         if ($null -ne $promptState.error) {

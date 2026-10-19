@@ -286,7 +286,7 @@ namespace Blueberry.Direct {
                     // PSReadLine's responsibility outside this explicit dialog.
                 }
             } finally {
-                manualActive=false; Clear(); displayed=null; interaction="completion"; Query("cancel");
+                manualActive=false; Clear(true); displayed=null; interaction="completion"; Query("cancel");
             }
         }
         public static void PublishEnvironment() {
@@ -454,7 +454,7 @@ namespace Blueberry.Direct {
         }
         static void Disable(string reason) {
             ResetNavigation();
-            enabled = false; DisabledReason = reason; Clear();
+            enabled = false; DisabledReason = reason; Clear(true);
             if (EditorHooks) {
                 if (editorRegistration != null) { editorRegistration.Dispose(); editorRegistration = null; }
                 return;
@@ -524,7 +524,7 @@ namespace Blueberry.Direct {
         }
         public static void Begin(string cwd, string historyPath) {
             long beginning=diagnostic ? Stopwatch.GetTimestamp() : 0;
-            Clear(); displayed = null; acceptingFrame = null; expectedUiEditRevision=-1; interaction = "completion"; directory = cwd; editing = true; editorThread = Thread.CurrentThread.ManagedThreadId;
+            Clear(true); displayed = null; acceptingFrame = null; expectedUiEditRevision=-1; interaction = "completion"; directory = cwd; editing = true; editorThread = Thread.CurrentThread.ManagedThreadId;
             // A nested child can temporarily own the same terminal. Its owner
             // must not permanently disconnect the parent's next prompt.
             if(nativeOverlay!=null && !nativeOverlay.IsConnected) {
@@ -558,7 +558,7 @@ namespace Blueberry.Direct {
             ResetNavigation();
             StopCommands();
             string line; int cursor; buffer(out line,out cursor);
-            Clear(); displayed = null; acceptingFrame=null; expectedUiEditRevision=-1; editing = false; revision++;
+            Clear(true); displayed = null; acceptingFrame=null; expectedUiEditRevision=-1; editing = false; revision++;
             Send(new Dictionary<string, object> { {"event", "end"}, {"revision", revision}, {"line",line} });
         }
         static void Edit(Action<ConsoleKeyInfo?, object> original, ConsoleKeyInfo? key, object arg) {
@@ -728,7 +728,7 @@ namespace Blueberry.Direct {
         public static bool Refresh() {
             if (!editing || Thread.CurrentThread.ManagedThreadId != editorThread) return false;
             ConfirmNativeEdit();
-            if (!connected) { Clear(); displayed=null; ResetNavigation(); return false; }
+            if (!connected) { Clear(true); displayed=null; ResetNavigation(); return false; }
             if (EditorHooks) PumpCommands();
             if(!EditorHooks && AutomaticMenu && !waitingForFrame) { try { AuditBindings(); } catch(Exception error) { Disable(error.GetBaseException().Message); return false; } }
             Dictionary<string, object> frame;
@@ -743,7 +743,7 @@ namespace Blueberry.Direct {
             TracePoint("editor_refresh_enter",revision,Json.Long(frame,"frame_id"),Stopwatch.GetTimestamp());
             string line; int cursor; buffer(out line, out cursor);
             if (Json.String(frame, "expected_line") != line || Json.Long(frame, "expected_cursor") != cursor) return false;
-            if (Json.String(frame,"kind") == "clear") { Clear(); displayed=null; ResetNavigation(); expectedUiEditRevision=-1; interaction="completion"; manualActive=false; return true; }
+            if (Json.String(frame,"kind") == "clear") { Clear(true); displayed=null; ResetNavigation(); expectedUiEditRevision=-1; interaction="completion"; manualActive=false; return true; }
             if (nativeHistory && interaction=="completion") return false;
             if (Json.String(frame, "kind") == "edit") {
                 if (!EditAuthorized(frame)) return false;
@@ -974,8 +974,9 @@ namespace Blueberry.Direct {
             }
             return true;
         }
-        static void Clear() {
+        static void Clear(bool forgetLayout=false) {
             if(nativeOverlay!=null) {
+                if(forgetLayout) paintedLayout=false;
                 bool hadFrame;bool wasVisible=nativeOverlay.Close(out hadFrame);
                 if(hadFrame) nativeFrameEligible=wasVisible;
                 return;
@@ -987,6 +988,7 @@ namespace Blueberry.Direct {
                 Layout layout;if(!MeasureLayout(out layout)) return;
                 int width=layout.Width;
                 bool resized=width!=paintedWidth || layout.Rows!=paintedRows;
+                if(!resized && ownedRows.Count==0) return;
                 var text=new StringBuilder();
                 // Verify ownership against what is still on screen. External
                 // output is not erased, and resize never replays a viewport.
@@ -1014,10 +1016,18 @@ namespace Blueberry.Direct {
                     // resize must never reconstruct prompt/history from cells.
                     int row=layout.Info.Window.Top+Math.Min(Math.Max(0,paintedFirst),Math.Max(0,layout.Rows-2));
                     ownedRows.Clear();
+                    TracePoint("editor_resize_reflow",revision,-1,Stopwatch.GetTimestamp());
                     api.GetMethod("InvokePrompt").Invoke(null,new object[]{null,row});
+                    paintedWidth=layout.Width;paintedRows=layout.Rows;
                 }
-            } catch { }
-            finally {ownedRows.Clear();paintedLayout=false;}
+            } catch { TracePoint("editor_resize_reflow_failed",revision,-1,Stopwatch.GetTimestamp()); }
+            finally {
+                ownedRows.Clear();
+                // Clearing pixels and completing a resize are separate events.
+                // ConPTY can apply the resize after this Clear but before the
+                // next frame. Retain geometry until reflow or explicit dismissal.
+                if(forgetLayout) paintedLayout=false;
+            }
         }
     }
 

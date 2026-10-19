@@ -1443,6 +1443,18 @@ impl State {
                     self.diagnostic = None;
                 }
             }
+            "prompt_redraw" => {
+                // This is still the same ReadLine call. Preserve its revision,
+                // pending replies and history navigation; only refresh the
+                // current completion buffer/anchor when editing allows it.
+                if self.prompt
+                    && self.interaction_mode == InteractionMode::Completion
+                    && !self.native_search_active
+                    && !self.nested_edit
+                {
+                    self.dirty = true;
+                }
+            }
             "prompt_start" => {
                 self.native_search_active = false;
                 self.pending_native_search_end = false;

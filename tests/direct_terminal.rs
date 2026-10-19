@@ -1758,15 +1758,20 @@ fn direct_pending_path_navigation_yields_to_typing_and_discards_late_frames() ->
 
 #[test]
 fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<()> {
-    exercise_multiline_resize(false)
+    exercise_multiline_resize(false, false)
 }
 
 #[test]
 fn direct_resize_reflows_input_when_menu_ownership_readback_failed() -> Result<()> {
-    exercise_multiline_resize(true)
+    exercise_multiline_resize(true, false)
 }
 
-fn exercise_multiline_resize(omit_capture: bool) -> Result<()> {
+#[test]
+fn direct_resize_after_menu_clear_reflows_input() -> Result<()> {
+    exercise_multiline_resize(false, true)
+}
+
+fn exercise_multiline_resize(omit_capture: bool, resize_after_clear: bool) -> Result<()> {
     // Keep failed native snapshots and traces inside the uploaded CI evidence.
     let evidence =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
@@ -1794,6 +1799,15 @@ fn exercise_multiline_resize(omit_capture: bool) -> Result<()> {
     let script = format!(
         r#"
 function global:prompt {{ 'BB> ' }}
+Set-PSReadLineKeyHandler -Chord F7 -ScriptBlock {{
+    # The editor's Before callback has already cleared the visible menu.
+    [IO.File]::WriteAllText('{cleared}', 'ready')
+    $deadline=[DateTime]::UtcNow.AddSeconds(5)
+    while (-not [IO.File]::Exists('{resized}')) {{
+        if ([DateTime]::UtcNow -gt $deadline) {{ throw 'Resize gate timed out' }}
+        [Threading.Thread]::Sleep(5)
+    }}
+}}
 Set-PSReadLineKeyHandler -Chord F6 -ScriptBlock {{
     [Microsoft.PowerShell.PSConsoleReadLine]::Insert([IO.File]::ReadAllText('{input}'))
     [Microsoft.PowerShell.PSConsoleReadLine]::BackwardChar($null,{back})
@@ -1807,6 +1821,8 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
 1..40 | ForEach-Object {{ 'MULTILINE-SENTINEL' }}
 "#,
         input = quote("input.txt"),
+        cleared = quote("menu-cleared.txt"),
+        resized = quote("resize-complete.txt"),
         back = suffix.encode_utf16().count(),
         snapshot = quote("buffer.txt")
     );
@@ -1834,7 +1850,21 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
             menu > input && screen.contains("RIGHT"),
             "menu covered multiline input: {screen}"
         );
+        if resize_after_clear {
+            h.send(b"\x1b[18~")?;
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            while !dir.path().join("menu-cleared.txt").is_file() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "menu clear gate missing"
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+        }
         h.resize(10, 60)?;
+        if resize_after_clear {
+            std::fs::write(dir.path().join("resize-complete.txt"), "ready")?;
+        }
         h.send(b"\x1b[B")?;
         wait_selected_path(&mut h, "nav-01.txt")?;
         let resized_screen = wait_native_selected_path(
