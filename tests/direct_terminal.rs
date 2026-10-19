@@ -412,6 +412,15 @@ fn start_delayed_executable_with_pages(
                 .into(),
             ),
             (
+                "BLUEBERRY_TEST_OMIT_MENU_OWNERSHIP".into(),
+                if directory.join("omit-menu-ownership").exists() {
+                    "1"
+                } else {
+                    "0"
+                }
+                .into(),
+            ),
+            (
                 "BLUEBERRY_TEST_TERMINAL_PAGES".into(),
                 if terminal_pages { "1" } else { "0" }.into(),
             ),
@@ -1749,6 +1758,15 @@ fn direct_pending_path_navigation_yields_to_typing_and_discards_late_frames() ->
 
 #[test]
 fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<()> {
+    exercise_multiline_resize(false)
+}
+
+#[test]
+fn direct_resize_reflows_input_when_menu_ownership_readback_failed() -> Result<()> {
+    exercise_multiline_resize(true)
+}
+
+fn exercise_multiline_resize(omit_capture: bool) -> Result<()> {
     // Keep failed native snapshots and traces inside the uploaded CI evidence.
     let evidence =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
@@ -1756,6 +1774,9 @@ fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<
     let dir = tempfile::Builder::new()
         .prefix("direct-multiline-")
         .tempdir_in(evidence)?;
+    if omit_capture {
+        std::fs::write(dir.path().join("omit-menu-ownership"), "1")?;
+    }
     path_fixture(dir.path())?;
     let suffix = " ; Write-Output 'RIGHT'";
     let expected = format!(
@@ -1780,7 +1801,8 @@ Set-PSReadLineKeyHandler -Chord F6 -ScriptBlock {{
 Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
     $line=''; $cursor=0
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor)
-    [IO.File]::WriteAllText('{snapshot}',$line)
+    [IO.File]::WriteAllText('{snapshot}.pending',$line)
+    [IO.File]::Move('{snapshot}.pending','{snapshot}')
 }}
 1..40 | ForEach-Object {{ 'MULTILINE-SENTINEL' }}
 "#,

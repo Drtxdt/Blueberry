@@ -882,6 +882,7 @@ namespace Blueberry.Direct {
         static Rect region; static IntPtr output;
         static readonly List<string> ownedRows=new List<string>();
         static int paintedWidth, paintedRows, paintedFirst;
+        static bool paintedLayout;
         struct Layout {
             internal Info Info;
             internal int First, Last, Above, Below, Width, Rows, InputRow, InputColumn;
@@ -958,11 +959,14 @@ namespace Blueberry.Direct {
             var text=new StringBuilder();
             for(int i=0;i<height;i++) text.Append("\x1b[").Append(top+i-info.Window.Top+1).Append(";1H").Append(lines[i] as string).Append("\x1b[0m");
             text.Append("\x1b[").Append(info.Cursor.Y-info.Window.Top+1).Append(';').Append(info.Cursor.X-info.Window.Left+1).Append("H\x1b]1337;BlueberryFrame\x07");
+            paintedLayout=true;
             Console.Write(text.ToString());
             ownedRows.Clear();
             paintedWidth=layout.Width;paintedRows=layout.Rows;paintedFirst=layout.First-info.Window.Top;
             var cells=new Cell[width*height];var painted=region;
-            if(ReadConsoleOutputW(output,cells,new Coord(width,height),new Coord(0,0),ref painted)) {
+            bool omitCapture=diagnostic && Environment.GetEnvironmentVariable("BLUEBERRY_NO_HISTORY")=="1"
+                && Environment.GetEnvironmentVariable("BLUEBERRY_TEST_OMIT_MENU_OWNERSHIP")=="1";
+            if(!omitCapture && ReadConsoleOutputW(output,cells,new Coord(width,height),new Coord(0,0),ref painted)) {
                 for(int y=0;y<height;y++) {
                     var row=new char[width];for(int x=0;x<width;x++) row[x]=cells[y*width+x].Character;
                     ownedRows.Add(new string(row).TrimEnd(' ','\0'));
@@ -976,7 +980,9 @@ namespace Blueberry.Direct {
                 if(hadFrame) nativeFrameEligible=wasVisible;
                 return;
             }
-            if(ownedRows.Count==0) return;
+            // A resize can invalidate the readback after the menu was written.
+            // Its geometry still requires editor reflow even without captured rows.
+            if(!paintedLayout && ownedRows.Count==0) return;
             try {
                 Layout layout;if(!MeasureLayout(out layout)) return;
                 int width=layout.Width;
@@ -1011,7 +1017,7 @@ namespace Blueberry.Direct {
                     api.GetMethod("InvokePrompt").Invoke(null,new object[]{null,row});
                 }
             } catch { }
-            finally {ownedRows.Clear();}
+            finally {ownedRows.Clear();paintedLayout=false;}
         }
     }
 
