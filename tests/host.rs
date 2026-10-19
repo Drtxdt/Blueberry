@@ -26,6 +26,81 @@ fn has_border_width(screen: &str, width: usize) -> bool {
     })
 }
 
+#[test]
+#[ignore = "requires frozen CI EXE and native history observer DLL"]
+fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> {
+    let cwd = tempdir()?;
+    std::fs::write(cwd.path().join("git.cmd"), b"@echo off\r\n")?;
+    let expected = format!("RGB-HISTORY-中🚀é{}", "x".repeat(150));
+    let setup = cwd.path().join("history.ps1");
+    std::fs::write(
+        &setup,
+        format!(
+            "\u{feff}$e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145m{expected}${{e}}[0m`r`n\"); 1..40 | ForEach-Object {{ 'HISTORY-SENTINEL' }}\r\n"
+        ),
+    )?;
+    let mut host = start_host(cwd.path())?;
+    let prompts = prompt_count(&host.harness.contents());
+    host.harness.send_text(&format!(
+        ". '{}'\r",
+        setup.display().to_string().replace('\'', "''")
+    ))?;
+    wait_for_next_prompt(&mut host.harness, prompts, "history fixture prompt")?;
+    let colors = [
+        3,
+        123 | (45 << 8) | (67 << 16),
+        3,
+        23 | (89 << 8) | (145 << 16),
+    ];
+    let before = host.harness.native_history()?;
+    let row = before
+        .lines()
+        .position(|line| line.starts_with("RGB-HISTORY-"))
+        .context("native history fixture missing")?;
+    ensure!(host.harness.native_cell_colors(row as u32, 0)? == colors);
+    std::fs::write(host._data_dir.path().join("history-before.txt"), &before)?;
+    host.harness.send_text("gi")?;
+    host.harness.wait_text("⌘ git ", PTY_TIMEOUT)?;
+    for (rows, columns) in [(12, 40), (28, 95), (18, 60)] {
+        host.harness.resize(rows, columns)?;
+        wait_until(&mut host.harness, "resized native menu", |screen| {
+            has_border_width(screen, columns as usize - 1)
+        })?;
+    }
+    host.harness.send_text("\x1b")?;
+    wait_until(&mut host.harness, "dismissed native menu", |screen| {
+        !screen.contains("⌘ git ")
+    })?;
+    let after = host.harness.native_history()?;
+    std::fs::write(host._data_dir.path().join("history-after.txt"), &after)?;
+    let row = after
+        .lines()
+        .position(|line| line.starts_with("RGB-HISTORY-"))
+        .context("native history disappeared after resize")?;
+    let actual_colors = host.harness.native_cell_colors(row as u32, 0)?;
+    std::fs::write(
+        host._data_dir.path().join("history-observer.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "observer": host.harness.native_observer_identity(),
+            "colors": actual_colors,
+            "expected_colors": colors,
+        }))?,
+    )?;
+    ensure!(actual_colors == colors, "native history RGB changed");
+    ensure!(
+        after
+            .lines()
+            .map(str::trim_end)
+            .collect::<String>()
+            .contains(&expected),
+        "native history Unicode or soft wrapping changed"
+    );
+    clear_line_and_send(&mut host.harness, b"git ", "completion after resize")?;
+    host.harness.wait_text("status", PTY_TIMEOUT)?;
+    host.harness.stop()?;
+    Ok(())
+}
+
 struct RunningHost {
     harness: Harness,
     // Keep the data directory alive until the host process has exited. The
@@ -124,7 +199,9 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         config::example().replace("icon_style = \"nerd\"", "icon_style = \"unicode\""),
     )
     .context("write test config")?;
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
+    let program = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_BIN_EXE_blueberry")));
     let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
     ensure!(matches!(transport.as_str(), "osc" | "pipe"));
     std::fs::write(

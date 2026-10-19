@@ -209,6 +209,11 @@ jobs:
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             cargo test --test direct_terminal direct_above_menu_resize_preserves -- --ignored --test-threads=1 --nocapture
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            foreach ($transport in @('pipe', 'osc')) {
+              $env:BLUEBERRY_TEST_TRANSPORT = $transport
+              cargo test --test host nested_resize_preserves_native_unicode_and_truecolor_history -- --exact --ignored --test-threads=1 --nocapture
+              if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            }
           }
       - uses: actions/upload-artifact@v4
         if: always()
@@ -219,3 +224,4 @@ jobs:
             artifacts/native-terminal-regressions/
             artifacts/native-client/
             target/input-protocol-evidence/
+            target/nested-terminal-evidence/
