@@ -2261,7 +2261,7 @@ fn exercise_builtin_workflows(delay_wake: bool) -> Result<()> {
     std::fs::write(
         &setup,
         format!(
-            "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ $line=''; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); [IO.File]::WriteAllText('{}',$line) }}; [IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy'))",
+            "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ $line=''; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); $snapshotPath='{}'; [IO.File]::WriteAllText($snapshotPath+'.pending',$line); [IO.File]::Move($snapshotPath+'.pending',$snapshotPath) }}; [IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy'))",
             snapshot.display().to_string().replace('\'', "''"),
             mode.display().to_string().replace('\'', "''")
         ),
@@ -2350,10 +2350,12 @@ fn exercise_builtin_workflows(delay_wake: bool) -> Result<()> {
                 );
                 let _ = h.pump(Duration::from_millis(10));
             }
+            // F12 publishes by rename only after its complete buffer has
+            // reached disk. Existence must not race WriteAllText's create.
+            let observed = std::fs::read_to_string(&snapshot)?;
             ensure!(
-                std::fs::read_to_string(&snapshot)? == expected,
-                "workflow filled unexpected command: {name}: {:?}",
-                std::fs::read_to_string(&snapshot)?
+                observed == expected,
+                "workflow filled unexpected command: {name}: {observed:?}"
             );
             std::fs::remove_file(&snapshot)?;
             h.send(b"\x01\x7f")?;
