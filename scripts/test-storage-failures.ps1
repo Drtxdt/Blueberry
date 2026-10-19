@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$CorePackage,
@@ -142,22 +142,30 @@ try {
     $null=[IO.Directory]::CreateDirectory((Split-Path -Parent $settings))
     [IO.File]::WriteAllText($settings,'{"fontFace":"中文 retained"}')
     $before=Snapshot
+    # Pin recovery to the exact pre-failure manifest and a retained WAL.
+    # Evidence/backup storage stays outside the intentionally full target volume.
+    $spaceTransaction=Join-Path $evidence 'core-space-transaction'
+    $spaceManifestHash=(Get-FileHash -LiteralPath (Join-Path $root 'install.json')).Hash
     $reservation=Fill-OwnedVolume
     try {
-        Run-Manager 'core-disk-full' { & $core -Action Upgrade -PackagePath $NextCorePackage -InstallRoot $root } $true
+        Run-Manager 'core-disk-full' { & $core -Action Upgrade -PackagePath $NextCorePackage -InstallRoot $root -TransactionDirectory $spaceTransaction -ExpectedManifestSha256 $spaceManifestHash } $true
         Assert-Unchanged $before
         Run-Manager 'terminal-disk-full' { & $terminal -Operation Upgrade -PackagePath $NextTerminalPackage -InstallRoot $root } $true
         Assert-Unchanged $before
     } finally { Remove-Item -LiteralPath $reservation -Force }
-    Run-Manager 'core-recover-space' { & $core -Action Recover -InstallRoot $root }
+    Run-Manager 'core-recover-space' { & $core -Action Recover -InstallRoot $root -TransactionDirectory $spaceTransaction -ExpectedManifestSha256 $spaceManifestHash }
+    Assert-Unchanged $before
     Run-Manager 'core-retry-space' { & $core -Action Upgrade -PackagePath $NextCorePackage -InstallRoot $root }
     Run-Manager 'terminal-retry-space' { & $terminal -Operation Upgrade -PackagePath $NextTerminalPackage -InstallRoot $root }
     $before=Snapshot
+    $permissionTransaction=Join-Path $evidence 'core-permission-transaction'
+    $permissionManifestHash=(Get-FileHash -LiteralPath (Join-Path $root 'install.json')).Hash
     With-DeniedFile (Join-Path $root 'RELEASE-NOTES.md') {
-        Run-Manager 'core-permission-denied' { & $core -Action Upgrade -PackagePath $CorePackage -InstallRoot $root } $true
+        Run-Manager 'core-permission-denied' { & $core -Action Upgrade -PackagePath $CorePackage -InstallRoot $root -TransactionDirectory $permissionTransaction -ExpectedManifestSha256 $permissionManifestHash } $true
         Assert-Unchanged $before
     }
-    Run-Manager 'core-recover-permission' { & $core -Action Recover -InstallRoot $root }
+    Run-Manager 'core-recover-permission' { & $core -Action Recover -InstallRoot $root -TransactionDirectory $permissionTransaction -ExpectedManifestSha256 $permissionManifestHash }
+    Assert-Unchanged $before
     Run-Manager 'core-retry-permission' { & $core -Action Upgrade -PackagePath $CorePackage -InstallRoot $root }
     $before=Snapshot
     With-DeniedFile (Join-Path $root 'components/terminal/component-state.json') {
@@ -165,6 +173,12 @@ try {
         Assert-Unchanged $before
     }
     Run-Manager 'terminal-retry-permission' { & $terminal -Operation Upgrade -PackagePath $TerminalPackage -InstallRoot $root }
+    $state=Get-Content -LiteralPath (Join-Path $root 'components/terminal/component-state.json') -Raw | ConvertFrom-Json
+    $settings=Join-Path $root ('components/terminal/versions/'+$state.current+'/settings/settings.json')
+    if ([IO.File]::ReadAllText((Join-Path $root 'user-settings.json')) -cne '{"font":"中文 preserved"}' -or
+        [IO.File]::ReadAllText($settings) -cne '{"fontFace":"中文 retained"}') {
+        throw 'Retry changed user settings.'
+    }
     $results.Add(@{name='final';status='passed';core_sha256=(Get-FileHash $CorePackage).Hash;terminal_sha256=(Get-FileHash $TerminalPackage).Hash})
     Save-Results
 } finally {
