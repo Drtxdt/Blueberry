@@ -150,10 +150,15 @@ impl Overlay {
             let owned = painted
                 .as_ref()
                 .map(|p| owned_console_rows(p, screen.size(), self.resized));
-            for row in owned
-                .unwrap_or_else(|| (top..top.saturating_add(height).min(screen.size().0)).collect())
-            {
+            let (viewport_height, owned) = owned.unwrap_or_else(|| {
+                (
+                    screen.size().0,
+                    (top..top.saturating_add(height).min(screen.size().0)).collect(),
+                )
+            });
+            for row in owned {
                 write!(output, "\x1b[{};1H\x1b[0m\x1b[2K", row + 1)?;
+                finish_owned_row(output, row, viewport_height)?;
             }
             restore_cursor(screen, output)?;
         }
@@ -287,7 +292,8 @@ impl Overlay {
             return Ok(());
         }
         if let Some(previous) = self.painted.as_ref().filter(|previous| {
-            previous.top == painted.top
+            !self.resized
+                && previous.top == painted.top
                 && previous.left == painted.left
                 && previous.size == painted.size
                 && previous.frame.width == painted.frame.width
@@ -309,6 +315,7 @@ impl Overlay {
                         left + 1,
                         after
                     )?;
+                    finish_owned_row(output, top + i as u16, rows)?;
                 }
             }
             restore_cursor(screen, output)?;
@@ -325,6 +332,7 @@ impl Overlay {
                 left + 1,
                 row
             )?;
+            finish_owned_row(output, top + i as u16, rows)?;
         }
         restore_cursor(screen, output)?;
         self.rows = Some((top, height));
@@ -338,9 +346,19 @@ fn restore_cursor(screen: &vt100::Screen, output: &mut impl Write) -> io::Result
     output.write_all(&screen.attributes_formatted())
 }
 
+fn finish_owned_row(output: &mut impl Write, row: u16, viewport_height: u16) -> io::Result<()> {
+    // EL clears characters, but retains ConPTY's forced-wrap metadata.
+    // An explicit LF marks our row as a hard line so a later widening cannot
+    // concatenate a repainted menu with its neighbour. Never scroll the bottom.
+    if row + 1 < viewport_height {
+        output.write_all(b"\r\n")?;
+    }
+    Ok(())
+}
+
 /// Inspect only character ownership. Historical cells are never replayed from
 /// CHAR_INFO or the VT model; their Unicode and RGB remain terminal-owned.
-fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec<u16> {
+fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> (u16, Vec<u16>) {
     #[cfg(windows)]
     {
         use windows_sys::Win32::System::Console::{
@@ -464,16 +482,19 @@ fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec
                     let _ = writeln!(file, "{record}");
                 }
             }
-            return result;
+            return (height, result);
         }
     }
     let _ = resized;
-    (painted.top
-        ..painted
-            .top
-            .saturating_add(painted.frame.lines.len() as u16)
-            .min(size.0))
-        .collect()
+    (
+        size.0,
+        (painted.top
+            ..painted
+                .top
+                .saturating_add(painted.frame.lines.len() as u16)
+                .min(size.0))
+            .collect(),
+    )
 }
 
 #[cfg(test)]

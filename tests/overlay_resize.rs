@@ -63,6 +63,19 @@ fn overlay_helper() -> Result<()> {
         // Console reflow precedes the queued resize event; neither model nor
         // Overlay has received a resize notification.
         overlay.erase(screen.screen(), &mut output)?;
+        if std::env::var_os("OVERLAY_ROUND_TRIP").is_some() {
+            // Erasing characters does not erase ConPTY's soft-wrap metadata.
+            // Paint a narrow menu into those rows, then let the parent widen.
+            screen = vt100::Parser::new(24, 80, 0);
+            let prompt = b"\x1b[12;1H\x1b[2KPS fixture> gi";
+            screen.process(prompt);
+            output.write_all(prompt)?;
+            overlay.draw(screen.screen(), &mut output, &candidates, 0, "gi", &config)?;
+            output.flush()?;
+            std::fs::write(dir.join("narrow-ready"), [])?;
+            await_file(&dir.join("wide"))?;
+            overlay.erase(screen.screen(), &mut output)?;
+        }
     }
     output.flush()?;
     std::fs::write(dir.join("erased"), [])?;
@@ -72,15 +85,20 @@ fn overlay_helper() -> Result<()> {
 
 #[test]
 fn erase_after_console_resize_before_resize_event_removes_owned_rows() -> Result<()> {
-    exercise_retirement(true)
+    exercise_retirement(true, false)
 }
 
 #[test]
 fn queued_shell_prompt_is_not_erased_using_stale_menu_readback() -> Result<()> {
-    exercise_retirement(false)
+    exercise_retirement(false, false)
 }
 
-fn exercise_retirement(resize: bool) -> Result<()> {
+#[test]
+fn widening_after_narrow_repaint_removes_reflowed_menu_fragments() -> Result<()> {
+    exercise_retirement(true, true)
+}
+
+fn exercise_retirement(resize: bool, round_trip: bool) -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/overlay-resize-evidence");
     std::fs::create_dir_all(&root)?;
     let mut dir = tempfile::Builder::new().prefix("race-").tempdir_in(root)?;
@@ -92,6 +110,9 @@ fn exercise_retirement(resize: bool) -> Result<()> {
     )]);
     if !resize {
         env.insert("OVERLAY_QUEUED_OUTPUT".into(), "1".into());
+    }
+    if round_trip {
+        env.insert("OVERLAY_ROUND_TRIP".into(), "1".into());
     }
     let mut harness = Harness::start(
         &std::env::current_exe()?,
@@ -120,6 +141,16 @@ fn exercise_retirement(resize: bool) -> Result<()> {
         "fixture must retain unrelated history before cleanup: {before}"
     );
     std::fs::write(dir.path().join("erase"), [])?;
+    if round_trip {
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !dir.path().join("narrow-ready").exists() {
+            ensure!(Instant::now() < deadline, "narrow repaint did not finish");
+            let _ = harness.pump(Duration::from_millis(5));
+        }
+        harness.resize(30, 120)?;
+        console_snapshot::capture(&mut harness, &dir.path().join("wide-before.json"))?;
+        std::fs::write(dir.path().join("wide"), [])?;
+    }
     let deadline = Instant::now() + Duration::from_secs(20);
     while !dir.path().join("erased").exists() {
         ensure!(Instant::now() < deadline, "erase did not finish");
@@ -134,8 +165,19 @@ fn exercise_retirement(resize: bool) -> Result<()> {
         !after["screen"]
             .as_str()
             .unwrap_or_default()
-            .contains("git-fixture-"),
+            .contains("git-fixture-")
+            && !after["screen"]
+                .as_str()
+                .unwrap_or_default()
+                .contains(['╭', '╮', '╰', '╯', '│']),
         "owned menu survived an unobserved console resize: {after}"
+    );
+    ensure!(
+        after["screen"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("PS fixture> gi"),
+        "cleanup or reflow lost the prompt: {after}"
     );
     ensure!(
         after["screen"]

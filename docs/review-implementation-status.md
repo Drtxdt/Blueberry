@@ -1,5 +1,7 @@
 # 16 项评审实施记录
 
+2026-10-20 软换行根因：fff465a 单轮 CI 39383272284 全部通过，但六份归属日志都显示变宽后相邻菜单行被合并。真实 ConPTY 往返缩放夹具已复现：清字符保留的软换行标记会被窄菜单继承。现仅在自有菜单行清理/绘制后显式结束行，并跳过物理底行以避免滚动；同尺寸缩放也完整重画。本机严格检查提示符、历史及全部菜单边框，30 次往返回归及六组交互/原生历史共 12 项通过；六份新归属日志的未匹配候选行均为零。云端新提交和关闭诊断的重复验证仍待完成。[复现与验证](benchmarks/v0.6/review-20261018/finalization/overlay-soft-wrap-retirement.json)。
+
 追加清理顺序验证：真实 ConPTY 夹具确认待写出的新提示符可能被依据旧屏幕生成的清理指令擦除；现将前序输出同步到终端后再读取菜单归属，两个隔离回归及 PS5.1/2.0.0 pipe/OSC 单轮通过。单轮 Nested CI 启用明确标记的归属诊断，30 轮保持关闭；失败时补充最终原生屏幕。尚未将此修复视为云端残留或提示符问题的完整结论。[复现与边界](benchmarks/v0.6/review-20261018/finalization/overlay-pending-output.json)。
 
 2026-10-20 后续结果：14a6467 单轮 CI 39381067743 三组合通过，本机六组 Unicode/RGB 历史各 30 次共 180 次通过。其云端原生快照仍有一个残留样本，清理问题未关闭。4a6ce7a 的 30 轮 CI 39379818074 中 PS5.1/2.4.5 全部通过；PS5.1/2.0.0 底部菜单在未收完输入时读取了部分 VT 帧，改为完整帧确认后，本机追踪开关六组各 30 次通过；PS7 Nested OSC 第 21 次缩放后 VT 观察器未见提示符，保持严格断言并继续诊断，不宣称修复。完整 CI、性能和最终包继续等待稳定性门槛。[重复 CI](benchmarks/v0.6/review-20261018/finalization/stability-4a6ce7a-repeat30.json)、[底部菜单复验](benchmarks/v0.6/review-20261018/finalization/stability-bottom-complete-frame-repeat30.json)、[原生历史](benchmarks/v0.6/review-20261018/finalization/stability-native-history-14a6467-repeat30.json)。
