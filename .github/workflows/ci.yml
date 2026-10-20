@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      startup_cache_only:
+        description: Validate only isolated cold and warm startup observations
+        type: boolean
+        default: false
       stability_only:
         description: Run only the frozen targeted stability checks
         type: boolean
@@ -37,6 +41,9 @@ concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.event_name == 'push' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 jobs:
+  startup-cache:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.startup_cache_only }}
+    uses: ./.github/workflows/startup-cache-targeted.yml
   stability:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.stability_only }}
     uses: ./.github/workflows/stability-targeted.yml
@@ -69,7 +76,7 @@ jobs:
         shell: pwsh
         run: python scripts/verify-evidence-upload.py
   format:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +92,7 @@ jobs:
           BENCHMARK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
     name: Core / ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -160,7 +167,7 @@ jobs:
           path: target/store-evidence
           if-no-files-found: ignore
   powershell-51:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
     strategy:
@@ -263,7 +270,7 @@ jobs:
         run: |
           cargo test --locked --test direct_terminal --test tools_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
-          cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+          cargo test --locked --test input_protocol --test product_probe_cache -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
       - name: Repeat Windows PowerShell pipe resize regression
         shell: pwsh
@@ -290,9 +297,10 @@ jobs:
             target/ci-profile-entry
             target/input-protocol-evidence
             ${{ runner.temp }}/blueberry-direct-evidence
+            ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   powershell-7:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
     strategy:
@@ -369,7 +377,7 @@ jobs:
         run: |
           cargo test --locked --test direct_terminal --test tools_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
-          cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+          cargo test --locked --test input_protocol --test product_probe_cache -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
           ./scripts/repeat-rust-test.ps1 -Target direct_terminal -Test builtin_workflows_fill_native_editor_without_executing -Count 30
       - name: Preserve nested terminal evidence
@@ -387,9 +395,10 @@ jobs:
             target/startup-terminal-evidence
             target/input-protocol-evidence
             ${{ runner.temp }}/blueberry-direct-evidence
+            ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   native-mouse:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
     env:
@@ -448,7 +457,7 @@ jobs:
           path: target/input-protocol-evidence
           if-no-files-found: ignore
   package:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
     # Exercise packaging faults while long interaction repetitions run.
     # Final evidence still requires every functional job and this job to pass.
     needs: [format, core]
@@ -592,8 +601,11 @@ jobs:
             foreach ($combination in @(@('powershell.exe','2.0.0','ps51-200'), @('powershell.exe','2.4.5','ps51-245'), @('pwsh.exe','2.4.5','ps7-245'))) {
               $moduleRoot = Join-Path $env:RUNNER_TEMP ('package-editor-' + $combination[1])
               $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $moduleRoot "PSReadLine/$($combination[1])/PSReadLine.psd1"
-              ./scripts/test-ci-profile-entry.ps1 -Shell $combination[0] -Executable $executable -OutputDirectory "target/packaged-profile/$($combination[2])" -Pairs 30 -Formal
-              $records += @{combination=$combination[2]; report="$($combination[2])/startup.json"; restoration="$($combination[2])/restoration.json"}
+              foreach ($cache in @('cold','warm')) {
+                $entry = "$($combination[2])-$cache"
+                ./scripts/test-ci-profile-entry.ps1 -Shell $combination[0] -Executable $executable -OutputDirectory "target/packaged-profile/$entry" -Pairs 30 -CacheState $cache -Formal
+                $records += @{combination=$combination[2]; cache=$cache; report="$entry/startup.json"; restoration="$entry/restoration.json"}
+              }
             }
             if ((Get-FileHash $executable).Hash -ne $before) { throw 'Profile executable changed during measurement' }
             @{package_sha256=(Get-FileHash $package).Hash; executable_sha256=$before; entries=$records; update_check='Off'; observation='ConPTY receive timestamps; separate from GUI and local AB/BA qualification'} |

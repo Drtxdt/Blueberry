@@ -13,6 +13,27 @@ use std::{
 };
 const TIMEOUT: Duration = Duration::from_secs(20);
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, clap::ValueEnum, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CacheState {
+    #[default]
+    Ambient,
+    Cold,
+    Warm,
+}
+
+#[derive(Default)]
+pub struct EntryOptions<'a> {
+    pub profile_entry: bool,
+    pub profile_fixture: Option<&'a Path>,
+    pub cache_state: CacheState,
+}
+
+struct SampleEntry<'a> {
+    profile_entry: bool,
+    local_appdata: Option<&'a Path>,
+}
+
 fn shell_metadata(screen: &str) -> Option<Value> {
     screen.lines().map(str::trim).find_map(|line| {
         let fields = line.split(':').collect::<Vec<_>>();
@@ -144,7 +165,7 @@ fn measure(
     candidate: bool,
     host_mode: &str,
     trace_path: Option<&Path>,
-    profile_entry: bool,
+    entry: &SampleEntry<'_>,
 ) -> Result<Sample> {
     let mut env = BTreeMap::from([
         ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
@@ -154,7 +175,10 @@ fn measure(
         ("TERM".into(), "xterm-256color".into()),
     ]);
     crate::probe::inherit_native_observer_environment(&mut env);
-    if profile_entry && candidate {
+    if let Some(path) = entry.local_appdata {
+        env.insert("LOCALAPPDATA".into(), path.to_string_lossy().into_owned());
+    }
+    if entry.profile_entry && candidate {
         env.insert("BLUEBERRY_ACTIVE".into(), String::new());
         env.insert(
             "BLUEBERRY_PROFILE_PROBE_DATA".into(),
@@ -204,12 +228,12 @@ fn measure(
     if candidate && let Some(path) = trace_path {
         args.extend(["--trace".into(), path.to_string_lossy().into_owned()]);
     }
-    if candidate && profile_entry {
+    if candidate && entry.profile_entry {
         args = vec!["-NoLogo".into()];
     }
     let start = Instant::now();
     let mut harness = Harness::start(
-        if candidate && !profile_entry {
+        if candidate && !entry.profile_entry {
             executable
         } else {
             shell
@@ -283,6 +307,24 @@ fn measure(
                     .any(|line| line.contains("bb-product-probe-dir") && line.contains("› "))
         })?;
         let first_dynamic = elapsed(&harness, dynamic_start)?;
+        if entry.local_appdata.is_some() {
+            // Cache preparation/status collection is outside all timed stages.
+            // Do not silently call an unavailable or still-pending cache warm.
+            let deadline = Instant::now() + TIMEOUT;
+            loop {
+                status = adapter(&directory.join("data"))?;
+                if status["system_commands"]["complete"] == true {
+                    ensure!(
+                        status["system_commands"]["error"].is_null(),
+                        "system metadata failed: {}",
+                        status["system_commands"]
+                    );
+                    break;
+                }
+                ensure!(Instant::now() < deadline, "system metadata did not finish");
+                let _ = harness.pump(Duration::from_millis(5));
+            }
+        }
         status["process_tree_after_timing"] = json!(
             harness
                 .process_id()
@@ -377,9 +419,40 @@ pub fn run_with_entry(
     profile_entry: bool,
     profile_fixture: Option<&Path>,
 ) -> Result<Value> {
+    run_with_options(
+        executable,
+        shell,
+        iterations,
+        host_mode,
+        trace_directory,
+        EntryOptions {
+            profile_entry,
+            profile_fixture,
+            cache_state: CacheState::Ambient,
+        },
+    )
+}
+
+pub fn run_with_options(
+    executable: &Path,
+    shell: &Path,
+    iterations: u16,
+    host_mode: &str,
+    trace_directory: Option<&Path>,
+    options: EntryOptions<'_>,
+) -> Result<Value> {
+    let EntryOptions {
+        profile_entry,
+        profile_fixture,
+        cache_state,
+    } = options;
     ensure!(
         iterations > 0 && matches!(host_mode, "direct" | "nested"),
         "invalid product probe options"
+    );
+    ensure!(
+        cache_state == CacheState::Ambient || host_mode == "direct",
+        "isolated metadata cache measurements require Direct"
     );
     let entry_fixture = if profile_entry {
         ensure!(
@@ -436,6 +509,36 @@ pub fn run_with_entry(
     let root =
         std::env::temp_dir().join(format!("blueberry-product-probe-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&root)?;
+    let warm_local = root.join("warm-localappdata");
+    let preparation = if cache_state == CacheState::Warm {
+        let directory = root.join("preparation");
+        std::fs::create_dir_all(directory.join("bb-product-probe-dir"))?;
+        let started = Instant::now();
+        let prepared = measure(
+            executable,
+            shell,
+            &directory,
+            true,
+            host_mode,
+            None,
+            &SampleEntry {
+                profile_entry,
+                local_appdata: Some(&warm_local),
+            },
+        )?;
+        ensure!(
+            prepared.status["system_commands"]["cache"] == "rebuild",
+            "fresh isolated cache was not built: {}",
+            prepared.status["system_commands"]
+        );
+        Some(json!({
+            "elapsed_ms": started.elapsed().as_secs_f64() * 1000.0,
+            "included_in_timed_pairs": false,
+            "system_commands": prepared.status["system_commands"],
+        }))
+    } else {
+        None
+    };
     let mut plain = Vec::new();
     let mut candidate = Vec::new();
     let mut delta = Vec::new();
@@ -454,9 +557,19 @@ pub fn run_with_entry(
     let mut observers = Vec::new();
     let mut process_trees = Vec::new();
     let mut orders = Vec::new();
+    let mut cache_observations = Vec::new();
     for index in 0..iterations {
         let directory = root.join(format!("pair-{index}"));
         std::fs::create_dir_all(directory.join("bb-product-probe-dir"))?;
+        let cold_local = directory.join("cold-localappdata");
+        let entry = SampleEntry {
+            profile_entry,
+            local_appdata: match cache_state {
+                CacheState::Ambient => None,
+                CacheState::Cold => Some(&cold_local),
+                CacheState::Warm => Some(&warm_local),
+            },
+        };
         let order = if index % 2 == 0 {
             [false, true]
         } else {
@@ -475,7 +588,7 @@ pub fn run_with_entry(
                 mode,
                 host_mode,
                 trace_path.as_deref(),
-                profile_entry,
+                &entry,
             )
             .with_context(|| {
                 format!("pair {index}, {}", if mode { "candidate" } else { "plain" })
@@ -488,6 +601,19 @@ pub fn run_with_entry(
         }
         let baseline = baseline.unwrap();
         let product = product.unwrap();
+        if cache_state != CacheState::Ambient {
+            let expected = if cache_state == CacheState::Warm {
+                "hit"
+            } else {
+                "rebuild"
+            };
+            ensure!(
+                product.status["system_commands"]["cache"] == expected,
+                "unexpected cache state in pair {index}: {}",
+                product.status["system_commands"]
+            );
+        }
+        cache_observations.push(product.status["system_commands"].clone());
         ensure!(
             baseline.status["native_observer"] == product.status["native_observer"],
             "paired observer identities differ"
@@ -568,6 +694,10 @@ pub fn run_with_entry(
         "direct_executable"
     });
     report["entry_fixture"] = json!(entry_fixture);
+    report["local_cache_state"] = json!(cache_state);
+    report["local_cache_preparation"] = json!(preparation);
+    report["system_metadata_observations"] = json!(cache_observations);
+    report["local_appdata_isolated"] = json!(cache_state != CacheState::Ambient);
     if profile_entry {
         report["profile_autostart"] = json!(
             "candidate executes the generated managed block during automatic profile loading; plain suppresses it with BLUEBERRY_ACTIVE=1"

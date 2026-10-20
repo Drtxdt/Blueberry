@@ -61,6 +61,9 @@ enum Command {
         /// Prepared profile identity outside PSHOME (for disposable CI accounts).
         #[arg(long, requires = "profile_entry")]
         profile_fixture: Option<PathBuf>,
+        /// Keep ambient caches, or isolate cold/warm LOCALAPPDATA for each pair.
+        #[arg(long, value_enum, default_value = "ambient")]
+        cache_state: blueberry::product_probe::CacheState,
         /// Diagnostic only: writes numeric candidate traces, invalid for acceptance.
         #[arg(long)]
         diagnostic_trace_directory: Option<PathBuf>,
@@ -1071,10 +1074,11 @@ fn execute() -> Result<u32> {
             host_executable,
             profile_entry,
             profile_fixture,
+            cache_state,
             diagnostic_trace_directory,
             output,
         } => {
-            let report = blueberry::product_probe::run_with_entry(
+            let report = blueberry::product_probe::run_with_options(
                 &host_executable.unwrap_or(std::env::current_exe()?),
                 &shell,
                 iterations,
@@ -1083,8 +1087,11 @@ fn execute() -> Result<u32> {
                     host::HostMode::Nested => "nested",
                 },
                 diagnostic_trace_directory.as_deref(),
-                profile_entry,
-                profile_fixture.as_deref(),
+                blueberry::product_probe::EntryOptions {
+                    profile_entry,
+                    profile_fixture: profile_fixture.as_deref(),
+                    cache_state,
+                },
             )?;
             let text = serde_json::to_string_pretty(&report)?;
             if let Some(path) = output {
