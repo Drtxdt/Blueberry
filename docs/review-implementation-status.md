@@ -1,5 +1,9 @@
 # 16 项评审实施记录
 
+追加清理顺序验证：真实 ConPTY 夹具确认待写出的新提示符可能被依据旧屏幕生成的清理指令擦除；现将前序输出同步到终端后再读取菜单归属，两个隔离回归及 PS5.1/2.0.0 pipe/OSC 单轮通过。单轮 Nested CI 启用明确标记的归属诊断，30 轮保持关闭；失败时补充最终原生屏幕。尚未将此修复视为云端残留或提示符问题的完整结论。[复现与边界](benchmarks/v0.6/review-20261018/finalization/overlay-pending-output.json)。
+
+2026-10-20 后续结果：14a6467 单轮 CI 39381067743 三组合通过，本机六组 Unicode/RGB 历史各 30 次共 180 次通过。其云端原生快照仍有一个残留样本，清理问题未关闭。4a6ce7a 的 30 轮 CI 39379818074 中 PS5.1/2.4.5 全部通过；PS5.1/2.0.0 底部菜单在未收完输入时读取了部分 VT 帧，改为完整帧确认后，本机追踪开关六组各 30 次通过；PS7 Nested OSC 第 21 次缩放后 VT 观察器未见提示符，保持严格断言并继续诊断，不宣称修复。完整 CI、性能和最终包继续等待稳定性门槛。[重复 CI](benchmarks/v0.6/review-20261018/finalization/stability-4a6ce7a-repeat30.json)、[底部菜单复验](benchmarks/v0.6/review-20261018/finalization/stability-bottom-complete-frame-repeat30.json)、[原生历史](benchmarks/v0.6/review-20261018/finalization/stability-native-history-14a6467-repeat30.json)。
+
 2026-10-20 菜单清理修复：4a6ce7a 单轮 CI 39378922073 三组合通过，30 轮 CI 39379818074 独立进行；原生快照审计仍在六个样本之一发现历史菜单残留。已用独立 ConPTY 回归复现终端先缩放、清理先于缩放事件的竞态：旧代码按旧坐标检查并遗忘已移动的菜单。最小修复读取真实视口尺寸判断重排，清理仍仅匹配自有内容；本机竞态回归 30 次及六组 Unicode/RGB 历史与后续补全通过，修复后的云端复验待完成。超时保持 20 秒，完整 CI、性能与最终包仍未放行。[单轮原始证据](benchmarks/v0.6/review-20261018/finalization/stability-4a6ce7a-single.json)、[竞态复现与修复证据](benchmarks/v0.6/review-20261018/finalization/overlay-unobserved-resize.json)。
 
 2026-10-20 最新定点结果：`e47e4d0` 的 Direct 开关追踪在三个编辑器全部通过；Nested 五组通过，PS5.1/2.0.0 OSC 因整屏仍含旧菜单的 `gi` 别名而超时。原始 buffer 事件确认当前输入为 `git`，当前提示符下方菜单也已更新；调整当前菜单断言后，本机该组合 30 次通过。上方历史菜单碎片单独保留为未解决的清理问题，不因断言调整而标记修复。完整 CI、性能和最终包仍未放行。[原始证据与未解决项](benchmarks/v0.6/review-20261018/finalization/stability-e47e4d0-single-failure.json)。

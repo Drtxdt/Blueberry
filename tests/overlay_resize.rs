@@ -37,7 +37,8 @@ fn overlay_helper() -> Result<()> {
         .map(|i| Candidate {
             label: format!("git-fixture-{i}"),
             insert_text: format!("git-fixture-{i}"),
-            description: "owned menu candidate".into(),
+            description: "本地程序".into(),
+            kind: blueberry::model::CandidateKind::Command,
             ..Default::default()
         })
         .collect();
@@ -50,9 +51,19 @@ fn overlay_helper() -> Result<()> {
     output.flush()?;
     std::fs::write(dir.join("painted"), [])?;
     await_file(&dir.join("erase"))?;
-    // Deliberately reproduce output arriving before the queued resize event:
-    // the real console is 24x80, but neither the model nor Overlay was notified.
-    overlay.erase(screen.screen(), &mut output)?;
+    if std::env::var_os("OVERLAY_QUEUED_OUTPUT").is_some() {
+        let mut pending = b"\x1b[20;1H\x1b[2KPS QUEUED_PROMPT> git".to_vec();
+        screen.process(&pending);
+        // Reproduce the host's queued output path: physical readback still
+        // contains the old menu, while pending bytes replace it with a prompt.
+        overlay.synchronize_pending_output(&mut pending, &mut output)?;
+        overlay.erase(screen.screen(), &mut pending)?;
+        output.write_all(&pending)?;
+    } else {
+        // Console reflow precedes the queued resize event; neither model nor
+        // Overlay has received a resize notification.
+        overlay.erase(screen.screen(), &mut output)?;
+    }
     output.flush()?;
     std::fs::write(dir.join("erased"), [])?;
     await_file(&dir.join("finish"))?;
@@ -61,15 +72,27 @@ fn overlay_helper() -> Result<()> {
 
 #[test]
 fn erase_after_console_resize_before_resize_event_removes_owned_rows() -> Result<()> {
+    exercise_retirement(true)
+}
+
+#[test]
+fn queued_shell_prompt_is_not_erased_using_stale_menu_readback() -> Result<()> {
+    exercise_retirement(false)
+}
+
+fn exercise_retirement(resize: bool) -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/overlay-resize-evidence");
     std::fs::create_dir_all(&root)?;
     let mut dir = tempfile::Builder::new().prefix("race-").tempdir_in(root)?;
     dir.disable_cleanup(true);
     eprintln!("overlay evidence: {}", dir.path().display());
-    let env = BTreeMap::from([(
+    let mut env = BTreeMap::from([(
         "OVERLAY_FIXTURE".into(),
         dir.path().to_string_lossy().into_owned(),
     )]);
+    if !resize {
+        env.insert("OVERLAY_QUEUED_OUTPUT".into(), "1".into());
+    }
     let mut harness = Harness::start(
         &std::env::current_exe()?,
         &[
@@ -83,7 +106,9 @@ fn erase_after_console_resize_before_resize_event_removes_owned_rows() -> Result
         "overlay-resize".into(),
     )?;
     harness.wait_text("git-fixture-0", Duration::from_secs(20))?;
-    harness.resize(24, 80)?;
+    if resize {
+        harness.resize(24, 80)?;
+    }
     console_snapshot::capture(&mut harness, &dir.path().join("before.json"))?;
     let before: serde_json::Value =
         serde_json::from_slice(&std::fs::read(dir.path().join("before.json"))?)?;
@@ -119,5 +144,14 @@ fn erase_after_console_resize_before_resize_event_removes_owned_rows() -> Result
             .contains("KEEP_UNOWNED_HISTORY"),
         "cleanup erased unrelated history: {after}"
     );
+    if !resize {
+        ensure!(
+            after["screen"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("PS QUEUED_PROMPT> git"),
+            "stale ownership readback erased queued shell prompt: {after}"
+        );
+    }
     Ok(())
 }

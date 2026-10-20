@@ -1,0 +1,25 @@
+{
+  "base_commit": "14a6467e46ddbb4181b65421ad433e234f3fd849",
+  "regression": "queued_shell_prompt_is_not_erased_using_stale_menu_readback",
+  "reproduction": "Paint a real console menu, queue a Shell prompt over one menu row, update the parser, then retire the menu. Before synchronization, physical readback still identifies that row as menu and its queued erase deletes the new prompt.",
+  "before_fix": {
+    "fixture": "target/overlay-resize-evidence/race-TNHcln",
+    "after_snapshot_sha256": "D813B151E0387DF33F458C951A4E62CCA4C140AF240E6D84C3F1CA6F9B49E92D",
+    "queued_prompt_present": false
+  },
+  "after_fix": {
+    "fixture": "target/overlay-resize-evidence/race-A0ch8u",
+    "after_snapshot_sha256": "65962C38269864651C7C8DE387C94428C5955BC3AE7B7C9489C3650566D8B6FE",
+    "queued_prompt_present": true,
+    "unrelated_history_preserved": true,
+    "owned_candidates_removed": true
+  },
+  "validation": {
+    "isolated_regressions": "2 passed, with Chinese command descriptions",
+    "ps51_200_pipe": "target/nested-terminal-evidence/host-7Us2im",
+    "ps51_200_osc": "target/nested-terminal-evidence/host-UvDcUt",
+    "clippy_all_targets": "passed"
+  },
+  "diagnostics": "Opt-in debug ownership audit records actual geometry, recognized rows and queued output. Single-pass targeted Nested CI enables it; repeated CI leaves it disabled. Failure cleanup captures a final native console snapshot when the process remains available.",
+  "limits": "The isolated failure proves the queued-output ordering defect. Its relationship to the retained CI wide-resize failure and remaining historical residue must still be established by fresh CI diagnostics and repeated verification. The prompt-presence assertion remains strict."
+}

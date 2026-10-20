@@ -43,10 +43,24 @@ fn erase_overlay(
     frame: &mut Vec<u8>,
     output: &mut impl Write,
 ) -> std::io::Result<()> {
+    #[cfg(debug_assertions)]
+    if let Some(path) =
+        std::env::var_os("BLUEBERRY_TEST_OVERLAY_AUDIT").filter(|path| !path.is_empty())
+        && let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+    {
+        let record = json!({"event":"erase_request","visible":overlay.frame_visible(),
+            "pending_output":String::from_utf8_lossy(frame),"model_size":screen.size(),
+            "model_cursor":screen.cursor_position()});
+        let _ = writeln!(file, "{record}");
+    }
     if overlay.is_native() {
         flush_native_prefix(frame, output)?;
         overlay.erase(screen, output)
     } else {
+        overlay.synchronize_pending_output(frame, output)?;
         overlay.erase(screen, frame)
     }
 }
@@ -169,6 +183,7 @@ fn draw_overlay(
         flush_native_prefix(frame, output)?;
         overlay.draw_with_state(screen, output, candidates, selected, query, config, state)
     } else {
+        overlay.synchronize_pending_output(frame, output)?;
         overlay.draw_with_state(screen, frame, candidates, selected, query, config, state)
     }
 }

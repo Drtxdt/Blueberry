@@ -1,0 +1,52 @@
+{
+  "source_commit": "14a6467e46ddbb4181b65421ad433e234f3fd849",
+  "test": "nested_resize_preserves_native_unicode_and_truecolor_history",
+  "passed": 180,
+  "test_binary_sha256": "181AED7DCE8B756D3056C17A005E844BEF5BA2A7A3FA3F81AB2AEB8E4C43651A",
+  "product_sha256": [
+    "F664C05ADB2C96C30CB58A3580D4B7BA662650E0CE2C64A6C6EC284EA6A1BCCB"
+  ],
+  "groups": [
+    {
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "editor": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psd1",
+      "transport": "pipe",
+      "passed": 30
+    },
+    {
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "editor": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.0.0\\PSReadLine\\2.0.0\\PSReadLine.psd1",
+      "transport": "osc",
+      "passed": 30
+    },
+    {
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "editor": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\PSReadLine.psd1",
+      "transport": "pipe",
+      "passed": 30
+    },
+    {
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "editor": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\PSReadLine.psd1",
+      "transport": "osc",
+      "passed": 30
+    },
+    {
+      "shell": "D:\\pwsh\\7\\pwsh.exe",
+      "editor": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\PSReadLine.psd1",
+      "transport": "pipe",
+      "passed": 30
+    },
+    {
+      "shell": "D:\\pwsh\\7\\pwsh.exe",
+      "editor": "E:\\OpenSource\\shellsense-rs\\target\\original-editors\\2.4.5\\PSReadLine\\2.4.5\\PSReadLine.psd1",
+      "transport": "osc",
+      "passed": 30
+    }
+  ],
+  "archive": "artifacts/stability-native-history-14a6467-repeat30.zip",
+  "archive_sha256": "be55de86a6b2ccd92e430e407b1e14570320b16c645f1910b9ae9f371c90bfd4",
+  "log_sha256": "75eb27284d0925f98e03f3427408eebe03cbfe7bc4814d09df0af39523c30b91",
+  "delivery": "Local sealed raw evidence; not uploaded to Actions yet.",
+  "scope": "Native model Unicode/RGB and post-resize completion; does not replace real GUI acceptance."
+}

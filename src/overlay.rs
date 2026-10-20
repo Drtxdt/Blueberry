@@ -72,6 +72,22 @@ impl Overlay {
         self.rows.is_some() && self.painted.is_some()
     }
 
+    /// Ownership readback must see preceding shell output before it decides
+    /// which physical rows still belong to the menu. Otherwise an erase queued
+    /// after that output can delete a new prompt using stale character matches.
+    pub fn synchronize_pending_output(
+        &self,
+        pending: &mut Vec<u8>,
+        output: &mut impl Write,
+    ) -> io::Result<()> {
+        if self.frame_visible() && !pending.is_empty() {
+            output.write_all(pending)?;
+            output.flush()?;
+            pending.clear();
+        }
+        Ok(())
+    }
+
     #[cfg(windows)]
     fn native_failed(&mut self, error: io::Error) {
         self.native_error = Some(error.to_string());
@@ -365,6 +381,11 @@ fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec
                 }
             }
             let mut result = Vec::new();
+            #[cfg(debug_assertions)]
+            let audit_path =
+                std::env::var_os("BLUEBERRY_TEST_OVERLAY_AUDIT").filter(|path| !path.is_empty());
+            #[cfg(debug_assertions)]
+            let mut audit_rows = Vec::new();
             let first = if resized { 0 } else { painted.top };
             let end = if resized {
                 height
@@ -405,7 +426,7 @@ fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec
                         .collect::<Vec<_>>(),
                 );
                 let text = text.trim_matches([' ', '\0']);
-                if !text.is_empty()
+                let matched = !text.is_empty()
                     && owned.iter().any(|line| {
                         line == text
                             || (text.contains('\u{fffd}')
@@ -414,9 +435,33 @@ fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec
                                     .map(|ch| if ch as u32 > 0xffff { '\u{fffd}' } else { ch })
                                     .collect::<String>()
                                     == text)
-                    })
-                {
+                    });
+                #[cfg(debug_assertions)]
+                if audit_path.is_some() {
+                    audit_rows.push(serde_json::json!({"row":y,"text":text,"matched":matched}));
+                }
+                if matched {
                     result.push(y);
+                }
+            }
+            #[cfg(debug_assertions)]
+            if let Some(path) = audit_path {
+                // Explicit diagnostic fixtures only. A logging failure must
+                // never change completion or menu retirement behavior.
+                if let Ok(mut file) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                {
+                    let record = serde_json::json!({
+                        "event":"overlay_ownership", "resized":resized,
+                        "painted_size":painted.size,"model_size":size,
+                        "viewport":[height,width],"window_top":info.srWindow.Top,
+                        "painted_top":painted.top,"painted_cursor":painted.cursor,
+                        "native_cursor":[info.dwCursorPosition.Y,info.dwCursorPosition.X],
+                        "owned_text":owned,"read_rows":audit_rows,"erase_rows":result
+                    });
+                    let _ = writeln!(file, "{record}");
                 }
             }
             return result;

@@ -143,6 +143,10 @@ struct RunningHost {
 impl Drop for RunningHost {
     fn drop(&mut self) {
         let _ = self.harness.save_evidence(self._data_dir.path());
+        let _ = console_snapshot::capture(
+            &mut self.harness,
+            &self._data_dir.path().join("native-final.json"),
+        );
     }
 }
 
@@ -278,7 +282,7 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
     paths.extend(std::env::split_paths(&inherited_path));
     let path = std::env::join_paths(paths).context("construct test PATH")?;
     let token = format!("host-test-{}", uuid::Uuid::new_v4());
-    let env = BTreeMap::from([
+    let mut env = BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
@@ -286,6 +290,16 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
     ]);
+    if std::env::var("BLUEBERRY_TEST_OVERLAY_AUDIT").as_deref() == Ok("1") {
+        env.insert(
+            "BLUEBERRY_TEST_OVERLAY_AUDIT".into(),
+            data_dir
+                .path()
+                .join("overlay-ownership.jsonl")
+                .to_string_lossy()
+                .into_owned(),
+        );
+    }
     let mut harness = Harness::start(&program, &args, cwd, &env, token)
         .with_context(|| format!("start {}", program.display()))?;
     harness

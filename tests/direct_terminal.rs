@@ -1774,6 +1774,7 @@ fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() ->
     let dir = direct_fixture()?;
     path_fixture(dir.path())?;
     let mut h = start(dir.path())?;
+    h.observe_completed_frames();
     let result = (|| -> Result<()> {
         h.send_text(
             "1..40 | ForEach-Object { 'BOTTOM-SENTINEL' }; [Console]::WriteLine('BOTTOM-READY')",
@@ -1786,8 +1787,27 @@ fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() ->
             wait_editor_begin(&mut h, dir.path(), 2)?;
         }
         h.send_text("Get-ChildItem .\\nav-")?;
-        wait_selected_path(&mut h, "nav-00.txt")?;
-        let screen = h.viewport_contents();
+        // nav-00 already matches the partially typed ".\\na". Its first
+        // selected row is not acknowledgement that the rest of the input or
+        // the scroll-reserving paint has arrived. Inspect both in one complete
+        // rendered frame, rather than a partially received VT update.
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        let screen = loop {
+            if let Some((_, screen)) = h.completed_frame()
+                && screen.contains("Get-ChildItem .\\nav-")
+                && screen
+                    .lines()
+                    .any(|row| row.contains('›') && row.contains("nav-00.txt"))
+            {
+                break screen.to_owned();
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "complete bottom input/menu frame missing: {}",
+                h.viewport_contents()
+            );
+            let _ = h.pump(Duration::from_millis(10));
+        };
         let rows: Vec<_> = screen.lines().collect();
         let input = rows
             .iter()
