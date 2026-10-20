@@ -387,6 +387,12 @@ esac
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash
         )
 
+    def test_public_release_rejects_manual_candidate_ci(self):
+        self.evidence["ci"]["event"] = "workflow_dispatch"
+        self.save_evidence()
+        with self.assertRaisesRegex(ValueError, "CI package record"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
     def test_candidate_requires_explicit_branch_and_complete_successful_ci(self):
         branch = "codex/v053-reliability-performance"
         self.evidence["delivery_kind"] = "unpublished_candidate"
@@ -408,6 +414,34 @@ esac
                                     self.beta6_package, candidate_branch=branch)
         save()
         self.assertEqual(verify(), self.exe_hash)
+        data["jobs"].extend({"name": name, "conclusion": "skipped"}
+                            for name in ("evidence-upload", "stability", "startup-cache"))
+        save()
+        self.assertEqual(verify(), self.exe_hash)
+        data["jobs"][-1]["conclusion"] = "failure"
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            verify()
+        data["jobs"][-1]["conclusion"] = "skipped"
+        save()
+        data["run"]["event"] = "workflow_dispatch"
+        self.evidence["ci"]["event"] = "workflow_dispatch"
+        save()
+        self.assertEqual(verify(), self.exe_hash)
+        for event in ("pull_request", "schedule"):
+            data["run"]["event"] = event
+            self.evidence["ci"]["event"] = event
+            save()
+            with self.assertRaisesRegex(ValueError, "CI package record"):
+                verify()
+        data["run"]["event"] = "push"
+        self.evidence["ci"]["event"] = "workflow_dispatch"
+        save()
+        with self.assertRaisesRegex(ValueError, "successful final"):
+            verify()
+        self.evidence["ci"]["event"] = "push"
+        data["jobs"] = data["jobs"][:-3]
+        save()
         with self.assertRaisesRegex(ValueError, "cannot authorize a public release"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
         with self.assertRaisesRegex(ValueError, "explicit codex branch"):

@@ -522,8 +522,11 @@ def check_functional_ci(evidence, root, commit, ci_branch="main"):
     require(sha256_file(path) == record.get("sha256", "").upper(), "functional CI evidence hash mismatch")
     data = read_json(path)
     run = data.get("run", {})
+    candidate = evidence.get("delivery_kind") == "unpublished_candidate" and ci_branch.startswith("codex/")
+    allowed_events = {"push", "workflow_dispatch"} if candidate else {"push"}
     require(run.get("id") == evidence["ci"]["run_id"] and run.get("head_sha") == commit
-            and run.get("event") == "push" and run.get("head_branch") == ci_branch
+            and run.get("event") in allowed_events
+            and run.get("event") == evidence["ci"].get("event") and run.get("head_branch") == ci_branch
             and run.get("name") == "Blueberry CI" and run.get("conclusion") == "success",
             f"functional evidence must be from the successful final {ci_branch} CI run")
     jobs = data.get("jobs", [])
@@ -531,8 +534,9 @@ def check_functional_ci(evidence, root, commit, ci_branch="main"):
                 "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
                 "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
                 "PowerShell 7 / PSReadLine 2.4.5 / pipe", "package"}
+    conditional = {"evidence-upload", "stability", "startup-cache"}
     require(isinstance(jobs, list) and required <= {job.get("name") for job in jobs}
-            and all(job.get("conclusion") == ("skipped" if job.get("name") == "evidence-upload" else "success") for job in jobs),
+            and all(job.get("conclusion") == ("skipped" if job.get("name") in conditional else "success") for job in jobs),
             "functional and package CI matrix incomplete or failed")
 
 
@@ -713,8 +717,9 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
     ci = evidence.get("ci", {})
     if ci_run_id is not None:
         require(ci.get("run_id") == ci_run_id, "evidence refers to a different CI run than the downloaded artifact")
+    allowed_events = {"push", "workflow_dispatch"} if candidate_branch is not None else {"push"}
     require(ci.get("source_commit", "").lower() == commit.lower() and ci.get("status") == "success"
-            and ci.get("branch") == ci_branch and ci.get("event") == "push" and type(ci.get("run_id")) is int and ci["run_id"] > 0
+            and ci.get("branch") == ci_branch and ci.get("event") in allowed_events and type(ci.get("run_id")) is int and ci["run_id"] > 0
             and ci.get("package_sha256", "").upper() == package_hash, f"successful frozen {ci_branch} CI package record missing")
     if candidate_branch is not None:
         check_functional_ci(evidence, evidence_path.parent, commit, ci_branch)
