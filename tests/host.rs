@@ -26,6 +26,32 @@ fn has_border_width(screen: &str, width: usize) -> bool {
     })
 }
 
+fn current_editor_region(screen: &str) -> Option<&str> {
+    // Resize can retain earlier output above the current prompt. Assertions
+    // about the active menu must not treat that history as its candidate list.
+    if let Some(offset) = screen.rfind("\nPS ") {
+        Some(&screen[offset + 1..])
+    } else {
+        screen.starts_with("PS ").then_some(screen)
+    }
+}
+
+#[test]
+fn active_menu_observation_excludes_history_but_keeps_current_candidates() {
+    let screen = "PS old> gi\n│› ≈ gi 命令别名│\nPS new> git\n╭────╮\n│› ⌘ git │\n╰────╯";
+    let current = current_editor_region(screen).unwrap();
+    assert!(current.contains("PS new> git"));
+    assert!(current.contains("⌘ git "));
+    assert!(!current.contains("≈ gi "));
+    let current_alias = "PS new> gi\n╭────╮\n│› ≈ gi 命令别名│\n╰────╯";
+    assert!(
+        current_editor_region(current_alias)
+            .unwrap()
+            .contains("≈ gi ")
+    );
+    assert!(current_editor_region("no active prompt").is_none());
+}
+
 #[test]
 #[ignore = "requires frozen CI EXE and native history observer DLL"]
 fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> {
@@ -648,7 +674,10 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         &mut host.harness,
         "menu after 24x80 resize",
         Duration::from_secs(5),
-        |contents| contents.contains("git") && has_border_width(contents, 79),
+        |contents| {
+            current_editor_region(contents)
+                .is_some_and(|current| current.contains("git") && has_border_width(current, 79))
+        },
     )?;
     // The column outside the 79-cell overlay can legitimately retain shell
     // text. Check the border itself and independently verify the native screen.
@@ -684,10 +713,30 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // narrow child viewport before issuing the next resize, so an old frame
     // reflowed by the outer PTY cannot masquerade as that acknowledgement.
     host.harness.send_text("t")?;
+    let query_deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let buffer = host.harness.event(
+            "buffer",
+            query_deadline.saturating_duration_since(Instant::now()),
+        )?;
+        if buffer["line"] == "git" && buffer["cursor"] == 3 {
+            break;
+        }
+        ensure!(
+            Instant::now() < query_deadline,
+            "native buffer did not acknowledge git after resize"
+        );
+    }
     wait_until(
         &mut host.harness,
         "editable menu in narrow viewport",
-        |contents| contents.contains("⌘ git ") && !contents.contains("≈ gi "),
+        |contents| {
+            current_editor_region(contents).is_some_and(|current| {
+                has_border_width(current, 79)
+                    && current.contains("⌘ git ")
+                    && !current.contains("≈ gi ")
+            })
+        },
     )?;
     host.harness
         .resize(30, 120)
@@ -697,15 +746,17 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         "menu after 30x120 resize",
         Duration::from_secs(5),
         |contents| {
-            contents.contains("git")
-                && contents.contains("⌘ git ")
-                && contents.lines().any(|line| {
-                    line.find('╭')
-                        .zip(line.rfind('╮'))
-                        .is_some_and(|(start, end)| {
-                            start <= end && line[start..end + '╮'.len_utf8()].chars().count() == 100
-                        })
-                })
+            current_editor_region(contents).is_some_and(|current| {
+                current.contains("⌘ git ")
+                    && current.lines().any(|line| {
+                        line.find('╭')
+                            .zip(line.rfind('╮'))
+                            .is_some_and(|(start, end)| {
+                                start <= end
+                                    && line[start..end + '╮'.len_utf8()].chars().count() == 100
+                            })
+                    })
+            })
         },
     )?;
     host.harness.send_text("\x1b")?;
@@ -713,7 +764,9 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         &mut host.harness,
         "menu dismissal after resize",
         Duration::from_secs(5),
-        |contents| !contents.contains("⌘ git "),
+        |contents| {
+            current_editor_region(contents).is_some_and(|current| !current.contains("⌘ git "))
+        },
     )?;
 
     host.harness.stop().context("stop host process")?;
