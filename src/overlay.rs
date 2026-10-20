@@ -201,6 +201,14 @@ impl Overlay {
             return self.erase(screen, output);
         }
         let (rows, cols) = screen.size();
+        #[cfg(windows)]
+        if !self.is_native() && console_size().is_some_and(|actual| actual != (rows, cols)) {
+            // A completion can beat the queued resize input event. Do not
+            // paint old coordinates into the already resized console: rows
+            // below its bottom clamp and scroll, and replacing Painted would
+            // forget the old text needed to retire the reflowed menu.
+            return self.erase(screen, output);
+        }
         let (cursor_row, cursor_col) = screen.cursor_position();
         if rows < 4 || cols < 8 {
             return self.erase(screen, output);
@@ -344,6 +352,23 @@ impl Overlay {
 fn restore_cursor(screen: &vt100::Screen, output: &mut impl Write) -> io::Result<()> {
     output.write_all(&screen.cursor_state_formatted())?;
     output.write_all(&screen.attributes_formatted())
+}
+
+#[cfg(windows)]
+fn console_size() -> Option<(u16, u16)> {
+    use windows_sys::Win32::System::Console::{
+        CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo, GetStdHandle, STD_OUTPUT_HANDLE,
+    };
+    let mut info = CONSOLE_SCREEN_BUFFER_INFO::default();
+    // Inspect the same borrowed output handle as ownership readback. Opening
+    // CONOUT$ would also inspect an unrelated console when output is redirected.
+    if unsafe { GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &mut info) } == 0 {
+        return None;
+    }
+    Some((
+        (info.srWindow.Bottom - info.srWindow.Top + 1).max(1) as u16,
+        (info.srWindow.Right - info.srWindow.Left + 1).max(1) as u16,
+    ))
 }
 
 fn finish_owned_row(output: &mut impl Write, row: u16, viewport_height: u16) -> io::Result<()> {

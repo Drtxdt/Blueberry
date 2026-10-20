@@ -60,6 +60,17 @@ fn overlay_helper() -> Result<()> {
         overlay.erase(screen.screen(), &mut pending)?;
         output.write_all(&pending)?;
     } else {
+        if std::env::var_os("OVERLAY_STALE_REPAINT").is_some() {
+            // A completion can arrive after native resize but before the
+            // queued input event updates the model. Every changed row forces
+            // the old-layout repaint, including rows beyond the new bottom.
+            let mut changed = candidates.clone();
+            for candidate in &mut changed {
+                candidate.description = "更新后的本地程序".into();
+            }
+            overlay.draw(screen.screen(), &mut output, &changed, 1, "gi", &config)?;
+            output.flush()?;
+        }
         // Console reflow precedes the queued resize event; neither model nor
         // Overlay has received a resize notification.
         overlay.erase(screen.screen(), &mut output)?;
@@ -98,7 +109,20 @@ fn widening_after_narrow_repaint_removes_reflowed_menu_fragments() -> Result<()>
     exercise_retirement(true, true)
 }
 
+#[test]
+fn completion_before_resize_event_does_not_paint_using_old_geometry() -> Result<()> {
+    exercise_retirement_with_repaint(true, false, true)
+}
+
 fn exercise_retirement(resize: bool, round_trip: bool) -> Result<()> {
+    exercise_retirement_with_repaint(resize, round_trip, false)
+}
+
+fn exercise_retirement_with_repaint(
+    resize: bool,
+    round_trip: bool,
+    stale_repaint: bool,
+) -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/overlay-resize-evidence");
     std::fs::create_dir_all(&root)?;
     let mut dir = tempfile::Builder::new().prefix("race-").tempdir_in(root)?;
@@ -113,6 +137,9 @@ fn exercise_retirement(resize: bool, round_trip: bool) -> Result<()> {
     }
     if round_trip {
         env.insert("OVERLAY_ROUND_TRIP".into(), "1".into());
+    }
+    if stale_repaint {
+        env.insert("OVERLAY_STALE_REPAINT".into(), "1".into());
     }
     let mut harness = Harness::start(
         &std::env::current_exe()?,

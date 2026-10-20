@@ -50,6 +50,11 @@ fn active_menu_observation_excludes_history_but_keeps_current_candidates() {
             .contains("≈ gi ")
     );
     assert!(current_editor_region("no active prompt").is_none());
+    assert!(assert_no_old_menu_above_prompt(&serde_json::json!({"screen":screen})).is_err());
+    assert!(assert_no_old_menu_above_prompt(&serde_json::json!({"screen":current_alias})).is_ok());
+    assert!(
+        assert_no_old_menu_above_prompt(&serde_json::json!({"screen":"no active prompt"})).is_err()
+    );
 }
 
 #[test]
@@ -138,6 +143,44 @@ struct RunningHost {
     // Keep the data directory alive until the host process has exited. The
     // host writes its integration script, command cache, and edit file here.
     _data_dir: TempDir,
+}
+
+fn wait_native_screen(
+    host: &mut RunningHost,
+    name: &str,
+    size: (u64, u64),
+    matches: impl Fn(&str) -> bool,
+) -> Result<serde_json::Value> {
+    let path = host._data_dir.path().join(name);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        console_snapshot::capture(&mut host.harness, &path)?;
+        let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+        if actual["height"] == size.0
+            && actual["width"] == size.1
+            && matches(actual["screen"].as_str().unwrap_or_default())
+        {
+            return Ok(actual);
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "native screen did not satisfy {name}: {actual}"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    }
+}
+
+fn assert_no_old_menu_above_prompt(actual: &serde_json::Value) -> Result<()> {
+    let screen = actual["screen"].as_str().context("native screen missing")?;
+    let current = current_editor_region(screen).context("native prompt missing")?;
+    let history = &screen[..screen.len() - current.len()];
+    ensure!(
+        !history
+            .lines()
+            .any(|line| line.contains('│') && (line.contains('⌘') || line.contains('≈'))),
+        "historical candidate residue in native console: {actual}"
+    );
+    Ok(())
 }
 
 impl Drop for RunningHost {
@@ -718,6 +761,7 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
             && has_border_width(actual["screen"].as_str().unwrap_or_default(), 79),
         "Native narrow menu size mismatch: {actual}"
     );
+    assert_no_old_menu_above_prompt(&actual)?;
     let narrow_contents = host.harness.contents();
     ensure!(
         narrow_contents.lines().count() <= 24,
@@ -755,33 +799,28 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     host.harness
         .resize(30, 120)
         .context("resize PTY back to 30x120")?;
-    wait_until_for(
-        &mut host.harness,
-        "menu after 30x120 resize",
-        Duration::from_secs(5),
-        |contents| {
-            current_editor_region(contents).is_some_and(|current| {
-                current.contains("⌘ git ")
-                    && current.lines().any(|line| {
-                        line.find('╭')
-                            .zip(line.rfind('╮'))
-                            .is_some_and(|(start, end)| {
-                                start <= end
-                                    && line[start..end + '╮'.len_utf8()].chars().count() == 100
-                            })
-                    })
-            })
-        },
-    )?;
+    // vt100::set_size crops rather than performing ConPTY's native reflow.
+    // Require the actual prompt and menu, without relaxing prompt presence
+    // just because that approximate observer lost it during resize.
+    let wide = wait_native_screen(&mut host, "resize-30-120.json", (30, 120), |contents| {
+        current_editor_region(contents).is_some_and(|current| {
+            current.contains("⌘ git ")
+                && current.lines().any(|line| {
+                    line.find('╭')
+                        .zip(line.rfind('╮'))
+                        .is_some_and(|(start, end)| {
+                            start <= end && line[start..end + '╮'.len_utf8()].chars().count() == 100
+                        })
+                })
+        })
+    })?;
+    assert_no_old_menu_above_prompt(&wide)?;
     host.harness.send_text("\x1b")?;
-    wait_until_for(
-        &mut host.harness,
-        "menu dismissal after resize",
-        Duration::from_secs(5),
-        |contents| {
+    let dismissed =
+        wait_native_screen(&mut host, "resize-dismissed.json", (30, 120), |contents| {
             current_editor_region(contents).is_some_and(|current| !current.contains("⌘ git "))
-        },
-    )?;
+        })?;
+    assert_no_old_menu_above_prompt(&dismissed)?;
 
     host.harness.stop().context("stop host process")?;
     Ok(())
