@@ -47,6 +47,11 @@
   "archive": "artifacts/stability-native-history-8f98815-repeat30.zip",
   "archive_sha256": "a690b8377be4e17a994d84cfe7f1571bae026dd42fc4a444936c8922bd71ea15",
   "log_sha256": "ae9ad57e8003846bb5943cb644f5fafbd7dd4cd5ef4b3715a3487a802f5767e1",
-  "delivery": "Local sealed raw evidence; not uploaded to Actions yet.",
+  "delivery": {
+    "run_id": 39394098975,
+    "artifact_id": 12251427556,
+    "download_sha256": "5F4312CC25E3CCD1D7C8DD17083F7B9B0F0D751E2BAB21302DF9A3849264A14B",
+    "record": "raw-stability-delivery-20261020.json"
+  },
   "scope": "Native model Unicode/RGB and post-resize completion; does not replace real GUI acceptance."
 }

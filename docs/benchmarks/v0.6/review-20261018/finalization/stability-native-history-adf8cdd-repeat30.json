@@ -50,8 +50,14 @@
   "raw_archive": "artifacts\\stability-native-history-adf8cdd-repeat30.zip",
   "raw_archive_sha256": "07ea0f81a09ea0025f79d3c6d0fffea1a48c6608973819251a1eb7c7a0947a8c",
   "limitations": [
-    "Local raw archive; not uploaded to Actions yet.",
+    "Uploaded raw archive identity is recorded in delivery.",
     "Native model observer, not real GUI acceptance.",
     "Transcript records ordered invocations; individual retained fixtures preserve history, colors and product identities."
-  ]
+  ],
+  "delivery": {
+    "run_id": 39394098975,
+    "artifact_id": 12251427556,
+    "download_sha256": "5F4312CC25E3CCD1D7C8DD17083F7B9B0F0D751E2BAB21302DF9A3849264A14B",
+    "record": "raw-stability-delivery-20261020.json"
+  }
 }

@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "status": "uploaded_and_download_verified",
+  "actions_run_id": 39394098975,
+  "actions_artifact_id": 12251427556,
+  "workflow_source_commit": "c0aa65e8ce1d4b063a5b6497d6c910daaf049635",
+  "artifact_sha256": "5F4312CC25E3CCD1D7C8DD17083F7B9B0F0D751E2BAB21302DF9A3849264A14B",
+  "manifest_sha256": "1A4A39CF4D116F166DE05D48170A919770F517017EFEF3C71268977220D944A1",
+  "expires_at": "2027-01-18T08:32:10Z",
+  "files": {
+    "direct-identity-three-combinations-20261019.zip": "E4677E790CE35ADF1BC10455F2FAA757C4690889A07B763225D24610E114A523",
+    "direct-three-combinations-20261019.zip": "38CFEA03EDDBC946D6E4123FBB329769EB0F032F52B9BF274332441BA68C268B",
+    "local-stability-regressions.zip": "FC467FE82C3E881C302471B473BC14C29C1C0564C3E2FB82B539D4A4AEC0EBF2",
+    "stability-312f418-ps51245-osc-repeat30.zip": "A2EA292B06F2BFCB54019813504E2BA8135C790605522F960D17867BE0A88C0F",
+    "stability-native-history-14a6467-repeat30.zip": "BE55DE86A6B2CCD92E430E407B1E14570320B16C645F1910B9AE9F371C90BFD4",
+    "stability-native-history-8f98815-repeat30.zip": "A690B8377BE4E17A994D84CFE7F1571BAE026DD42FC4A444936C8922BD71EA15",
+    "stability-native-history-adf8cdd-repeat30.zip": "07EA0F81A09EA0025F79D3C6D0FFFEA1A48C6608973819251A1EB7C7A0947A8C",
+    "stale-geometry-regressions.zip": "144525ACAA8BCBA902685ECA296767439A7DB386EAED97C66F2B7DC3702AC816",
+    "startup-lifecycles-20261019.zip": "FDE6DB940A3E92003BEBAA58EEFA9B6697FF29AFCAEB8A91E8D7065E33D56858"
+  },
+  "runner_deregistered": true,
+  "credentials_removed": true,
+  "batch_exclusion_observations": [
+    {
+      "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r2-durable-20261019\\batch\\batch.json",
+      "sha256": "b661d6ef28304b13410106cbb30fcea0037c7c094765358420bf2381ec035d46",
+      "stored_status": "running",
+      "processes": [
+        {
+          "recorded": {
+            "pid": 17876,
+            "created": 134368687951742252
+          },
+          "observed": {
+            "pid": 17876,
+            "created": 134369570243451922
+          }
+        },
+        {
+          "recorded": {
+            "pid": 27736,
+            "created": 134368687953360697
+          },
+          "observed": null
+        }
+      ],
+      "receipt_modified": false
+    }
+  ],
+  "scope": "Historical functional and process-lifecycle evidence across the commits named in each inner record. Upload workflow source is c0aa65e, not a claim of final package identity or performance qualification."
+}

@@ -1,0 +1,24 @@
+{
+  "source_commit": "312f41897c92553019cfe7514cfbc4a6d361013b",
+  "passed": 30,
+  "editor": "PS5.1 / PSReadLine 2.4.5",
+  "transport": "osc",
+  "ownership_diagnostics": false,
+  "native_snapshots": 90,
+  "native_prompt_missing": 0,
+  "historical_candidate_residue": 0,
+  "test_binary_sha256": "59CEF0A0F9C829ADC07799B95A4697640E48C29B987353B1238187DECBD97270",
+  "product_sha256": [
+    "423ED4AC4B9E9789ECAC02EB0E844E698B6958B0673A78CB8BFBCFF0E2C50A53"
+  ],
+  "archive": "artifacts/stability-312f418-ps51245-osc-repeat30.zip",
+  "archive_sha256": "a2ea292b06f2bfcb54019813504e2ba8135c790605522f960d17867be0a88c0f",
+  "log_sha256": "8b29472220e9fae6f3ec762ed43cd4d8e4c6a4853827061911b6d9e19807b515",
+  "delivery": {
+    "run_id": 39394098975,
+    "artifact_id": 12251427556,
+    "download_sha256": "5F4312CC25E3CCD1D7C8DD17083F7B9B0F0D751E2BAB21302DF9A3849264A14B",
+    "record": "raw-stability-delivery-20261020.json"
+  },
+  "limits": "Functional regression for the previously failing combination, not full CI or GUI acceptance."
+}
