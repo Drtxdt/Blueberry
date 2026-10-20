@@ -335,6 +335,11 @@ fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec
         let mut info = CONSOLE_SCREEN_BUFFER_INFO::default();
         if unsafe { GetConsoleScreenBufferInfo(handle, &mut info) } != 0 {
             let width = (info.srWindow.Right - info.srWindow.Left + 1).max(1);
+            let height = (info.srWindow.Bottom - info.srWindow.Top + 1).max(1) as u16;
+            // Console reflow precedes delivery of the resize input event.
+            // Shell output can ask us to erase in that interval, while the
+            // parser and `resized` still describe the old viewport.
+            let resized = resized || painted.size != (height, width as u16);
             let mut owned = Vec::new();
             for line in &painted.frame.lines {
                 let mut parser = vt100::Parser::new(1, painted.size.1, 0);
@@ -362,7 +367,7 @@ fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> Vec
             let mut result = Vec::new();
             let first = if resized { 0 } else { painted.top };
             let end = if resized {
-                size.0
+                height
             } else {
                 painted
                     .top

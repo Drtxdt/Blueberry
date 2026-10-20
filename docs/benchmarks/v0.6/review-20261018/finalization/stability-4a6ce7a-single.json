@@ -1,0 +1,174 @@
+{
+  "source_commit": "4a6ce7acc57b1735d771aa0b215c58a8c86c8182",
+  "run_id": 39378922073,
+  "conclusion": "success",
+  "scope": "Targeted stability, Direct tracing on/off, Nested pipe/OSC; not full CI or release acceptance.",
+  "jobs": [
+    {
+      "editor": "ps51-200",
+      "job_id": 118483276833,
+      "conclusion": "success",
+      "log": "artifacts/stability-4a6ce7a-single-118483276833.log",
+      "log_sha256": "a127db791ce840d937f205a961c9bc673ab9bb7cebef88a70371445ae556d3d3",
+      "passed_test_names": [
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields",
+        "probe::completed_frame_tests::later_partial_frame_in_same_read_does_not_replace_completed_frame",
+        "probe::completed_frame_tests::split_output_never_publishes_a_partially_scrolled_menu",
+        "active_menu_observation_excludes_history_but_keeps_current_candidates",
+        "compiled_bridge_codec_runs_in_selected_shell",
+        "unknown_diagnostic_events_do_not_disable_completion",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out"
+      ],
+      "test_result_summaries": 17,
+      "artifact_id": 12245345261,
+      "archive": "artifacts/stability-4a6ce7a-single-12245345261.zip",
+      "archive_sha256": "04f5f3e0d31f23a712067496bfd2d6289599f98461d5348ff8817a44d7482864"
+    },
+    {
+      "editor": "ps51-245",
+      "job_id": 118483277024,
+      "conclusion": "success",
+      "log": "artifacts/stability-4a6ce7a-single-118483277024.log",
+      "log_sha256": "5c24e1a7e1bfbaac72afda368086e2fb298b179c99289e108989426e4654d2c0",
+      "passed_test_names": [
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields",
+        "probe::completed_frame_tests::later_partial_frame_in_same_read_does_not_replace_completed_frame",
+        "probe::completed_frame_tests::split_output_never_publishes_a_partially_scrolled_menu",
+        "active_menu_observation_excludes_history_but_keeps_current_candidates",
+        "compiled_bridge_codec_runs_in_selected_shell",
+        "unknown_diagnostic_events_do_not_disable_completion",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out"
+      ],
+      "test_result_summaries": 17,
+      "artifact_id": 12245340402,
+      "archive": "artifacts/stability-4a6ce7a-single-12245340402.zip",
+      "archive_sha256": "5f58be71bd6ff862cf237c7b6ee3e17def4d6024462659b1f4cb68a858a75bbf"
+    },
+    {
+      "editor": "ps7-245",
+      "job_id": 118483277028,
+      "conclusion": "success",
+      "log": "artifacts/stability-4a6ce7a-single-118483277028.log",
+      "log_sha256": "716714764515005064b41f6f210ff7d1f6b9f146eed563ff5c7447b358405982",
+      "passed_test_names": [
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields",
+        "probe::completed_frame_tests::later_partial_frame_in_same_read_does_not_replace_completed_frame",
+        "probe::completed_frame_tests::split_output_never_publishes_a_partially_scrolled_menu",
+        "active_menu_observation_excludes_history_but_keeps_current_candidates",
+        "compiled_bridge_codec_runs_in_selected_shell",
+        "unknown_diagnostic_events_do_not_disable_completion",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out"
+      ],
+      "test_result_summaries": 17,
+      "artifact_id": 12245105905,
+      "archive": "artifacts/stability-4a6ce7a-single-12245105905.zip",
+      "archive_sha256": "ccba07f249ab618cc4a334b12c03d13963132af6fe7ffee948abf8952f8ad63e"
+    }
+  ],
+  "native_resize_audit": {
+    "method": "Read native 24x80 snapshots; identify candidate-shaped lines above latest PS prompt. This is a diagnostic heuristic, not proof of absence of every visual artifact.",
+    "snapshots": 6,
+    "snapshots_with_candidate_residue": 1,
+    "records": [
+      {
+        "file": "artifacts/stability-4a6ce7a-single-12245345261/Blueberry/Blueberry/target/nested-terminal-evidence/host-NQzyGt/resize-24-80.json",
+        "sha256": "2498f10d1f61ebe659d39a204b29aeb51d4c7e11f92fd1e0fd0ff553504d445e",
+        "prompt_row": 2,
+        "transport": "osc",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.0.0/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-4a6ce7a-single-12245345261/Blueberry/Blueberry/target/nested-terminal-evidence/host-WwhO94/resize-24-80.json",
+        "sha256": "6794c719494439f25ed034422bbcdbd5a01d0d9db8eaa12c28be0398d27e9598",
+        "prompt_row": 11,
+        "transport": "pipe",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.0.0/PSReadLine.psd1",
+        "residual_candidate_rows": [
+          {
+            "row": 0,
+            "text": "│  ⌘ git-lfs           本地程序"
+          },
+          {
+            "row": 2,
+            "text": "│  ⌘ git-askpass       本地程序"
+          },
+          {
+            "row": 4,
+            "text": "│  ⌘ git-askyesno      本地程序"
+          },
+          {
+            "row": 6,
+            "text": "│  ⌘ git-upload-pack   本地程序"
+          }
+        ]
+      },
+      {
+        "file": "artifacts/stability-4a6ce7a-single-12245340402/Blueberry/Blueberry/target/nested-terminal-evidence/host-AAwo4J/resize-24-80.json",
+        "sha256": "de1ab33eaf41f455770eab40536366194a682f5b0eb644c7069da52607e71b6d",
+        "prompt_row": 11,
+        "transport": "pipe",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-4a6ce7a-single-12245340402/Blueberry/Blueberry/target/nested-terminal-evidence/host-NJDvd5/resize-24-80.json",
+        "sha256": "cbc0a72a332e689f840d0595b888887f2fcf6f8bfca296327b21fa9d436aa4ae",
+        "prompt_row": 11,
+        "transport": "osc",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-4a6ce7a-single-12245105905/Blueberry/Blueberry/target/nested-terminal-evidence/host-dRmMt5/resize-24-80.json",
+        "sha256": "5c597e59b168b9a8e7f1975d471edf77bab883c06c7a7644a3fa4341ca40fee9",
+        "prompt_row": 11,
+        "transport": "pipe",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-4a6ce7a-single-12245105905/Blueberry/Blueberry/target/nested-terminal-evidence/host-hs27fj/resize-24-80.json",
+        "sha256": "2da33d5bb25e0f55e13b2770d81692cc5d5e042e1ff550ff4b6d8d27410197f9",
+        "prompt_row": 11,
+        "transport": "osc",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      }
+    ]
+  },
+  "unresolved_at_this_commit": "One of six native snapshots retains candidate rows above the active prompt. Passing active-menu assertions does not resolve menu cleanup."
+}

@@ -229,14 +229,14 @@ jobs:
         env:
           BLUEBERRY_TEST_TRANSPORT: osc
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test overlay_resize --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'OSC terminal regressions failed' }
       - name: Pipe ConPTY regressions
         shell: pwsh
         env:
           BLUEBERRY_TEST_TRANSPORT: pipe
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test overlay_resize --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'pipe terminal regressions failed' }
       - name: Repeat OSC session command snapshot regression
         env:
@@ -284,6 +284,7 @@ jobs:
           retention-days: 90
           name: nested-terminal-ps51-${{ matrix.psreadline }}
           path: |
+            target/overlay-resize-evidence
             target/nested-terminal-evidence
             target/startup-terminal-evidence
             target/ci-profile-entry
@@ -345,7 +346,7 @@ jobs:
       - name: Real ConPTY interaction
         shell: pwsh
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test overlay_resize --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'PowerShell 7 ConPTY regressions failed' }
       - name: Repeat the intermittent resize regression
         shell: pwsh
@@ -381,6 +382,7 @@ jobs:
             target/profile-entry-diagnostic.json
             target/profile-entry-shell/blueberry-profile-probe.json
             target/profile-entry-shell/Microsoft.PowerShell_profile.ps1
+            target/overlay-resize-evidence
             target/nested-terminal-evidence
             target/startup-terminal-evidence
             target/input-protocol-evidence

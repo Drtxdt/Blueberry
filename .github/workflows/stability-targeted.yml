@@ -69,6 +69,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cargo test --locked --test host active_menu_observation_excludes_history_but_keeps_current_candidates -- --exact
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --test overlay_resize erase_after_console_resize_before_resize_event_removes_owned_rows -- --exact --nocapture
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cargo test --locked --test direct_terminal compiled_bridge_codec_runs_in_selected_shell -- --exact --nocapture
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cargo test --locked --test direct_terminal unknown_diagnostic_events_do_not_disable_completion -- --exact --nocapture
@@ -98,5 +100,6 @@ jobs:
           path: |
             target/input-protocol-evidence/
             target/nested-terminal-evidence/
+            target/overlay-resize-evidence/
             ${{ runner.temp }}/blueberry-direct-evidence/
           if-no-files-found: warn

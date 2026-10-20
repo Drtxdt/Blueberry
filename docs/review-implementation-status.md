@@ -1,5 +1,7 @@
 # 16 项评审实施记录
 
+2026-10-20 菜单清理修复：4a6ce7a 单轮 CI 39378922073 三组合通过，30 轮 CI 39379818074 独立进行；原生快照审计仍在六个样本之一发现历史菜单残留。已用独立 ConPTY 回归复现终端先缩放、清理先于缩放事件的竞态：旧代码按旧坐标检查并遗忘已移动的菜单。最小修复读取真实视口尺寸判断重排，清理仍仅匹配自有内容；本机竞态回归 30 次及六组 Unicode/RGB 历史与后续补全通过，修复后的云端复验待完成。超时保持 20 秒，完整 CI、性能与最终包仍未放行。[单轮原始证据](benchmarks/v0.6/review-20261018/finalization/stability-4a6ce7a-single.json)、[竞态复现与修复证据](benchmarks/v0.6/review-20261018/finalization/overlay-unobserved-resize.json)。
+
 2026-10-20 最新定点结果：`e47e4d0` 的 Direct 开关追踪在三个编辑器全部通过；Nested 五组通过，PS5.1/2.0.0 OSC 因整屏仍含旧菜单的 `gi` 别名而超时。原始 buffer 事件确认当前输入为 `git`，当前提示符下方菜单也已更新；调整当前菜单断言后，本机该组合 30 次通过。上方历史菜单碎片单独保留为未解决的清理问题，不因断言调整而标记修复。完整 CI、性能和最终包仍未放行。[原始证据与未解决项](benchmarks/v0.6/review-20261018/finalization/stability-e47e4d0-single-failure.json)。
 
 2026-10-20 稳定性复验：冻结基线 `c0aa65e`，隔离分支 `codex/stability-diagnostics` 的 `ad34ce3` 已通过三组合单轮 CI `39252218595` 及 30 次重复 CI `39253381002`（450 次 Direct、180 次 Nested，共 630 次）。Direct 重复为追踪开启；诊断注入另行覆盖开关两种模式。当前补齐关闭追踪的实际交互，本机三组合共 15 项定点测试及六组 Nested 原生历史测试全部通过，未修改产品渲染、未延长超时。下一固定提交将复验追踪开关两种模式；PR #4 保持 Draft，完整 CI、性能与最终包仍待完成。证据：[重复 CI](benchmarks/v0.6/review-20261018/finalization/stability-ad34ce3-repeat30.json)、[本机复验](benchmarks/v0.6/review-20261018/finalization/stability-local-trace-off-native-history.json)。
