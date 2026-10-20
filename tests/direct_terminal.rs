@@ -11,6 +11,10 @@ use blueberry::probe::Harness;
 use std::{collections::BTreeMap, time::Duration};
 const TIMEOUT: Duration = Duration::from_secs(20);
 
+fn trace_disabled() -> bool {
+    std::env::var("BLUEBERRY_TEST_TRACE_DISABLED").as_deref() == Ok("1")
+}
+
 fn workflow_trace(
     h: &mut Harness,
     trace: &mut incremental_trace::Trace,
@@ -392,7 +396,7 @@ fn start_delayed_executable_with_pages(
         "--trace".into(),
         directory.join("trace.jsonl").to_string_lossy().into_owned(),
     ];
-    let trace_disabled = directory.join("trace-disabled").is_file();
+    let trace_disabled = trace_disabled() || directory.join("trace-disabled").is_file();
     if trace_disabled {
         args.truncate(args.len() - 2);
     }
@@ -1422,7 +1426,7 @@ fn editor_equivalence(vi: bool) -> Result<()> {
             .as_bytes(),
         )?;
         wait_output_line(&mut h, "EQUIVALENCE-READY")?;
-        if direct {
+        if direct && !trace_disabled() {
             wait_editor_begin(&mut h, dir.path(), 2)?;
         } else {
             // The setup marker is emitted before ConsoleHost returns to the
@@ -1771,9 +1775,16 @@ fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() ->
     path_fixture(dir.path())?;
     let mut h = start(dir.path())?;
     let result = (|| -> Result<()> {
-        h.send_text("1..40 | ForEach-Object { 'BOTTOM-SENTINEL' }")?;
+        h.send_text(
+            "1..40 | ForEach-Object { 'BOTTOM-SENTINEL' }; [Console]::WriteLine('BOTTOM-READY')",
+        )?;
         h.send(b"\r")?;
-        wait_editor_begin(&mut h, dir.path(), 2)?;
+        if trace_disabled() {
+            h.wait_line("BOTTOM-READY", TIMEOUT)?;
+            h.wait_text("PS ", TIMEOUT)?;
+        } else {
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+        }
         h.send_text("Get-ChildItem .\\nav-")?;
         wait_selected_path(&mut h, "nav-00.txt")?;
         let screen = h.viewport_contents();
@@ -1939,7 +1950,14 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
         h.resize(12, 70)?;
         h.send_text(&format!(". '{}'", quote("setup.ps1")))?;
         h.send(b"\r")?;
-        wait_editor_begin(&mut h, dir.path(), 2)?;
+        if trace_disabled() {
+            // BB> is installed by this setup; the initial PS prompt cannot
+            // satisfy this gate. F6 then acknowledges the native binding by
+            // inserting the fixture and producing its actual path menu.
+            h.wait_text("BB> ", TIMEOUT)?;
+        } else {
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+        }
         h.send(b"\x1b[17~")?;
         wait_selected_path(&mut h, "nav-00.txt")?;
         let snapshot = dir.path().join("native-screen.json");
@@ -2444,6 +2462,33 @@ fn exercise_builtin_workflows(delay_wake: bool) -> Result<()> {
         // a long temporary absolute path as hundreds of synchronous native
         // key records before the observer can service cursor queries.
         workflow_text(&mut h, ". .\\setup.ps1\r")?;
+        if trace_disabled() {
+            ensure!(
+                !delay_wake,
+                "untraced fixture does not measure delayed wakes"
+            );
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            while !mode.is_file() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "untraced setup missing"
+                );
+                let _ = h.pump(Duration::from_millis(5));
+            }
+            // A native F12 acknowledgement proves ReadLine is accepting keys;
+            // this path never waits on a diagnostic event or an arbitrary sleep.
+            h.send(b"\x1b[24~")?;
+            while !snapshot.is_file() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "untraced editor acknowledgement missing"
+                );
+                let _ = h.pump(Duration::from_millis(5));
+            }
+            std::fs::remove_file(&snapshot)?;
+            let legacy = std::fs::read_to_string(&mode)? == "True";
+            return exercise_builtin_workflow_cases_untraced(&mut h, &snapshot, legacy);
+        }
         wait_editor_begin(&mut h, dir.path(), 2)?;
         let legacy = std::fs::read_to_string(&mode)? == "True";
         let cases = workflow_cases::CASES;
@@ -2554,4 +2599,96 @@ fn exercise_builtin_workflows(delay_wake: bool) -> Result<()> {
         return Err(error).with_context(|| format!("workflow evidence: {}", dir.keep().display()));
     }
     Ok(())
+}
+
+fn wait_workflow_screen(
+    h: &mut Harness,
+    description: &str,
+    predicate: impl Fn(&str) -> bool,
+) -> Result<()> {
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    loop {
+        let screen = h.viewport_contents();
+        if predicate(&screen) {
+            return Ok(());
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "{description}: {screen}"
+        );
+        let _ = h.pump(Duration::from_millis(5));
+    }
+}
+
+fn exercise_builtin_workflow_cases_untraced(
+    h: &mut Harness,
+    snapshot: &std::path::Path,
+    legacy: bool,
+) -> Result<()> {
+    for (name, values, expected) in workflow_cases::CASES {
+        let expected = if legacy && expected.starts_with("git worktree add") {
+            expected.replace("'../work tree'", "'\"../work tree\"'")
+        } else {
+            (*expected).to_owned()
+        };
+        h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
+        h.wait_text("工作台", TIMEOUT)?;
+        // Search text is not echoed in the hub. A matching row can therefore
+        // belong to an earlier search revision. With tracing disabled, select
+        // through observable native navigation instead of guessing readiness
+        // from that unchanged row or adding a fixed delay.
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        loop {
+            let selected = h
+                .viewport_contents()
+                .lines()
+                .find(|row| row.contains('›'))
+                .unwrap_or_default()
+                .to_owned();
+            if selected.contains(name) {
+                break;
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "untraced workflow not found: {name}"
+            );
+            h.send(b"\x1b[B")?;
+            wait_workflow_screen(h, "untraced workflow navigation", |screen| {
+                screen
+                    .lines()
+                    .find(|row| row.contains('›'))
+                    .is_some_and(|row| row != selected)
+            })?;
+        }
+        h.send(b"\r")?;
+        for (index, value) in values.iter().enumerate() {
+            wait_workflow_screen(h, "untraced form field", |screen| {
+                screen.contains("填写参数：")
+                    && screen.contains(&format!("参数 {}/{}", index + 1, values.len()))
+            })?;
+            workflow_text(h, value)?;
+            h.send(b"\r")?;
+        }
+        wait_workflow_screen(h, "untraced form returned to editor", |screen| {
+            !screen.contains("填写参数：") && !screen.contains("工作台")
+        })?;
+        h.send(b"\x1b[24~")?;
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        while !snapshot.is_file() {
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "untraced native buffer missing: {name}"
+            );
+            let _ = h.pump(Duration::from_millis(5));
+        }
+        ensure!(
+            std::fs::read_to_string(snapshot)? == expected,
+            "untraced workflow buffer mismatch: {name}"
+        );
+        std::fs::remove_file(snapshot)?;
+        h.send(b"\x01\x7f")?;
+    }
+    h.send_text("Write-Output 'UNTRACED-WORKFLOWS-OK'\r")?;
+    wait_output_line(h, "UNTRACED-WORKFLOWS-OK")?;
+    h.finish(TIMEOUT)
 }

@@ -1,6 +1,6 @@
 # 三轮性能优化与发版验收
 
-2026-10-19：R2 durable 批次仍在采集，冻结输入不变。`11b6844` 的独立交互 CI 暴露两项缩放竞态，因此 `6bb6cc2` 虽完整 CI 通过，仍不能冻结为最终候选。修复由远端 CI 验证，不与本机正式计时并行运行；现有不完整性能数据不用于版本判定。
+2026-10-20 稳定性复验：冻结基线 `c0aa65e`，隔离分支 `codex/stability-diagnostics` 的 `ad34ce3` 已通过三组合单轮 CI `39252218595` 及 30 次重复 CI `39253381002`（450 次 Direct、180 次 Nested，共 630 次）。Direct 重复为追踪开启；诊断注入另行覆盖开关两种模式。当前补齐关闭追踪的实际交互，本机三组合共 15 项定点测试及六组 Nested 原生历史测试全部通过，未修改产品渲染、未延长超时。下一固定提交将复验追踪开关两种模式；PR #4 保持 Draft，完整 CI、性能与最终包仍待完成。证据：[重复 CI](benchmarks/v0.6/review-20261018/finalization/stability-ad34ce3-repeat30.json)、[本机复验](benchmarks/v0.6/review-20261018/finalization/stability-local-trace-off-native-history.json)。
 
 最新续作：公开 0.5.2 隔离升级链已通过；原生历史观察器与共享工作台正在完成最终矩阵。尚未冻结或形成有效版本判定，详见[实施记录](review-implementation-status.md#2026-10-18-最终化续作尚未冻结)。
 

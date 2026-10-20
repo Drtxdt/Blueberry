@@ -72,8 +72,12 @@ jobs:
       - name: Isolated Direct regressions
         shell: pwsh
         run: |
-          foreach ($test in @('direct_resize_after_menu_clear_reflows_input','direct_resize_reflows_input_when_menu_ownership_readback_failed','direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation','direct_and_original_editor_agree_on_vi_command_and_insert_transitions','builtin_workflows_fill_native_editor_without_executing')) {
-            ./scripts/repeat-rust-test.ps1 -Target direct_terminal -Test $test -Count ([int]$env:REPEATS)
+          foreach ($trace in @('on','off')) {
+            $env:BLUEBERRY_TEST_TRACE_DISABLED=if ($trace -eq 'off') { '1' } else { '0' }
+            Write-Output "Direct tracing=$trace"
+            foreach ($test in @('direct_resize_after_menu_clear_reflows_input','direct_resize_reflows_input_when_menu_ownership_readback_failed','direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation','direct_and_original_editor_agree_on_vi_command_and_insert_transitions','builtin_workflows_fill_native_editor_without_executing')) {
+              ./scripts/repeat-rust-test.ps1 -Target direct_terminal -Test $test -Count ([int]$env:REPEATS)
+            }
           }
       - name: Isolated Nested resize regression
         shell: pwsh

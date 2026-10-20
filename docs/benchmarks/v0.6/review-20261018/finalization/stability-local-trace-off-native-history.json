@@ -1,0 +1,286 @@
+{
+  "base_commit": "ad34ce30b4b1695fb8de5bd6452ca18225eb86dd",
+  "working_tree_changes": "test-only trace-off observations and native-history completion query",
+  "date": "2026-10-20",
+  "scope": "Local diagnostic validation; not frozen release acceptance or GUI validation",
+  "native_history": [
+    {
+      "editor": "ps7-245",
+      "transport": "pipe",
+      "fixture": "target\\nested-terminal-evidence\\host-ZgyZTD",
+      "result": "passed",
+      "observer": {
+        "colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "expected_colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "observer": {
+          "abi_version": 1,
+          "backend": "production_terminalcore_buffer",
+          "columns": 120,
+          "companion_interface_version": 4,
+          "dll": "\\\\?\\E:\\OpenSource\\shellsense-rs\\artifacts\\native-history-d4f9316\\payload\\terminal-prototype\\bin\\x64\\Release\\BlueberryNativeModel\\Blueberry.NativeModel.dll",
+          "dll_sha256": "9317061184C85FC631D457233B5C6A8939D80842B09D58380E84B68F9571402D",
+          "eof_dispatch": "explicit_model_api_boundaries",
+          "gui_renderer": false,
+          "history_rows": 9001,
+          "renderer": "DummyRenderer",
+          "rows": 30,
+          "screen_pixels": "not_measured",
+          "snapshot_binding": "per_received_chunk",
+          "startup_origin": "before_child_spawn_after_observer_initialization",
+          "timestamp": "after_native_parser_write_and_snapshot"
+        }
+      },
+      "files": {
+        "fixture.json": "651984367e9df1ed1ae0ba813cf4138b71c1824e788753a9e99ad481ef539acd",
+        "history-before.txt": "d302103ec0932717a013247917ff5c24a835ac37da79a7852034af18c5db4e68",
+        "history-after.txt": "ee737d09b525fbf661f46575c13e3929b8ead08a2fe07674664ff5c86682c908",
+        "history-observer.json": "2373a354522de8cd52af09cca7c2554b5a6e459499b862d224c7b75757e030c0"
+      }
+    },
+    {
+      "editor": "ps7-245",
+      "transport": "osc",
+      "fixture": "target\\nested-terminal-evidence\\host-RbVhcH",
+      "result": "passed",
+      "observer": {
+        "colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "expected_colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "observer": {
+          "abi_version": 1,
+          "backend": "production_terminalcore_buffer",
+          "columns": 120,
+          "companion_interface_version": 4,
+          "dll": "\\\\?\\E:\\OpenSource\\shellsense-rs\\artifacts\\native-history-d4f9316\\payload\\terminal-prototype\\bin\\x64\\Release\\BlueberryNativeModel\\Blueberry.NativeModel.dll",
+          "dll_sha256": "9317061184C85FC631D457233B5C6A8939D80842B09D58380E84B68F9571402D",
+          "eof_dispatch": "explicit_model_api_boundaries",
+          "gui_renderer": false,
+          "history_rows": 9001,
+          "renderer": "DummyRenderer",
+          "rows": 30,
+          "screen_pixels": "not_measured",
+          "snapshot_binding": "per_received_chunk",
+          "startup_origin": "before_child_spawn_after_observer_initialization",
+          "timestamp": "after_native_parser_write_and_snapshot"
+        }
+      },
+      "files": {
+        "fixture.json": "12906e4133210a94063b7377698e5bdb8c07e31c4940ea92fa81a25bc7d4c5ee",
+        "history-before.txt": "bead0c57c7a07c6864cc6f97f966ff01cf8a2a1d1d58926b9e01bd4f07475c3b",
+        "history-after.txt": "78ff14242c4454d2ae7da99e1fb138e6483a8e5ef889b21483c26c35d7f33d09",
+        "history-observer.json": "2373a354522de8cd52af09cca7c2554b5a6e459499b862d224c7b75757e030c0"
+      }
+    },
+    {
+      "editor": "ps51-200",
+      "transport": "pipe",
+      "fixture": "target\\nested-terminal-evidence\\host-GoR6L1",
+      "result": "passed",
+      "observer": {
+        "colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "expected_colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "observer": {
+          "abi_version": 1,
+          "backend": "production_terminalcore_buffer",
+          "columns": 120,
+          "companion_interface_version": 4,
+          "dll": "\\\\?\\E:\\OpenSource\\shellsense-rs\\artifacts\\native-history-d4f9316\\payload\\terminal-prototype\\bin\\x64\\Release\\BlueberryNativeModel\\Blueberry.NativeModel.dll",
+          "dll_sha256": "9317061184C85FC631D457233B5C6A8939D80842B09D58380E84B68F9571402D",
+          "eof_dispatch": "explicit_model_api_boundaries",
+          "gui_renderer": false,
+          "history_rows": 9001,
+          "renderer": "DummyRenderer",
+          "rows": 30,
+          "screen_pixels": "not_measured",
+          "snapshot_binding": "per_received_chunk",
+          "startup_origin": "before_child_spawn_after_observer_initialization",
+          "timestamp": "after_native_parser_write_and_snapshot"
+        }
+      },
+      "files": {
+        "fixture.json": "479f6b9f6512e9bbece291a1d7b098aa106d6e49c98307126633a927d8637771",
+        "history-before.txt": "132f975abbb72e850f12e5141a62f2cd10c71de9e91d0016f4f07e701b1d3362",
+        "history-after.txt": "d54a2fd0bfba45646ec7fc3268684e8db76926c6080208cedee932f80e91503a",
+        "history-observer.json": "2373a354522de8cd52af09cca7c2554b5a6e459499b862d224c7b75757e030c0"
+      }
+    },
+    {
+      "editor": "ps51-200",
+      "transport": "osc",
+      "fixture": "target\\nested-terminal-evidence\\host-yXGn9n",
+      "result": "passed",
+      "observer": {
+        "colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "expected_colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "observer": {
+          "abi_version": 1,
+          "backend": "production_terminalcore_buffer",
+          "columns": 120,
+          "companion_interface_version": 4,
+          "dll": "\\\\?\\E:\\OpenSource\\shellsense-rs\\artifacts\\native-history-d4f9316\\payload\\terminal-prototype\\bin\\x64\\Release\\BlueberryNativeModel\\Blueberry.NativeModel.dll",
+          "dll_sha256": "9317061184C85FC631D457233B5C6A8939D80842B09D58380E84B68F9571402D",
+          "eof_dispatch": "explicit_model_api_boundaries",
+          "gui_renderer": false,
+          "history_rows": 9001,
+          "renderer": "DummyRenderer",
+          "rows": 30,
+          "screen_pixels": "not_measured",
+          "snapshot_binding": "per_received_chunk",
+          "startup_origin": "before_child_spawn_after_observer_initialization",
+          "timestamp": "after_native_parser_write_and_snapshot"
+        }
+      },
+      "files": {
+        "fixture.json": "489961225557d02132f69741de40493250660e9c2bc09e89dcb3b929f4d6cb47",
+        "history-before.txt": "46362b72062d3613c3f2002fda746f38d244db4c3539ef1bbd70cd1aebaaaec6",
+        "history-after.txt": "7c7eb992cbb28089582c2a07b1918b5928152b3cf0a86956b373b5d9ad57de27",
+        "history-observer.json": "2373a354522de8cd52af09cca7c2554b5a6e459499b862d224c7b75757e030c0"
+      }
+    },
+    {
+      "editor": "ps51-245",
+      "transport": "pipe",
+      "fixture": "target\\nested-terminal-evidence\\host-9w26Fn",
+      "result": "passed",
+      "observer": {
+        "colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "expected_colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "observer": {
+          "abi_version": 1,
+          "backend": "production_terminalcore_buffer",
+          "columns": 120,
+          "companion_interface_version": 4,
+          "dll": "\\\\?\\E:\\OpenSource\\shellsense-rs\\artifacts\\native-history-d4f9316\\payload\\terminal-prototype\\bin\\x64\\Release\\BlueberryNativeModel\\Blueberry.NativeModel.dll",
+          "dll_sha256": "9317061184C85FC631D457233B5C6A8939D80842B09D58380E84B68F9571402D",
+          "eof_dispatch": "explicit_model_api_boundaries",
+          "gui_renderer": false,
+          "history_rows": 9001,
+          "renderer": "DummyRenderer",
+          "rows": 30,
+          "screen_pixels": "not_measured",
+          "snapshot_binding": "per_received_chunk",
+          "startup_origin": "before_child_spawn_after_observer_initialization",
+          "timestamp": "after_native_parser_write_and_snapshot"
+        }
+      },
+      "files": {
+        "fixture.json": "3dc37377cb0e080d19a71151892a338cfc01e47fba7cb825dcecae1abda02c40",
+        "history-before.txt": "bd4424cd1bd499f67b4af968e1ad2e612c36e324fbbc6ba3e5ba9e2c7a8964bd",
+        "history-after.txt": "2be1b40f29e9ef3902bc1aca5ead04338df3bb7cb4fdfe6608bcd75cbbee9a3d",
+        "history-observer.json": "2373a354522de8cd52af09cca7c2554b5a6e459499b862d224c7b75757e030c0"
+      }
+    },
+    {
+      "editor": "ps51-245",
+      "transport": "osc",
+      "fixture": "target\\nested-terminal-evidence\\host-mWrSOi",
+      "result": "passed",
+      "observer": {
+        "colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "expected_colors": [
+          3,
+          4402555,
+          3,
+          9525527
+        ],
+        "observer": {
+          "abi_version": 1,
+          "backend": "production_terminalcore_buffer",
+          "columns": 120,
+          "companion_interface_version": 4,
+          "dll": "\\\\?\\E:\\OpenSource\\shellsense-rs\\artifacts\\native-history-d4f9316\\payload\\terminal-prototype\\bin\\x64\\Release\\BlueberryNativeModel\\Blueberry.NativeModel.dll",
+          "dll_sha256": "9317061184C85FC631D457233B5C6A8939D80842B09D58380E84B68F9571402D",
+          "eof_dispatch": "explicit_model_api_boundaries",
+          "gui_renderer": false,
+          "history_rows": 9001,
+          "renderer": "DummyRenderer",
+          "rows": 30,
+          "screen_pixels": "not_measured",
+          "snapshot_binding": "per_received_chunk",
+          "startup_origin": "before_child_spawn_after_observer_initialization",
+          "timestamp": "after_native_parser_write_and_snapshot"
+        }
+      },
+      "files": {
+        "fixture.json": "8bf682a6f1cc92f0d8e5f8b1de5381b450d645d79279ccd69e37d149d19ccd6d",
+        "history-before.txt": "81d415a9f5054eed10905ec04498c8ec5b69f9448191f851ca7181e58799c906",
+        "history-after.txt": "73265505941a85727c2ee1c274756e94a8da64253be072d39fd05563f397de60",
+        "history-observer.json": "2373a354522de8cd52af09cca7c2554b5a6e459499b862d224c7b75757e030c0"
+      }
+    }
+  ],
+  "direct_trace_off": {
+    "result": "15 passed",
+    "editors": [
+      "ps7-245",
+      "ps51-200",
+      "ps51-245"
+    ],
+    "tests": [
+      "direct_resize_after_menu_clear_reflows_input",
+      "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+      "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+      "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+      "builtin_workflows_fill_native_editor_without_executing"
+    ],
+    "forms_per_editor": 12
+  },
+  "test_executables": {
+    "target/debug/deps/direct_terminal-16474eefb2441229.exe": "1d86267abe2d558683bd3b42d5536bfdcc9f40aa8e86f82fb2cafe66a77ebe02",
+    "target/debug/deps/host-f742ebd98edc2d5d.exe": "d3d8bc7035a9105d30939bbaee5409195654ff7e98f939ee300e95813ba9c51c"
+  }
+}

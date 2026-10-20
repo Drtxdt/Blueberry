@@ -101,7 +101,7 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
             .contains(&expected),
         "native history Unicode or soft wrapping changed"
     );
-    clear_line_and_send(&mut host.harness, b"git ", "completion after resize")?;
+    clear_line_and_send(&mut host.harness, b"git st", "completion after resize")?;
     host.harness.wait_text("status", PTY_TIMEOUT)?;
     host.harness.stop()?;
     Ok(())
