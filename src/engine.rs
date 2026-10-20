@@ -1975,12 +1975,26 @@ pub fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
-        let source_w: Vec<u16> = source.as_os_str().encode_wide().chain(Some(0)).collect();
-        let destination_w: Vec<u16> = destination
-            .as_os_str()
-            .encode_wide()
-            .chain(Some(0))
-            .collect();
+        // Rust's file operations support long paths, but a raw Win32 call does
+        // not add the extended prefix. Resolve the parent only: resolving the
+        // final component would follow a symlink instead of replacing it.
+        let extended = |path: &Path| -> io::Result<Vec<u16>> {
+            let name = path.file_name().ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidInput, "replacement needs a file name")
+            })?;
+            let parent = path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new("."));
+            Ok(std::fs::canonicalize(parent)?
+                .join(name)
+                .as_os_str()
+                .encode_wide()
+                .chain(Some(0))
+                .collect())
+        };
+        let source_w = extended(source)?;
+        let destination_w = extended(destination)?;
         unsafe extern "system" {
             fn MoveFileExW(existing: *const u16, new: *const u16, flags: u32) -> i32;
         }

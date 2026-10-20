@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "kind": "Long-path atomic cache publication regression; diagnostic only",
+  "failed_ci_run": 39401529774,
+  "failed_ci_source": "ba5e5b2e472a7cb1f88a641c1e422508e493cfc1",
+  "verified_failure_archives": [
+    {
+      "id": 12255780021,
+      "sha256": "3065091f60099d9e71f0972757247ab4fc524ad381b170cd24dadd1e7c2d77cd"
+    },
+    {
+      "id": 12254334927,
+      "sha256": "3c6d5b59cdd50f1fcd83a666d7ab9dbf1741c6a0cdd35e4c7e3dc72f1ae28262"
+    }
+  ],
+  "reproduction": "Existing long-path cache creation/locking succeeds; first publication fails with Win32 error 3 before the fix.",
+  "correction": "Convert existing parent directories to extended Windows paths before MoveFileExW; preserve final-component symlink semantics.",
+  "validations": {
+    "cache_unit": 5,
+    "real_editor_combinations": 3,
+    "paired_samples_per_cache_state": 2,
+    "config_store": 10,
+    "commands_store": 6,
+    "clippy": "passed"
+  },
+  "observations": [
+    {
+      "fixture": "probe-4rKGVH",
+      "mode": "cold",
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "shell_versions": [
+        "5.1.26100.9711",
+        "5.1.26100.9711"
+      ],
+      "editors": [
+        "2.0.0",
+        "2.0.0"
+      ],
+      "observed_cache": [
+        "rebuild",
+        "rebuild"
+      ],
+      "preparation": null
+    },
+    {
+      "fixture": "probe-4rKGVH",
+      "mode": "warm",
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "shell_versions": [
+        "5.1.26100.9711",
+        "5.1.26100.9711"
+      ],
+      "editors": [
+        "2.0.0",
+        "2.0.0"
+      ],
+      "observed_cache": [
+        "hit",
+        "hit"
+      ],
+      "preparation": {
+        "elapsed_ms": 5029.5198,
+        "included_in_timed_pairs": false,
+        "system_commands": {
+          "cache": "rebuild",
+          "complete": true,
+          "count": 1713,
+          "error": null,
+          "source": "system module export metadata"
+        }
+      }
+    },
+    {
+      "fixture": "probe-7oBHGo",
+      "mode": "cold",
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "shell_versions": [
+        "5.1.26100.9711",
+        "5.1.26100.9711"
+      ],
+      "editors": [
+        "2.4.5",
+        "2.4.5"
+      ],
+      "observed_cache": [
+        "rebuild",
+        "rebuild"
+      ],
+      "preparation": null
+    },
+    {
+      "fixture": "probe-7oBHGo",
+      "mode": "warm",
+      "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "shell_versions": [
+        "5.1.26100.9711",
+        "5.1.26100.9711"
+      ],
+      "editors": [
+        "2.4.5",
+        "2.4.5"
+      ],
+      "observed_cache": [
+        "hit",
+        "hit"
+      ],
+      "preparation": {
+        "elapsed_ms": 4490.0094,
+        "included_in_timed_pairs": false,
+        "system_commands": {
+          "cache": "rebuild",
+          "complete": true,
+          "count": 1713,
+          "error": null,
+          "source": "system module export metadata"
+        }
+      }
+    },
+    {
+      "fixture": "probe-eYL7ZU",
+      "mode": "cold",
+      "shell": "D:\\pwsh\\7\\pwsh.exe",
+      "shell_versions": [
+        "7.6.6",
+        "7.6.6"
+      ],
+      "editors": [
+        "2.4.5",
+        "2.4.5"
+      ],
+      "observed_cache": [
+        "rebuild",
+        "rebuild"
+      ],
+      "preparation": null
+    },
+    {
+      "fixture": "probe-eYL7ZU",
+      "mode": "warm",
+      "shell": "D:\\pwsh\\7\\pwsh.exe",
+      "shell_versions": [
+        "7.6.6",
+        "7.6.6"
+      ],
+      "editors": [
+        "2.4.5",
+        "2.4.5"
+      ],
+      "observed_cache": [
+        "hit",
+        "hit"
+      ],
+      "preparation": {
+        "elapsed_ms": 4007.8691,
+        "included_in_timed_pairs": false,
+        "system_commands": {
+          "cache": "rebuild",
+          "complete": true,
+          "count": 1439,
+          "error": null,
+          "source": "system module export metadata"
+        }
+      }
+    }
+  ],
+  "source_files": {
+    "src/engine.rs": "9aafa39c18d834a12b67833325106ec932cd21119faf88adcb640170772880e6",
+    "src/system_commands_cache.rs": "e30de12687761910f3eae449df6dc0faca62969f02fadf5b4b89e44b53db9df9"
+  },
+  "local_archive": {
+    "path": "artifacts\\cache-long-path-local-20261020.zip",
+    "sha256": "d13cd0bde488d2faf6f5d890a2478104955b8125e02dd78298e35991e878d3b0",
+    "uploaded": false
+  },
+  "files": [
+    {
+      "path": "fixtures/probe-4rKGVH/cold.json",
+      "sha256": "36e14262c4142375f1305d9bb48c1e7bf3c103c7461c36bffd174eb74705b545"
+    },
+    {
+      "path": "fixtures/probe-4rKGVH/cold.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fixtures/probe-4rKGVH/cold.stdout",
+      "sha256": "5ef5edf23e1298fe44db9b9f573bf36b581a3d0e4d4e1da9c1d53c995a1dfc77"
+    },
+    {
+      "path": "fixtures/probe-4rKGVH/warm.json",
+      "sha256": "97b0fcf2debd89c73e03d81ea7c3003c1688f2503ab4d28b180f493a56aa0f16"
+    },
+    {
+      "path": "fixtures/probe-4rKGVH/warm.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fixtures/probe-4rKGVH/warm.stdout",
+      "sha256": "0e0c33e26240fa4cd2d0764c830caabe6c21f1d5c6eacce84c75941e288e0bc0"
+    },
+    {
+      "path": "fixtures/probe-7oBHGo/cold.json",
+      "sha256": "936bdc370804df0892ef8c7154b89e7561a21e169cad9e11b6ee374a949f1916"
+    },
+    {
+      "path": "fixtures/probe-7oBHGo/cold.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fixtures/probe-7oBHGo/cold.stdout",
+      "sha256": "43cccbabe918cb0f624584c3b9fc289545a13c87db892d509a58abf47b1bd4d3"
+    },
+    {
+      "path": "fixtures/probe-7oBHGo/warm.json",
+      "sha256": "f3538128f2b47e1e2941a4ab67e68c408f829d694779aff061bd3c70c5e8f3a1"
+    },
+    {
+      "path": "fixtures/probe-7oBHGo/warm.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fixtures/probe-7oBHGo/warm.stdout",
+      "sha256": "e168e57e3551c83e21edbef78da0900e201a86bbdc4f59b1098de6f1b04548ea"
+    },
+    {
+      "path": "fixtures/probe-eYL7ZU/cold.json",
+      "sha256": "ed532a8f5951364cc67e9badba48c6606ac210e89867f595d84b0d9f69a0698a"
+    },
+    {
+      "path": "fixtures/probe-eYL7ZU/cold.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fixtures/probe-eYL7ZU/cold.stdout",
+      "sha256": "9400009aaa1836236af0b73f8ab00e1347fd8f4b0351ab9add84f8318c204ce5"
+    },
+    {
+      "path": "fixtures/probe-eYL7ZU/warm.json",
+      "sha256": "dcf12f40b6945a3493961cb1cd8ef8c041602a8c28ce34412dead776faefc0cd"
+    },
+    {
+      "path": "fixtures/probe-eYL7ZU/warm.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fixtures/probe-eYL7ZU/warm.stdout",
+      "sha256": "e1f19d1a4d2b53dba55a3bc486b313af0cf083b2f0e6f7291a5017e086d42157"
+    },
+    {
+      "path": "logs/cache-long-path-before.log",
+      "sha256": "004de8d227118522f9cd180641eb325df79dce9bb8b1bfa339b568b4828df4b5"
+    },
+    {
+      "path": "logs/cache-long-path-before-context.log",
+      "sha256": "c5b1cd54a77482ee58227bd00825024cb75157766d3f31d1ffa7f003a48d0421"
+    },
+    {
+      "path": "logs/cache-long-path-after.log",
+      "sha256": "798ac3cdffa07dd96ccbd343a6a76e1e5c1fa762c9813cd8d758edda4bea3012"
+    },
+    {
+      "path": "logs/cache-path-ps51200.log",
+      "sha256": "77e6b537c399c80c09c477d37369e7cc0ca528c61980f190b606b6e5f949fad9"
+    },
+    {
+      "path": "logs/cache-path-ps51245.log",
+      "sha256": "ca66c1968a2ace15c2fa2b9f4ce606bafb797c4debe635e6f147fe110e89ccd9"
+    },
+    {
+      "path": "logs/cache-path-ps7245.log",
+      "sha256": "9f317cc36bfc430b897f5d5f392d12ad59e9c760778aa22af96b3ccdd9e9cd56"
+    },
+    {
+      "path": "logs/cache-path-config-store.log",
+      "sha256": "6d4361d88c75ab3f3b92dc386b390cd26d3d76750a1a501e95c2778d8645d49c"
+    },
+    {
+      "path": "logs/cache-path-commands-store.log",
+      "sha256": "8f3fed6dd95de72095abe56a2d04568cb68d5a5414ec23837a1a2a0ad39c4cb2"
+    },
+    {
+      "path": "logs/cache-path-clippy.log",
+      "sha256": "fad82555a6d193c854968f43ce70774bc94419eace8347ebed6c2cc03ff715cf"
+    }
+  ],
+  "limits": "Local debug build; not formal performance or final-package qualification. Remote targeted revalidation remains required."
+}

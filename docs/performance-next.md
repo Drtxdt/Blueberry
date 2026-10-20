@@ -1,5 +1,9 @@
 # 三轮性能优化与发版验收
 
+2026-10-20 长路径缓存修复：冷/暖定点 CI 39401529774 未通过；已核验的两个 PS5.1 工件均为扫描成功但缓存 write_failed。新增超过 MAX_PATH 的用例在首次发布时复现 Win32 错误 3。共享原子替换现只规范化父目录为 Windows 扩展路径，保留最终文件名的替换语义。缓存 5 项、三个真实编辑器组合的冷/暖各 2 对、配置 10 项、收藏 6 项及 Clippy 通过；本地原始 ZIP 已封存，尚待云端复验及上传。[证据](benchmarks/v0.6/review-20261018/finalization/cache-long-path.json)。
+
+R2 的 r2-stability-20261020 协调器与 worker 在会话中断后均不存在；只有一份启动报告完整，不能计作完整轮次。原回执未修改，另存[只读审计](benchmarks/v0.6/review-20261018/finalization/r2-stability-readonly-audit.json)。新 r2-breakaway-20261020 计划摘要 4B1A18ECE72E574C615E5C287961607A7DA30FFD528236F07CC8C43CC6C12638 已准备；显式 Windows breakaway 的 30 秒短任务在启动调用结束后完成，长批次尚待实际验证。
+
 2026-10-20 缓存观测补全（待定点验证）：系统元数据缓存位于 LOCALAPPDATA；既有启动探针只隔离 APPDATA，因此旧报告的“新索引目录”不等于冷系统缓存。新增 `product-probe --cache-state cold|warm`，分别为每对样本分配新的 LOCALAPPDATA，或先在独立目录完成一次准备，再复用该缓存。准备时间单列、不进入正式样本；每个候选结束计时后读取实际元数据状态，冷样本必须为 rebuild，暖样本必须为 hit，错误或未完成不作暖缓存通过。默认 ambient 保留旧调用行为并明确标识未隔离。真实 ConPTY 定点测试与最终包自动 profile 的冷/暖各 30 对验证正在补齐；未执行结果不计通过，现有 R2 冻结计划与原始数据不变。
 
 2026-10-20 稳定性门槛通过：固定提交 312f418 的单轮 CI 39393219193 和 30 轮 CI 39394720887 均通过。重复包含追踪开/关各 450 次 Direct、180 次 Nested；540 份窄屏/宽屏/取消后的原生快照均保留提示符且无历史候选残留，重复期间归属诊断关闭。三个原始工件摘要已核验。本地回归原始证据已上传至 run 39394098975 / artifact 12251427556，回下载及内部九份 ZIP 摘要全部匹配，一次性执行器已注销。现可继续完整 CI 和正式性能工作；这不是最终包或可发布判定。[门槛记录](benchmarks/v0.6/review-20261018/finalization/stability-gate-312f418.json)、[原始证据交付](benchmarks/v0.6/review-20261018/finalization/raw-stability-delivery-20261020.json)。

@@ -241,6 +241,27 @@ impl Cache {
 mod tests {
     use super::*;
     #[test]
+    fn cache_publishes_and_replaces_beyond_win32_max_path() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let mut root = dir.path().to_owned();
+        while root.as_os_str().len() < 280 {
+            root.push("metadata-cache-long-directory");
+        }
+        let cache = Cache::open_at(&root, "a".repeat(64), || false)
+            .context("open long-path cache and lock")?;
+        cache
+            .publish("COMPLETE\n")
+            .context("publish first long-path cache")?;
+        assert_eq!(cache.read(None).as_deref(), Some("COMPLETE\n"));
+        cache.publish("C\t676974\tFunction\nCOMPLETE\n")?;
+        assert_eq!(
+            cache.read(None).as_deref(),
+            Some("C\t676974\tFunction\nCOMPLETE\n")
+        );
+        Ok(())
+    }
+
+    #[test]
     fn atomic_cache_rejects_corruption_and_stale_refresh() -> Result<()> {
         let dir = tempfile::tempdir()?;
         let cache = Cache::open_at(dir.path(), "test-key".into(), || false)?;
