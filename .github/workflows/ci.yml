@@ -545,7 +545,14 @@ jobs:
               $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $moduleRoot "PSReadLine/$($combination[1])/PSReadLine.psd1"
               cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
               if ($LASTEXITCODE -ne 0) { throw 'Packaged input protocol regression failed' }
-              $records += @{shell=$env:BLUEBERRY_TEST_SHELL; editor=$combination[1]; executable_sha256=$before; status='passed'}
+              $env:BLUEBERRY_TEST_TRACE_DISABLED = '1'
+              try {
+                cargo test --locked --test direct_terminal builtin_workflows_fill_native_editor_without_executing -- --exact --test-threads=1 --nocapture
+                if ($LASTEXITCODE -ne 0) { throw 'Packaged untraced workflow regression failed' }
+              } finally {
+                Remove-Item Env:BLUEBERRY_TEST_TRACE_DISABLED -ErrorAction SilentlyContinue
+              }
+              $records += @{shell=$env:BLUEBERRY_TEST_SHELL; editor=$combination[1]; executable_sha256=$before; status='passed'; workflows=12; workflow_trace='disabled'}
             }
             cargo test --locked --test tools_terminal --test hub_terminal -- --test-threads=1 --nocapture
             if ($LASTEXITCODE -ne 0) { throw 'Packaged standalone UI regression failed' }
@@ -566,6 +573,41 @@ jobs:
           path: |
             target/packaged-interaction.json
             target/input-protocol-evidence
+            ${{ runner.temp }}/blueberry-direct-evidence
+          if-no-files-found: ignore
+      - name: Measure the packaged automatic profile entry
+        shell: pwsh
+        env:
+          POWERSHELL_UPDATECHECK: 'Off'
+        run: |
+          $package = (Get-ChildItem ./dist/ci/*.zip).FullName
+          $destination = Join-Path $env:RUNNER_TEMP ('blueberry-profile-package-' + [Guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $package -DestinationPath $destination
+          $executable = Join-Path $destination 'blueberry.exe'
+          $before = (Get-FileHash $executable).Hash
+          $manifest = Get-Content (Join-Path $destination 'release.json') -Raw | ConvertFrom-Json
+          if ($before -ine @($manifest.files | Where-Object path -eq 'blueberry.exe')[0].sha256) { throw 'Profile package identity mismatch' }
+          $records = @()
+          try {
+            foreach ($combination in @(@('powershell.exe','2.0.0','ps51-200'), @('powershell.exe','2.4.5','ps51-245'), @('pwsh.exe','2.4.5','ps7-245'))) {
+              $moduleRoot = Join-Path $env:RUNNER_TEMP ('package-editor-' + $combination[1])
+              $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $moduleRoot "PSReadLine/$($combination[1])/PSReadLine.psd1"
+              ./scripts/test-ci-profile-entry.ps1 -Shell $combination[0] -Executable $executable -OutputDirectory "target/packaged-profile/$($combination[2])" -Pairs 30 -Formal
+              $records += @{combination=$combination[2]; report="$($combination[2])/startup.json"; restoration="$($combination[2])/restoration.json"}
+            }
+            if ((Get-FileHash $executable).Hash -ne $before) { throw 'Profile executable changed during measurement' }
+            @{package_sha256=(Get-FileHash $package).Hash; executable_sha256=$before; entries=$records; update_check='Off'; observation='ConPTY receive timestamps; separate from GUI and local AB/BA qualification'} |
+              ConvertTo-Json -Depth 6 | Set-Content target/packaged-profile/manifest.json -Encoding UTF8
+          } finally {
+            Remove-Item Env:BLUEBERRY_TEST_PSREADLINE_MODULE -ErrorAction SilentlyContinue
+          }
+      - name: Preserve automatic profile measurements and restoration
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-packaged-profile
+          path: target/packaged-profile
           if-no-files-found: ignore
       - name: Package and validate optional Terminal component
         shell: pwsh

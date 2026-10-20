@@ -2,10 +2,13 @@
 param(
     [Parameter(Mandatory)][string]$Shell,
     [Parameter(Mandatory)][string]$Executable,
-    [Parameter(Mandatory)][string]$OutputDirectory
+    [Parameter(Mandatory)][string]$OutputDirectory,
+    [ValidateRange(1, 1000)][int]$Pairs = 2,
+    [switch]$Formal
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+if ($Formal -and $Pairs -lt 30) { throw 'Formal profile measurement requires at least 30 pairs.' }
 # PS5.1 resolves its system PSHOME even when its EXE is copied. Only a
 # disposable GitHub-hosted account may use its actual per-user profile here.
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
@@ -51,8 +54,18 @@ $installed=$false
 try {
     [IO.File]::WriteAllBytes($profilePath,[IO.File]::ReadAllBytes($prepared))
     $installed=$true
-    & $Executable product-probe --shell $Shell --profile-entry --profile-fixture $fixture --iterations 2 --output (Join-Path $root 'diagnostic.json')
+    $reportPath=Join-Path $root $(if ($Formal) { 'startup.json' } else { 'diagnostic.json' })
+    & $Executable product-probe --shell $Shell --profile-entry --profile-fixture $fixture --iterations $Pairs --output $reportPath
     if ($LASTEXITCODE -ne 0) { throw 'Automatic profile entry probe failed.' }
+    if ($Formal) {
+        $report=Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+        if ($report.diagnostic_only -ne $false -or $report.build -ne 'release' -or
+            $report.trace -ne 'disabled' -or $report.iterations -ne $Pairs -or
+            $report.actual_entry -ne 'isolated_automatic_profile' -or
+            @($report.paired_first_input_delta.samples).Count -ne $Pairs) {
+            throw 'Profile report is incomplete or not eligible for formal timing.'
+        }
+    }
 } finally {
     if ($installed) {
         if ((Get-FileHash -LiteralPath $profilePath).Hash -ne $expectedHash) { throw 'Profile changed during test; evidence retained without overwriting an unrelated change.' }

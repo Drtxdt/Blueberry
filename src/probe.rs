@@ -98,42 +98,6 @@ impl CompletedFrames {
     }
 }
 
-#[cfg(test)]
-mod completed_frame_tests {
-    use super::CompletedFrames;
-
-    #[test]
-    fn split_output_never_publishes_a_partially_scrolled_menu() {
-        let first = b"\x1b[1;1Hselected old\x1b]1337;BlueberryFrame\x07";
-        let next = b"\x1b[1;1Hselected new\x1b]1337;BlueberryFrame\x07";
-        for split in 0..next.len() {
-            let mut parser = vt100::Parser::new(5, 40, 0);
-            let mut frames = CompletedFrames::default();
-            frames.process(&mut parser, first);
-            frames.process(&mut parser, &next[..split]);
-            assert_eq!(frames.sequence, 1);
-            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected old");
-            for byte in &next[split..] {
-                frames.process(&mut parser, &[*byte]);
-            }
-            assert_eq!(frames.sequence, 2);
-            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected new");
-        }
-    }
-
-    #[test]
-    fn later_partial_frame_in_same_read_does_not_replace_completed_frame() {
-        let mut parser = vt100::Parser::new(5, 40, 0);
-        let mut frames = CompletedFrames::default();
-        frames.process(
-            &mut parser,
-            b"\x1b[1;1Hcomplete\x1b]1337;BlueberryFrame\x07\x1b[1;1Hpartial!",
-        );
-        assert_eq!(frames.screen.as_ref().unwrap().contents(), "complete");
-        assert_eq!(parser.screen().contents(), "partial!");
-    }
-}
-
 impl Harness {
     pub fn observe_completed_frames(&mut self) {
         self.completed_frames = Some(CompletedFrames::default());
@@ -908,4 +872,40 @@ pub fn run_with_adapter(
         "command_index_build_ms":index_ms,"command_count":index.len(),"root_lookup":stats(&lookups),
         "verified":["PSReadLine real buffer","validated replacement gi -> git","loaded shell commands","execute -> next prompt"]
     }))
+}
+
+#[cfg(test)]
+mod completed_frame_tests {
+    use super::CompletedFrames;
+
+    #[test]
+    fn split_output_never_publishes_a_partially_scrolled_menu() {
+        let first = b"\x1b[1;1Hselected old\x1b]1337;BlueberryFrame\x07";
+        let next = b"\x1b[1;1Hselected new\x1b]1337;BlueberryFrame\x07";
+        for split in 0..next.len() {
+            let mut parser = vt100::Parser::new(5, 40, 0);
+            let mut frames = CompletedFrames::default();
+            frames.process(&mut parser, first);
+            frames.process(&mut parser, &next[..split]);
+            assert_eq!(frames.sequence, 1);
+            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected old");
+            for byte in &next[split..] {
+                frames.process(&mut parser, &[*byte]);
+            }
+            assert_eq!(frames.sequence, 2);
+            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected new");
+        }
+    }
+
+    #[test]
+    fn later_partial_frame_in_same_read_does_not_replace_completed_frame() {
+        let mut parser = vt100::Parser::new(5, 40, 0);
+        let mut frames = CompletedFrames::default();
+        frames.process(
+            &mut parser,
+            b"\x1b[1;1Hcomplete\x1b]1337;BlueberryFrame\x07\x1b[1;1Hpartial!",
+        );
+        assert_eq!(frames.screen.as_ref().unwrap().contents(), "complete");
+        assert_eq!(parser.screen().contents(), "partial!");
+    }
 }
