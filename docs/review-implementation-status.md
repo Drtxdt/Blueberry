@@ -1,5 +1,7 @@
 # 16 项评审实施记录
 
+2026-10-20 最新完整 CI 39416003087 全部必需任务成功；同轮 180 对冷/暖实际 profile、36 项打包工作流及安装/恢复回执已核验。构建提交是 477e5af4a44f4cace4c99c17f8b64cb8154531af；profile 性能未达目标，不能标记可发布。交付校验器的固定分支手动 CI 与条件跳过任务规则经隔离定点 CI 39421329871 验证（110 项、9 项平台跳过），未触发另一轮完整终端测试。[完整包审计](benchmarks/v0.6/review-20261018/finalization/ci-ec-packaged-audit.json)、[定点校验](benchmarks/v0.6/review-20261018/finalization/validator-789651e-ci.json)。
+
 2026-10-20 打包验证审计：CI 39399839301 的原始记录确认三个编辑器组合各 12 项工作流在关闭追踪时通过，90 对真实自动 profile 样本及恢复记录完整；0/1/5 历史、公开 0.5.2 升级和两组物理存储故障回执已核验。该包构建自 PR 合并提交 20bcbb104e269f6af014e0013c082535c0472949，不能误标为分支头 4088419。其 profile 性能未达 50 ms，最终包、性能及人工门槛保持未完成。[审计](benchmarks/v0.6/review-20261018/finalization/ci408-packaged-audit.json)。
 
 2026-10-20 云端复验：ec70d59 的定点 CI [39414992059](https://github.com/Drtxdt/Blueberry/actions/runs/39414992059) 三组合全部通过。三个工件 SHA-256 和六份原始报告已在本机核验：冷缓存各两对均为 rebuild，暖缓存各两对均为 hit，暖缓存准备另计。这 12 对是 debug 功能验证，不用于正式性能或版本判定。[下载与报告审计](benchmarks/v0.6/review-20261018/finalization/cache-ec70d59-ci.json)。完整 CI 39416003087 正在执行；R2 新批次于 19:21（UTC+8）启动，仍在首个 before 矩阵中，尚无完整轮次结论。
