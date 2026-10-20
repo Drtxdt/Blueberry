@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      evidence_validation_only:
+        description: Run only formatting and Python evidence-validator checks
+        type: boolean
+        default: false
       startup_cache_only:
         description: Validate only isolated cold and warm startup observations
         type: boolean
@@ -92,7 +96,7 @@ jobs:
           BENCHMARK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Core / ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -167,7 +171,7 @@ jobs:
           path: target/store-evidence
           if-no-files-found: ignore
   powershell-51:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
     strategy:
@@ -300,7 +304,7 @@ jobs:
             ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   powershell-7:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
     strategy:
@@ -398,7 +402,7 @@ jobs:
             ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   native-mouse:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
     env:
@@ -457,7 +461,7 @@ jobs:
           path: target/input-protocol-evidence
           if-no-files-found: ignore
   package:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     # Exercise packaging faults while long interaction repetitions run.
     # Final evidence still requires every functional job and this job to pass.
     needs: [format, core]

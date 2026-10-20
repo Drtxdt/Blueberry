@@ -441,6 +441,12 @@ esac
             verify()
         self.evidence["ci"]["event"] = "push"
         data["jobs"] = data["jobs"][:-3]
+        complete_jobs = data["jobs"]
+        data["jobs"] = [{"name": "format", "conclusion": "success"}]
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            verify()
+        data["jobs"] = complete_jobs
         save()
         with self.assertRaisesRegex(ValueError, "cannot authorize a public release"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
