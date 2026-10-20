@@ -2625,22 +2625,36 @@ fn exercise_builtin_workflow_cases_untraced(
     snapshot: &std::path::Path,
     legacy: bool,
 ) -> Result<()> {
+    h.observe_completed_frames();
     for (name, values, expected) in workflow_cases::CASES {
         let expected = if legacy && expected.starts_with("git worktree add") {
             expected.replace("'../work tree'", "'\"../work tree\"'")
         } else {
             (*expected).to_owned()
         };
+        let mut previous = h.completed_frame().map_or(0, |(sequence, _)| sequence);
         h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
-        h.wait_text("工作台", TIMEOUT)?;
         // Search text is not echoed in the hub. A matching row can therefore
         // belong to an earlier search revision. With tracing disabled, select
         // through observable native navigation instead of guessing readiness
         // from that unchanged row or adding a fixed delay.
         let deadline = std::time::Instant::now() + TIMEOUT;
         loop {
-            let selected = h
-                .viewport_contents()
+            let (sequence, screen) = loop {
+                if let Some((sequence, screen)) = h.completed_frame()
+                    && sequence > previous
+                    && screen.contains("工作台")
+                {
+                    break (sequence, screen);
+                }
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "untraced workflow frame missing: {name}"
+                );
+                let _ = h.pump(Duration::from_millis(5));
+            };
+            previous = sequence;
+            let selected = screen
                 .lines()
                 .find(|row| row.contains('›'))
                 .unwrap_or_default()
@@ -2653,12 +2667,6 @@ fn exercise_builtin_workflow_cases_untraced(
                 "untraced workflow not found: {name}"
             );
             h.send(b"\x1b[B")?;
-            wait_workflow_screen(h, "untraced workflow navigation", |screen| {
-                screen
-                    .lines()
-                    .find(|row| row.contains('›'))
-                    .is_some_and(|row| row != selected)
-            })?;
         }
         h.send(b"\r")?;
         for (index, value) in values.iter().enumerate() {

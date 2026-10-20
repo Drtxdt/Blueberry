@@ -1,0 +1,60 @@
+{
+  "source_commit": "adf8cddcec22ef1afeb293c4b31703501de904c3",
+  "run_id": 39375377019,
+  "result": "failure",
+  "jobs": [
+    {
+      "log": "artifacts\\stability-adf8cdd-ps51-200.log",
+      "sha256": "6d53d5e10d5e585a6d15623e6913da638c9a3e4865bbc3201795d9d20d1086cc",
+      "passed_test_count": 12,
+      "failed_test": "builtin_workflows_fill_native_editor_without_executing",
+      "failure": "trace-off untraced form field timeout; hub remains at first scrolled page",
+      "artifact_id": "12243278083"
+    },
+    {
+      "log": "artifacts\\stability-adf8cdd-118472230242.log",
+      "sha256": "cd4204cbf8e5df545c845e856bcdf0f5505d6d1ecc4ab23b93dc89b5db6b02a9",
+      "passed_test_count": 12,
+      "failed_test": "builtin_workflows_fill_native_editor_without_executing",
+      "failure": "trace-off untraced form field timeout; hub remains at first scrolled page",
+      "artifact_id": "12243720767"
+    },
+    {
+      "log": "artifacts\\stability-adf8cdd-118472230297.log",
+      "sha256": "7ce45c1edfa0db405c65b9777aa213e7d6b2ef0653ed1fc7e704513dfda66d0e",
+      "passed_test_count": 12,
+      "failed_test": "builtin_workflows_fill_native_editor_without_executing",
+      "failure": "trace-off untraced form field timeout; hub remains at first scrolled page",
+      "artifact_id": "12243352960"
+    }
+  ],
+  "verified_failure_archive": {
+    "path": "artifacts/stability-adf8cdd-ps51-200.zip",
+    "sha256": "dfcd0d916abf63b3b370e33684c4fb2de2dfe6184dcc20f76feef3d7d84587e5"
+  },
+  "observations": [
+    "All three editors fail trace-off workflow at first hub scrolling boundary. Trace-on workflows and trace-off resize/bottom/Vi targets passed.",
+    "PS5.1/2.0.0 adapter disabled_reason is null; final hub selection is Git diff, 6/32.",
+    "Existing renderer frame-end OSC is present in raw output. Test used partial VT selected-row changes as readiness.",
+    "Fix under validation: opt-in observer snapshots only after existing complete-frame marker. No product rendering or timeout changes."
+  ],
+  "gate": "Do not run repeat CI or full CI until corrected single-pass targeted run passes.",
+  "observer_local_validation": {
+    "unit_replay_tests": 2,
+    "workflow_repetitions_per_editor": 30,
+    "editors": [
+      "PS5.1/2.0.0",
+      "PS5.1/2.4.5",
+      "PS7/2.4.5"
+    ],
+    "total_passed": 90,
+    "commands_per_repetition": 12,
+    "test_executable_sha256": "9BADAF3870A63958A98A51EAF8B8046F72FAF6D41305B2AB3D393368A9401DB3",
+    "saved_log": "artifacts/stability-complete-frame-workflows-local.log",
+    "saved_log_scope": "Last two editor groups; first group output recorded in execution tool result",
+    "saved_log_sha256": "b6cb5b329e59ad64b5530d014d08111f27f0a4ec1d59b4094ead453e935292f8",
+    "all_target_clippy": "passed",
+    "format": "passed",
+    "note": "Completed-frame evidence export added after the repetitions; runtime rendering unchanged."
+  }
+}

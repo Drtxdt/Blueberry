@@ -2,6 +2,8 @@
 
 2026-10-20 稳定性复验：冻结基线 `c0aa65e`，隔离分支 `codex/stability-diagnostics` 的 `ad34ce3` 已通过三组合单轮 CI `39252218595` 及 30 次重复 CI `39253381002`（450 次 Direct、180 次 Nested，共 630 次）。Direct 重复为追踪开启；诊断注入另行覆盖开关两种模式。当前补齐关闭追踪的实际交互，本机三组合共 15 项定点测试及六组 Nested 原生历史测试全部通过，未修改产品渲染、未延长超时。下一固定提交将复验追踪开关两种模式；PR #4 保持 Draft，完整 CI、性能与最终包仍待完成。证据：[重复 CI](benchmarks/v0.6/review-20261018/finalization/stability-ad34ce3-repeat30.json)、[本机复验](benchmarks/v0.6/review-20261018/finalization/stability-local-trace-off-native-history.json)。
 
+2026-10-20 追加复验：`adf8cdd` 单轮 CI `39375377019` 的三个编辑器均在关闭追踪的工作台首次滚动附近未打开表单，不能进入新一轮 CI 重复或最终冻结。开启追踪的工作流和关闭追踪的缩放、底部菜单、Vi 用例均通过。原始夹具校验后发现测试以分段 VT 中的选中行变化判断完整画面；现验证仅在功能测试中启用的完整帧观察器，复用已有输出结束标记，不修改渲染或延长超时。分段标记及同次读取含下一帧片段两项回放测试通过，云端修复复验仍待执行。[失败证据](benchmarks/v0.6/review-20261018/finalization/stability-adf8cdd-single-failure.json)。另六组 Nested 原生历史各 30 次、共 180 次通过；本机原始 ZIP 已封存，尚未上传 Actions，不代替 GUI 验收。[重复证据](benchmarks/v0.6/review-20261018/finalization/stability-native-history-adf8cdd-repeat30.json)。
+
 最新续作：公开 0.5.2 隔离升级链已通过；原生历史观察器与共享工作台正在完成最终矩阵。尚未冻结或形成有效版本判定，详见[实施记录](review-implementation-status.md#2026-10-18-最终化续作尚未冻结)。
 
 本轮续作：核心包与可选增强组件已分开构建，Direct 下方预留区域、持久系统命令缓存、Legacy 手动模式及 Git/Python/Rust 表单已进入回归。固定诊断包的同步安装和 300 秒异步维护回归通过。私有编辑器因读取实际参数模式已重建，旧摘要不能用于最终冻结。当前仍无完整三轮性能数据或最终 CI 候选；详见[实施记录](review-implementation-status.md)。

@@ -64,12 +64,102 @@ pub struct Harness {
     known_empty_buffer: bool,
     last_capabilities: Option<Value>,
     cursor_replies: VecDeque<Value>,
+    completed_frames: Option<CompletedFrames>,
+}
+
+/// Opt-in functional-test observer. Normal timing probes do not scan or clone
+/// frames. The marker already terminates ordinary Direct renderer output.
+#[derive(Default)]
+struct CompletedFrames {
+    prefix: usize,
+    sequence: u64,
+    screen: Option<vt100::Screen>,
+}
+
+impl CompletedFrames {
+    fn process(&mut self, parser: &mut vt100::Parser, data: &[u8]) {
+        const END: &[u8] = b"\x1b]1337;BlueberryFrame\x07";
+        let mut start = 0;
+        for (index, byte) in data.iter().enumerate() {
+            if *byte == END[self.prefix] {
+                self.prefix += 1;
+            } else {
+                self.prefix = usize::from(*byte == END[0]);
+            }
+            if self.prefix == END.len() {
+                parser.process(&data[start..=index]);
+                start = index + 1;
+                self.screen = Some(parser.screen().clone());
+                self.sequence += 1;
+                self.prefix = 0;
+            }
+        }
+        parser.process(&data[start..]);
+    }
+}
+
+#[cfg(test)]
+mod completed_frame_tests {
+    use super::CompletedFrames;
+
+    #[test]
+    fn split_output_never_publishes_a_partially_scrolled_menu() {
+        let first = b"\x1b[1;1Hselected old\x1b]1337;BlueberryFrame\x07";
+        let next = b"\x1b[1;1Hselected new\x1b]1337;BlueberryFrame\x07";
+        for split in 0..next.len() {
+            let mut parser = vt100::Parser::new(5, 40, 0);
+            let mut frames = CompletedFrames::default();
+            frames.process(&mut parser, first);
+            frames.process(&mut parser, &next[..split]);
+            assert_eq!(frames.sequence, 1);
+            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected old");
+            for byte in &next[split..] {
+                frames.process(&mut parser, &[*byte]);
+            }
+            assert_eq!(frames.sequence, 2);
+            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected new");
+        }
+    }
+
+    #[test]
+    fn later_partial_frame_in_same_read_does_not_replace_completed_frame() {
+        let mut parser = vt100::Parser::new(5, 40, 0);
+        let mut frames = CompletedFrames::default();
+        frames.process(
+            &mut parser,
+            b"\x1b[1;1Hcomplete\x1b]1337;BlueberryFrame\x07\x1b[1;1Hpartial!",
+        );
+        assert_eq!(frames.screen.as_ref().unwrap().contents(), "complete");
+        assert_eq!(parser.screen().contents(), "partial!");
+    }
 }
 
 impl Harness {
+    pub fn observe_completed_frames(&mut self) {
+        self.completed_frames = Some(CompletedFrames::default());
+    }
+
+    pub fn completed_frame(&self) -> Option<(u64, String)> {
+        let frames = self.completed_frames.as_ref()?;
+        let screen = frames.screen.as_ref()?;
+        Some((
+            frames.sequence,
+            screen
+                .rows(0, screen.size().1)
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ))
+    }
+
     /// Preserve synthetic fixture state on success or failure, outside timing.
     pub fn save_evidence(&self, directory: &Path) -> Result<()> {
         std::fs::write(directory.join("probe-screen.txt"), self.viewport_contents())?;
+        if let Some((sequence, screen)) = self.completed_frame() {
+            std::fs::write(
+                directory.join("probe-completed-frame.json"),
+                serde_json::to_vec_pretty(&json!({"sequence":sequence,"screen":screen}))?,
+            )?;
+        }
         std::fs::write(directory.join("probe-output-tail.bin"), &self.trace)?;
         std::fs::write(
             directory.join("probe-pending-events.json"),
@@ -176,6 +266,7 @@ impl Harness {
             known_empty_buffer: false,
             last_capabilities: None,
             cursor_replies: VecDeque::new(),
+            completed_frames: None,
             last_output_arrival: None,
             last_output_qpc: None,
             diagnostic,
@@ -230,7 +321,11 @@ impl Harness {
                     if self.trace.len() > 4096 {
                         self.trace.drain(..self.trace.len() - 4096);
                     }
-                    self.screen.process(&data);
+                    if let Some(frames) = &mut self.completed_frames {
+                        frames.process(&mut self.screen, &data);
+                    } else {
+                        self.screen.process(&data);
+                    }
                 }
                 Part::Message(value) => {
                     self.protocol_seen = true;
