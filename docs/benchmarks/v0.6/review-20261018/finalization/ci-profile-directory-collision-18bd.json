@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "run": 40101569172,
+  "job": 120895915241,
+  "source_head": "18bd1f2591d196cf1f77762b032ef55cf394fb13",
+  "log": "artifacts\\stability-job-120895915241.log",
+  "sha256": "7255b342a73fa29c1e09966885456e6e0dadd51fe061226c77d21a022456b57f",
+  "failure": "Fixed profile evidence directory already existed before sampling; upload found no files",
+  "origin_of_existing_directory": "Not established; Rust cache was restored earlier in the job",
+  "change": "Use runner.temp plus run_id, run_attempt and editor identity for profile output and matching upload paths",
+  "no_overwrite_guard_retained": true,
+  "product_code_changed": false,
+  "validation": "Pending next CI; no local timing interference"
+}

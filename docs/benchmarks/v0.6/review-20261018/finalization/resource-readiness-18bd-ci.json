@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "run": 40101569172,
+  "job": 120894633378,
+  "source_head": "18bd1f2591d196cf1f77762b032ef55cf394fb13",
+  "log": "artifacts\\stability-job-120894633378.log",
+  "sha256": "9c3f652c3f592b58f2d94700df894d597aa37bfe7ecd383963285d73e2bcb511",
+  "tests_passed": 6,
+  "elapsed_seconds": 48.153,
+  "includes": [
+    "PS5.1 and PS7 readiness states",
+    "Short initialization child exit",
+    "Stable PID list with still-initializing child",
+    "Resource statistics integrity"
+  ],
+  "full_ci_complete": false
+}
