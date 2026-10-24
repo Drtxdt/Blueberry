@@ -36,6 +36,11 @@ fn current_editor_region(screen: &str) -> Option<&str> {
     }
 }
 
+fn has_current_menu(screen: &str, marker: &str, width: usize) -> bool {
+    current_editor_region(screen)
+        .is_some_and(|current| current.contains(marker) && has_border_width(current, width))
+}
+
 #[test]
 fn active_menu_observation_excludes_history_but_keeps_current_candidates() {
     let screen = "PS old> gi\n│› ≈ gi 命令别名│\nPS new> git\n╭────╮\n│› ⌘ git │\n╰────╯";
@@ -55,6 +60,20 @@ fn active_menu_observation_excludes_history_but_keeps_current_candidates() {
     assert!(
         assert_no_old_menu_above_prompt(&serde_json::json!({"screen":"no active prompt"})).is_err()
     );
+    // A resized menu can arrive before PSReadLine finishes repainting its
+    // prompt. Its border alone is not a completed native frame.
+    let menu_without_prompt = "╭────╮\n│⌘ git │\n╰────╯";
+    assert!(!has_current_menu(menu_without_prompt, "⌘ git ", 6));
+    assert!(has_current_menu(
+        &format!("PS new> gi\n{menu_without_prompt}"),
+        "⌘ git ",
+        6
+    ));
+    assert!(!has_current_menu(
+        &format!("{menu_without_prompt}\nPS new> gi"),
+        "⌘ git ",
+        6
+    ));
 }
 
 #[test]
@@ -731,36 +750,13 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         &mut host.harness,
         "menu after 24x80 resize",
         Duration::from_secs(5),
-        |contents| {
-            current_editor_region(contents)
-                .is_some_and(|current| current.contains("git") && has_border_width(current, 79))
-        },
+        |contents| has_current_menu(contents, "⌘ git ", 79),
     )?;
     // The column outside the 79-cell overlay can legitimately retain shell
     // text. Check the border itself and independently verify the native screen.
-    let snapshot_path = host._data_dir.path().join("resize-24-80.json");
-    let resize_deadline = Instant::now() + Duration::from_secs(5);
-    let actual: serde_json::Value = loop {
-        console_snapshot::capture(&mut host.harness, &snapshot_path)?;
-        let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
-        if actual["width"] == 80
-            && actual["height"] == 24
-            && has_border_width(actual["screen"].as_str().unwrap_or_default(), 79)
-        {
-            break actual;
-        }
-        ensure!(
-            Instant::now() < resize_deadline,
-            "Native narrow menu did not finish repainting: {actual}"
-        );
-        let _ = host.harness.pump(Duration::from_millis(20));
-    };
-    ensure!(
-        actual["width"] == 80
-            && actual["height"] == 24
-            && has_border_width(actual["screen"].as_str().unwrap_or_default(), 79),
-        "Native narrow menu size mismatch: {actual}"
-    );
+    let actual = wait_native_screen(&mut host, "resize-24-80.json", (24, 80), |contents| {
+        has_current_menu(contents, "⌘ git ", 79)
+    })?;
     assert_no_old_menu_above_prompt(&actual)?;
     let narrow_contents = host.harness.contents();
     ensure!(
