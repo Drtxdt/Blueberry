@@ -1,3 +1,5 @@
+> 2026-10-25 收尾更新：用户要求节省限额，已安全停止。最新 CI 有两项未定位交互失败，新串行预检因缓存重写失败；最终验收未完成。详见 [安全收尾记录](benchmarks/v0.6/review-20261018/finalization/safe-stop-20261025.md)。
+
 # 16 项评审实施记录
 
 2026-10-25：维护测试的新 CI 失败已通过受控写入竞态确定复现，修复后的 PS7／PS5.1 定点回归与同一封存包的隔离维护生命周期通过，未改产品逻辑或延长 300 秒期限。R2 追踪开／关共 144 对诊断均通过，原初始化失败原因仍未确定；单控制器的新 R2→R3 正式序列已准备，未拼接旧样本。[维护验证](benchmarks/v0.6/review-20261018/finalization/maintenance-ready-publication-20261025.json)、[诊断审计](benchmarks/v0.6/review-20261018/finalization/r2-readiness-bounded-diagnostics-20261025.json)。
