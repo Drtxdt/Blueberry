@@ -517,6 +517,12 @@ jobs:
           path: target/allocation-diagnostic/release/blueberry.exe
           if-no-files-found: error
 
+      - name: Maintenance readiness publication regression
+        shell: pwsh
+        run: |
+          ./tests/maintenance-ready-publication.tests.ps1 -OutputDirectory 'target/maintenance-ready-proof-${{ github.run_id }}-${{ github.run_attempt }}/ps7'
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/maintenance-ready-publication.tests.ps1 -OutputDirectory 'target/maintenance-ready-proof-${{ github.run_id }}-${{ github.run_attempt }}/ps51'
+          if ($LASTEXITCODE -ne 0) { throw '5.1 readiness publication regression failed' }
       - name: Package and validate installation
         shell: pwsh
         env:
@@ -702,6 +708,7 @@ jobs:
             target/public-upgrade.log
             target/public-upgrade-*/receipt.json
             target/public-upgrade-*/original-install.json
+            target/maintenance-ready-proof-${{ github.run_id }}-${{ github.run_attempt }}/**/receipt.json
             target/terminal-migration-*/components/terminal/component-state.json
             target/storage-failures-*/**/*.json
             target/storage-failures-*/**/*.log

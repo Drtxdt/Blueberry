@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "formal_timing_eligible": false,
+  "source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+  "observations": [
+    {
+      "root": "C:\\Windows\\Temp\\bb-r2-process-diagnostic-20261024",
+      "trace": "enabled_diagnostic",
+      "cache_pairs": 72,
+      "report_sha256": "4CC99F9ACF2A6DD9195EECA48EEA22D8231DF3C730B64D5CCAD687E863838573",
+      "diagnostic_sha256": "377D8471891EA7FC5F6A53D287798F35FF050AFC67FDDE950EE09E20D59D3CBF",
+      "process_snapshots_sha256": "74CFB33232406C6E5C153800AED9D866D7E76236B6E6D577E1313EC8CF238844",
+      "passed": true
+    },
+    {
+      "root": "C:\\Windows\\Temp\\bb-r2-process-traceoff-20261024",
+      "trace": "disabled",
+      "cache_pairs": 72,
+      "report_sha256": "F40BA8D0F40B3E3A45E1BFC125E23D08FC1A474C38845D0F1F2B5D78278E4015",
+      "diagnostic_sha256": "26D1A878BF06B9475ACB0F238FBD221F597C735FCC2583071371C98BF7F277D2",
+      "process_snapshots_sha256": "246508484B38FDE642FEB6360925FDBE13B5C39EC7356911D6D75E21108070F0",
+      "passed": true
+    }
+  ],
+  "process_observation": "One-second owned-tree snapshots, not a complete transient lifecycle",
+  "failure_reproduced": false,
+  "cause": "unresolved",
+  "next_step": "Fresh complete R2/R3 serial sequence; retain failure, no partial reuse and unchanged setup deadline"
+}

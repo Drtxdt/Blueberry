@@ -1,5 +1,7 @@
 # 16 项评审实施记录
 
+2026-10-25：维护测试的新 CI 失败已通过受控写入竞态确定复现，修复后的 PS7／PS5.1 定点回归与同一封存包的隔离维护生命周期通过，未改产品逻辑或延长 300 秒期限。R2 追踪开／关共 144 对诊断均通过，原初始化失败原因仍未确定；单控制器的新 R2→R3 正式序列已准备，未拼接旧样本。[维护验证](benchmarks/v0.6/review-20261018/finalization/maintenance-ready-publication-20261025.json)、[诊断审计](benchmarks/v0.6/review-20261018/finalization/r2-readiness-bounded-diagnostics-20261025.json)。
+
 2026-10-24 23:17 后：R1 资源的 60 个独立会话已核验；R2 f 批次在旧基线 JavaScript 场景初始化失败，R3 未启动，当前仅做有界追踪诊断。`aa78a48` 九项功能任务和 native CI 通过，打包末尾的公开 0.5.2 下载目录重名正在修正，完整 CI、三轮性能与最终验收仍未完成。后文运行中记录按时间视为历史状态。[R2 证据](benchmarks/v0.6/review-20261018/finalization/r2-readiness-failure-20261024f.json)、[CI 证据](benchmarks/v0.6/review-20261018/finalization/ci-public-baseline-directory-aa78.json)。
 
 2026-10-24 22:12（UTC+8）最新完整 CI 40097143597 的十项必需任务及伴随 native CI 40097143545 均通过。同轮核心／增强包分别核验 28／84 项文件，实际构建提交 `8b97ebbc02d4b4908b060a939f418e1ac9d2507c`；本机隔离核心安装、公开 0.5.2 升级／回滚／再升级和组件卸载重装通过，用户 PATH 与配置未变。原始工件另核验 180 对冷／暖真实 profile、36 项工作流、0/1/5 历史及两组 NTFS 故障恢复；profile 增量 P50 为 289–411 ms，未达 50 ms。[包与安装证据](benchmarks/v0.6/review-20261018/finalization/ci-83963b1-package-evidence-audit.json)、[本机隔离验收](benchmarks/v0.6/review-20261018/finalization/83963b1-isolated-acceptance-20261024.json)。

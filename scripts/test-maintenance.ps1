@@ -97,6 +97,14 @@ using System.Runtime.InteropServices;
 class Hold {
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern IntPtr CreateJobObject(IntPtr attributes,string name);
     [DllImport("kernel32.dll")] static extern bool AssignProcessToJobObject(IntPtr job,IntPtr process);
+    static void PublishReady(string value) {
+        string path=Environment.GetEnvironmentVariable("BB_TEST_READY");
+        string temporary=path+".tmp";
+        File.WriteAllText(temporary,value);
+        // File existence is the reader's readiness signal. Publish only after
+        // closing the writer, so the reader cannot see a locked/partial file.
+        File.Move(temporary,path);
+    }
     static int Main() {
         string exe=Environment.GetEnvironmentVariable("BB_TEST_EXE");
         string operation=Environment.GetEnvironmentVariable("BB_TEST_OPERATION");
@@ -107,7 +115,7 @@ class Hold {
             if(job==IntPtr.Zero || !AssignProcessToJobObject(job,Process.GetCurrentProcess().Handle))return 90;
         }
         if(operation=="hold") {
-            File.WriteAllText(Environment.GetEnvironmentVariable("BB_TEST_READY"),"0\n");
+            PublishReady("0\n");
             using(var wait=new EventWaitHandle(false,EventResetMode.ManualReset,Environment.GetEnvironmentVariable("BB_TEST_EVENT"))) {wait.WaitOne();}
             return 0;
         }
@@ -117,7 +125,7 @@ class Hold {
             string output=process.StandardOutput.ReadToEnd()+process.StandardError.ReadToEnd();
             process.WaitForExit();
             int result=blocked ? (process.ExitCode==0 ? 91 : 0) : process.ExitCode;
-            File.WriteAllText(Environment.GetEnvironmentVariable("BB_TEST_READY"),result+"\nCLI_EXIT="+process.ExitCode+"\n"+output);
+            PublishReady(result+"\nCLI_EXIT="+process.ExitCode+"\n"+output);
             if(result!=0)return result;
         }
         using(var done=new EventWaitHandle(false,EventResetMode.ManualReset,Environment.GetEnvironmentVariable("BB_TEST_EVENT"))) {done.WaitOne();}
@@ -148,7 +156,8 @@ function Start-QueuedSession([string]$Operation,[bool]$Blocked=$false) {
         if($process.HasExited -or [DateTime]::UtcNow -ge $deadline) { $null=$event.Set(); throw ('Session failed: '+$process.StandardError.ReadToEnd()) }
         Start-Sleep -Milliseconds 100
     }
-    if(-not ([IO.File]::ReadAllText($ready)).StartsWith("0`n")) { $null=$event.Set(); throw ([IO.File]::ReadAllText($ready)) }
+    $readyText=[IO.File]::ReadAllText($ready)
+    if(-not $readyText.StartsWith("0`n")) { $null=$event.Set(); throw $readyText }
     return @{process=$process;event=$event}
 }
 function End-Session($Session) {
