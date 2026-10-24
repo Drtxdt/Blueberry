@@ -146,13 +146,24 @@ try {
             $target=Join-Path $root "versions/$id"
             [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
             if ([IO.Directory]::Exists($target)) {
-                # A previous process may have stopped after publishing the
-                # immutable version but before switching the state pointer.
-                foreach ($record in $manifest.files) {
+                # Uninstall deliberately retains settings and their parent
+                # directories. A stopped reinstall may also leave only part
+                # of the validated payload. Check all survivors before filling
+                # missing files; never replace changed files or user settings.
+                $publicationFiles=@($manifest.files)+@(@{path='component.json';sha256=(Get-Sha256 (Join-Path $stage 'component.json'))})
+                foreach ($record in $publicationFiles) {
                     $existing=Get-ManagedPath -Root $target -RelativePath $record.path
-                    if ((Get-Sha256 $existing) -ine $record.sha256) { throw 'Interrupted Terminal version has changed files' }
+                    if ([IO.File]::Exists($existing) -and (Get-Sha256 $existing) -ine $record.sha256) { throw 'Interrupted Terminal version has changed files' }
+                    if ([IO.Directory]::Exists($existing)) { throw 'Terminal payload file is a directory' }
                 }
-                if ((Get-Sha256 (Join-Path $target 'component.json')) -ine (Get-Sha256 (Join-Path $stage 'component.json'))) { throw 'Interrupted Terminal manifest mismatch' }
+                foreach ($record in $publicationFiles) {
+                    $existing=Get-ManagedPath -Root $target -RelativePath $record.path
+                    if (-not [IO.File]::Exists($existing)) {
+                        [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($existing)) | Out-Null
+                        $staged=Get-ManagedPath -Root $stage -RelativePath $record.path
+                        [IO.File]::Move($staged,$existing)
+                    }
+                }
                 if ([IO.Path]::GetDirectoryName($stage) -cne $root) { throw 'Invalid stage cleanup boundary' }
                 Remove-Item -LiteralPath $stage -Recurse -Force
             } else { [IO.Directory]::Move($stage,$target) }

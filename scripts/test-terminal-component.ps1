@@ -68,6 +68,8 @@ Check ((Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash -ceq $state
 Check ([IO.File]::Exists((Join-Path $root "components/terminal/versions/$second/WindowsTerminal.exe"))) 'Uninstall removed runtime before inactive state was durable'
 # A blocked deletion leaves a retryable inactive state and retains settings.
 $locked=Join-Path $root "components/terminal/versions/$second/WindowsTerminal.exe"
+$portable=Join-Path $root "components/terminal/versions/$second/.portable"
+$portableBytes=[IO.File]::ReadAllBytes($portable)
 $handle=[IO.File]::Open($locked,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
 $failed=$false
 try { Run-Component Uninstall } catch { $failed=$true } finally { $handle.Dispose() }
@@ -76,4 +78,23 @@ Run-Component Uninstall
 Check (-not (State).installed) 'Uninstall remained active'
 Check ([IO.File]::Exists($settings) -and [IO.File]::Exists($secondSettings)) 'Uninstall deleted user settings'
 Check ([IO.File]::ReadAllText((Join-Path $root 'core-user-file.txt')) -ceq 'untouched') 'Component modified core user files'
+# A partial publication must be repairable, but a conflicting survivor must
+# be rejected before adding missing payload files or changing active state.
+[IO.File]::WriteAllBytes($portable,$portableBytes)
+[IO.File]::WriteAllText($locked,'damaged fixture')
+$inactiveHash=(Get-FileHash -LiteralPath $statePath).Hash
+$failed=$false
+try { Run-Component Install $PackageTwo } catch { $failed=$_.Exception.Message -like '*changed files*' }
+Check $failed 'Reinstall accepted a changed payload survivor'
+Check ((Get-FileHash -LiteralPath $statePath).Hash -ceq $inactiveHash) 'Rejected reinstall changed component state'
+Check (-not [IO.File]::Exists((Join-Path (Split-Path -Parent $locked) 'component.json'))) 'Rejected reinstall published missing files'
+Remove-Item -LiteralPath $locked -Force
+Run-Component Install $PackageTwo
+Check ((State).installed -and (State).current -eq $second) 'Reinstall did not restore the same component'
+Check ([IO.File]::ReadAllText($secondSettings) -ceq '{"font":"Latest preference"}') 'Reinstall changed retained settings'
+foreach ($record in (State).versions.$second.files) {
+    $restored=Join-Path $root "components/terminal/versions/$second/$($record.path)"
+    Check ((Get-FileHash -LiteralPath $restored).Hash -ieq $record.sha256) 'Reinstall did not restore a managed file'
+}
+Run-Component Uninstall
 Write-Output "Terminal component lifecycle passed; retained evidence: $root"

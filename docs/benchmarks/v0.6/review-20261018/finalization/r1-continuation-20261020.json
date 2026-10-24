@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "status": "waiting_for_r2",
+  "measurement_complete": false,
+  "plan": {
+    "path": "E:\\OpenSource\\shellsense-rs\\artifacts\\r1-continuation-20261020\\plan.json",
+    "sha256": "EF170697CE3963C15FD47CEC980C382B32A95AEEC5D2E71249C8159252CA5821",
+    "dependencies": 52
+  },
+  "coordinator": {
+    "pid": 22644,
+    "created": 134369743032359505
+  },
+  "started_at_utc": "2026-10-20T12:51:43.227376+00:00",
+  "predecessor": {
+    "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r2-breakaway-20261020\\batch\\batch.json",
+    "plan": "E:\\OpenSource\\shellsense-rs\\artifacts\\r2-breakaway-20261020\\plan.json",
+    "plan_sha256": "4B1A18ECE72E574C615E5C287961607A7DA30FFD528236F07CC8C43CC6C12638",
+    "owner": {
+      "pid": 24076,
+      "created": 134369689084735248
+    },
+    "tasks": 16
+  },
+  "next_stage": {
+    "compatibility_preflight_pairs": 6,
+    "formal_startup_tasks": 12,
+    "pairs_per_task": 30,
+    "order": "before/after, after/before; three editors",
+    "probe_build_commit": "477e5af4a44f4cace4c99c17f8b64cb8154531af"
+  },
+  "verified_now": [
+    "Python syntax parsed",
+    "All 52 frozen dependencies hashed before launch",
+    "Live predecessor identity and waiting state observed",
+    "Launch call returned while controller remained active"
+  ],
+  "unverified": [
+    "Continuation beyond predecessor completion",
+    "New probe compatibility with both historical products",
+    "R1 formal completion and comparison results"
+  ],
+  "failure_policy": "Preserve evidence and stop; never rewrite or resume the predecessor, never overlap samplers."
+}
