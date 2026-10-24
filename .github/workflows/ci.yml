@@ -367,9 +367,11 @@ jobs:
       - name: Automatic isolated profile entry
         if: matrix.transport == 'pipe'
         shell: pwsh
+        env:
+          BLUEBERRY_ISOLATED_PROFILE_HOME: ${{ runner.temp }}/blueberry-profile-shell-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.transport }}
         run: |
-          ./scripts/prepare-profile-entry.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -Executable target/debug/blueberry.exe -Destination target/profile-entry-shell
-          ./target/debug/blueberry.exe product-probe --shell (Resolve-Path target/profile-entry-shell/pwsh.exe).Path --profile-entry --iterations 2 --output target/profile-entry-diagnostic.json
+          ./scripts/prepare-profile-entry.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -Executable target/debug/blueberry.exe -Destination $env:BLUEBERRY_ISOLATED_PROFILE_HOME
+          ./target/debug/blueberry.exe product-probe --shell (Join-Path $env:BLUEBERRY_ISOLATED_PROFILE_HOME 'pwsh.exe') --profile-entry --iterations 2 --output target/profile-entry-diagnostic.json
           if ($LASTEXITCODE -ne 0) { throw 'Automatic profile entry failed' }
       - name: Repeat native history search exit bursts
         shell: pwsh
@@ -392,8 +394,8 @@ jobs:
           name: nested-terminal-ps7-${{ matrix.transport }}
           path: |
             target/profile-entry-diagnostic.json
-            target/profile-entry-shell/blueberry-profile-probe.json
-            target/profile-entry-shell/Microsoft.PowerShell_profile.ps1
+            ${{ runner.temp }}/blueberry-profile-shell-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.transport }}/blueberry-profile-probe.json
+            ${{ runner.temp }}/blueberry-profile-shell-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.transport }}/Microsoft.PowerShell_profile.ps1
             target/overlay-resize-evidence
             target/nested-terminal-evidence
             target/startup-terminal-evidence
@@ -657,17 +659,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw '5.1 physical storage failure tests failed' }
       - name: Upgrade the original public 0.5.2 installation
         shell: pwsh
+        env:
+          BLUEBERRY_PUBLIC_BASELINE_DIRECTORY: ${{ runner.temp }}/blueberry-public-baseline-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
-          New-Item -ItemType Directory ./target/public-v0.5.2 | Out-Null
+          New-Item -ItemType Directory $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY | Out-Null
           $base = 'https://github.com/Drtxdt/Blueberry/releases/download/v0.5.2/'
           foreach ($name in @('install.ps1','blueberry-v0.5.2-windows-x64.zip','blueberry-v0.5.2-windows-x64.zip.sha256')) {
-            Invoke-WebRequest ($base + $name) -OutFile (Join-Path ./target/public-v0.5.2 $name)
+            Invoke-WebRequest ($base + $name) -OutFile (Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY $name)
           }
-          $previous = './target/public-v0.5.2/blueberry-v0.5.2-windows-x64.zip'
+          $previous = Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY 'blueberry-v0.5.2-windows-x64.zip'
+          $previousInstaller = Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY 'install.ps1'
           if ((Get-FileHash $previous).Hash -ine '921E22454E89106E553479D58804ACFAB88D23238D9CD3956C920C625972267D') { throw 'Public baseline identity changed' }
-          if ((Get-FileHash ./target/public-v0.5.2/install.ps1).Hash -ine '314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C') { throw 'Public installer identity changed' }
+          if ((Get-FileHash $previousInstaller).Hash -ine '314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C') { throw 'Public installer identity changed' }
           $core = (Get-ChildItem ./dist/ci/*.zip).FullName
-          ./scripts/test-public-upgrade.ps1 -PreviousInstaller ./target/public-v0.5.2/install.ps1 -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
+          ./scripts/test-public-upgrade.ps1 -PreviousInstaller $previousInstaller -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
           if (!$?) { Get-Content ./target/public-upgrade.log; throw 'Public baseline upgrade failed' }
       - name: Preserve optional Terminal component
         uses: actions/upload-artifact@v4

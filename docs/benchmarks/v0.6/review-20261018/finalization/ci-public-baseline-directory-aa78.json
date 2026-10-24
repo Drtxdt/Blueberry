@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "run_id": 40103465995,
+  "source_head": "aa78a480e0e985dd66e3d9de01999a9946e793d9",
+  "job_id": 120901586124,
+  "log": "artifacts\\stability-job-120901586124.log",
+  "log_sha256": "0D2A34EDBB5B228E1287873E7526239AFD4D2A22C51037330F0DE67B4383216F",
+  "failure": "New-Item rejected pre-existing target/public-v0.5.2 before downloads and upgrade test",
+  "passed_before_failure": [
+    "packaged interaction",
+    "180 actual automatic profile pairs and restoration upload",
+    "optional Terminal component",
+    "real NTFS disk-full and permissions"
+  ],
+  "fix": "Run/attempt-specific public baseline directory in runner.temp; also isolate remaining PS7 profile-copy directory",
+  "product_code_changed": false,
+  "retest": "pending"
+}
