@@ -49,3 +49,7 @@ strip = "debuginfo"
 [[bin]]
 name = "blueberry"
 path = "src/main.rs"
+
+[[example]]
+name = "menu_allocation_diagnostic"
+required-features = ["allocation-diagnostics"]

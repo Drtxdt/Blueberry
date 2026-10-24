@@ -1,5 +1,17 @@
 # 三轮性能优化与发版验收
 
+2026-10-24 第三轮已完成三组合独立分配诊断，随后移除菜单布局每次构造／复制整份配置的成本，改为借用配置并传入行数与边框限制。36 个诊断布局逐帧一致，每例 100 次渲染，每帧减少 29–30 次分配请求；七项菜单回归、默认全目标及独立诊断 Clippy 通过。该变更仍是待测候选，分配次数不替代两批延迟／资源 A/B，也未作保留判定。[实际宿主诊断](benchmarks/v0.6/review-20261018/finalization/r3-baseline-diagnostics-20261024.json)、[布局归因与逐帧对照](benchmarks/v0.6/review-20261018/finalization/r3-menu-layout-allocation-20261024.json)。
+
+2026-10-24 20:21（UTC+8）串行队列已停止：R2 首组 path 第 29 对的命中缓存被重建。前后 1,765 条命令完全一致，仅 C:\Windows 目录时间戳变化；旧夹具仅冻结 System32，现扩展根目录命令快照，三个针对性测试通过，不放宽命中断言。R1 资源及包等待控制器均因前置未完成而停止，后文“等待中”是历史状态。全部进程退出后，同轮 f8 原包已单独完成隔离核心安装、真实 0.5.2 升级／回滚／再升级和组件重装逐文件校验，设置、配置及用户 PATH 保留；GUI 和三轮性能仍未完成。[失败原因](benchmarks/v0.6/review-20261018/finalization/r2-windows-directory-churn-20261024.json)、[本机隔离验收](benchmarks/v0.6/review-20261018/finalization/f8-isolated-acceptance-20261024.json)。
+
+2026-10-24 当前完整 CI 40090066092 的 10 项必需任务全部通过；同轮核心／增强 ZIP 已封存，分别核验 28／84 个文件。安装证据绑定相同包摘要，覆盖 0/1/5 历史、真实 0.5.2 升级、PS7／PS5.1 组件生命周期、旧捆绑迁移及两组真实磁盘满／权限恢复。新本机隔离验收控制器已启动等待，冻结 124 个文件，只有 R2 及 R1 资源采样成功结束才运行；尚未执行这一转换，不计最终验收通过。[同轮包](benchmarks/v0.6/review-20261018/finalization/ci-f8-sealed-packages.json)、[安装审计](benchmarks/v0.6/review-20261018/finalization/ci-f8-installation-audit.json)、[后续队列](benchmarks/v0.6/review-20261018/finalization/package-continuation-20261024.json)。
+
+2026-10-24 新构建 ca0c6e3（PR 头 f8fc564）的真实自动 profile 冷／暖各 30 对已核验，共 180 对；冷样本全部 rebuild、暖样本全部 hit，准备阶段单列，profile 均恢复。增量 P50（冷／暖）：PS5.1／2.0.0 281.14／274.12 ms、PS5.1／2.4.5 280.38／279.93 ms、PS7／2.4.5 390.02／392.50 ms，均未达到 50 ms。观测是 ConPTY 接收时刻与计时后的进程树快照，未捕获所有瞬态启动进程或 GUI 像素；不能替代本机最终入口验收。[原始数组与摘要审计](benchmarks/v0.6/review-20261018/finalization/ci-f8-profile-audit.json)。
+
+2026-10-24 新候选 f8fc564 的打包交互原始工件已核验：三组合各 12 项关闭追踪工作流、独立 UI 均通过，三个 Direct 身份与包内 EXE 摘要一致。原生终端伴随 CI 两项成功，原始日志已保留并绑定摘要；完整打包任务与最终本机验收仍待完成，不表示可发布。[交互审计](benchmarks/v0.6/review-20261018/finalization/ci-f8-packaged-interaction-audit.json)、[原生日志审计](benchmarks/v0.6/review-20261018/finalization/native-f8-ci-log-audit-20261024.json)。
+
+2026-10-24 新启动 AB/BA 已完成 360 对并复核全部原始数组；优化后三组合两批增量 P50 均 ≤50 ms，但第二批 PS5.1／2.4.5 触发相对回退，部分 P95 也触发检查，尚未作优化保留或版本判定。R2 已顺序启动，R1 资源 AB/BA 控制器只等待前置 34 项完整结束后再运行 12×5 个独立 30 秒会话。首次新队列的 PS7 预检因独立启动未继承 PSModulePath 而拒绝旧基线；固定同条件模块路径后的单对诊断及六项预检均通过，失败队列保持原样。[启动原始数据审计](benchmarks/v0.6/review-20261018/finalization/r1-startup-ab-20261024.json)、[预检及新队列](benchmarks/v0.6/review-20261018/finalization/serial-preflight-20261024.json)、[资源串行控制器](benchmarks/v0.6/review-20261018/finalization/r1-resource-continuation-20261024.json)。
+
 2026-10-24 复核：旧 R2 与 R1 串行控制器均已退出，原回执未完成且未改写，不能计入正式轮次。核心和增强原包的 28／84 项文件摘要核验成功；隔离的真实 0.5.2 升级→回滚→再升级保留了组件状态和设置，但随后同包组件重装暴露保留目录被误认为完整版本的问题。源码已修复，并通过 PS7、PS5.1 的完整组件生命周期回归，包括部分发布恢复、损坏文件拒绝及设置保留。须重新构建验证，原包不再作为最终候选。[中断审计](benchmarks/v0.6/review-20261018/finalization/interrupted-batches-20261024.json)、[重装修复](benchmarks/v0.6/review-20261018/finalization/terminal-reinstall-20261024.json)。
 
 2026-10-20 20:51（UTC+8）已启动 R1 后续控制器，当前仅等待 R2。前置批次必须完整完成并退出、16 项回执与报告摘要均通过后，才会准备同轮 CI 的新探针，执行六个单对兼容性预检，再执行 12 项各 30 对的 R1 启动 AB/BA。任一步失败均保留证据并停止，不续写旧批次、不并行采样。计划摘要 EF170697CE3963C15FD47CEC980C382B32A95AEEC5D2E71249C8159252CA5821，52 项冻结依赖；已核实启动调用结束后的等待状态，后续转换尚未执行。[排队回执](benchmarks/v0.6/review-20261018/finalization/r1-continuation-20261020.json)。

@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "status": "waiting_only",
+  "measurement_complete": false,
+  "controller_owner": {
+    "pid": 5324,
+    "created": 134373164026725960
+  },
+  "controller_plan_sha256": "B4ECFA86840E8BCF42D1CF5B03029F58BDA9B1659C083C0C8019DB4B612A4690",
+  "resource_plan": "E:\\OpenSource\\shellsense-rs\\artifacts\\r1-resources-20261024\\plan.json",
+  "resource_plan_sha256": "4cbde0820603d93ad747f826556a6f00ca5644722494590b69a19384e3086e2f",
+  "tasks": 12,
+  "sessions_per_task": 5,
+  "seconds_per_session": 30,
+  "predecessor": {
+    "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\performance-serial-20261024b\\batch\\batch.json",
+    "owner": {
+      "pid": 24580,
+      "created": 134373152881982321
+    },
+    "plan_sha256": "CB4C91EE22D25DD3C78775D9D16969399F4A194BC7B40E2EA044B77AF3D7F0D3"
+  },
+  "no_overlapping_sampling": true
+}

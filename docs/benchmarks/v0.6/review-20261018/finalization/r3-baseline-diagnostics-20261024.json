@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "kind": "Round 3 baseline diagnosis only",
+  "receipt": "artifacts\\r3-baseline-20261024\\batch\\batch.json",
+  "receipt_sha256": "4c6395b0d82528f669e77849bf59cc29b0d185493b93886e0b6a4e8340a843aa",
+  "rows": [
+    {
+      "profile": "ps51-200",
+      "report": "C:\\Windows\\Temp\\bbr3-baseline-20261024\\ps51-200\\verified.json",
+      "sha256": "16538D88578AAAC6AA77A3DE5CB229F024803450A42D7DE6BCE6A0D984169C7F",
+      "trace_files": 3,
+      "scope": "Direct menu/frame allocation requests only; not retained heap, copied bytes, Nested suggestions or formal latency"
+    },
+    {
+      "profile": "ps51-245",
+      "report": "C:\\Windows\\Temp\\bbr3-baseline-20261024\\ps51-245\\verified.json",
+      "sha256": "EB510ECD7F4E54CF4DBEA225ABC602A36916FB0344F73C50FC689F498735DA80",
+      "trace_files": 3,
+      "scope": "Direct menu/frame allocation requests only; not retained heap, copied bytes, Nested suggestions or formal latency"
+    },
+    {
+      "profile": "ps7-245",
+      "report": "C:\\Windows\\Temp\\bbr3-baseline-20261024\\ps7-245\\verified.json",
+      "sha256": "34A630B4602C4715D80C31B9DAA9D2A2CB4D1B0B96D59EAD92248F72A19744A3",
+      "trace_files": 3,
+      "scope": "Direct menu/frame allocation requests only; not retained heap, copied bytes, Nested suggestions or formal latency"
+    }
+  ],
+  "measurement_complete": true,
+  "optimization_applied": false,
+  "formal_performance_eligible": false,
+  "prepared_wait_controller_started": false,
+  "execution": "Ran sequentially after confirmed exit of failed formal batches and completion of isolated package acceptance"
+}

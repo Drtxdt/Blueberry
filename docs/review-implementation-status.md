@@ -1,5 +1,11 @@
 # 16 项评审实施记录
 
+2026-10-24 第三轮已完成三组合独立分配诊断，随后移除菜单布局每次构造／复制整份配置的成本，改为借用配置并传入行数与边框限制。36 个诊断布局逐帧一致，每例 100 次渲染，每帧减少 29–30 次分配请求；七项菜单回归、默认全目标及独立诊断 Clippy 通过。该变更仍是待测候选，分配次数不替代两批延迟／资源 A/B，也未作保留判定。[实际宿主诊断](benchmarks/v0.6/review-20261018/finalization/r3-baseline-diagnostics-20261024.json)、[布局归因与逐帧对照](benchmarks/v0.6/review-20261018/finalization/r3-menu-layout-allocation-20261024.json)。
+
+2026-10-24 20:21（UTC+8）串行队列已停止：R2 首组 path 第 29 对的命中缓存被重建。前后 1,765 条命令完全一致，仅 C:\Windows 目录时间戳变化；旧夹具仅冻结 System32，现扩展根目录命令快照，三个针对性测试通过，不放宽命中断言。R1 资源及包等待控制器均因前置未完成而停止，后文“等待中”是历史状态。全部进程退出后，同轮 f8 原包已单独完成隔离核心安装、真实 0.5.2 升级／回滚／再升级和组件重装逐文件校验，设置、配置及用户 PATH 保留；GUI 和三轮性能仍未完成。[失败原因](benchmarks/v0.6/review-20261018/finalization/r2-windows-directory-churn-20261024.json)、[本机隔离验收](benchmarks/v0.6/review-20261018/finalization/f8-isolated-acceptance-20261024.json)。
+
+2026-10-24 当前完整 CI 40090066092 的 10 项必需任务全部通过；同轮核心／增强 ZIP 已封存，分别核验 28／84 个文件。安装证据绑定相同包摘要，覆盖 0/1/5 历史、真实 0.5.2 升级、PS7／PS5.1 组件生命周期、旧捆绑迁移及两组真实磁盘满／权限恢复。新本机隔离验收控制器已启动等待，冻结 124 个文件，只有 R2 及 R1 资源采样成功结束才运行；尚未执行这一转换，不计最终验收通过。[同轮包](benchmarks/v0.6/review-20261018/finalization/ci-f8-sealed-packages.json)、[安装审计](benchmarks/v0.6/review-20261018/finalization/ci-f8-installation-audit.json)、[后续队列](benchmarks/v0.6/review-20261018/finalization/package-continuation-20261024.json)。
+
 2026-10-20 最新完整 CI 39416003087 全部必需任务成功；同轮 180 对冷/暖实际 profile、36 项打包工作流及安装/恢复回执已核验。构建提交是 477e5af4a44f4cace4c99c17f8b64cb8154531af；profile 性能未达目标，不能标记可发布。交付校验器的固定分支手动 CI 与条件跳过任务规则经隔离定点 CI 39421329871 验证（110 项、9 项平台跳过），未触发另一轮完整终端测试。[完整包审计](benchmarks/v0.6/review-20261018/finalization/ci-ec-packaged-audit.json)、[定点校验](benchmarks/v0.6/review-20261018/finalization/validator-789651e-ci.json)。
 
 2026-10-20 打包验证审计：CI 39399839301 的原始记录确认三个编辑器组合各 12 项工作流在关闭追踪时通过，90 对真实自动 profile 样本及恢复记录完整；0/1/5 历史、公开 0.5.2 升级和两组物理存储故障回执已核验。该包构建自 PR 合并提交 20bcbb104e269f6af014e0013c082535c0472949，不能误标为分支头 4088419。其 profile 性能未达 50 ms，最终包、性能及人工门槛保持未完成。[审计](benchmarks/v0.6/review-20261018/finalization/ci408-packaged-audit.json)。

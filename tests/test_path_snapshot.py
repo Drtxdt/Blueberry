@@ -39,6 +39,28 @@ class SnapshotTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 SNAPSHOT.freeze(root, "", {".exe"}, lambda p: False)
 
+    def test_windows_root_churn_is_isolated_without_changing_command_set(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            windows = root / "Windows"
+            system = windows / "System32"
+            normal = root / "Git"
+            system.mkdir(parents=True)
+            normal.mkdir()
+            (windows / "regedit.exe").write_bytes(b"root command")
+            (system / "where.exe").write_bytes(b"system command")
+            original = [str(normal), str(windows) + os.sep, str(system)]
+            result = SNAPSHOT.freeze(root / "frozen", os.pathsep.join(original), {".exe"},
+                                     lambda p: SNAPSHOT.volatile_directory(p, windows))
+            paths = result["path"].split(os.pathsep)
+            self.assertEqual(paths[0], str(normal))
+            self.assertEqual([Path(p).name for p in paths[1:]], ["commands-1", "commands-2"])
+            self.assertEqual([row["original"] for row in result["mappings"]], original[1:])
+            (windows / "maintenance.log").write_text("unrelated directory change")
+            self.assertEqual([p.name for p in Path(paths[1]).iterdir()], ["regedit.exe"])
+            self.assertEqual((Path(paths[1]) / "regedit.exe").read_bytes(), b"root command")
+            self.assertEqual((Path(paths[2]) / "where.exe").read_bytes(), b"system command")
+
 
 if __name__ == "__main__":
     unittest.main()

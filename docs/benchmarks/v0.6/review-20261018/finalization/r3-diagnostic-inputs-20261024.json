@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "run_id": 40090066092,
+  "kind": "diagnostic inputs only; round 3 not started",
+  "artifacts": [
+    {
+      "artifact": {
+        "id": 12559350458,
+        "node_id": "MDg6QXJ0aWZhY3QxMjU1OTM1MDQ1OA==",
+        "name": "blueberry-allocation-diagnostic-windows-x64",
+        "size_in_bytes": 4008547,
+        "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559350458",
+        "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559350458/zip",
+        "expired": false,
+        "digest": "sha256:df9c9b2fead200a2454041de309f1d7fad8755f6d173658c62110a671f30cbe1",
+        "created_at": "2026-10-24T11:40:42Z",
+        "updated_at": "2026-10-24T11:40:42Z",
+        "expires_at": "2027-01-22T11:28:53Z",
+        "workflow_run": {
+          "id": 40090066092,
+          "repository_id": 1368459002,
+          "head_repository_id": 1368459002,
+          "head_branch": "codex/v053-reliability-performance",
+          "head_sha": "f8fc564d6a16161d8d746e4c0c38918fd9961e70"
+        }
+      },
+      "archive": "artifacts\\ci-f8-diagnostics-12559350458.zip",
+      "sha256": "df9c9b2fead200a2454041de309f1d7fad8755f6d173658c62110a671f30cbe1",
+      "extracted": false,
+      "executed": false
+    },
+    {
+      "artifact": {
+        "id": 12559245766,
+        "node_id": "MDg6QXJ0aWZhY3QxMjU1OTI0NTc2Ng==",
+        "name": "blueberry-benchmark-probes-windows-x64",
+        "size_in_bytes": 2503371,
+        "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559245766",
+        "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559245766/zip",
+        "expired": false,
+        "digest": "sha256:493bd45a8c6a70a1e4859d550ade418527ab0cb99342a0aa7acb467dbbec9b57",
+        "created_at": "2026-10-24T11:38:34Z",
+        "updated_at": "2026-10-24T11:38:34Z",
+        "expires_at": "2027-01-22T11:28:53Z",
+        "workflow_run": {
+          "id": 40090066092,
+          "repository_id": 1368459002,
+          "head_repository_id": 1368459002,
+          "head_branch": "codex/v053-reliability-performance",
+          "head_sha": "f8fc564d6a16161d8d746e4c0c38918fd9961e70"
+        }
+      },
+      "archive": "artifacts\\ci-f8-diagnostics-12559245766.zip",
+      "sha256": "493bd45a8c6a70a1e4859d550ade418527ab0cb99342a0aa7acb467dbbec9b57",
+      "extracted": false,
+      "executed": false
+    }
+  ]
+}

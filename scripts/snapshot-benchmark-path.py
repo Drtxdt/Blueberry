@@ -1,6 +1,6 @@
 """Freeze volatile command directories without shrinking the command workload.
 
-Copies actual command file bytes from System32 and temporary Codex arg0 shims.
+Copies actual command file bytes from Windows, System32 and temporary Codex arg0 shims.
 Other PATH directories retain their normal location (e.g. Git's relative DLLs).
 The local OS-file snapshot is a test dependency, not a Release attachment;
 publish inventories and checksums, not copied Windows executables.
@@ -62,14 +62,21 @@ def freeze(output, path_value, extensions, selected):
     return manifest
 
 
+def volatile_directory(path, system_root):
+    # Windows itself can gain non-command files while a session is running.
+    # Both directories participate in command-cache identity through mtime.
+    normalized = os.path.normcase(os.path.normpath(path))
+    system_paths = {os.path.normcase(os.path.normpath(str(p)))
+                    for p in (Path(system_root), Path(system_root) / "System32")}
+    return normalized in system_paths or "/.codex/tmp/arg0/" in path.replace("\\", "/").lower()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    system = os.path.normcase(str(Path(os.environ["SystemRoot"]) / "System32"))
     def selected(path):
-        normalized = os.path.normcase(path.rstrip("\\/"))
-        return normalized == system or "/.codex/tmp/arg0/" in path.replace("\\", "/").lower()
+        return volatile_directory(path, os.environ["SystemRoot"])
     extensions = {x.lower() for x in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if x}
     extensions = {x if x.startswith(".") else "." + x for x in extensions}
     result = freeze(args.output, os.environ["PATH"], extensions, selected)
