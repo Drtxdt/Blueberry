@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "source_commit": "7414f1ff8bddffa52398c9dd8caaf8d20c6ec315",
+  "run_id": 39222271557,
+  "job_id": 117973097909,
+  "artifact_id": 12176375020,
+  "archive_sha256": "4132ABFE22F47D2642E8F1570789F409482C5C2C05BEB0F59DF85623DA35A805",
+  "archive_sha256_verified": true,
+  "members": {
+    "storage-failures-aed6a258bdb84720987cb64a209ee116/core-disk-full.log": "4BE61723D986673FE350E2DE9B2F9CA61053F3A61DC7B544BFC1E94B5A61C2D0",
+    "storage-failures-aed6a258bdb84720987cb64a209ee116/core-recover-space.log": "7A94A754A745DDD6CF2A3B5500474F7CABE73ADE1130FAA7273C2046CA1DE9F5",
+    "storage-failures-aed6a258bdb84720987cb64a209ee116/results.json": "3D1E4FFA7241D2B5ABE51B7FFADADE1B648064BA315749D8FD88B360355C801B",
+    "storage-failures-aed6a258bdb84720987cb64a209ee116/terminal-disk-full.log": "0512C476E45FCDCB7986DE3C61B8A507F86E4D00E7699D16EE2C37BB2B7CDEBE"
+  },
+  "finding": "Target volume reported Win32 112; automatic core rollback and active-state checks passed. Explicit Recover invocation lacked required transaction directory and pre-failure manifest SHA. Test now supplies a retained journal and pinned identity; no product validation bypass.",
+  "status": "corrected_test_pending_ci"
+}

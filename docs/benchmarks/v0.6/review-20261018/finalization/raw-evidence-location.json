@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "status": "uploaded_and_download_verified",
+  "local_root": "artifacts\\finalization-raw-20261019",
+  "files": {
+    "direct-identity-three-combinations-20261019.zip": "E4677E790CE35ADF1BC10455F2FAA757C4690889A07B763225D24610E114A523",
+    "direct-three-combinations-20261019.zip": "38CFEA03EDDBC946D6E4123FBB329769EB0F032F52B9BF274332441BA68C268B",
+    "startup-lifecycles-20261019.zip": "FDE6DB940A3E92003BEBAA58EEFA9B6697FF29AFCAEB8A91E8D7065E33D56858"
+  },
+  "actions_run_id": 39394098975,
+  "actions_artifact_id": 12251427556,
+  "artifact_sha256": "5F4312CC25E3CCD1D7C8DD17083F7B9B0F0D751E2BAB21302DF9A3849264A14B",
+  "workflow_source_commit": "c0aa65e8ce1d4b063a5b6497d6c910daaf049635",
+  "delivery_record": "raw-stability-delivery-20261020.json"
+}

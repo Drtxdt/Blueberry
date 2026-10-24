@@ -591,6 +591,13 @@ try {
     Write-Host ''
     Write-Host "Installed: $exe"
     Write-Host 'Run: blueberry'
+    Write-Host 'Recommended Windows Terminal entry: blueberry terminal-profile --install'
+    Write-Host 'Choose a Shell with --shell; existing profile startup is kept until you disable it explicitly.'
+    $terminalEntry = Join-Path $InstallRoot 'blueberry-terminal.cmd'
+    if ([IO.File]::Exists($terminalEntry)) {
+        Write-Host 'Optional Terminal: blueberry terminal install --package <component.zip>'
+        Write-Host "After component installation, run: $terminalEntry"
+    }
     Write-Host 'Startup: blueberry startup enable | disable | status'
 }
 finally {

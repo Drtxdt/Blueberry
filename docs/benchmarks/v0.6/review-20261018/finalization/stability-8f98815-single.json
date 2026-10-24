@@ -1,0 +1,177 @@
+{
+  "source_commit": "8f98815525fc81461b40ca9165824d25af12d13e",
+  "run_id": 39384729957,
+  "conclusion": "success",
+  "repeats": 1,
+  "jobs": [
+    {
+      "job_id": 118501758276,
+      "name": "stability / targeted (ps51-245, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.4.5)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118501758276.log",
+      "log_sha256": "269d9166353be2086e39cbad0bb0a27c06d2f1b2f7cacdd08767e35dd5451839",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    },
+    {
+      "job_id": 118501758519,
+      "name": "stability / targeted (ps7-245, pwsh.exe, 2.4.5)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118501758519.log",
+      "log_sha256": "bacd7045ba6daaf50de5af47fc68f7bd4ebedff89e7e3703bcd2d0742c22d065",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    },
+    {
+      "job_id": 118501758629,
+      "name": "stability / targeted (ps51-200, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.0.0)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118501758629.log",
+      "log_sha256": "c55ff3eba571366f877abd6f305e03fed27f727f2b809590d640b1114741d474",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    }
+  ],
+  "archives": [
+    {
+      "id": 12247401513,
+      "sha256": "0d46aeeed5b27d2f3210c5fcbd479e275a36013a13f0aadb0aafe90b31c30ea5",
+      "path": "artifacts/stability-8f98815-single-12247401513.zip"
+    },
+    {
+      "id": 12247202713,
+      "sha256": "71b3a3f9a4d9e3e77b205fcd7f6443558df34ed57081cad0ae60d8c4d706e2ba",
+      "path": "artifacts/stability-8f98815-single-12247202713.zip"
+    },
+    {
+      "id": 12247102027,
+      "sha256": "626387970491a0d0051791eb0bef89053dff55972b636dae2e556637829663a3",
+      "path": "artifacts/stability-8f98815-single-12247102027.zip"
+    }
+  ],
+  "snapshots": [
+    {
+      "file": "artifacts/stability-8f98815-single-12247401513/Blueberry/Blueberry/target/nested-terminal-evidence/host-1BjEfe/resize-24-80.json",
+      "sha256": "bdd3d1127ffa30060c3429ddb475bec96b22159874d3b8ccf74d32d9d1d5bdc7",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247401513/Blueberry/Blueberry/target/nested-terminal-evidence/host-ZdZbRQ/resize-24-80.json",
+      "sha256": "a2520c3db347f1e1a2810d2e2fc763ce30866c3dd478471eab198e45d71bcb96",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247202713/Blueberry/Blueberry/target/nested-terminal-evidence/host-aqaws3/resize-24-80.json",
+      "sha256": "b1ebace69d4b836157d863dea19d13310c19d92be10fdd9ad751ba110e28ce14",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247202713/Blueberry/Blueberry/target/nested-terminal-evidence/host-tTPeVj/resize-24-80.json",
+      "sha256": "d94a78b5771346d8fac6e9d33c13188e5a9b37f589637ba425663760f0e5a495",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247102027/Blueberry/Blueberry/target/nested-terminal-evidence/host-AkQioJ/resize-24-80.json",
+      "sha256": "4b1181b2bb38fa0be36f11bb7c32a71c11a7be68ccd20a96e247ae60d6143fd2",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247102027/Blueberry/Blueberry/target/nested-terminal-evidence/host-yLV2DL/resize-24-80.json",
+      "sha256": "65d33e3b11ccf3f9b369c50bb45435acdf621f50d2ad90945f86a1d25a2935cb",
+      "prompt_found": true,
+      "residue": []
+    }
+  ],
+  "ownership": [
+    {
+      "file": "artifacts/stability-8f98815-single-12247401513/Blueberry/Blueberry/target/nested-terminal-evidence/host-1BjEfe/overlay-ownership.jsonl",
+      "sha256": "89214f30c723c8bb5f42b4fb3b2c122e5fdf3bbe6ff8ad62dfcbd49c83fed398",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247401513/Blueberry/Blueberry/target/nested-terminal-evidence/host-ZdZbRQ/overlay-ownership.jsonl",
+      "sha256": "84e2c8695cb34fb6ba55c6803b6c4299c22c631c4dce4dc5a1731d5b37b68364",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247202713/Blueberry/Blueberry/target/nested-terminal-evidence/host-aqaws3/overlay-ownership.jsonl",
+      "sha256": "426bd5ab9c0a07202cc4309611923c1fe4bf7370a9317f52a195b7ecedbfca11",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247202713/Blueberry/Blueberry/target/nested-terminal-evidence/host-tTPeVj/overlay-ownership.jsonl",
+      "sha256": "839d908e2e0364f8735a13cc06ceaa0dd94b10d9e0295c0c210379fdbdfb979d",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247102027/Blueberry/Blueberry/target/nested-terminal-evidence/host-AkQioJ/overlay-ownership.jsonl",
+      "sha256": "c08fe596de5ff2357532d12e1c3b8e776b7c83026f010227531947a21075e410",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-single-12247102027/Blueberry/Blueberry/target/nested-terminal-evidence/host-yLV2DL/overlay-ownership.jsonl",
+      "sha256": "ad40ae209ca237aea89454ab4dfcc2bdb8b360743e52957d701bd0bafe454e58",
+      "unmatched": []
+    }
+  ],
+  "visual_audit": "Diagnostic heuristic over native narrow snapshots and opt-in ownership logs; not GUI acceptance."
+}

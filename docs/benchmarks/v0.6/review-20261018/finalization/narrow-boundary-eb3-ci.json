@@ -1,0 +1,169 @@
+{
+  "schema": 1,
+  "run": 40095916486,
+  "source_commit": "eb3a3c0d316106f0589eee67e5c5f265795d837b",
+  "targeted_validation_completed": true,
+  "jobs": [
+    {
+      "id": 120878036512,
+      "name": "stability / targeted (ps51-200, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.0.0)",
+      "conclusion": "success"
+    },
+    {
+      "id": 120878036817,
+      "name": "stability / targeted (ps7-245, pwsh.exe, 2.4.5)",
+      "conclusion": "success"
+    },
+    {
+      "id": 120878036921,
+      "name": "stability / targeted (ps51-245, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.4.5)",
+      "conclusion": "success"
+    }
+  ],
+  "archives": [
+    {
+      "id": 12561127397,
+      "path": "artifacts\\narrow-boundary-40095916486-12561127397.zip",
+      "sha256": "5a81346d68e509f36a6e6d88d423f48f4db2efc52e56f1814d6245ed1089d402"
+    },
+    {
+      "id": 12560967793,
+      "path": "artifacts\\narrow-boundary-40095916486-12560967793.zip",
+      "sha256": "5c5b065dd9ec98a0ad07a3e4d476afc20fd383990fbc9c314cf463f982cf1a9a"
+    },
+    {
+      "id": 12560818615,
+      "path": "artifacts\\narrow-boundary-40095916486-12560818615.zip",
+      "sha256": "a606f01779c0b5e003a0f0e25dff4587c663750672c13242432494851a95a632"
+    }
+  ],
+  "snapshots": [
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-5OSqY9/resize-24-80.json",
+      "archive": 12561127397,
+      "sha256": "0a586a781b3c5bb77ffde417ff93b6d26704ae27921ab045b91145a99d179312",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-5OSqY9/resize-30-120.json",
+      "archive": 12561127397,
+      "sha256": "85ab647eb5b3ced3ae8dd08431f9ab72a7b1a8ec363508b19c6816ed8155b531",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-5OSqY9/resize-dismissed.json",
+      "archive": 12561127397,
+      "sha256": "751cfd72782e8c9614a186c562fbbae8816a5e8d9a896dec224b5c3c4e3beb38",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-T4AqBt/resize-24-80.json",
+      "archive": 12561127397,
+      "sha256": "54ca302894b863c815692749cffe240818272108bbc7c3d7a6ff11e7b72969bb",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-T4AqBt/resize-30-120.json",
+      "archive": 12561127397,
+      "sha256": "b3a56438ec52040729e579dd57465c4b2cd575fc55290fccd806314f29350bc6",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-T4AqBt/resize-dismissed.json",
+      "archive": 12561127397,
+      "sha256": "b904ea7a1e5bef1ae9ac007d12add0d2653f9436a263d04055352685cc5c0b16",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-MIOvih/resize-24-80.json",
+      "archive": 12560967793,
+      "sha256": "e061686884047c3752a30740d095a2691f3e8408358e8a0d07a667fbbb28566f",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-MIOvih/resize-30-120.json",
+      "archive": 12560967793,
+      "sha256": "b2d0f27e482c0fa8ec5fecaab96458c0f7727f8f3b865db732167d82fd747f2b",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-MIOvih/resize-dismissed.json",
+      "archive": 12560967793,
+      "sha256": "995daec9b7510c693080cd1e64db41e29cc32e8a578e8386eb279f291b8edb59",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-WJwZEL/resize-24-80.json",
+      "archive": 12560967793,
+      "sha256": "9644f6697e0c0cf52db9eff59324e9fc32000e2968eee2a66c484108db851b7e",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-WJwZEL/resize-30-120.json",
+      "archive": 12560967793,
+      "sha256": "adf4ea8d21a5a537c761d976bec139503c1493c7dfe50af395e5b982d9d503ae",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-WJwZEL/resize-dismissed.json",
+      "archive": 12560967793,
+      "sha256": "13570e9e0a64b6e49e39467adbd8574f5feeb15d362145e56410f59678cb865b",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-di2SjL/resize-24-80.json",
+      "archive": 12560818615,
+      "sha256": "58e2fcaffdaac4d07c9dd69f89b7206959b4eee6843c7839a5404ce4f7be8a00",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-di2SjL/resize-30-120.json",
+      "archive": 12560818615,
+      "sha256": "b073ac0036f3999d94bbf5c857b2425ac8059736dde50effe0c0e6580c5d1303",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-di2SjL/resize-dismissed.json",
+      "archive": 12560818615,
+      "sha256": "1319067b7f4f8fb74a09ba9b150b924cd5e9dc5fc469b5ef5dc3e56cfed7eefe",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-DRX9ip/resize-24-80.json",
+      "archive": 12560818615,
+      "sha256": "57d58bcb202c9b4c8c870791c8d2bb65c08f8287e7730e41f8d4e13ea4c1cf5d",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-DRX9ip/resize-30-120.json",
+      "archive": 12560818615,
+      "sha256": "9a5e75170ce2bd816644458d750887ea96a478cf315a5f2620a53b4333fb533d",
+      "prompt_present": true,
+      "historical_residue": false
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-DRX9ip/resize-dismissed.json",
+      "archive": 12560818615,
+      "sha256": "b3f55b2c00451c12b539641c8c89696550d2de62d1ad047b6240748894c321a5",
+      "prompt_present": true,
+      "historical_residue": false
+    }
+  ],
+  "limitations": "Targeted verification only; complete CI and final package/performance qualification still required"
+}

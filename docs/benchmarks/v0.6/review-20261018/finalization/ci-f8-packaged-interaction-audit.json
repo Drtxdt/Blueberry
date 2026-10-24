@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "ci_run": 40090066092,
+  "artifact": {
+    "id": 12558677677,
+    "node_id": "MDg6QXJ0aWZhY3QxMjU1ODY3NzY3Nw==",
+    "name": "blueberry-packaged-interaction",
+    "size_in_bytes": 390650,
+    "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12558677677",
+    "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12558677677/zip",
+    "expired": false,
+    "digest": "sha256:5bb0297a31bc2b912287869265a50a72900349e8d2a6cb8be436d96405aa1fac",
+    "created_at": "2026-10-24T11:47:17Z",
+    "updated_at": "2026-10-24T11:47:17Z",
+    "expires_at": "2027-01-22T11:28:53Z",
+    "workflow_run": {
+      "id": 40090066092,
+      "repository_id": 1368459002,
+      "head_repository_id": 1368459002,
+      "head_branch": "codex/v053-reliability-performance",
+      "head_sha": "f8fc564d6a16161d8d746e4c0c38918fd9961e70"
+    }
+  },
+  "archive": "artifacts\\ci-f8-interaction-12558677677.zip",
+  "archive_sha256": "5bb0297a31bc2b912287869265a50a72900349e8d2a6cb8be436d96405aa1fac",
+  "report_member": "Blueberry/Blueberry/target/packaged-interaction.json",
+  "report_sha256": "87b21ece99d17084d11705c20d4341ba09c6f71f78437592e0cab9b482374cc5",
+  "report": {
+    "standalone_ui": "passed",
+    "input_protocol": [
+      {
+        "workflows": 12,
+        "editor": "2.0.0",
+        "status": "passed",
+        "workflow_trace": "disabled",
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "executable_sha256": "9EA046D6E022D7135C803E6532B6A013401C09D826B9164FA26EBC7D2B690D45"
+      },
+      {
+        "workflows": 12,
+        "editor": "2.4.5",
+        "status": "passed",
+        "workflow_trace": "disabled",
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "executable_sha256": "9EA046D6E022D7135C803E6532B6A013401C09D826B9164FA26EBC7D2B690D45"
+      },
+      {
+        "workflows": 12,
+        "editor": "2.4.5",
+        "status": "passed",
+        "workflow_trace": "disabled",
+        "shell": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "executable_sha256": "9EA046D6E022D7135C803E6532B6A013401C09D826B9164FA26EBC7D2B690D45"
+      }
+    ],
+    "executable_sha256": "9EA046D6E022D7135C803E6532B6A013401C09D826B9164FA26EBC7D2B690D45",
+    "package_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38"
+  },
+  "direct_identities": [
+    {
+      "member": "Blueberry/Blueberry/target/input-protocol-evidence/direct7CA5iG/identity.json",
+      "identity": {
+        "args": [
+          "run",
+          "--host-mode",
+          "direct",
+          "--transport",
+          "pipe",
+          "--no-profile",
+          "--shell",
+          "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "--data-dir",
+          "D:\\a\\Blueberry\\Blueberry\\target/input-protocol-evidence\\direct7CA5iG\\data"
+        ],
+        "mode": "direct",
+        "program": "D:\\a\\_temp\\blueberry-package-acceptance-09f999c5e5d8409ab3f0bd17f47fae2a\\blueberry.exe",
+        "sha256": "9ea046d6e022d7135c803e6532b6a013401c09d826b9164fa26ebc7d2b690d45"
+      }
+    },
+    {
+      "member": "Blueberry/Blueberry/target/input-protocol-evidence/directSqEOFH/identity.json",
+      "identity": {
+        "args": [
+          "run",
+          "--host-mode",
+          "direct",
+          "--transport",
+          "pipe",
+          "--no-profile",
+          "--shell",
+          "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "--data-dir",
+          "D:\\a\\Blueberry\\Blueberry\\target/input-protocol-evidence\\directSqEOFH\\data"
+        ],
+        "mode": "direct",
+        "program": "D:\\a\\_temp\\blueberry-package-acceptance-09f999c5e5d8409ab3f0bd17f47fae2a\\blueberry.exe",
+        "sha256": "9ea046d6e022d7135c803e6532b6a013401c09d826b9164fa26ebc7d2b690d45"
+      }
+    },
+    {
+      "member": "Blueberry/Blueberry/target/input-protocol-evidence/directwefvDN/identity.json",
+      "identity": {
+        "args": [
+          "run",
+          "--host-mode",
+          "direct",
+          "--transport",
+          "pipe",
+          "--no-profile",
+          "--shell",
+          "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+          "--data-dir",
+          "D:\\a\\Blueberry\\Blueberry\\target/input-protocol-evidence\\directwefvDN\\data"
+        ],
+        "mode": "direct",
+        "program": "D:\\a\\_temp\\blueberry-package-acceptance-09f999c5e5d8409ab3f0bd17f47fae2a\\blueberry.exe",
+        "sha256": "9ea046d6e022d7135c803e6532b6a013401c09d826b9164fa26ebc7d2b690d45"
+      }
+    }
+  ],
+  "scope": "CI packaged interaction only; full CI and final local acceptance pending",
+  "release_qualified": false
+}

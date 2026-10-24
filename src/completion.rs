@@ -72,6 +72,7 @@ pub fn plan(
         && provider
             .as_ref()
             .is_some_and(|p| !p.starts_with("powershell."));
+    let argument_mode = index.argument_mode(&context.command, &environment, cwd);
     (
         result,
         SourceRequest {
@@ -81,6 +82,7 @@ pub fn plan(
             context,
             cwd: cwd.into(),
             environment,
+            argument_mode,
             paths,
             directories_only,
             project,

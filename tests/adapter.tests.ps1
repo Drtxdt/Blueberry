@@ -358,6 +358,34 @@ try {
         $global:LASTEXITCODE = $exitCodeBeforeReadLineTest
     }
 
+    # A resize calls Prompt inside the existing ReadLine invocation. It must
+    # not announce another command lifecycle or discard a pending input query.
+    $redrawCapture = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    $promptBeforeRedrawTest = $script:BLUEBERRY_ORIGINAL_PROMPT
+    try {
+        $script:BLUEBERRY_ORIGINAL_PROMPT = { 'redrawn prompt' }
+        $script:BLUEBERRY_ORIGINAL_READLINE = { [void](Prompt); 'git' }
+        [Console]::SetOut($redrawCapture)
+        $acceptedAfterRedraw = PSConsoleHostReadLine
+        Assert-BlueberryEqual -Actual $acceptedAfterRedraw -Expected 'git' -Message 'prompt redraw preserves accepted line'
+        Assert-BlueberryEqual -Actual $script:BLUEBERRY_READLINE_ACTIVE -Expected $false -Message 'ReadLine clears active state after acceptance'
+        $redrawEvents = @(Get-BlueberryCapturedEvents -Raw $redrawCapture.ToString() -Token ([string]$script:BLUEBERRY_TOKEN))
+        Assert-BlueberryEqual -Actual (@($redrawEvents | Where-Object { $_.event -eq 'prompt_redraw' }).Count) -Expected 1 -Message 'active editor emits redraw event'
+        Assert-BlueberryEqual -Actual (@($redrawEvents | Where-Object { $_.event -in @('prompt_start', 'prompt_end') }).Count) -Expected 0 -Message 'redraw does not reset command lifecycle'
+        $script:BLUEBERRY_ORIGINAL_READLINE = { throw 'Expected ReadLine failure' }
+        try { [void](PSConsoleHostReadLine) } catch { }
+        Assert-BlueberryEqual -Actual $script:BLUEBERRY_READLINE_ACTIVE -Expected $false -Message 'ReadLine clears active state after failure'
+        [void]$redrawCapture.GetStringBuilder().Clear()
+        [void](Prompt)
+        $nextPromptEvents = @(Get-BlueberryCapturedEvents -Raw $redrawCapture.ToString() -Token ([string]$script:BLUEBERRY_TOKEN))
+        Assert-BlueberryEqual -Actual (@($nextPromptEvents | Where-Object { $_.event -eq 'prompt_end' }).Count) -Expected 1 -Message 'next command prompt still announces lifecycle'
+    } finally {
+        [Console]::SetOut($consoleWriter)
+        $script:BLUEBERRY_ORIGINAL_PROMPT = $promptBeforeRedrawTest
+        $script:BLUEBERRY_ORIGINAL_READLINE = $readLineBeforeExitCodeTest
+        $global:LASTEXITCODE = $exitCodeBeforeReadLineTest
+    }
+
     Assert-BlueberryTrue -Condition ([bool]$script:BLUEBERRY_KEY_HANDLERS.buffer) -Message 'existing child does not falsely reserve F12,s'
     Assert-BlueberryEqual -Actual ([bool]$script:BLUEBERRY_KEY_HANDLERS.apply) -Expected $false -Message 'existing F12,a remains reserved'
     Assert-BlueberryTrue -Condition ([bool]$script:BLUEBERRY_KEY_HANDLERS.commands) -Message 'existing child does not falsely reserve F12,c'

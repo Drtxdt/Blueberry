@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "observed_at_local": "2026-10-19T20:28:32+08:00",
+  "batch": "artifacts/r2-durable-20261019/batch/batch.json",
+  "plan_sha256": "FA6574B7FA6C048B60B173BC696EA7ADF0922A76D8C1DBF3DC08CAEDBEB0CEA0",
+  "receipt_status": "running",
+  "receipt_measurement_complete": false,
+  "recorded_coordinator": {"pid":17876,"created":134368687951742252},
+  "recorded_worker": {"pid":27736,"created":134368687953360697},
+  "observations": [
+    "Read-only elevated process inspection found PID 17876 reused by conhost created at 20:27:41, not the recorded Python coordinator.",
+    "PID 27736 was absent.",
+    "A subsequent read-only CIM query found no matching batch coordinator or measurement worker; its sole matching PowerShell process was the inspection command itself.",
+    "The launch log had no diagnostic explaining termination. Cause remains unknown.",
+    "The original frozen receipt and inputs were not rewritten. An attempted --inspect was rejected by automatic approval because it can rewrite the receipt; it was not executed."
+  ],
+  "measurement_complete": false,
+  "eligible_for_version_decision": false,
+  "restart": "deferred until targeted stability validation completes"
+}

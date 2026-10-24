@@ -1,0 +1,107 @@
+name: Frozen targeted terminal stability
+on:
+  workflow_call:
+    inputs:
+      repeats:
+        type: string
+        default: '1'
+permissions:
+  contents: read
+# No concurrency cancellation: each manual run is evidence for its exact SHA.
+jobs:
+  targeted:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ps51-200
+            shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+            editor: '2.0.0'
+          - name: ps51-245
+            shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+            editor: '2.4.5'
+          - name: ps7-245
+            shell: pwsh.exe
+            editor: '2.4.5'
+    env:
+      BLUEBERRY_TEST_SHELL: ${{ matrix.shell }}
+      BLUEBERRY_NO_HISTORY: '1'
+      REPEATS: ${{ inputs.repeats }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.425'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            target/private-editor/nuget
+            target/psreadline-upstream
+          key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
+      - name: Prepare exact editor dependencies
+        shell: pwsh
+        run: |
+          if ([int]$env:REPEATS -lt 1 -or [int]$env:REPEATS -gt 100) { throw 'repeats must be 1..100' }
+          python scripts/prepare-editor.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/prepare-conpty.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
+          python scripts/prepare-original-editor.py --version '${{ matrix.editor }}' --root $root
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "BLUEBERRY_TEST_PSREADLINE_MODULE=$root/PSReadLine/${{ matrix.editor }}/PSReadLine.psd1" >> $env:GITHUB_ENV
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Shared Rust and C# diagnostic contracts before terminal regressions
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p test_direct_diagnostics_contract.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --test direct_diagnostics
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --lib completed_frame_tests
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --test host active_menu_observation_excludes_history_but_keeps_current_candidates -- --exact
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --test overlay_resize -- --nocapture
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --test direct_terminal compiled_bridge_codec_runs_in_selected_shell -- --exact --nocapture
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --test direct_terminal unknown_diagnostic_events_do_not_disable_completion -- --exact --nocapture
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Isolated Direct regressions
+        shell: pwsh
+        run: |
+          foreach ($trace in @('on','off')) {
+            $env:BLUEBERRY_TEST_TRACE_DISABLED=if ($trace -eq 'off') { '1' } else { '0' }
+            Write-Output "Direct tracing=$trace"
+            foreach ($test in @('direct_resize_after_menu_clear_reflows_input','direct_resize_reflows_input_when_menu_ownership_readback_failed','direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation','direct_and_original_editor_agree_on_vi_command_and_insert_transitions','builtin_workflows_fill_native_editor_without_executing')) {
+              ./scripts/repeat-rust-test.ps1 -Target direct_terminal -Test $test -Count ([int]$env:REPEATS)
+            }
+          }
+      - name: Isolated Nested resize regression
+        shell: pwsh
+        env:
+          BLUEBERRY_TEST_OVERLAY_AUDIT: ${{ inputs.repeats == '1' && '1' || '' }}
+        run: |
+          foreach ($transport in @('pipe','osc')) {
+            $env:BLUEBERRY_TEST_TRANSPORT=$transport
+            ./scripts/repeat-rust-test.ps1 -Target host -Test host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out -Count ([int]$env:REPEATS)
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: targeted-${{ matrix.name }}-${{ github.sha }}-${{ github.run_id }}
+          retention-days: 90
+          path: |
+            target/input-protocol-evidence/
+            target/nested-terminal-evidence/
+            target/overlay-resize-evidence/
+            ${{ runner.temp }}/blueberry-direct-evidence/
+          if-no-files-found: warn

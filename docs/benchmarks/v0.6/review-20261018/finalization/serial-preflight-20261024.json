@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "observed_utc": "2026-10-24T11:36:03.210152+00:00",
+  "status": "preflight_passed_formal_running",
+  "preflight": [
+    {
+      "name": "preflight-run1-before-ps51-200",
+      "started_at_utc": "2026-10-24T11:34:48.321989+00:00",
+      "status": "completed",
+      "report": "C:\\Windows\\Temp\\bbr1-stability-20261024bb\\preflight-run1-before-ps51-200\\verified.json",
+      "worker": {
+        "pid": 20644,
+        "created": 134373152883236956
+      },
+      "exit_code": 0,
+      "report_sha256": "517470C3AFDA2A98053A142F070DBB557F2A47F0586968F22F7C2DA62A812D0F",
+      "completed_at_utc": "2026-10-24T11:34:51.487740+00:00"
+    },
+    {
+      "name": "preflight-run1-before-ps51-245",
+      "started_at_utc": "2026-10-24T11:34:51.491366+00:00",
+      "status": "completed",
+      "report": "C:\\Windows\\Temp\\bbr1-stability-20261024bb\\preflight-run1-before-ps51-245\\verified.json",
+      "worker": {
+        "pid": 37172,
+        "created": 134373152914984383
+      },
+      "exit_code": 0,
+      "report_sha256": "8358FEE121410C3F11707AFCFE5A3BF54221B4CE8704800A34044409594D57F6",
+      "completed_at_utc": "2026-10-24T11:34:54.798411+00:00"
+    },
+    {
+      "name": "preflight-run1-before-ps7-245",
+      "started_at_utc": "2026-10-24T11:34:54.799845+00:00",
+      "status": "completed",
+      "report": "C:\\Windows\\Temp\\bbr1-stability-20261024bb\\preflight-run1-before-ps7-245\\verified.json",
+      "worker": {
+        "pid": 24892,
+        "created": 134373152948025088
+      },
+      "exit_code": 0,
+      "report_sha256": "190B779941C95588D46A35F00BC5F55EF85E596CFAFD2CAEADD2BDB95AF997AC",
+      "completed_at_utc": "2026-10-24T11:34:58.933145+00:00"
+    },
+    {
+      "name": "preflight-run1-after-ps51-200",
+      "started_at_utc": "2026-10-24T11:34:58.939159+00:00",
+      "status": "completed",
+      "report": "C:\\Windows\\Temp\\bbr1-stability-20261024bb\\preflight-run1-after-ps51-200\\verified.json",
+      "worker": {
+        "pid": 6648,
+        "created": 134373152989434588
+      },
+      "exit_code": 0,
+      "report_sha256": "4344F5BB43E5CF414A19D66A42EBEBE895867B11B190A65935EC3ED7C1779E50",
+      "completed_at_utc": "2026-10-24T11:35:03.043937+00:00"
+    },
+    {
+      "name": "preflight-run1-after-ps51-245",
+      "started_at_utc": "2026-10-24T11:35:03.049300+00:00",
+      "status": "completed",
+      "report": "C:\\Windows\\Temp\\bbr1-stability-20261024bb\\preflight-run1-after-ps51-245\\verified.json",
+      "worker": {
+        "pid": 32620,
+        "created": 134373153030554641
+      },
+      "exit_code": 0,
+      "report_sha256": "B89BD7966393C675E6DC364F650CC887B110D7EC095ABBAD0C72F35E01F9802F",
+      "completed_at_utc": "2026-10-24T11:35:05.932782+00:00"
+    },
+    {
+      "name": "preflight-run1-after-ps7-245",
+      "started_at_utc": "2026-10-24T11:35:05.936835+00:00",
+      "status": "completed",
+      "report": "C:\\Windows\\Temp\\bbr1-stability-20261024bb\\preflight-run1-after-ps7-245\\verified.json",
+      "worker": {
+        "pid": 23596,
+        "created": 134373153059547287
+      },
+      "exit_code": 0,
+      "report_sha256": "2B6C5945E643852E4E1D867DBC1CF559B378F7F1CA92DE0F0BEB954A01F548FF",
+      "completed_at_utc": "2026-10-24T11:35:09.011066+00:00"
+    }
+  ],
+  "preflight_excluded_from_formal_samples": true,
+  "input_plan": "E:\\OpenSource\\shellsense-rs\\artifacts\\performance-serial-20261024b\\plan.json",
+  "input_plan_sha256": "a297b6f987d0a41acb34e9a917393a983a74ae0efc239968eafb03d091a97cee",
+  "runner_frozen_plan": "E:\\OpenSource\\shellsense-rs\\artifacts\\performance-serial-20261024b\\batch\\plan.json",
+  "runner_frozen_plan_sha256": "CB4C91EE22D25DD3C78775D9D16969399F4A194BC7B40E2EA044B77AF3D7F0D3",
+  "plan_serialization_note": "Runner rewrites its own new frozen plan with canonical indentation and trailing newline; input and frozen bytes have distinct hashes.",
+  "owner": {
+    "pid": 24580,
+    "created": 134373152881982321
+  },
+  "tasks": 34,
+  "dependencies": 101,
+  "order": [
+    "6 diagnostic pairs",
+    "R1 12 tasks x 30 pairs",
+    "R2 4 full latency matrices",
+    "R2 12 resource tasks"
+  ],
+  "old_failed_preflight": {
+    "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\performance-serial-20261024\\batch\\batch.json",
+    "sha256": "ce81243651a88f1b86267b80ebddcf868498989f37e2d5d1a9eb5d7b1c3f5f56",
+    "reason": "Independent launcher did not inherit PSModulePath; historical PS7 baseline loaded stock editor and was correctly rejected."
+  },
+  "diagnostic_environment": "E:\\OpenSource\\shellsense-rs\\artifacts\\r1-modulepath-diagnostic-20261024-environment.json",
+  "original_evidence_modified": false,
+  "formal_complete": false,
+  "final_release_qualified": false
+}

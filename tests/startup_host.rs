@@ -19,10 +19,7 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         .keep();
     eprintln!("startup evidence: {}", root.display());
     let profile = root.as_path().join("中文 profile.ps1");
-    std::fs::write(
-        &profile,
-        b"Write-Output ('BB_PARENT_RESUMED_' + $env:BLUEBERRY_ACTIVE)\n",
-    )?;
+    std::fs::write(&profile, b"")?;
     let executable = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let shell = pty::default_shell();
     let local = root.as_path().join("local");
@@ -35,15 +32,6 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         .status()?;
     ensure!(status.success(), "Configure isolated profile");
     let hook = std::fs::read_to_string(&profile)?;
-    let start = hook.find("$blueberryAutoScript =").unwrap();
-    let end = start + hook[start..].find("if ($Host.Name").unwrap();
-    // The test loads its private profile via -Command; real installations are
-    // loaded by ConsoleHost. Keep every other guard, especially ACTIVE.
-    let hook = format!(
-        "{}$blueberryAutoScript = $false\n{}",
-        &hook[..start],
-        &hook[end..]
-    );
     let trace = root.as_path().join("startup-trace.jsonl");
     let hook = hook.replace(
         " run --shell $blueberryAutoShell",
@@ -57,7 +45,10 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
                 .replace('\'', "''")
         ),
     );
-    std::fs::write(&profile, hook)?;
+    std::fs::write(
+        &profile,
+        format!("{hook}\nWrite-Output ('BB_PARENT_RESUMED_' + $env:BLUEBERRY_ACTIVE)\n"),
+    )?;
     let quoted = profile.display().to_string().replace('\'', "''");
     let environment = BTreeMap::from([
         ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
@@ -73,12 +64,15 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         "-NoExit",
         "-ExecutionPolicy",
         "Bypass",
-        "-Command",
     ]
     .map(String::from);
-    let mut args = args.to_vec();
-    args.push(format!(". '{quoted}'"));
+    let args = args.to_vec();
     let mut terminal = Harness::start(&shell, &args, root.as_path(), &environment, String::new())?;
+    // Execute the generated managed block in a real interactive parent with
+    // its script/recursion guards intact. This is a hook regression, not a
+    // measurement of ConsoleHost's automatic profile loading.
+    terminal.wait_text(">", Duration::from_secs(20))?;
+    terminal.send_text(&format!(". '{quoted}'\r"))?;
     // A real profile may replace the prompt (Starship, Oh My Posh, etc.).
     // Observe editor entry rather than assuming the stock "PS " prompt.
     let deadline = Instant::now() + Duration::from_secs(30);

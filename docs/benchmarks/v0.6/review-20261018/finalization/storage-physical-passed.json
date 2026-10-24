@@ -1,0 +1,190 @@
+{
+  "schema": 1,
+  "source_commit": "6bb6cc2cd33b97fd77adec2df78c2925abaf9573",
+  "run_id": 39228676557,
+  "job_id": 117983005894,
+  "artifact_id": 12176975470,
+  "archive_sha256": "0E4857973CA786CF43591172848AED557BC25E54FAA29F61031DCCCCF7B56CF0",
+  "archive_sha256_verified": true,
+  "status": "ps7_and_ps51_passed",
+  "reports": [
+    {
+      "member": "storage-failures-697d543fe88f4053955ea699269c9369/results.json",
+      "sha256": "65B22AE193816F84604837DE9BD33C95F6707B90D9E815FE0CA577C81D1B7308",
+      "results": [
+        {
+          "name": "core-install",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 2758.3748
+        },
+        {
+          "name": "terminal-install",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 2227.4132
+        },
+        {
+          "name": "volume-filled",
+          "reserved_bytes": 2049019904,
+          "disk_full_win32_code": 112
+        },
+        {
+          "name": "core-disk-full",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 2283.3081
+        },
+        {
+          "name": "terminal-disk-full",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 401.1829
+        },
+        {
+          "name": "core-recover-space",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 699.5524
+        },
+        {
+          "name": "core-retry-space",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 3498.9342
+        },
+        {
+          "name": "terminal-retry-space",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 2732.7944
+        },
+        {
+          "name": "core-permission-denied",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 3150.987
+        },
+        {
+          "name": "core-recover-permission",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 1517.6051
+        },
+        {
+          "name": "core-retry-permission",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 4528.4446
+        },
+        {
+          "name": "terminal-permission-denied",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 1716.3508000000002
+        },
+        {
+          "name": "terminal-retry-permission",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 1694.4949000000001
+        },
+        {
+          "terminal_sha256": "DDEF1821231D3C76D3A615EDBD6064249F0CD5EA64E33C08EF78638B75BEB6AD",
+          "status": "passed",
+          "name": "final",
+          "core_sha256": "4577AB16FF929BB3E1A46AB50F0693AB0DA1E92ABE23FF1D0887B87D1AE52278"
+        }
+      ]
+    },
+    {
+      "member": "storage-failures-fc1bda58b41a4a8aa0c7ebc776e6be4a/results.json",
+      "sha256": "160D20BBB002E24BF77AF807745A9139623997A9188F88F46C6F483A62554C1A",
+      "results": [
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "core-install",
+          "elapsed_ms": 1529.6776
+        },
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "terminal-install",
+          "elapsed_ms": 1958.8899
+        },
+        {
+          "disk_full_win32_code": 112,
+          "reserved_bytes": 2049064960,
+          "name": "volume-filled"
+        },
+        {
+          "expected_failure": true,
+          "failed": true,
+          "name": "core-disk-full",
+          "elapsed_ms": 955.5467
+        },
+        {
+          "expected_failure": true,
+          "failed": true,
+          "name": "terminal-disk-full",
+          "elapsed_ms": 496.8448
+        },
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "core-recover-space",
+          "elapsed_ms": 480.2515
+        },
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "core-retry-space",
+          "elapsed_ms": 1597.3243
+        },
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "terminal-retry-space",
+          "elapsed_ms": 1806.1632
+        },
+        {
+          "expected_failure": true,
+          "failed": true,
+          "name": "core-permission-denied",
+          "elapsed_ms": 1392.1134
+        },
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "core-recover-permission",
+          "elapsed_ms": 964.6622
+        },
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "core-retry-permission",
+          "elapsed_ms": 2238.5552
+        },
+        {
+          "expected_failure": true,
+          "failed": true,
+          "name": "terminal-permission-denied",
+          "elapsed_ms": 1448.0043
+        },
+        {
+          "expected_failure": false,
+          "failed": false,
+          "name": "terminal-retry-permission",
+          "elapsed_ms": 1372.0036
+        },
+        {
+          "terminal_sha256": "DDEF1821231D3C76D3A615EDBD6064249F0CD5EA64E33C08EF78638B75BEB6AD",
+          "core_sha256": "4577AB16FF929BB3E1A46AB50F0693AB0DA1E92ABE23FF1D0887B87D1AE52278",
+          "name": "final",
+          "status": "passed"
+        }
+      ]
+    }
+  ]
+}

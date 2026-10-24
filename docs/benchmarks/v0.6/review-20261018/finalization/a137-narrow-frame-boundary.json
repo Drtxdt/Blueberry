@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "run": 40095011221,
+  "job": 120875312140,
+  "source_head": "a1370b6643e8880d88834f3f877c6083ea3e1d0b",
+  "archive": "artifacts\\ci-a137-ps51245-evidence-12560591281.zip",
+  "archive_sha256": "35a05c486bae1db4469bd6cf8cc4f61bef9b3a47c0c0dd87d2ebc01e15a7afb1",
+  "snapshots": [
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-G2lwVB/resize-24-80.json",
+      "sha256": "4666c97b3799c53660a82dd93be0e565ad1afc8e6b4adcb090e866a909f55362",
+      "prompt_present": false,
+      "border_79_present": true,
+      "dimensions": [
+        24,
+        80
+      ]
+    },
+    {
+      "member": "Blueberry/Blueberry/target/nested-terminal-evidence/host-G2lwVB/native-final.json",
+      "sha256": "9e54d71601442e3550b206ee692bac44ffab1c1080a9376d81406d800008362d",
+      "prompt_present": true,
+      "border_79_present": true,
+      "dimensions": [
+        24,
+        80
+      ]
+    }
+  ],
+  "change": "Narrow readiness now requires current prompt and current menu, as the wide readiness already does",
+  "deadline_seconds": 5,
+  "historical_residue_assertion_retained": true,
+  "product_code_changed": false,
+  "targeted_validation_completed": false
+}

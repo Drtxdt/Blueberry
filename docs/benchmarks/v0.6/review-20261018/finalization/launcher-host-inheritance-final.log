@@ -1,0 +1,12 @@
+D:\pwsh\7\pwsh.exe explorer
+Portable launcher quoting, simulated explorer environment isolation and asynchronous return passed
+D:\pwsh\7\pwsh.exe windows-terminal
+Portable launcher quoting, simulated windows-terminal environment isolation and asynchronous return passed
+D:\pwsh\7\pwsh.exe vscode
+Portable launcher quoting, simulated vscode environment isolation and asynchronous return passed
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe explorer
+Portable launcher quoting, simulated explorer environment isolation and asynchronous return passed
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe windows-terminal
+Portable launcher quoting, simulated windows-terminal environment isolation and asynchronous return passed
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe vscode
+Portable launcher quoting, simulated vscode environment isolation and asynchronous return passed

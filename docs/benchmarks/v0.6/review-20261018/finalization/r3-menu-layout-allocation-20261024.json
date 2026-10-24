@@ -1,0 +1,370 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "frames_identical": 36,
+  "iterations_per_case": 100,
+  "rows": [
+    {
+      "border": "none",
+      "width": 0,
+      "rows": 12,
+      "details": false,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 0,
+      "rows": 12,
+      "details": true,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 1,
+      "rows": 1,
+      "details": false,
+      "before_requests_per_frame": 44.0,
+      "after_requests_per_frame": 15.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 1,
+      "rows": 1,
+      "details": true,
+      "before_requests_per_frame": 103.0,
+      "after_requests_per_frame": 74.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 2,
+      "rows": 3,
+      "details": false,
+      "before_requests_per_frame": 60.0,
+      "after_requests_per_frame": 31.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 2,
+      "rows": 3,
+      "details": true,
+      "before_requests_per_frame": 101.0,
+      "after_requests_per_frame": 72.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 24,
+      "rows": 0,
+      "details": false,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 24,
+      "rows": 0,
+      "details": true,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 24,
+      "rows": 3,
+      "details": false,
+      "before_requests_per_frame": 113.0,
+      "after_requests_per_frame": 84.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 24,
+      "rows": 3,
+      "details": true,
+      "before_requests_per_frame": 131.0,
+      "after_requests_per_frame": 102.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 80,
+      "rows": 12,
+      "details": false,
+      "before_requests_per_frame": 1225.0,
+      "after_requests_per_frame": 1196.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "none",
+      "width": 80,
+      "rows": 12,
+      "details": true,
+      "before_requests_per_frame": 981.0,
+      "after_requests_per_frame": 952.0,
+      "saved_bytes_per_frame": 210.0
+    },
+    {
+      "border": "single",
+      "width": 0,
+      "rows": 12,
+      "details": false,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 0,
+      "rows": 12,
+      "details": true,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 1,
+      "rows": 1,
+      "details": false,
+      "before_requests_per_frame": 45.0,
+      "after_requests_per_frame": 15.0,
+      "saved_bytes_per_frame": 216.0
+    },
+    {
+      "border": "single",
+      "width": 1,
+      "rows": 1,
+      "details": true,
+      "before_requests_per_frame": 104.0,
+      "after_requests_per_frame": 74.0,
+      "saved_bytes_per_frame": 216.0
+    },
+    {
+      "border": "single",
+      "width": 2,
+      "rows": 3,
+      "details": false,
+      "before_requests_per_frame": 60.0,
+      "after_requests_per_frame": 31.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 2,
+      "rows": 3,
+      "details": true,
+      "before_requests_per_frame": 101.0,
+      "after_requests_per_frame": 72.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 24,
+      "rows": 0,
+      "details": false,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 24,
+      "rows": 0,
+      "details": true,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 24,
+      "rows": 3,
+      "details": false,
+      "before_requests_per_frame": 113.0,
+      "after_requests_per_frame": 84.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 24,
+      "rows": 3,
+      "details": true,
+      "before_requests_per_frame": 131.0,
+      "after_requests_per_frame": 102.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 80,
+      "rows": 12,
+      "details": false,
+      "before_requests_per_frame": 1225.0,
+      "after_requests_per_frame": 1196.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "single",
+      "width": 80,
+      "rows": 12,
+      "details": true,
+      "before_requests_per_frame": 688.0,
+      "after_requests_per_frame": 659.0,
+      "saved_bytes_per_frame": 212.0
+    },
+    {
+      "border": "rounded",
+      "width": 0,
+      "rows": 12,
+      "details": false,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 0,
+      "rows": 12,
+      "details": true,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 1,
+      "rows": 1,
+      "details": false,
+      "before_requests_per_frame": 45.0,
+      "after_requests_per_frame": 15.0,
+      "saved_bytes_per_frame": 217.0
+    },
+    {
+      "border": "rounded",
+      "width": 1,
+      "rows": 1,
+      "details": true,
+      "before_requests_per_frame": 104.0,
+      "after_requests_per_frame": 74.0,
+      "saved_bytes_per_frame": 217.0
+    },
+    {
+      "border": "rounded",
+      "width": 2,
+      "rows": 3,
+      "details": false,
+      "before_requests_per_frame": 49.0,
+      "after_requests_per_frame": 20.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 2,
+      "rows": 3,
+      "details": true,
+      "before_requests_per_frame": 90.0,
+      "after_requests_per_frame": 61.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 24,
+      "rows": 0,
+      "details": false,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 24,
+      "rows": 0,
+      "details": true,
+      "before_requests_per_frame": 29.0,
+      "after_requests_per_frame": 0.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 24,
+      "rows": 3,
+      "details": false,
+      "before_requests_per_frame": 117.0,
+      "after_requests_per_frame": 88.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 24,
+      "rows": 3,
+      "details": true,
+      "before_requests_per_frame": 135.0,
+      "after_requests_per_frame": 106.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 80,
+      "rows": 12,
+      "details": false,
+      "before_requests_per_frame": 1295.0,
+      "after_requests_per_frame": 1266.0,
+      "saved_bytes_per_frame": 213.0
+    },
+    {
+      "border": "rounded",
+      "width": 80,
+      "rows": 12,
+      "details": true,
+      "before_requests_per_frame": 729.0,
+      "after_requests_per_frame": 700.0,
+      "saved_bytes_per_frame": 213.0
+    }
+  ],
+  "files": [
+    {
+      "path": "artifacts/r3-menu-before-20261024.json",
+      "sha256": "20883a6643da1c7dba8685056d5248d94f3eaf3a540239763469ebba3e6fc5d3"
+    },
+    {
+      "path": "artifacts/r3-menu-after-20261024.json",
+      "sha256": "33966272b3b337b14bb2f110eacaf23ba7d8838b7ed257bd485651380c4e2ade"
+    },
+    {
+      "path": "artifacts/r3-menu-before-20261024.exe",
+      "sha256": "5e0f3ffb9926c46f4bc76fab9a96883dd080a9dc1aa45971f5819955da7ea070"
+    },
+    {
+      "path": "artifacts/r3-menu-after-20261024.exe",
+      "sha256": "bad18c4984fad63ef97dea0890dbdb5955da798481cdd12c84ae8f289acb3ccb"
+    },
+    {
+      "path": "artifacts/r3-menu-before-source-20261024.rs",
+      "sha256": "4603bfe310f4270013e7ba11fd1dbfe71988d74ab311e915210961c4e614a7af"
+    },
+    {
+      "path": "artifacts/r3-menu-after-source-20261024.rs",
+      "sha256": "65bf5ef5c010aaf2fe94db9573be75972f3a1778c8c699152eacd03c9a8d9e15"
+    },
+    {
+      "path": "artifacts/r3-menu-diagnostic-source-20261024.rs",
+      "sha256": "90665f11e97ef2d2c4112468c0c47a305aaacc1d10fbefc93ef39d04038d5153"
+    }
+  ],
+  "formal_latency_resource_validation": false,
+  "retention_decided": false,
+  "validation": {
+    "menu_unit_tests_passed": 7,
+    "default_all_targets_clippy": "passed",
+    "diagnostic_example_clippy": "passed",
+    "initial_clippy_failure": "constant feature assertion in the example; fixed by Cargo required-features"
+  }
+}

@@ -97,14 +97,13 @@ function Assert-NoReparseComponents {
     foreach ($part in ($remainder.Split([char[]]@('\', '/'), [StringSplitOptions]::RemoveEmptyEntries))) {
         $current = Join-Path $current $part
         try {
-            # Get-Item -Force still returns a dangling link, while Test-Path
-            # alone treats that path as absent and would miss the reparse.
-            $item = Get-Item -LiteralPath $current -Force -ErrorAction Stop
+            # Native literal lookup handles bracketed names on PS5.1 and still
+            # observes dangling reparse points; Exists() alone would not.
+            $attributes = [IO.File]::GetAttributes($current)
         }
-        catch [System.Management.Automation.ItemNotFoundException] {
-            break
-        }
-        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        catch [IO.FileNotFoundException] { break }
+        catch [IO.DirectoryNotFoundException] { break }
+        if ($attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "路径包含符号链接、junction 或重解析点，拒绝访问: $current"
         }
     }
@@ -375,7 +374,9 @@ function Write-Utf8JsonAtomic {
             [IO.Directory]::CreateDirectory($parent) | Out-Null
         }
         $json = $Value | ConvertTo-Json -Depth 50
-        [IO.File]::WriteAllText($temporary, "$json`n", [Text.UTF8Encoding]::new($false))
+        $bytes = [Text.UTF8Encoding]::new($false).GetBytes("$json`n")
+        $stream = [IO.File]::Open($temporary, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try { $stream.Write($bytes, 0, $bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
         Move-BlueberryFile $temporary $Path
     }
     finally {
@@ -536,6 +537,40 @@ function Read-Package {
             $requiredItem = Get-RegularFileRecord -Path $requiredPath -Label "必要资产 $required"
             if ($requiredItem.Length -le 0) { throw "必要资产不能为空: $required" }
         }
+        if (@($files | Where-Object { $_.path -like 'components/*' }).Count -gt 0) { throw 'Core package cannot own optional component files' }
+        $packageKind = if ($releaseManifest.ContainsKey('package_kind')) { [string]$releaseManifest.package_kind } else { 'legacy' }
+        if ($packageKind -notin @('core', 'bundled', 'legacy')) { throw 'Unsupported package kind' }
+        if ($packageKind -eq 'core' -and ($releaseManifest.ContainsKey('terminal_dependency') -or
+            @($files | Where-Object { $_.path -like 'terminal/*' }).Count -gt 0)) { throw 'Core package must not contain Terminal runtime' }
+        if ($packageKind -eq 'bundled' -or ($packageKind -eq 'legacy' -and
+            $releaseManifest.ContainsKey('build') -and $releaseManifest.build.ContainsKey('companion_overlay_interface') -and
+            [int]$releaseManifest.build.companion_overlay_interface -eq 4)) {
+            foreach ($required in @('blueberry-terminal.cmd', 'terminal-dependency.json', 'terminal/.portable',
+                    'terminal/WindowsTerminal.exe', 'terminal/Microsoft.Terminal.Settings.Model.dll')) {
+                if (-not $seen.Contains($required)) { throw "发布包缺少配套 Terminal 资产: $required" }
+            }
+            if (-not $releaseManifest.ContainsKey('terminal_dependency')) { throw '发布包缺少配套 Terminal 身份' }
+            $dependency = $releaseManifest.terminal_dependency
+            $descriptor = (Read-JsonHashtable (Join-Path $stage 'terminal-dependency.json')).terminal_dependency
+            foreach ($field in @('interface_version', 'source_commit', 'upstream_commit', 'run_id', 'artifact_id',
+                    'package_sha256', 'executable_member', 'executable_sha256', 'asset_name')) {
+                if (-not $dependency.ContainsKey($field) -or [string]$dependency[$field] -cne [string]$descriptor[$field]) {
+                    throw "配套 Terminal 身份不一致: $field"
+                }
+            }
+            if ([int]$dependency.interface_version -ne 4 -or
+                (Get-Sha256 (Join-Path $stage 'terminal/WindowsTerminal.exe')) -ne $dependency.executable_sha256) {
+                throw '配套 Terminal 接口或 EXE SHA-256 不匹配'
+            }
+            foreach ($license in $dependency.licenses.Keys) {
+                $name = [IO.Path]::GetFileName($license)
+                $relative = 'terminal/' + $name
+                if (-not $seen.Contains($relative) -or
+                    (Get-Sha256 (Join-Path $stage $relative)) -ne $dependency.licenses[$license]) {
+                    throw "配套 Terminal 许可证不匹配: $name"
+                }
+            }
+        }
         $stageFiles = @(Get-ChildItem -LiteralPath $stage -File -Recurse -Force)
         $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         [void]$allowed.Add('release.json')
@@ -562,30 +597,125 @@ function Read-Package {
     }
 }
 
+function Measure-InstallPhase {
+    param([string]$Name, [scriptblock]$Body, [int]$Files = 0, [Nullable[long]]$Bytes = $null)
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    $succeeded = $false
+    try { & $Body; $succeeded = $true }
+    finally {
+        $timer.Stop()
+        Write-Host ('BLUEBERRY_MAINTENANCE_METRIC ' + (@{phase=$Name; elapsed_ms=$timer.Elapsed.TotalMilliseconds; files=$Files; bytes=$Bytes; succeeded=$succeeded} | ConvertTo-Json -Compress))
+    }
+}
+
+function Add-TransactionRecord {
+    param($Transaction, [Collections.IDictionary]$Event)
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    $record = [ordered]@{ sequence=($Transaction.wal_sequence + 1); previous_sha256=$Transaction.wal_hash; event=$Event }
+    $record['metadata_sha256'] = Get-ManifestIntegrityHash $record
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($record | ConvertTo-Json -Depth 50 -Compress) + "`n")
+    $path = Join-Path $Transaction.directory 'transaction.wal'
+    Assert-NoReparseComponents $path
+    $stream = [IO.File]::Open($path, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::Read)
+    try {
+        if ($stream.Length -ne $Transaction.wal_bytes) { throw 'Transaction log changed before append' }
+        [void]$stream.Seek(0, [IO.SeekOrigin]::End)
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Flush($true)
+    } finally { $stream.Dispose() }
+    $Transaction.wal_sequence = $record.sequence
+    $Transaction.wal_hash = $record.metadata_sha256
+    $Transaction.wal_bytes += $bytes.Length
+    $Transaction.journal_elapsed_ms += $timer.Elapsed.TotalMilliseconds
+}
+
 function Add-TransactionTouched {
     param(
         [Parameter(Mandatory = $true)]$Transaction,
         [Parameter(Mandatory = $true)][string]$RelativePath
     )
-    [void]$Transaction.touched.Add((Assert-SafeRelativePath $RelativePath))
-    if ($Transaction.PSObject.Properties['journal'] -and $Transaction.journal) { Save-TransactionJournal $Transaction }
+    $relative = Assert-SafeRelativePath $RelativePath
+    if ($Transaction.touched.Contains($relative)) { return }
+    if ($Transaction.PSObject.Properties['immutable_paths'] -and $Transaction.immutable_paths.Contains($relative)) {
+        throw "Refusing to mutate an immutable historical snapshot: $relative"
+    }
+    if ($Transaction.PSObject.Properties['journal_schema'] -and $Transaction.journal_schema -eq 2 -and $Transaction.journal) {
+        # No target mutation is allowed until the write-ahead record is durable.
+        Add-TransactionRecord $Transaction ([ordered]@{ kind='touch'; path=$relative })
+        [void]$Transaction.touched.Add($relative)
+    } else {
+        [void]$Transaction.touched.Add($relative)
+        if ($Transaction.PSObject.Properties['journal'] -and $Transaction.journal) { Save-TransactionJournal $Transaction }
+    }
 }
 
 function Save-TransactionJournal {
     param($Transaction)
     if (-not $Transaction.journal) { return }
-    Write-Utf8JsonAtomic -Path $Transaction.journal -Value ([ordered]@{
-        schema=1; root=$Transaction.root; records=@($Transaction.records); touched=@($Transaction.touched)
+    $schema = if ($Transaction.PSObject.Properties['journal_schema']) { $Transaction.journal_schema } else { 1 }
+    if ($schema -eq 2 -and [IO.File]::Exists($Transaction.journal)) {
+        Add-TransactionRecord $Transaction ([ordered]@{
+            kind='state'; outcome=$Transaction.outcome
+            intended_manifest_sha256=$Transaction.intended_manifest_sha256
+            committed_manifest_sha256=if ($Transaction.outcome -eq 'committed') { Get-Sha256 (Join-Path $Transaction.root 'install.json') } else { $null }
+        })
+        return
+    }
+    $header = [ordered]@{
+        schema=$schema; root=$Transaction.root; records=@($Transaction.records); touched=@($Transaction.touched)
         manifest_sha256=(Get-Sha256 $Transaction.manifest); outcome=$Transaction.outcome
         intended_manifest_sha256=$Transaction.intended_manifest_sha256
         committed_manifest_sha256=if ($Transaction.outcome -eq 'committed') { Get-Sha256 (Join-Path $Transaction.root 'install.json') } else { $null }
-    })
+    }
+    Write-Utf8JsonAtomic -Path $Transaction.journal -Value $header
+    if ($schema -eq 2) { $Transaction.wal_hash = $header.metadata_sha256 }
+}
+
+function Read-TransactionLog {
+    param([string]$Directory, [Collections.IDictionary]$Data)
+    $sequence = 0; $previous = $Data.metadata_sha256; $validBytes = 0
+    $touched = [Collections.Generic.List[string]]::new()
+    $path = Join-Path $Directory 'transaction.wal'
+    if ([IO.File]::Exists($path)) {
+        Assert-NoReparseComponents $path
+        $bytes = [IO.File]::ReadAllBytes($path)
+        # A partial last record precedes any target mutation and may be discarded.
+        $end = [Array]::LastIndexOf($bytes, [byte]10) + 1
+        $text = [Text.UTF8Encoding]::new($false, $true).GetString($bytes, 0, $end)
+        foreach ($line in $text.Split([char]10)) {
+            if ($line.Length -eq 0) { continue }
+            $record = $line | ConvertFrom-BlueberryInstallJson
+            if ($record.sequence -ne ($sequence + 1) -or $record.previous_sha256 -cne $previous -or
+                $record.metadata_sha256 -cne (Get-ManifestIntegrityHash $record)) { throw 'Transaction log checksum or sequence mismatch' }
+            switch ($record.event.kind) {
+                'touch' { $touched.Add((Assert-SafeRelativePath $record.event.path)) }
+                'state' {
+                    if ($record.event.outcome -notin @('prepared','committed','rolled_back')) { throw 'Unknown transaction outcome' }
+                    $Data.outcome = $record.event.outcome
+                    $Data.intended_manifest_sha256 = $record.event.intended_manifest_sha256
+                    $Data.committed_manifest_sha256 = $record.event.committed_manifest_sha256
+                }
+                default { throw 'Unknown transaction log event' }
+            }
+            $sequence = $record.sequence; $previous = $record.metadata_sha256
+        }
+        $validBytes = $end
+        if ($end -ne $bytes.Length) {
+            $stream = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+            try { $stream.SetLength($end); $stream.Flush($true) } finally { $stream.Dispose() }
+        }
+    }
+    $Data.touched = @($touched)
+    return [pscustomobject]@{ sequence=$sequence; hash=$previous; bytes=$validBytes }
 }
 
 function Complete-Transaction {
     param($Transaction, [string]$Outcome)
     $Transaction.outcome = $Outcome
     Save-TransactionJournal $Transaction
+    if ($Transaction.PSObject.Properties['journal_schema'] -and $Transaction.journal_schema -eq 2) {
+        Write-Host ('BLUEBERRY_MAINTENANCE_METRIC ' + (@{phase='journal'; elapsed_ms=$Transaction.journal_elapsed_ms; files=$Transaction.wal_sequence; bytes=$Transaction.wal_bytes; succeeded=$true} | ConvertTo-Json -Compress))
+    }
 }
 
 function Commit-TransactionManifest {
@@ -612,9 +742,10 @@ function Recover-Transaction {
     }
     $data = Read-JsonHashtable $journal
     if ($data.metadata_sha256 -ine (Get-ManifestIntegrityHash $data)) { throw 'Transaction journal checksum mismatch' }
-    if ($data.schema -ne 1 -or -not (Test-SamePath $Root $data.root)) { throw 'Transaction journal identity mismatch' }
+    if ($data.schema -notin @(1,2) -or -not (Test-SamePath $Root $data.root)) { throw 'Transaction journal identity mismatch' }
     $manifest = Join-Path $Directory 'install.json'
     if ((Get-Sha256 $manifest) -ine $ExpectedHash -or $data.manifest_sha256 -ine $ExpectedHash) { throw 'Recovery manifest identity mismatch' }
+    $wal = if ($data.schema -eq 2) { Read-TransactionLog $Directory $data } else { $null }
     $records = @($data.records | ForEach-Object {
         $relative = Assert-SafeRelativePath $_.path
         $source = Get-ManagedPath -Root (Join-Path $Directory 'files') -RelativePath $relative
@@ -625,6 +756,13 @@ function Recover-Transaction {
     $touched = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in $data.touched) { [void]$touched.Add((Assert-SafeRelativePath $relative)) }
     $transaction = [pscustomobject]@{root=$Root;directory=$Directory;manifest=$manifest;records=$records;touched=$touched;journal=$journal;outcome=$data.outcome;intended_manifest_sha256=$data.intended_manifest_sha256}
+    if ($data.schema -eq 2) {
+        $transaction | Add-Member -NotePropertyName journal_schema -NotePropertyValue 2
+        $transaction | Add-Member -NotePropertyName wal_sequence -NotePropertyValue $wal.sequence
+        $transaction | Add-Member -NotePropertyName wal_hash -NotePropertyValue $wal.hash
+        $transaction | Add-Member -NotePropertyName wal_bytes -NotePropertyValue $wal.bytes
+        $transaction | Add-Member -NotePropertyName journal_elapsed_ms -NotePropertyValue 0.0
+    }
     $currentHash = Get-Sha256 (Join-Path $Root 'install.json')
     if ($data.outcome -eq 'committed' -or ($data.intended_manifest_sha256 -and $currentHash -ieq $data.intended_manifest_sha256)) {
         if ($data.outcome -eq 'committed' -and $currentHash -ine $data.committed_manifest_sha256) { throw 'A different installation replaced the committed transaction; recovery stopped' }
@@ -634,7 +772,7 @@ function Recover-Transaction {
         return 'committed'
     }
     if ((Get-Sha256 (Join-Path $Root 'install.json')) -ine $ExpectedHash) { throw 'Installation metadata changed after the interrupted transaction; recovery stopped without overwriting it' }
-    Restore-Transaction $transaction
+    Measure-InstallPhase 'recovery' { Restore-Transaction $transaction } -Files $transaction.records.Count
     Assert-InstalledState -Root $Root -State (Read-InstallManifest -Root $Root -Required)
     Complete-Transaction $transaction 'rolled_back'
     Write-Host '已从持久事务备份恢复中断前的安装；可重新提交维护操作。'
@@ -919,8 +1057,12 @@ function New-Transaction {
     $backupRoot = Join-Path $transactionRoot 'files'
     [IO.Directory]::CreateDirectory($backupRoot) | Out-Null
     $records = [Collections.Generic.List[object]]::new()
+    $active = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($relative in (Get-ActiveManagedFiles -State $State)) { [void]$active.Add($relative) }
+    $immutable = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($relative in $State.managed_files) { if (-not $active.Contains($relative) -and $relative -ne $script:ManifestFileName) { [void]$immutable.Add($relative) } }
     try {
-        foreach ($relative in $State.managed_files) {
+        foreach ($relative in $active) {
             if ($relative -eq $script:ManifestFileName) { continue }
             $source = Get-ManagedPath -Root $Root -RelativePath $relative
             $sourceItem = Get-RegularFileRecord -Path $source -Label "事务备份 $relative"
@@ -939,6 +1081,7 @@ function New-Transaction {
             records = $records; touched = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
             journal = if ($TransactionDirectory) { Join-Path $transactionRoot 'transaction.json' } else { $null }
             outcome = 'prepared'
+            journal_schema = 2; wal_sequence = 0; wal_hash = ''; wal_bytes = 0; journal_elapsed_ms = 0.0; immutable_paths = $immutable
             intended_manifest_sha256 = $null
         }
         Save-TransactionJournal $transaction
@@ -1211,28 +1354,80 @@ function New-ManifestForPayload {
         -ManagedFiles (Get-ManagedFileList -Map $ManagedHashes) -InstalledUtc $InstalledUtc
 }
 
+function Move-BundledTerminalToComponent {
+    param([string]$Root,$Package,$State)
+    if (-not $Package.manifest.ContainsKey('package_kind') -or $Package.manifest.package_kind -ne 'core') { return }
+    $files=@(Get-ActiveManagedFiles $State | Where-Object { $_.StartsWith('terminal/',[StringComparison]::OrdinalIgnoreCase) })
+    if ($files.Count -eq 0) { return }
+    $componentRoot=Get-ManagedPath -Root $Root -RelativePath 'components/terminal'
+    $componentState=Join-Path $componentRoot 'component-state.json'
+    if ([IO.File]::Exists($componentState)) {
+        $existing=Read-JsonHashtable $componentState
+        if ($existing.product -ne 'Blueberry.Terminal' -or $existing.metadata_sha256 -cne (Get-ManifestIntegrityHash $existing)) { throw 'Existing Terminal component state is invalid' }
+        return
+    }
+    # Assert-InstalledState already validated every source against the old
+    # installation manifest. Publish the independent immutable component
+    # before the core transaction may remove its old bundled copy.
+    $descriptor=Read-JsonHashtable (Get-ManagedPath -Root $Root -RelativePath 'terminal-dependency.json')
+    $dependency=$descriptor.terminal_dependency
+    $records=@(foreach ($relative in $files) {
+        $name=$relative.Substring('terminal/'.Length)
+        if ($name.StartsWith('settings/',[StringComparison]::OrdinalIgnoreCase)) { throw 'Bundled runtime must not own user settings' }
+        $source=Get-ManagedPath -Root $Root -RelativePath $relative
+        @{path=$name;bytes=(Get-RegularFileRecord -Path $source -Label 'Bundled Terminal file').Length;sha256=$State.managed_hashes[$relative]}
+    })
+    $identity=(Get-ByteSha256 ([Text.Encoding]::UTF8.GetBytes((ConvertTo-BlueberryCanonicalJson $records)))).ToLowerInvariant()
+    $versionRoot=Get-ManagedPath -Root $componentRoot -RelativePath "versions/$identity"
+    foreach ($record in $records) {
+        $source=Get-ManagedPath -Root $Root -RelativePath ('terminal/'+$record.path)
+        $destination=Get-ManagedPath -Root $versionRoot -RelativePath $record.path
+        if ([IO.File]::Exists($destination) -and (Get-Sha256 $destination) -ine $record.sha256) { throw 'Interrupted component migration has modified files' }
+        Copy-FileAtomic -Source $source -Destination $destination -ExpectedHash $record.sha256 -RelativePath $record.path
+    }
+    $settings=Get-ManagedPath -Root $Root -RelativePath 'terminal/settings'
+    if ([IO.Directory]::Exists($settings)) {
+        foreach ($file in Get-ChildItem -LiteralPath $settings -File -Recurse -Force) {
+            Assert-NoReparseComponents $file.FullName
+            $relative=Get-BlueberryRelativePath -Root $settings -Path $file.FullName
+            $destination=Get-ManagedPath -Root $versionRoot -RelativePath ('settings/'+$relative)
+            Copy-FileAtomic -Source $file.FullName -Destination $destination -ExpectedHash (Get-Sha256 $file.FullName) -RelativePath $relative
+        }
+    }
+    $version=([string]$dependency.asset_name) -replace '^blueberry-terminal-v','' -replace '-windows-x64.zip$',''
+    $manifest=@{schema_version=1;product='Blueberry.Terminal';kind='terminal';version=$version;platform='windows-x64';files=$records;terminal_dependency=$dependency;migrated_from='bundled'}
+    $manifestPath=Join-Path $versionRoot 'component.json'
+    Write-Utf8JsonAtomic -Path $manifestPath -Value $manifest
+    $records+=@{path='component.json';bytes=(Get-RegularFileRecord -Path $manifestPath -Label 'Migrated component manifest').Length;sha256=(Get-Sha256 $manifestPath)}
+    $versions=@{}
+    $versions[$identity]=@{version=$version;dependency=$dependency;files=$records}
+    Write-Utf8JsonAtomic -Path $componentState -Value @{schema_version=1;product='Blueberry.Terminal';installed=$true;current=$identity;history=@();versions=$versions}
+    Write-Host 'Migrated bundled Terminal into its independent component; user settings preserved.'
+}
+
 function Invoke-Upgrade {
     param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)]$Package, [Parameter(Mandatory = $true)]$State)
-    Assert-InstalledState -Root $Root -State $State
+    Measure-InstallPhase 'validation' { Assert-InstalledState -Root $Root -State $State } -Files $State.managed_files.Count
+    Measure-InstallPhase 'component_migration' { Move-BundledTerminalToComponent -Root $Root -Package $Package -State $State }
     $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in $State.managed_files) { [void]$allowed.Add($relative) }
     Assert-PackageDestinations -Root $Root -Package $Package -AllowedExisting $allowed
     [void](Assert-PathAvailable -Root $Root -RelativePath "previous/$([Guid]::NewGuid().ToString('N'))")
-    $transaction = New-Transaction -Root $Root -State $State
+    $transaction = Measure-InstallPhase 'backup' { New-Transaction -Root $Root -State $State } -Files @(Get-ActiveManagedFiles -State $State).Count
     try {
-        $plan = New-SnapshotPlan -Root $Root -State $State -Transaction $transaction
-        $snapshot = Commit-SnapshotPlan -Plan $plan -Root $Root -Transaction $transaction
+        $plan = Measure-InstallPhase 'snapshot_prepare' { New-SnapshotPlan -Root $Root -State $State -Transaction $transaction } -Files $transaction.records.Count -Bytes (($transaction.records | Measure-Object bytes -Sum).Sum)
+        $snapshot = Measure-InstallPhase 'snapshot_copy' { Commit-SnapshotPlan -Plan $plan -Root $Root -Transaction $transaction } -Files $plan.records.Count
         $snapshot.version = $State.current.version
         $previous = @($State.previous + @($snapshot))
         Remove-ObsoleteActiveFiles -Root $Root -State $State -Package $Package -Transaction $transaction
         $copied = [Collections.Generic.List[string]]::new()
-        Copy-PackageFiles -Package $Package -Root $Root -AllowedExisting $allowed -Transaction $transaction -Copied $copied
+        Measure-InstallPhase 'payload_copy' { Copy-PackageFiles -Package $Package -Root $Root -AllowedExisting $allowed -Transaction $transaction -Copied $copied } -Files $Package.files.Count
         $managedHashes = New-ManagedHashMap -State $State
         Add-SnapshotToManagedHashMap -Map $managedHashes -Snapshot $snapshot
         Add-PackageToManagedHashMap -Map $managedHashes -Package $Package
         $manifest = New-ManifestForPayload -Root $Root -Version ([string]$Package.manifest.version) -Previous $previous `
             -ManagedHashes $managedHashes -InstalledUtc ([string]$State.manifest.installed_utc)
-        Commit-TransactionManifest -Transaction $transaction -Manifest $manifest
+        Measure-InstallPhase 'commit' { Commit-TransactionManifest -Transaction $transaction -Manifest $manifest } -Files 1
         $newState = Read-InstallManifest -Root $Root -Required
         Assert-InstalledState -Root $Root -State $newState
         Complete-Transaction $transaction 'committed'
@@ -1240,7 +1435,7 @@ function Invoke-Upgrade {
     }
     catch {
         $failure = $_.Exception
-        try { Restore-Transaction -Transaction $transaction; Complete-Transaction $transaction 'rolled_back'; Write-Warning '升级失败；已恢复升级前的全部受管文件和 install.json 元数据。' }
+        try { Measure-InstallPhase 'recovery' { Restore-Transaction -Transaction $transaction } -Files $transaction.records.Count; Complete-Transaction $transaction 'rolled_back'; Write-Warning '升级失败；已恢复升级前的全部受管文件和 install.json 元数据。' }
         catch { throw "升级失败且自动恢复不完整：$($failure.Message)；$($_.Exception.Message)" }
         throw $failure
     }
@@ -1271,19 +1466,18 @@ function Invoke-Rollback {
     $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in $State.managed_files) { [void]$allowed.Add($relative) }
     [void](Assert-PathAvailable -Root $Root -RelativePath "previous/$([Guid]::NewGuid().ToString('N'))")
-    $transaction = New-Transaction -Root $Root -State $State
+    $transaction = Measure-InstallPhase 'backup' { New-Transaction -Root $Root -State $State } -Files @(Get-ActiveManagedFiles -State $State).Count
     try {
-        $plan = New-SnapshotPlan -Root $Root -State $State -Transaction $transaction
-        $snapshot = Commit-SnapshotPlan -Plan $plan -Root $Root -Transaction $transaction
+        $plan = Measure-InstallPhase 'snapshot_prepare' { New-SnapshotPlan -Root $Root -State $State -Transaction $transaction } -Files $transaction.records.Count -Bytes (($transaction.records | Measure-Object bytes -Sum).Sum)
+        $snapshot = Measure-InstallPhase 'snapshot_copy' { Commit-SnapshotPlan -Plan $plan -Root $Root -Transaction $transaction } -Files $plan.records.Count
         $snapshot.version = $State.current.version
         $recordMap = @{}
         foreach ($record in $transaction.records) { $recordMap[$record.path] = $record }
         $selectedPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($record in $selected.files) {
             [void]$selectedPaths.Add($record.path)
-            $sourceRecord = $recordMap[$record.snapshot_path]
-            if ($null -eq $sourceRecord) { throw "事务备份缺少回滚快照源: $($record.snapshot_path)" }
-            Copy-FileAtomic -Source $sourceRecord.source -Destination (Get-ManagedPath -Root $Root -RelativePath $record.path) `
+            $snapshotSource = Get-ManagedPath -Root $Root -RelativePath $record.snapshot_path
+            Copy-FileAtomic -Source $snapshotSource -Destination (Get-ManagedPath -Root $Root -RelativePath $record.path) `
                 -ExpectedHash $record.sha256 -RelativePath $record.path -Transaction $transaction
         }
         foreach ($relative in (Get-ActiveManagedFiles -State $State)) {
@@ -1302,7 +1496,7 @@ function Invoke-Rollback {
         foreach ($record in $selected.files) { $managedHashes[$record.path] = $record.sha256 }
         $manifest = New-ManifestForPayload -Root $Root -Version $selected.version -Previous $previous `
             -ManagedHashes $managedHashes -InstalledUtc ([string]$State.manifest.installed_utc)
-        Commit-TransactionManifest -Transaction $transaction -Manifest $manifest
+        Measure-InstallPhase 'commit' { Commit-TransactionManifest -Transaction $transaction -Manifest $manifest } -Files 1
         $newState = Read-InstallManifest -Root $Root -Required
         Assert-InstalledState -Root $Root -State $newState
         Write-Host "已回滚到 Blueberry $($selected.version)（unsigned）；回滚前的完整受管文件和元数据保存在 $($snapshot.snapshot_root)"
@@ -1310,7 +1504,7 @@ function Invoke-Rollback {
     }
     catch {
         $failure = $_.Exception
-        try { Restore-Transaction -Transaction $transaction; Complete-Transaction $transaction 'rolled_back'; Write-Warning '回滚失败；已恢复回滚前的全部受管文件和 install.json 元数据。' }
+        try { Measure-InstallPhase 'recovery' { Restore-Transaction -Transaction $transaction } -Files $transaction.records.Count; Complete-Transaction $transaction 'rolled_back'; Write-Warning '回滚失败；已恢复回滚前的全部受管文件和 install.json 元数据。' }
         catch { throw "回滚失败且自动恢复不完整：$($failure.Message)；$($_.Exception.Message)" }
         throw $failure
     }
@@ -1577,7 +1771,9 @@ function Invoke-ApplySettings {
     $temporary = "$($plan.path).new-$([Guid]::NewGuid().ToString('N'))"
     try {
         $json = $plan.after | ConvertTo-Json -Depth 30
-        [IO.File]::WriteAllText($temporary, "$json`n", [Text.UTF8Encoding]::new($false))
+        $bytes = [Text.UTF8Encoding]::new($false).GetBytes("$json`n")
+        $stream = [IO.File]::Open($temporary, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try { $stream.Write($bytes, 0, $bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
         Move-BlueberryFile $temporary $plan.path
         Write-Host "已应用 Blueberry profile；原 settings 字节备份为 $backupPath"
     }

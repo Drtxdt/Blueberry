@@ -1,0 +1,28 @@
+已安装 Blueberry 0.5.3 到 E:\OpenSource\shellsense-rs\target\maintenance-tests-31e015cbf4fd42e28c19f1a2110414a6\install（unsigned）
+{
+  "id": "698d978348a3440889b8a368e4d25934",
+  "status": "cancellation_requested"
+}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":6.7523,"files":0,"bytes":0,"phase":"session_wait","succeeded":true}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":18.6789,"files":61,"bytes":16439,"phase":"journal","succeeded":true}
+上次维护已完整提交；已核验安装文件。
+{
+  "created_utc": "2026-10-18T08:30:47.2389771Z",
+  "expected_manifest_sha256": "EFD06FAF248B5D0C79A378A369AF15650C3D1CEBB61509AB0B72FA998535469A",
+  "id": "2cde015dc32b4082babda52ad18b554a",
+  "install_root": "E:\\OpenSource\\shellsense-rs\\target\\maintenance-tests-31e015cbf4fd42e28c19f1a2110414a6\\install",
+  "message": "资源已校验，等待相关会话自然退出",
+  "operation": "Rollback",
+  "package": null,
+  "package_sha256": null,
+  "schema": 1,
+  "status": "queued"
+}
+已排队：相关 Blueberry 会话自然退出后自动执行。使用 blueberry maintenance status 查看结果。
+维护日志：E:\OpenSource\shellsense-rs\target\maintenance-tests-31e015cbf4fd42e28c19f1a2110414a6\.blueberry-maintenance-538863f1bf006f87\worker.log
+BLUEBERRY_MAINTENANCE:{"created_utc":"2026-10-18T08:31:44.7493687Z","expected_manifest_sha256":"75DECB1F54151D2324FDE020F08F2B6CEDCC60BB1F5CFD4C4F671E3DB74F2792","id":"5c1823e015634acab3b9c67abbcc84c0","install_root":"E:\u005cOpenSource\u005cshellsense-rs\u005ctarget\u005cmaintenance-tests-31e015cbf4fd42e28c19f1a2110414a6\u005cinstall","message":"\u8d44\u6e90\u5df2\u6821\u9a8c\uff0c\u7b49\u5f85\u76f8\u5173\u4f1a\u8bdd\u81ea\u7136\u9000\u51fa","operation":"Upgrade","package":"E:\u005cOpenSource\u005cshellsense-rs\u005ctarget\u005cmaintenance-tests-31e015cbf4fd42e28c19f1a2110414a6\u005c.blueberry-maintenance-538863f1bf006f87\u005c5c1823e015634acab3b9c67abbcc84c0\u005cblueberry-v0.5.3-windows-x64.zip","package_sha256":"7B56F04759D166CA487F43125B76A9A3914D00673EB49836D7B1563B66BD2D35","schema":1,"status":"queued","target_version":"0.5.3"}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":7.9664,"files":0,"bytes":0,"phase":"session_wait","succeeded":true}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":107.7403,"files":29,"bytes":null,"phase":"recovery","succeeded":true}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":9.4931,"files":2,"bytes":528,"phase":"journal","succeeded":true}
+已从持久事务备份恢复中断前的安装；可重新提交维护操作。
+Maintenance lifecycle passed; retained evidence: E:\OpenSource\shellsense-rs\target\maintenance-tests-31e015cbf4fd42e28c19f1a2110414a6

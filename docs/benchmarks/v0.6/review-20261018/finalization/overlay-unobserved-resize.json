@@ -1,0 +1,234 @@
+{
+  "base_commit": "4a6ce7acc57b1735d771aa0b215c58a8c86c8182",
+  "issue": "The native console can resize before HostEvent::Resize is processed. Shell output can retire an overlay using old geometry and forget the moved owned rows.",
+  "change": "Read native viewport height and width when identifying owned rows. Detect mismatch with painted geometry independently of the queued resize flag and scan actual viewport rows.",
+  "regression": "A subprocess draws an overlay, parent resizes its ConPTY, then explicitly requests erase without delivering resize to the overlay or parser.",
+  "command": "cargo test --locked --test overlay_resize erase_after_console_resize_before_resize_event_removes_owned_rows -- --exact --nocapture",
+  "before_fix_fixture": "race-Mq9jT8",
+  "first_after_fix_fixture": "race-NBfA7D",
+  "history_assertion_fixture": "race-oDtPni",
+  "repeat_30_binary_sha256": "5A48E71E6E47AA301C45E40DFC6D4E9A76825CD0A20D9DB56913AC52FEC9525B",
+  "repeat_30_first": "race-F0lGPi",
+  "repeat_30_last": "race-WV3B10",
+  "records": [
+    {
+      "fixture": "target/overlay-resize-evidence/race-6u0FlK",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-8egTAI",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-8GHVry",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-9j1yYD",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-AgTqzk",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-bRlIMn",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-BsHPag",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-dff3hY",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-e3UDW5",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-eqis3e",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-F0lGPi",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-GdBulQ",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-Ijgn4e",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-IoTPYj",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-jYSqNQ",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-kMkPJC",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-L1Ukks",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-LmoKcd",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-lx4fGa",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-Mq9jT8",
+      "after_sha256": "3b59263b4bf16653420227622e98dbed5f94d94fb8c17a16633b00b4b0eb238a",
+      "candidate_residue": true,
+      "unrelated_history_preserved": false
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-NBfA7D",
+      "after_sha256": "177393b8d3c588ec6acb71508be13299efa1f76a4bae0f9ec79d80f7f6efb5ed",
+      "candidate_residue": false,
+      "unrelated_history_preserved": false
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-oDtPni",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-r55RET",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-RQvxW1",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-Sypjuh",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-TFpzR4",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-tXSCs6",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-v1dsbP",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-WV3B10",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-xGu3zO",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-ybTcR9",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-zcQm1O",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    },
+    {
+      "fixture": "target/overlay-resize-evidence/race-ZuySfG",
+      "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe",
+      "candidate_residue": false,
+      "unrelated_history_preserved": true
+    }
+  ],
+  "native_history_revalidation": {
+    "passed": 6,
+    "test_executable_sha256": "0153DCFAE175C80A70C91854A0E294A7F432588287B1B4D22DE0966AC0706A44",
+    "fixtures": [
+      "host-wmsR7W",
+      "host-WL6TpF",
+      "host-EOaUtR",
+      "host-HXtKXw",
+      "host-FBjiO7",
+      "host-cucUUr"
+    ],
+    "scope": "PS5.1/2.0.0, PS5.1/2.4.5, PS7/2.4.5, each pipe and OSC; Unicode, RGB, post-resize completion."
+  },
+  "ps51_200_interaction": {
+    "passed": 2,
+    "fixtures": [
+      "host-RCvUgS",
+      "host-ihzGqO"
+    ]
+  },
+  "limitations": "This proves the isolated event ordering. CI raw snapshots must still be audited for remaining cleanup paths; native GUI acceptance remains separate."
+}

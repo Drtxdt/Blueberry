@@ -1,0 +1,483 @@
+已安装 Blueberry 0.5.3 到 E:\OpenSource\shellsense-rs\target\terminal-migration-79e43ec786894eadb29158440defcdd5（unsigned）
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"validation","files":115,"elapsed_ms":382.0598}
+Migrated bundled Terminal into its independent component; user settings preserved.
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"component_migration","files":0,"elapsed_ms":4096.114}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"backup","files":114,"elapsed_ms":5330.7099}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":68777325,"phase":"snapshot_prepare","files":114,"elapsed_ms":5657.8732}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"snapshot_copy","files":114,"elapsed_ms":6330.2047}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"payload_copy","files":28,"elapsed_ms":3208.6709}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"commit","files":1,"elapsed_ms":728.2333}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":0,"phase":"journal","files":0,"elapsed_ms":0.0}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/2aa6c745b6154c75963748f36120277a
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"backup","files":29,"elapsed_ms":3217.8456}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":18121774,"phase":"snapshot_prepare","files":29,"elapsed_ms":3217.2237}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"snapshot_copy","files":29,"elapsed_ms":3215.0307}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"commit","files":1,"elapsed_ms":1254.9142}
+已回滚到 Blueberry 0.5.3（unsigned）；回滚前的完整受管文件和元数据保存在 previous/868a8ad04c8a4477a39aab4f9c114d9f
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":0,"phase":"journal","files":0,"elapsed_ms":0.0}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"validation","files":260,"elapsed_ms":783.799}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"component_migration","files":0,"elapsed_ms":259.7269}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"backup","files":114,"elapsed_ms":5786.6234}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":68777325,"phase":"snapshot_prepare","files":114,"elapsed_ms":5567.8566}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"snapshot_copy","files":114,"elapsed_ms":6154.3821}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"payload_copy","files":28,"elapsed_ms":3323.9144}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":null,"phase":"commit","files":1,"elapsed_ms":1391.1216}
+BLUEBERRY_MAINTENANCE_METRIC {"succeeded":true,"bytes":0,"phase":"journal","files":0,"elapsed_ms":0.0}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/5ca3c4adc5b84bf68a92774e1c6b82b8
+{
+  "versions": {
+    "e7f4609916e2665364a662d76d8562ed9c7231d11afa7d7ddd34cb1c74a02a3b": {
+      "dependency": {
+        "interface_version": 4,
+        "source_commit": "b1a2d3f0ebd0a8e6c4a89777d07de6424fa931a6",
+        "upstream_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+        "run_id": 38664398242,
+        "artifact_id": 11941135812,
+        "asset_name": "blueberry-terminal-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip",
+        "package_sha256": "22F6C01A91C19506782ADE2E98FF2C2AA46835DCF7CD5AD8BA3C09249CA5EA48",
+        "executable_member": "bin/x64/Release/WindowsTerminal/WindowsTerminal.exe",
+        "executable_sha256": "332818C5FA84C675DB21939974FB53E3D908408952D28CAD58035590FC0A32C8",
+        "licenses": {
+          "bin/x64/Release/WindowsTerminal/BLUEBERRY-PATCH-LICENSE.txt": "2FEB9979C41260E08EC02DFEC79AD2F0A4421E9C2531F6E6DAF461CB5E4B5DCE",
+          "bin/x64/Release/WindowsTerminal/TERMINAL-LICENSE.txt": "5D177F23ECFEB0EA8E050B6A5A16355E1AE9A0B286436CA8F83ED08B3795BE6B",
+          "bin/x64/Release/WindowsTerminal/TERMINAL-THIRD-PARTY-NOTICES.md": "E7FBAADEE6AB20C28B87730A510EE5F5815D8FB4BD88D1D54D282DC2A74C0726"
+        }
+      },
+      "version": "1.24.12741.0-native4-b1a2d3f",
+      "files": [
+        {
+          "path": "_xaml/[Content_Types].xml",
+          "bytes": 742,
+          "sha256": "18208985802EC8B0F5D9FCA8B5036389779A0408BD012FC210CEE3200D7A85BB"
+        },
+        {
+          "path": "_xaml/AppxBlockMap.xml",
+          "bytes": 20090,
+          "sha256": "F25CC73EB1BB4E5757AC90C6FC9630652F00505C113BA5BE528504DF01725E95"
+        },
+        {
+          "path": "_xaml/AppxManifest.xml",
+          "bytes": 18814,
+          "sha256": "D3832DDEACA064731F3E4AA50C556AEDB7DEFC9771F9F375E43A336272B15139"
+        },
+        {
+          "path": "_xaml/AppxMetadata/CodeIntegrity.cat",
+          "bytes": 12347,
+          "sha256": "C78D1307FEBFD7006138E2089862C9A14BA9CE05D828B94EDB1C2AE7C29A0CFA"
+        },
+        {
+          "path": "_xaml/AppxSignature.p7x",
+          "bytes": 12098,
+          "sha256": "1CD331BF71A9D7F1CCCEFEDF2E90E01231CDD2E61E3030BB2781A7390A7EAE4E"
+        },
+        {
+          "path": "_xaml/logo.png",
+          "bytes": 1136,
+          "sha256": "5A9D9B919CD6A05AECB690D4EDF361BE4CACC1BC4A50C28130BC8182888F8E43"
+        },
+        {
+          "path": "_xaml/Microsoft.UI.Xaml.dll",
+          "bytes": 6115768,
+          "sha256": "8B92DE46C8950CED663E970A3352D3930FF3C978F3C73770935B5316CF6CA5AD"
+        },
+        {
+          "path": "_xaml/Microsoft.UI.Xaml.winmd",
+          "bytes": 285696,
+          "sha256": "C3BC7AFB13190F69F5FFD831D7BA70DAC76650B06581C8110DDEF74CE874CB33"
+        },
+        {
+          "path": "_xaml/Microsoft.UI.Xaml/Assets/NoiseAsset_256x256_PNG.png",
+          "bytes": 3241,
+          "sha256": "4F2AA94A2E345A32DAE689176B86C644BEF87081FF9DAEF8C77417731862031B"
+        },
+        {
+          "path": "_xaml/resources.pri",
+          "bytes": 10611776,
+          "sha256": "51E626DD2179B6A27C81BE694958876FF4750BAD4AB6A25996132CD6502293A2"
+        },
+        {
+          "path": ".portable",
+          "bytes": 36,
+          "sha256": "D11BBA7B39787D5C0483AA6840965F7B344051B93F7FDCADB41B536602E7143E"
+        },
+        {
+          "path": "BLUEBERRY-PATCH-LICENSE.txt",
+          "bytes": 1080,
+          "sha256": "2FEB9979C41260E08EC02DFEC79AD2F0A4421E9C2531F6E6DAF461CB5E4B5DCE"
+        },
+        {
+          "path": "Microsoft.Management.Deployment.winmd",
+          "bytes": 50208,
+          "sha256": "84D66BCAC356C4A84E863736C06390212A3EBEB3934C672C43DFDACC69864427"
+        },
+        {
+          "path": "Microsoft.Terminal.Control.dll",
+          "bytes": 1688064,
+          "sha256": "61752D569ACE1B4E2EDB08DDCA43E584794A293988CA8A09A52927E412A574B0"
+        },
+        {
+          "path": "Microsoft.Terminal.Control.pri",
+          "bytes": 728,
+          "sha256": "F9435CB10646A217B533FDC4249A19AC1D4A30B58792FEFFEBE494F998BC598D"
+        },
+        {
+          "path": "Microsoft.Terminal.Control.winmd",
+          "bytes": 53760,
+          "sha256": "F23F58D06068C28EDB3ED35E587DA4A013B9A82233965E20A4B0240A1C863FF5"
+        },
+        {
+          "path": "Microsoft.Terminal.Control/SearchBoxControl.xaml",
+          "bytes": 17900,
+          "sha256": "65BA3AD83B61785BC39D914FBF8ACF4FF28142D30B1DC3B34F6088B905F00EFA"
+        },
+        {
+          "path": "Microsoft.Terminal.Control/TermControl.xaml",
+          "bytes": 118187,
+          "sha256": "7C3654B2D600B514565E1E7069D3972C357789B2C5449584DE2A27E55207E54C"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor.dll",
+          "bytes": 2929152,
+          "sha256": "E44AA21D6FFE52A42D9934BAD523599198F5450ED1CAF772FE5B40303EB7E9E4"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor.pri",
+          "bytes": 542320,
+          "sha256": "DDBFA2EC40595640C0DEBA66A7224848AED86D5C81882AF095ACA558F79FC609"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor.winmd",
+          "bytes": 115712,
+          "sha256": "17771D49197E3DB861316FF39C3646FADC9950FE198985D8BA3AD014FA10F5B9"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Actions.xaml",
+          "bytes": 21791,
+          "sha256": "D74F2DF62C4CD44BBDDEFAAAB0EDE46514B3138126BF47695A2C1B901D05FD34"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/AddProfile.xaml",
+          "bytes": 4756,
+          "sha256": "5223130B2E479601E36267C8511A2FF43AF5215EE72AF2F37FAE48CC91F20C49"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Appearances.xaml",
+          "bytes": 57237,
+          "sha256": "3AB88EDA3A62391589C0ED6D1684C94F26B7767DB98FA0F80785A404E026D56A"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/ColorSchemes.xaml",
+          "bytes": 14262,
+          "sha256": "5A1B7C4A08BA141A59E372C459BD695C512E57E262C4E91DF7528DFBED54D72F"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/CommonResources.xaml",
+          "bytes": 94729,
+          "sha256": "DF92EDC832E35B57076D1786C2C69D7A03764E536BD7EFC25EE85224C6276A86"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Compatibility.xaml",
+          "bytes": 5112,
+          "sha256": "3AD5A0A7EEB81980C756BD6560E6A75F27C083751EEC0F114B943571DD6EE292"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/EditColorScheme.xaml",
+          "bytes": 29703,
+          "sha256": "F55EF8118206AD30582F06A91137F127B95E644DA9F35B73AD845B6FE5870D02"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Extensions.xaml",
+          "bytes": 34137,
+          "sha256": "4355F1A484F8D9B2653A26B0B5D31FF6F090BEDDA3DF82A2346244B226ABA93A"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/GlobalAppearance.xaml",
+          "bytes": 7673,
+          "sha256": "DCC6BBDC312AD2A50FCB940DE6D5AB3105D6F0A4A8CA83848ABF77DD1F40B433"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Interaction.xaml",
+          "bytes": 8793,
+          "sha256": "A86E2C23741AAD479FE12C59641447AE1B043185F04C4F0EE58837FF85310BAF"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/KeyChordListener.xaml",
+          "bytes": 838,
+          "sha256": "30337D6C8784A9C9538E9A889E359C5D4738D0AED8C3CD67656618232E57AF31"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Launch.xaml",
+          "bytes": 18833,
+          "sha256": "10A025B536F68EA31CFE32C1142FA2B2A8D40E411311B029BB8C14FA9012822A"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/MainPage.xaml",
+          "bytes": 13970,
+          "sha256": "6CDE7F61C9D066C5193679F55C1A4162B1B1BBBD9930F2AEF84238D5C4029DA1"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/NewTabMenu.xaml",
+          "bytes": 30037,
+          "sha256": "91BA70E8CC761CE20B3A5DF7119FCCC2AC16FD7993702F4A523CD0E596FEA698"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/NullableColorPicker.xaml",
+          "bytes": 10144,
+          "sha256": "DE2DE4E1931DDE37890FE03D854DD3EB83C4FC4CB9F419B11D6623F50177981D"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Profiles_Advanced.xaml",
+          "bytes": 18723,
+          "sha256": "FC9C5A3DEC94726A89E61AA7325DF7837210A2676F19F243D051076FD4B34324"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Profiles_Appearance.xaml",
+          "bytes": 15069,
+          "sha256": "704D41C285046FAA1D4561D67CD47F10C8AA24412E02ADECF8B5D2022675503A"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Profiles_Base_Orphaned.xaml",
+          "bytes": 2991,
+          "sha256": "70D4505270278C57736B9AA1F14227AC60096049F4498C24A3E49FA8D9E63A2F"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Profiles_Base.xaml",
+          "bytes": 17047,
+          "sha256": "402FB7A57AA4F6EF3474C608F4A09EEA0319E566C65F20682CFCB3F6B4235233"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Profiles_Terminal.xaml",
+          "bytes": 5256,
+          "sha256": "39E78C5652654C4AB025F8924FC7D7F75DB519A477188389416A9E2E54C619A8"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/Rendering.xaml",
+          "bytes": 2315,
+          "sha256": "80011F7279F370BA463065FEDD2B5D0C6545856B0B30703188D2C9A3872AEFD0"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Editor/SettingContainerStyle.xaml",
+          "bytes": 35116,
+          "sha256": "DCCE571054DB863A7B5EA2AF701F1BC1787259FF498903BDD6086709937A0A0F"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Model.dll",
+          "bytes": 2015232,
+          "sha256": "8AF2C5FD61A88093532EADEDE97983DA7AFC1C13E2BF70F10A98F6AC1BB45986"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Model.pri",
+          "bytes": 760,
+          "sha256": "133F34F40D6348938764FC43BA3C80F47B1C19F17AB4051001F440681147CEFE"
+        },
+        {
+          "path": "Microsoft.Terminal.Settings.Model.winmd",
+          "bytes": 140800,
+          "sha256": "8CE61120A5E9BF1268BE02B934AA9A59127DAC19DC559485EBA2D0359041C5F6"
+        },
+        {
+          "path": "Microsoft.Terminal.TerminalConnection.pri",
+          "bytes": 27664,
+          "sha256": "1CBC755A4F066EC16004827F600EADBEF908BDB96491E5652D1A77C29CB7409F"
+        },
+        {
+          "path": "Microsoft.Terminal.TerminalConnection.winmd",
+          "bytes": 7680,
+          "sha256": "4547677A5F86E7BBA98838B93D37B0CEEEEB6F988D8CDA8751DA2A59F22C852B"
+        },
+        {
+          "path": "Microsoft.Terminal.UI.dll",
+          "bytes": 220160,
+          "sha256": "1D2028665297E3FBA48D5D4E911FC3B3244E22B00C09F4AD4A42A9E082659791"
+        },
+        {
+          "path": "Microsoft.Terminal.UI.Markdown.dll",
+          "bytes": 418304,
+          "sha256": "C5D43BCF084DD6BBB35BAB33E902971EBBAE664678F495BA0D496A7896677F51"
+        },
+        {
+          "path": "Microsoft.Terminal.UI.Markdown.pri",
+          "bytes": 5616,
+          "sha256": "679CC8D8DBFD3F2698FC24BD19646CF17647539C6AD019C56F2103CF36057A0F"
+        },
+        {
+          "path": "Microsoft.Terminal.UI.Markdown.winmd",
+          "bytes": 4608,
+          "sha256": "E061B53D5547D001E42F5E1CAE84A8EF93821872F94167CCB3B70E0DDDA796FC"
+        },
+        {
+          "path": "Microsoft.Terminal.UI.Markdown/CodeBlock.xaml",
+          "bytes": 12491,
+          "sha256": "F31CC0D526A8EB950BC4740A459F9169784DC6E8C22C151BEF204130EF8C2F99"
+        },
+        {
+          "path": "Microsoft.Terminal.UI.pri",
+          "bytes": 3736,
+          "sha256": "098844E8A71B10515215C1AA0B2809EEB3D1365392CD34968BF5CFF09C4BE524"
+        },
+        {
+          "path": "Microsoft.Terminal.UI.winmd",
+          "bytes": 5120,
+          "sha256": "A0C255D7F73C557C729F5B2F8DC21695E73E7C54527C87DFA7A1C42A6FE14BA4"
+        },
+        {
+          "path": "Microsoft.UI.Xaml.dll",
+          "bytes": 6115768,
+          "sha256": "8B92DE46C8950CED663E970A3352D3930FF3C978F3C73770935B5316CF6CA5AD"
+        },
+        {
+          "path": "Microsoft.UI.Xaml.pri",
+          "bytes": 1400,
+          "sha256": "740D50A9E4B5BEA02E39AE58A150A6E2937880615D13E4305563F89D5B8074C3"
+        },
+        {
+          "path": "Microsoft.UI.Xaml.winmd",
+          "bytes": 285696,
+          "sha256": "2EADB8600BFBC1911B5BFF2F7226C512F25520098857E2252C1EA4C48BC83B91"
+        },
+        {
+          "path": "Microsoft.UI.Xaml.xml",
+          "bytes": 426330,
+          "sha256": "4E14BA162F69648C1B0B7F7D9634BC57E161F3A1BD899129113AF599A7A4BEE0"
+        },
+        {
+          "path": "Microsoft.Web.WebView2.Core.winmd",
+          "bytes": 107968,
+          "sha256": "39044284B8533378D97FD3498139FD5ACC5EF0503393C62250434833D0AA0526"
+        },
+        {
+          "path": "OpenConsole.exe",
+          "bytes": 1149440,
+          "sha256": "CCAB631B5203041DB33E96084A2068A427D8913ED5275C2A06ADAC141424CF55"
+        },
+        {
+          "path": "PROTOTYPE-README.txt",
+          "bytes": 189,
+          "sha256": "44276B1C28C32590DDB17F096A5AB52D4A1148613FF75DC6A3B617EA4DB5052D"
+        },
+        {
+          "path": "resources.pri",
+          "bytes": 11643416,
+          "sha256": "44E2D66F2A02DA0C25F1056329569CCF885B3779F9FFC7EA4FD4B40F026047C5"
+        },
+        {
+          "path": "TERMINAL-LICENSE.txt",
+          "bytes": 1116,
+          "sha256": "5D177F23ECFEB0EA8E050B6A5A16355E1AE9A0B286436CA8F83ED08B3795BE6B"
+        },
+        {
+          "path": "TERMINAL-THIRD-PARTY-NOTICES.md",
+          "bytes": 23176,
+          "sha256": "E7FBAADEE6AB20C28B87730A510EE5F5815D8FB4BD88D1D54D282DC2A74C0726"
+        },
+        {
+          "path": "TerminalApp.dll",
+          "bytes": 2750464,
+          "sha256": "2A978DCA4AB64AB5D1F4BA38A4FBD5DBE4AD986941FC4F6D17744C32361ABEBE"
+        },
+        {
+          "path": "TerminalApp.pri",
+          "bytes": 672,
+          "sha256": "8C5C4A7570568C9ED8EC91696C5C4CAF07378A5A4664A5DAB7F99AC3DFD6D995"
+        },
+        {
+          "path": "TerminalApp.winmd",
+          "bytes": 78336,
+          "sha256": "48429121347CCEE31965DB95D302A6207A24B1CFC449766D4F4A569CBA72A59E"
+        },
+        {
+          "path": "TerminalApp/AboutDialog.xaml",
+          "bytes": 3593,
+          "sha256": "BD9B968E0C52DE39BF97833D87F8FB3BA46BDC93534B4EF4E66589A7F28A17E1"
+        },
+        {
+          "path": "TerminalApp/App.xaml",
+          "bytes": 15972,
+          "sha256": "A8DB1C5BE4F94AB45575F976444A5E0DF7FCF6B2D51FBD74F4D74AF06A01991E"
+        },
+        {
+          "path": "TerminalApp/ColorPickupFlyout.xaml",
+          "bytes": 8223,
+          "sha256": "1B6047C2774999CEA2994DB53D7F44B34DEEA0F0CC546325E7FED21E988688D5"
+        },
+        {
+          "path": "TerminalApp/CommandPalette.xaml",
+          "bytes": 21524,
+          "sha256": "35599F7BADE433F58C49CDECC78474EFB9C3C0EFAD63D4A4F4686DACC53FB536"
+        },
+        {
+          "path": "TerminalApp/HighlightedTextControlStyle.xaml",
+          "bytes": 1051,
+          "sha256": "165FD16FCCDFDED4FC66FA8056611C05DC3C9640A0580B4F2AC9856B5E97C78C"
+        },
+        {
+          "path": "TerminalApp/MarkdownPaneContent.xaml",
+          "bytes": 6264,
+          "sha256": "861AF07DCF391879DF4E110E840840EFAE6BDC5C8C76DDE638D09E995666B743"
+        },
+        {
+          "path": "TerminalApp/MinMaxCloseControl.xaml",
+          "bytes": 25632,
+          "sha256": "B0383BBCFEFD6D9077409A73A87FE08EE9A789F77F4EA7B7DE5DCD21969940A3"
+        },
+        {
+          "path": "TerminalApp/SnippetsPaneContent.xaml",
+          "bytes": 16556,
+          "sha256": "1BD3C428A268C80E1858EF73315AD0B4152920214567E8B7BE2545C24C94206F"
+        },
+        {
+          "path": "TerminalApp/SuggestionsControl.xaml",
+          "bytes": 12193,
+          "sha256": "563865A48EF0DD8954E90765C93CC06A44217D1385E5295F0C2B6C852FC41AF3"
+        },
+        {
+          "path": "TerminalApp/TabHeaderControl.xaml",
+          "bytes": 3927,
+          "sha256": "8FD5DD1E4FE7A9DDDF70937111E3069984061D8B2C962FF235ED95A37502D8E0"
+        },
+        {
+          "path": "TerminalApp/TabRowControl.xaml",
+          "bytes": 8694,
+          "sha256": "D511BE9B23B45DFEB28AF402778E8540AD1FE736FDE2DD6195E4806A6E277097"
+        },
+        {
+          "path": "TerminalApp/TerminalPage.xaml",
+          "bytes": 12291,
+          "sha256": "FCFA214BD01DBF0854E3BA48EEC856BB78F6D51A937D25B9B28DEA568068D7A2"
+        },
+        {
+          "path": "TerminalApp/TitlebarControl.xaml",
+          "bytes": 2115,
+          "sha256": "72ED392245215634A6BFBF3A471B13A7E7D92D725653130D24484866311AF27A"
+        },
+        {
+          "path": "TerminalConnection.dll",
+          "bytes": 441344,
+          "sha256": "C4BC6EA6B9846CA281EF86A2A0B9EB1DD44CE0926BE034648EFDA816AF33E21F"
+        },
+        {
+          "path": "TerminalThemeHelpers.dll",
+          "bytes": 40960,
+          "sha256": "929DDFB7696BBE75234B2BF2AE1997B05502CC45B263CE53A5D27E7BF23ABD77"
+        },
+        {
+          "path": "WindowsTerminal.exe",
+          "bytes": 604672,
+          "sha256": "332818C5FA84C675DB21939974FB53E3D908408952D28CAD58035590FC0A32C8"
+        },
+        {
+          "path": "component.json",
+          "bytes": 16186,
+          "sha256": "282AE73EBE457C8A4E49DB198EE42F52DF19A6FBF4E34F9A634D6A1BA63479BB"
+        }
+      ]
+    }
+  },
+  "history": [],
+  "installed": true,
+  "metadata_sha256": "70CBC4200EA7E9CB8BF60A8E628067817233771FCE3D3B9013B0534A6A69D138",
+  "schema_version": 1,
+  "current": "e7f4609916e2665364a662d76d8562ed9c7231d11afa7d7ddd34cb1c74a02a3b",
+  "product": "Blueberry.Terminal"
+}
+Bundled Terminal migration passed; retained evidence: E:\OpenSource\shellsense-rs\target\terminal-migration-79e43ec786894eadb29158440defcdd5

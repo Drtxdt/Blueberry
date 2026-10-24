@@ -1,0 +1,10 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.93s
+     Running tests\invocation.rs (target\debug\deps\invocation-4d498a60fde858dc.exe)
+
+running 2 tests
+test legacy_directory_candidates_remain_navigable_after_acceptance ... ok
+test real_native_argv_roundtrips_legacy_and_standard_modes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+

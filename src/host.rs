@@ -31,6 +31,163 @@ use std::{
     time::Instant,
 };
 
+fn flush_native_prefix(frame: &mut Vec<u8>, output: &mut impl Write) -> std::io::Result<()> {
+    output.write_all(frame)?;
+    frame.clear();
+    output.flush()
+}
+
+fn erase_overlay(
+    overlay: &mut Overlay,
+    screen: &vt100::Screen,
+    frame: &mut Vec<u8>,
+    output: &mut impl Write,
+) -> std::io::Result<()> {
+    #[cfg(debug_assertions)]
+    if let Some(path) =
+        std::env::var_os("BLUEBERRY_TEST_OVERLAY_AUDIT").filter(|path| !path.is_empty())
+        && let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+    {
+        let record = json!({"event":"erase_request","visible":overlay.frame_visible(),
+            "pending_output":String::from_utf8_lossy(frame),"model_size":screen.size(),
+            "model_cursor":screen.cursor_position()});
+        let _ = writeln!(file, "{record}");
+    }
+    if overlay.is_native() {
+        flush_native_prefix(frame, output)?;
+        overlay.erase(screen, output)
+    } else {
+        overlay.synchronize_pending_output(frame, output)?;
+        overlay.erase(screen, frame)
+    }
+}
+
+fn render_overlay(
+    state: &mut State,
+    frame: &mut Vec<u8>,
+    output: &mut impl Write,
+) -> std::io::Result<()> {
+    if state.prompt && !state.dismissed {
+        let notice = state
+            .notification
+            .as_ref()
+            .map(|message| Candidate {
+                label: "Blueberry".into(),
+                description: message.clone(),
+                ..Default::default()
+            })
+            .or_else(|| {
+                if !state.completion.argument_hint.is_empty() {
+                    Some(Candidate {
+                        label: state.completion.argument_hint.clone(),
+                        description: "请输入参数值".into(),
+                        ..Default::default()
+                    })
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                state.completion.incomplete.then(|| Candidate {
+                    label: "环境刷新中…".into(),
+                    ..Default::default()
+                })
+            })
+            .or_else(|| {
+                state
+                    .workbench
+                    .query()
+                    .filter(|query| !query.is_empty())
+                    .map(|_| Candidate {
+                        label: "无匹配命令".into(),
+                        description: "修改关键词后重试".into(),
+                        ..Default::default()
+                    })
+            });
+        let displayed = if state.completion.candidates.is_empty() {
+            notice.as_slice()
+        } else {
+            &state.completion.candidates
+        };
+        let query = state.workbench.query().unwrap_or_else(|| {
+            state
+                .line
+                .get(state.completion.replace_start..state.cursor)
+                .unwrap_or("")
+        });
+        draw_overlay(
+            &mut state.overlay,
+            state.parser.screen(),
+            frame,
+            output,
+            displayed,
+            state.selected,
+            query,
+            &state.config,
+            crate::menu::MenuState {
+                incomplete: state.completion.incomplete,
+                details: state.details,
+                detail_page: state.detail_page,
+                argument_hint: (!state.completion.candidates.is_empty())
+                    .then_some(state.completion.argument_hint.as_str()),
+                searching: state.searching && state.workbench.query().is_none(),
+                diagnostic: state.notification.as_deref().or_else(|| {
+                    state.completion.candidates.is_empty().then_some(
+                        if state.completion.incomplete {
+                            "环境刷新中"
+                        } else if state.workbench.query().is_some_and(|q| !q.is_empty()) {
+                            "无匹配命令"
+                        } else {
+                            "提示 · 请继续输入"
+                        },
+                    )
+                }),
+            },
+        )?;
+        state.presented_candidate = state
+            .overlay
+            .frame_visible()
+            .then(|| {
+                PresentedCandidate::capture(
+                    state.revision,
+                    &state.line,
+                    state.cursor,
+                    &state.completion,
+                    state.selected,
+                )
+            })
+            .flatten();
+    } else {
+        erase_overlay(&mut state.overlay, state.parser.screen(), frame, output)?;
+        state.presented_candidate = None;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_overlay(
+    overlay: &mut Overlay,
+    screen: &vt100::Screen,
+    frame: &mut Vec<u8>,
+    output: &mut impl Write,
+    candidates: &[Candidate],
+    selected: usize,
+    query: &str,
+    config: &Config,
+    state: crate::menu::MenuState<'_>,
+) -> std::io::Result<()> {
+    if overlay.is_native() {
+        flush_native_prefix(frame, output)?;
+        overlay.draw_with_state(screen, output, candidates, selected, query, config, state)
+    } else {
+        overlay.synchronize_pending_output(frame, output)?;
+        overlay.draw_with_state(screen, frame, candidates, selected, query, config, state)
+    }
+}
+
 #[cfg(windows)]
 #[path = "direct.rs"]
 pub mod direct;
@@ -129,7 +286,14 @@ enum HostEvent {
     Reload,
     CommandsChanged,
     HistoryLoaded(u64, Vec<String>, bool, std::time::Duration),
-    FormValues(u64, String, Vec<String>, std::time::Duration),
+    FormValues(
+        u64,
+        String,
+        Result<Vec<String>, String>,
+        std::time::Duration,
+        PathBuf,
+        Arc<BTreeMap<String, String>>,
+    ),
 }
 
 #[derive(Clone)]
@@ -553,13 +717,26 @@ impl Worker {
                                 if result.candidates.len() >= q.limit {
                                     break;
                                 }
+                                let command = match action.invocation.words.first() {
+                                    Some(crate::invocation::Word::Syntax(command)) => {
+                                        command.as_str()
+                                    }
+                                    _ => "",
+                                };
+                                let rendered =
+                                    action.invocation.render(crate::invocation::shell_mode(
+                                        command,
+                                        &q.environment,
+                                        &shell_commands,
+                                        &q.cwd,
+                                    ));
                                 result.candidates.push(Candidate {
-                                    label: action.value.clone(),
-                                    insert_text: action.value,
-                                    description: action.description,
-                                    kind: action.kind,
-                                    id: action.source.clone(),
-                                    source: action.source,
+                                    label: rendered.clone(),
+                                    insert_text: rendered,
+                                    description: action.candidate.description,
+                                    kind: action.candidate.kind,
+                                    id: action.id,
+                                    source: action.candidate.source,
                                     match_reason: "当前项目".into(),
                                     append_space: true,
                                     ..Default::default()
@@ -993,7 +1170,7 @@ struct State {
     cursor: usize,
     completion: Completion,
     selected: usize,
-    selection_touched: bool,
+    selection: crate::selection::SelectionState,
     dismissed: bool,
     indexed: bool,
     environment: Option<(String, String)>,
@@ -1036,36 +1213,43 @@ struct State {
     public_keys: BTreeMap<String, bool>,
     reset_pending: Option<String>,
     status_writer: crate::status::StatusWriter,
-    hub_query: Option<String>,
+    adapter_status: Value,
+    terminal_fallback_reason: Option<String>,
+    reserve_menu_pending: bool,
+    workbench: crate::workbench::Workbench,
     hub_history: Vec<String>,
     hub_history_path: Option<PathBuf>,
     history_ready: bool,
     history_pending: bool,
+    history_queued: bool,
     history_request: u64,
     event_tx: SyncSender<HostEvent>,
     form_values_request: u64,
     interaction_mode: InteractionMode,
-    hub_form: Option<crate::hub::TemplateForm>,
-    hub_form_project: bool,
-    hub_templates: BTreeMap<String, crate::hub::CommandTemplate>,
+    native_deletes: BTreeMap<String, bool>,
+    native_history_up: bool,
+    native_searches: BTreeMap<String, bool>,
+    native_search_active: bool,
+    native_search_continues: BTreeMap<String, bool>,
+    pending_native_search_end: bool,
+    pending_history_edit: Option<u64>,
+    history_edit_started: Option<Instant>,
+    history_keys: Vec<Event>,
+    native_delete_sequence: u64,
+    pending_history_paste: Option<(String, u64)>,
 }
 
 impl State {
     fn request_form_values(&mut self) {
         self.form_values_request = self.form_values_request.wrapping_add(1);
-        let Some(field) = self.hub_form.as_ref().and_then(|form| form.current()) else {
+        let Some(field) = self.workbench.form.as_ref().and_then(|form| form.current()) else {
             return;
         };
-        if !matches!(field.kind.as_str(), "file" | "directory")
-            && !matches!(
-                field.source.as_str(),
-                "cargo.packages" | "cargo.features" | "cargo.tests" | "docker.compose.service"
-            )
-        {
+        if !matches!(field.kind.as_str(), "file" | "directory") && field.source.is_empty() {
             return;
         }
         let field = field.clone();
-        let line = self.line.clone();
+        let context = self.workbench.form.as_ref().unwrap().provider_context();
         let environment = self.shell_environment.clone();
         let cwd = self.cwd.clone();
         let request = self.form_values_request;
@@ -1073,75 +1257,42 @@ impl State {
         let tx = self.event_tx.clone();
         thread::spawn(move || {
             let started = Instant::now();
-            let values = crate::hub::parameter_suggestions(&field, &line, &cwd, &environment);
+            let values = crate::hub::parameter_suggestions(&field, &context, &cwd, &environment);
             let _ = tx.send(HostEvent::FormValues(
                 request,
                 name,
                 values,
                 started.elapsed(),
+                cwd,
+                environment,
             ));
         });
     }
     fn cycle_form_value(&mut self, forward: bool) -> bool {
-        let Some(field) = self.hub_form.as_ref().and_then(|form| form.current()) else {
-            return false;
-        };
-        if field.values.is_empty() {
+        if !self.workbench.cycle(forward) {
             return false;
         }
-        let current = self.hub_query.as_deref().unwrap_or("");
-        let index = field.values.iter().position(|value| value == current);
-        let next = match index {
-            Some(index) if forward => (index + 1) % field.values.len(),
-            Some(0) => field.values.len() - 1,
-            Some(index) => index - 1,
-            None => {
-                if forward {
-                    0
-                } else {
-                    field.values.len() - 1
-                }
-            }
-        };
-        *self.hub_query.as_mut().unwrap() = field.values[next].clone();
         self.refresh_hub();
         true
     }
     fn refresh_hub(&mut self) {
-        let Some(query) = self.hub_query.as_deref() else {
-            return;
-        };
-        if let Some(form) = self.hub_form.as_ref() {
-            self.completion = crate::hub::form_completion(form, query, self.line.len());
-            self.selected = 0;
-            self.dismissed = false;
-            self.searching = true;
+        if !self.workbench.active {
             return;
         }
-        let selected = self
-            .completion
-            .candidates
-            .get(self.selected)
-            .map(|c| c.identity().to_owned());
-        let guided = crate::hub::guided_template(&self.line, self.cursor);
-        let (candidates, templates) = crate::hub::search_with_history_guided(
+        let mut completion = self.workbench.completion(
             &self.config,
-            query,
+            &self.line,
+            self.cursor,
             &self.hub_history,
-            None,
-            guided,
+            self.history_pending,
+            false,
         );
-        self.hub_templates = templates;
-        self.selected = selected
-            .and_then(|id| candidates.iter().position(|c| c.identity() == id))
-            .unwrap_or(0);
-        self.completion = Completion {
-            replace_start: 0,
-            replace_end: self.line.len(),
-            candidates,
-            incomplete: self.history_pending,
-            argument_hint: "输入关键词搜索；Enter 填回，Tab/F1 预览，Esc 返回".into(),
-        };
+        self.selected = self.workbench.refreshed_selection(
+            Some(&self.completion),
+            self.selected,
+            &mut completion,
+        );
+        self.completion = completion;
         self.menu_focus = true;
         self.explicit = true;
         self.dismissed = false;
@@ -1190,8 +1341,7 @@ impl State {
                 self.invalidate();
                 self.dirty = self.prompt;
                 self.explicit = true;
-                self.dismissed = false;
-                self.interaction_mode = InteractionMode::Completion;
+                self.dismissed = self.interaction_mode == InteractionMode::History;
             }
             Err(error) => {
                 self.diagnostic = Some(format!("配置无效，保留上次有效设置：{error}"));
@@ -1204,7 +1354,7 @@ impl State {
         self.revision += 1;
         self.completion = Completion::default();
         self.selected = 0;
-        self.selection_touched = false;
+        self.selection.reset();
         self.menu_focus = false;
         self.details = false;
         self.native_menu = false;
@@ -1262,7 +1412,17 @@ impl State {
         );
         match value["event"].as_str().unwrap_or("") {
             "capabilities" => {
-                self.status_writer.update(value.clone());
+                let mut status = value.clone();
+                status["host_mode"] = json!("nested");
+                status["terminal_connected"] = json!(self.overlay.is_native());
+                status["terminal_fallback_reason"] = json!(self.terminal_fallback_reason);
+                status["terminal_restore"] = json!(if self.overlay.is_native() {
+                    "native_overlay_v4"
+                } else {
+                    "reserved_below_input"
+                });
+                self.adapter_status = status.clone();
+                self.status_writer.update(status);
                 self.public_keys = serde_json::from_value(
                     value
                         .get("public_keys")
@@ -1276,6 +1436,19 @@ impl State {
                 self.metadata_ready = value["capabilities"]["command_metadata"] == true;
                 self.history_ready = value["capabilities"]["history"] == true;
                 self.paste_ready = value["key_handlers"]["paste"] == true;
+                self.native_deletes =
+                    serde_json::from_value(value["capabilities"]["native_deletes"].clone())
+                        .unwrap_or_default();
+                self.native_history_up = value["capabilities"]["native_history_up"]
+                    .as_bool()
+                    .unwrap_or(true);
+                self.native_searches =
+                    serde_json::from_value(value["capabilities"]["native_searches"].clone())
+                        .unwrap_or_default();
+                self.native_search_continues = serde_json::from_value(
+                    value["capabilities"]["native_search_continues"].clone(),
+                )
+                .unwrap_or_default();
                 self.ready = value["ready"] == true
                     && value["psreadline"] == true
                     && value["key_handlers"]["buffer"] == true
@@ -1285,9 +1458,27 @@ impl State {
                     self.diagnostic = None;
                 }
             }
+            "prompt_redraw" => {
+                // This is still the same ReadLine call. Preserve its revision,
+                // pending replies and history navigation; only refresh the
+                // current completion buffer/anchor when editing allows it.
+                if self.prompt
+                    && self.interaction_mode == InteractionMode::Completion
+                    && !self.native_search_active
+                    && !self.nested_edit
+                {
+                    self.dirty = true;
+                }
+            }
             "prompt_start" => {
+                self.native_search_active = false;
+                self.pending_native_search_end = false;
                 self.notification = None;
                 self.interaction_mode = InteractionMode::Completion;
+                self.pending_history_edit = None;
+                self.history_edit_started = None;
+                self.pending_history_paste = None;
+                self.history_keys.clear();
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -1298,6 +1489,7 @@ impl State {
                 self.dirty = false;
             }
             "prompt_end" => {
+                self.overlay.new_prompt();
                 self.learning.refresh();
                 worker.update(|w| w.invalidate_sources = true);
                 self.native_queued = false;
@@ -1347,7 +1539,13 @@ impl State {
                 }
             }
             "execute" => {
+                self.native_search_active = false;
+                self.pending_native_search_end = false;
                 self.interaction_mode = InteractionMode::Completion;
+                self.pending_history_edit = None;
+                self.history_edit_started = None;
+                self.pending_history_paste = None;
+                self.history_keys.clear();
                 worker.update(|w| {
                     w.cancel = true;
                     w.query = None;
@@ -1377,6 +1575,60 @@ impl State {
                     self.schedule_metadata();
                 }
             }
+            "paste_result" => {
+                if self
+                    .pending_history_paste
+                    .as_ref()
+                    .is_some_and(|(id, revision)| {
+                        value["request_id"].as_str() == Some(id.as_str())
+                            && *revision == self.revision
+                    })
+                {
+                    self.pending_history_paste = None;
+                    if value["applied"] == true && value["changed"] == true {
+                        self.interaction_mode = InteractionMode::Completion;
+                        self.dismissed = false;
+                    }
+                }
+            }
+            "native_search" => {
+                self.native_search_active = value["active"] == true;
+                if !self.native_search_active {
+                    self.pending_native_search_end = false;
+                }
+                if self.native_search_active {
+                    self.interaction_mode = InteractionMode::History;
+                    self.invalidate();
+                    self.dismissed = true;
+                    self.dirty = false;
+                    worker.update(|work| {
+                        work.cancel = true;
+                        work.query = None;
+                    });
+                }
+            }
+            "native_edit" => {
+                if value["sequence"].as_u64() != Some(self.native_delete_sequence) {
+                    // Search can return a queued deletion to the outer native
+                    // loop before its completion message reaches the host.
+                    // Keep the stream counter synchronized, without treating
+                    // an unsolicited edit as permission to reopen completion.
+                    if let Some(sequence) = value["sequence"].as_u64() {
+                        self.native_delete_sequence = self.native_delete_sequence.max(sequence);
+                    }
+                    return Ok(());
+                }
+                if self.pending_history_edit.take() == Some(self.revision)
+                    && self.interaction_mode == InteractionMode::History
+                    && value["changed"] == true
+                {
+                    self.interaction_mode = InteractionMode::Completion;
+                    self.dismissed = false;
+                    let mut confirmed = value;
+                    confirmed["event"] = json!("buffer");
+                    self.message(confirmed, _writer, worker)?;
+                }
+            }
             "buffer" => {
                 let revision = self.pending_query.take().unwrap_or(self.revision);
                 self.trace.event(
@@ -1397,14 +1649,27 @@ impl State {
                 let Some(cursor) = protocol::utf16_to_byte(line, cursor16 as usize) else {
                     return Ok(());
                 };
+                // Unsolicited editor callbacks can publish multiple distinct
+                // buffers after one input batch. Never relabel an earlier
+                // completion's replacement range with the new buffer identity.
+                if !self.workbench.active && (self.line != line || self.cursor != cursor) {
+                    self.invalidate();
+                    self.presented_candidate = None;
+                }
+                let revision = self.revision;
                 self.line = line.into();
                 self.cursor = cursor;
+                self.overlay.set_menu_row(
+                    value["menu_row"]
+                        .as_u64()
+                        .and_then(|row| u16::try_from(row).ok()),
+                );
                 self.context = decode_context(line, &value["context"]);
-                if self.hub_query.is_some() {
+                if self.workbench.active {
                     // A serialized editor response can arrive after the hub
                     // opens. Keep its confirmed line, but never replace hub or
                     // form entries with ordinary completion results.
-                    if self.hub_form.is_none() {
+                    if self.workbench.form.is_none() {
                         self.refresh_hub();
                     }
                     return Ok(());
@@ -1674,7 +1939,12 @@ impl State {
     }
 
     fn query(&mut self, writer: &mut impl Write) -> Result<()> {
-        if self.history_pending
+        // Metadata/enumerator keys also interrupt PSReadLine's consecutive
+        // history cursor. Defer every automatic protocol key until editing.
+        if self.interaction_mode == InteractionMode::History && self.workbench.query().is_none() {
+            return Ok(());
+        }
+        if self.history_queued
             && self.history_ready
             && self.ready
             && self.prompt
@@ -1682,6 +1952,7 @@ impl State {
             && self.pending_query.is_none()
             && !self.commands_inflight
         {
+            self.history_queued = false;
             self.native_request = Some(self.revision);
             self.write_payload("request",&json!({"id":self.revision.to_string(),"kind":"history","limit":self.config.workbench.history_limit}))?;
             writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
@@ -1702,10 +1973,26 @@ impl State {
             )?;
             writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
             writer.flush()?;
+        } else if self.reserve_menu_pending
+            && self.ready
+            && self.prompt
+            && self.pending_query.is_none()
+            && self.native_request.is_none()
+            && !self.commands_inflight
+        {
+            self.write_payload(
+                "request",
+                &json!({"id":self.revision.to_string(),"kind":"reserve_menu"}),
+            )?;
+            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'n'))?;
+            writer.flush()?;
+            self.reserve_menu_pending = false;
+            self.pending_query = Some(self.revision);
+            self.dirty = false;
         } else if self.dirty
             && self.ready
             && self.prompt
-            && self.hub_query.is_none()
+            && self.workbench.query().is_none()
             && self.pending_query.is_none()
             && self.native_request.is_none()
         {
@@ -1773,6 +2060,37 @@ impl State {
         Ok(())
     }
 
+    fn fill_workbench(&mut self, command: String, writer: &mut impl Write) -> Result<()> {
+        self.workbench.form = None;
+        self.workbench.project = false;
+        self.workbench.close();
+        self.searching = false;
+        self.completion = Completion {
+            replace_start: 0,
+            replace_end: self.line.len(),
+            candidates: vec![Candidate {
+                label: command.clone(),
+                insert_text: command,
+                description: "已填写命令模板".into(),
+                kind: crate::model::CandidateKind::Command,
+                id: "hub:resolved-template".into(),
+                source: "Blueberry 工作台/模板".into(),
+                append_space: false,
+                ..Default::default()
+            }],
+            incomplete: false,
+            argument_hint: String::new(),
+        };
+        self.selected = 0;
+        self.presented_candidate = PresentedCandidate::capture(
+            self.revision,
+            &self.line,
+            self.cursor,
+            &self.completion,
+            self.selected,
+        );
+        self.accept(writer)
+    }
     fn accept(&mut self, writer: &mut impl Write) -> Result<()> {
         let Some(presented) = self.presented_candidate.as_ref().filter(|shown| {
             shown.revision == self.revision
@@ -1822,7 +2140,23 @@ impl State {
         master: &dyn portable_pty::MasterPty,
         worker: &Worker,
     ) -> Result<()> {
-        if self.hub_query.is_some() {
+        if self.pending_history_edit.is_some()
+            || self.pending_history_paste.is_some()
+            || self.pending_native_search_end
+        {
+            let cancel = matches!(&event, Event::Key(key) if key.code == crossterm::event::KeyCode::Char('c')
+                && key.modifiers == crossterm::event::KeyModifiers::CONTROL);
+            if cancel {
+                self.pending_history_edit = None;
+                self.pending_history_paste = None;
+                self.pending_native_search_end = false;
+                self.history_keys.clear();
+            } else {
+                self.history_keys.push(event);
+                return Ok(());
+            }
+        }
+        if self.workbench.active {
             if matches!(&event,Event::Key(key) if key.kind==crossterm::event::KeyEventKind::Release)
             {
                 return Ok(());
@@ -1830,7 +2164,7 @@ impl State {
             use crossterm::event::{KeyCode, KeyModifiers};
             match event {
                 Event::Paste(text) => {
-                    if let Some(query) = self.hub_query.as_mut() {
+                    if let Some(query) = self.workbench.query_mut() {
                         query.push_str(&text.replace(['\r', '\n'], " "));
                     }
                     self.refresh_hub();
@@ -1851,8 +2185,12 @@ impl State {
                         }
                         // Coalesced resizes can return to the original size
                         // after the outer terminal has reflowed menu cells.
-                        self.overlay = Overlay::default();
-                        self.repaint = true;
+                        self.overlay.resized();
+                        self.repaint = !self.overlay.is_native();
+                        if !self.overlay.is_native() && self.prompt && self.ready {
+                            writer.write_all(&input::protocol_chord(&self.protocol_prefix, 's'))?;
+                            self.pending_query = Some(self.revision);
+                        }
                     }
                     return Ok(());
                 }
@@ -1861,9 +2199,9 @@ impl State {
                         .is_some_and(|i| matches!(i, Input::Hub))
                         || key.code == KeyCode::Esc
                     {
-                        self.hub_query = None;
-                        self.hub_form = None;
-                        self.hub_form_project = false;
+                        self.workbench.close();
+                        self.workbench.form = None;
+                        self.workbench.project = false;
                         self.form_values_request = self.form_values_request.wrapping_add(1);
                         self.searching = false;
                         self.invalidate();
@@ -1871,50 +2209,55 @@ impl State {
                         return Ok(());
                     }
                     match key.code {
+                        KeyCode::BackTab if self.workbench.form.is_some() => {
+                            if self.workbench.back() {
+                                self.request_form_values();
+                                self.refresh_hub();
+                            }
+                            return Ok(());
+                        }
                         KeyCode::Char(ch)
                             if !key
                                 .modifiers
                                 .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                         {
-                            self.hub_query.as_mut().unwrap().push(ch);
+                            self.workbench.query_mut().unwrap().push(ch);
                             self.refresh_hub();
                             return Ok(());
                         }
                         KeyCode::Backspace => {
-                            self.hub_query.as_mut().unwrap().pop();
+                            self.workbench.query_mut().unwrap().pop();
                             self.refresh_hub();
                             return Ok(());
                         }
-                        KeyCode::Up => {
-                            if self.cycle_form_value(false) {
+                        KeyCode::Up | KeyCode::Down => {
+                            let forward = key.code == KeyCode::Down;
+                            if self.cycle_form_value(forward) {
                                 return Ok(());
                             }
-                            if !self.completion.candidates.is_empty() {
-                                self.selected = self
-                                    .selected
-                                    .checked_sub(1)
-                                    .unwrap_or(self.completion.candidates.len() - 1);
-                            }
-                            return Ok(());
-                        }
-                        KeyCode::Down => {
-                            if self.cycle_form_value(true) {
-                                return Ok(());
-                            }
-                            if !self.completion.candidates.is_empty() {
-                                self.selected =
-                                    (self.selected + 1) % self.completion.candidates.len();
-                            }
+                            self.selected = self.workbench.navigate(
+                                self.selected,
+                                self.completion.candidates.len(),
+                                forward,
+                            );
                             return Ok(());
                         }
                         KeyCode::PageUp => {
-                            self.selected =
-                                self.selected.saturating_sub(self.config.ui.max_rows.max(1));
+                            self.selected = self.workbench.page(
+                                self.selected,
+                                self.completion.candidates.len(),
+                                self.config.ui.max_rows,
+                                false,
+                            );
                             return Ok(());
                         }
                         KeyCode::PageDown => {
-                            self.selected = (self.selected + self.config.ui.max_rows.max(1))
-                                .min(self.completion.candidates.len().saturating_sub(1));
+                            self.selected = self.workbench.page(
+                                self.selected,
+                                self.completion.candidates.len(),
+                                self.config.ui.max_rows,
+                                true,
+                            );
                             return Ok(());
                         }
                         KeyCode::Tab | KeyCode::F(1) => {
@@ -1923,68 +2266,21 @@ impl State {
                             return Ok(());
                         }
                         KeyCode::Enter => {
-                            if self.hub_form.is_some() {
-                                let value = self.hub_query.as_ref().cloned().unwrap_or_default();
-                                let form = self.hub_form.as_mut().unwrap();
-                                let finished = match form.submit(&value) {
-                                    Ok(finished) => finished,
-                                    Err(error) => {
-                                        self.notification = Some(format!("{error:#}"));
-                                        return Ok(());
-                                    }
-                                };
-                                if !finished {
-                                    *self.hub_query.as_mut().unwrap() = String::new();
-                                    self.request_form_values();
-                                    self.refresh_hub();
-                                    return Ok(());
-                                }
-                                if self.hub_form_project
-                                    && let Err(error) = crate::packs::verify_approval(&self.cwd)
-                                {
-                                    self.notification =
-                                        Some(format!("项目命令包已变更：{error:#}"));
-                                    self.hub_form = None;
-                                    self.hub_form_project = false;
-                                    self.refresh_hub();
-                                    return Ok(());
-                                }
-                                let command = match form.finish() {
+                            if self.workbench.form.is_some() {
+                                let command = match self.workbench.advance(&self.cwd) {
                                     Ok(command) => command,
                                     Err(error) => {
                                         self.notification = Some(format!("{error:#}"));
                                         return Ok(());
                                     }
                                 };
-                                self.hub_form = None;
-                                self.hub_form_project = false;
-                                self.hub_query = None;
-                                self.searching = false;
-                                self.completion = Completion {
-                                    replace_start: 0,
-                                    replace_end: self.line.len(),
-                                    candidates: vec![Candidate {
-                                        label: command.clone(),
-                                        insert_text: command,
-                                        description: "已填写命令模板".into(),
-                                        kind: crate::model::CandidateKind::Command,
-                                        id: "hub:resolved-template".into(),
-                                        source: "Blueberry 工作台/模板".into(),
-                                        append_space: false,
-                                        ..Default::default()
-                                    }],
-                                    incomplete: false,
-                                    argument_hint: String::new(),
+                                let Some(command) = command else {
+                                    *self.workbench.query_mut().unwrap() = String::new();
+                                    self.request_form_values();
+                                    self.refresh_hub();
+                                    return Ok(());
                                 };
-                                self.selected = 0;
-                                self.presented_candidate = PresentedCandidate::capture(
-                                    self.revision,
-                                    &self.line,
-                                    self.cursor,
-                                    &self.completion,
-                                    self.selected,
-                                );
-                                return self.accept(writer);
+                                return self.fill_workbench(command, writer);
                             }
                             if let Some(candidate) = self.completion.candidates.get(self.selected) {
                                 if self
@@ -1995,40 +2291,27 @@ impl State {
                                 {
                                     return Ok(());
                                 }
-                                let project = candidate.id.starts_with("hub:project:");
-                                if project
-                                    && let Err(error) = crate::packs::verify_approval(&self.cwd)
-                                {
-                                    self.notification =
-                                        Some(format!("项目命令包已变更：{error:#}"));
-                                    self.refresh_hub();
-                                    return Ok(());
-                                }
-                                let template = self
-                                    .hub_templates
-                                    .get(&candidate.id)
-                                    .cloned()
-                                    .unwrap_or_else(|| crate::hub::CommandTemplate {
-                                        command: candidate.insert_text.clone(),
-                                        ..Default::default()
-                                    });
-                                let form = match crate::hub::TemplateForm::new(template) {
-                                    Ok(form) => form,
+                                match self.workbench.activate(
+                                    candidate,
+                                    &self.shell_environment,
+                                    &self.commands_snapshot.previous,
+                                    &self.cwd,
+                                ) {
+                                    Ok(Some(command)) => {
+                                        return self.fill_workbench(command, writer);
+                                    }
+                                    Ok(None) => {
+                                        self.request_form_values();
+                                        self.refresh_hub();
+                                        return Ok(());
+                                    }
                                     Err(error) => {
                                         self.notification = Some(format!("{error:#}"));
                                         return Ok(());
                                     }
-                                };
-                                if !form.is_empty() {
-                                    self.hub_form = Some(form);
-                                    self.hub_form_project = project;
-                                    *self.hub_query.as_mut().unwrap() = String::new();
-                                    self.request_form_values();
-                                    self.refresh_hub();
-                                    return Ok(());
                                 }
                             }
-                            self.hub_query = None;
+                            self.workbench.close();
                             self.searching = false;
                             return self.accept(writer);
                         }
@@ -2038,63 +2321,105 @@ impl State {
                 _ => return Ok(()),
             }
         }
-        if self.interaction_mode == InteractionMode::History {
-            if let Event::Key(key) = &event
-                && key.kind != crossterm::event::KeyEventKind::Release
-                && key.modifiers.is_empty()
-                && key.code == crossterm::event::KeyCode::Esc
+        let workbench_shortcut = self.prompt
+            && self.ready
+            && input::configured(&event, &self.config.keys)
+                .is_some_and(|input| matches!(input, Input::Hub));
+        if !workbench_shortcut
+            && self.prompt
+            && self.ready
+            && self
+                .native_searches
+                .iter()
+                .any(|(chord, enabled)| *enabled && input::matches_native_delete(chord, &event))
+        {
+            self.interaction_mode = InteractionMode::History;
+            self.native_search_active = true;
+            self.invalidate();
+            self.dismissed = true;
+            self.dirty = false;
+            worker.update(|work| {
+                work.cancel = true;
+                work.query = None;
+            });
+        }
+        if self.interaction_mode == InteractionMode::History && !workbench_shortcut {
+            // The native search loop consumes its own input; it does not run
+            // ordinary edit handlers. Do not inject queries or await deletion
+            // acknowledgements while it owns the keyboard.
+            if self.native_search_active
+                && let Some(bytes) = input::native_editor_bytes(
+                    event.clone(),
+                    self.parser.screen().application_cursor(),
+                )
             {
-                self.interaction_mode = InteractionMode::Completion;
+                let continues = matches!(&event, Event::Paste(_))
+                    || matches!(&event, Event::Key(key)
+                        if (matches!(key.code, crossterm::event::KeyCode::Char(_))
+                            && !key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL))
+                            || (key.code == crossterm::event::KeyCode::Backspace && key.modifiers.is_empty())
+                            || (key.code == crossterm::event::KeyCode::Char('h') && key.modifiers == crossterm::event::KeyModifiers::CONTROL))
+                    || self.native_search_continues.iter().any(|(chord, enabled)| {
+                        *enabled && input::matches_native_delete(chord, &event)
+                    });
+                let outer_delete = !continues
+                    && self.native_deletes.iter().any(|(chord, enabled)| {
+                        *enabled && input::matches_native_delete(chord, &event)
+                    });
+                if outer_delete {
+                    self.native_delete_sequence += 1;
+                    self.invalidate();
+                    self.pending_history_edit = Some(self.revision);
+                    self.history_edit_started = Some(Instant::now());
+                }
+                if !continues {
+                    self.pending_native_search_end = true;
+                    self.history_edit_started = Some(Instant::now());
+                }
+                writer.write_all(&bytes)?;
+                writer.flush()?;
+                return Ok(());
+            }
+            let literal_edit = matches!(&event, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release
+                    && matches!(key.code, crossterm::event::KeyCode::Char(_))
+                    && !key.modifiers.intersects(crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT));
+            if !literal_edit
+                && !matches!(&event, Event::Paste(_))
+                && let Some(bytes) = input::native_editor_bytes(
+                    event.clone(),
+                    self.parser.screen().application_cursor(),
+                )
+            {
+                let observed_delete = self.native_deletes.iter().any(|(chord, enabled)| {
+                    *enabled && input::matches_native_delete(chord, &event)
+                });
+                if observed_delete {
+                    self.native_delete_sequence += 1;
+                }
                 self.invalidate();
-                self.dismissed = false;
-                self.explicit = true;
-                self.dirty = self.prompt;
+                self.pending_history_edit = observed_delete.then_some(self.revision);
+                self.history_edit_started = observed_delete.then(Instant::now);
+                self.dismissed = true;
+                self.dirty = false;
                 worker.update(|work| {
                     work.cancel = true;
                     work.query = None;
                 });
-                return Ok(());
-            }
-            if let Event::Key(key) = &event
-                && key.kind != crossterm::event::KeyEventKind::Release
-                && key.modifiers.is_empty()
-                && matches!(
-                    key.code,
-                    crossterm::event::KeyCode::Up | crossterm::event::KeyCode::Down
-                )
-            {
-                let bytes = match key.code {
-                    crossterm::event::KeyCode::Up if self.parser.screen().application_cursor() => {
-                        b"\x1bOA".as_slice()
-                    }
-                    crossterm::event::KeyCode::Up => b"\x1b[A".as_slice(),
-                    crossterm::event::KeyCode::Down
-                        if self.parser.screen().application_cursor() =>
-                    {
-                        b"\x1bOB".as_slice()
-                    }
-                    crossterm::event::KeyCode::Down => b"\x1b[B".as_slice(),
-                    _ => unreachable!(),
-                };
-                self.invalidate();
-                self.dismissed = true;
-                // A private buffer-query key is itself a PSReadLine handler
-                // and breaks its consecutive history cursor.  Keep history
-                // navigation entirely inside PSReadLine until another input
-                // leaves this mode.
-                self.dirty = false;
-                writer.write_all(bytes)?;
+                if bytes
+                    .iter()
+                    .any(|byte| matches!(byte, 3 | 4 | b'\r' | b'\n'))
+                {
+                    self.prompt = false;
+                }
+                writer.write_all(&bytes)?;
                 writer.flush()?;
                 return Ok(());
             }
-            let editing_event = match &event {
-                Event::Paste(_) => true,
-                Event::Key(key) => key.kind != crossterm::event::KeyEventKind::Release,
-                _ => false,
-            };
-            if editing_event {
+            if literal_edit {
                 self.interaction_mode = InteractionMode::Completion;
                 self.dismissed = false;
+            } else if matches!(&event, Event::Paste(text) if text.is_empty()) {
+                return Ok(());
             }
         }
         if let Event::Mouse(mouse) = event {
@@ -2194,8 +2519,12 @@ impl State {
             std::fs::write(&temporary, payload)?;
             std::fs::rename(&temporary, &pending)?;
             self.invalidate();
-            self.dismissed = false;
-            self.dirty = true;
+            self.dismissed = self.interaction_mode == InteractionMode::History;
+            self.dirty = !self.dismissed;
+            if self.dismissed {
+                self.pending_history_paste = Some((id, self.revision));
+                self.history_edit_started = Some(Instant::now());
+            }
             writer.write_all(&input::protocol_chord(&self.protocol_prefix, 'p'))?;
             writer.flush()?;
             return Ok(());
@@ -2294,6 +2623,10 @@ impl State {
         } else {
             None
         };
+        let observed_delete = self
+            .native_deletes
+            .iter()
+            .any(|(chord, enabled)| *enabled && input::matches_native_delete(chord, &event));
         let Some(input) = configured
             .or_else(|| input::translate(event, self.parser.screen().application_cursor()))
         else {
@@ -2308,6 +2641,7 @@ impl State {
                     && shown.cursor == self.cursor
             });
         let starts_history_navigation = !visible
+            && self.native_history_up
             && self.config.completion.up_arrow_history
             && matches!(&input, Input::Previous | Input::Next);
         if starts_history_navigation {
@@ -2330,12 +2664,16 @@ impl State {
                         })?;
                         self.parser.screen_mut().set_size(rows, cols);
                     }
-                    // The outer terminal can reflow old overlay cells during a
-                    // resize. Repaint the shell model instead of erasing only
-                    // the overlay's obsolete row coordinates. This is also
-                    // required when coalesced events return to the old size.
-                    self.overlay = Overlay::default();
-                    self.repaint = true;
+                    // Keep the old menu identity until owned cells have been
+                    // inspected after reflow, including coalesced round trips.
+                    self.overlay.resized();
+                    // Native Terminal restores before its own reflow. Repainting
+                    // a cropped VT model would discard rich historical attributes.
+                    self.repaint = !self.overlay.is_native();
+                    if !self.overlay.is_native() && self.prompt && self.ready {
+                        writer.write_all(&input::protocol_chord(&self.protocol_prefix, 's'))?;
+                        self.pending_query = Some(self.revision);
+                    }
                 }
                 return Ok(());
             }
@@ -2349,7 +2687,7 @@ impl State {
                 return self.accept(writer);
             }
             Input::Previous if visible => {
-                self.selection_touched = true;
+                self.selection.navigated();
                 self.detail_page = 0;
                 self.selected = self
                     .selected
@@ -2359,7 +2697,7 @@ impl State {
             }
             Input::BackTab if visible => {
                 self.menu_focus = true;
-                self.selection_touched = true;
+                self.selection.navigated();
                 self.detail_page = 0;
                 self.selected = self
                     .selected
@@ -2369,7 +2707,7 @@ impl State {
             }
             Input::Next if visible => {
                 self.menu_focus = true;
-                self.selection_touched = true;
+                self.selection.navigated();
                 self.detail_page = 0;
                 self.selected = (self.selected + 1) % self.completion.candidates.len();
                 return Ok(());
@@ -2469,9 +2807,10 @@ impl State {
                     work.cancel = true;
                     work.query = None;
                 });
-                self.hub_query = Some(String::new());
-                self.hub_form = None;
+                self.workbench.open();
+                self.workbench.form = None;
                 self.history_pending = self.history_ready;
+                self.history_queued = self.history_ready;
                 self.details = false;
                 self.selected = 0;
                 self.refresh_hub();
@@ -2503,11 +2842,15 @@ impl State {
             Input::Bytes(bytes) => bytes,
         };
         self.invalidate();
-        self.interaction_mode = if starts_history_navigation {
-            InteractionMode::History
-        } else {
-            InteractionMode::Completion
-        };
+        if observed_delete {
+            self.native_delete_sequence += 1;
+        }
+        self.interaction_mode =
+            if starts_history_navigation || self.interaction_mode == InteractionMode::History {
+                InteractionMode::History
+            } else {
+                InteractionMode::Completion
+            };
         self.dismissed = starts_history_navigation;
         // After submitting a line the next input may belong to a native program.
         // Do not inject a PSReadLine chord until the next prompt marker.
@@ -2539,24 +2882,18 @@ impl State {
     }
 }
 
+#[cfg(test)]
 fn selection_after_refresh(
     previous: &Completion,
     selected: usize,
     selection_touched: bool,
     next: &Completion,
 ) -> usize {
-    if !selection_touched {
-        return 0;
+    let mut state = crate::selection::SelectionState::default();
+    if selection_touched {
+        state.navigated();
     }
-    previous
-        .candidates
-        .get(selected)
-        .and_then(|candidate| {
-            next.candidates
-                .iter()
-                .position(|next| next.identity() == candidate.identity())
-        })
-        .unwrap_or(0)
+    state.refresh(Some(previous), selected, &mut next.clone())
 }
 
 pub fn run(options: RunOptions) -> Result<u32> {
@@ -2650,12 +2987,44 @@ pub fn run(options: RunOptions) -> Result<u32> {
         );
     }
     env.extend(pty::key_environment(&config.keys));
+    env.insert("BLUEBERRY_OBSERVE_NATIVE_EDITS".into(), "1".into());
     let (cols, rows) = terminal::size().unwrap_or((120, 30));
     let mut raw = RawMode::enable()
         .context("Blueberry run requires an interactive terminal. Use 'complete' for scripts.")?;
     #[cfg(windows)]
     let _ = crossterm::ansi_support::supports_ansi();
+    #[cfg(windows)]
+    let mut terminal_fallback_reason = None;
+    #[cfg(not(windows))]
+    let terminal_fallback_reason = None;
+    let overlay = {
+        #[cfg(windows)]
+        if std::env::var("BLUEBERRY_NATIVE_OVERLAY").as_deref() == Ok("4")
+            && !std::env::var("TERM_PROGRAM")
+                .is_ok_and(|value| value.eq_ignore_ascii_case("vscode"))
+        {
+            match crate::native_overlay::NativeOverlay::connect(&mut std::io::stdout()) {
+                Ok(native) => Overlay::with_native(native),
+                Err(error) => {
+                    terminal_fallback_reason =
+                        Some(format!("companion Terminal unavailable: {error}"));
+                    Overlay::default()
+                }
+            }
+        } else {
+            Overlay::default()
+        }
+        #[cfg(not(windows))]
+        {
+            Overlay::default()
+        }
+    };
     // The screen model owns a fresh viewport. CSI 2J preserves scrollback.
+    #[cfg(windows)]
+    env.insert(
+        "BLUEBERRY_RESERVED_MENU".into(),
+        if overlay.is_native() { "0" } else { "1" }.into(),
+    );
     std::io::stdout().write_all(b"\x1b[2J\x1b[H")?;
     std::io::stdout().flush()?;
     let pty::Session {
@@ -2805,7 +3174,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         descriptions,
         parser: vt100::Parser::new(rows, cols, 0),
         decoder: Decoder::new(token),
-        overlay: Overlay::default(),
+        overlay,
         config,
         config_path: options.config_path,
         cwd,
@@ -2821,7 +3190,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         cursor: 0,
         completion: Completion::default(),
         selected: 0,
-        selection_touched: false,
+        selection: Default::default(),
         dismissed: false,
         indexed: false,
         environment: None,
@@ -2863,18 +3232,30 @@ pub fn run(options: RunOptions) -> Result<u32> {
         public_keys: BTreeMap::new(),
         reset_pending: None,
         status_writer: crate::status::StatusWriter::new(session_directory.join("adapter.json")),
-        hub_query: None,
+        adapter_status: Value::Null,
+        terminal_fallback_reason,
+        reserve_menu_pending: false,
+        workbench: Default::default(),
         hub_history: Vec::new(),
         hub_history_path: None,
         history_ready: false,
         history_pending: false,
+        history_queued: false,
         history_request: 0,
         event_tx: tx.clone(),
         form_values_request: 0,
         interaction_mode: InteractionMode::Completion,
-        hub_form: None,
-        hub_form_project: false,
-        hub_templates: BTreeMap::new(),
+        native_deletes: BTreeMap::new(),
+        native_history_up: true,
+        native_searches: BTreeMap::new(),
+        native_search_active: false,
+        native_search_continues: BTreeMap::new(),
+        pending_native_search_end: false,
+        pending_history_edit: None,
+        history_edit_started: None,
+        history_keys: Vec::new(),
+        native_delete_sequence: 0,
+        pending_history_paste: None,
     };
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
@@ -2885,10 +3266,26 @@ pub fn run(options: RunOptions) -> Result<u32> {
     loop {
         frame.clear();
         let mut ui_dirty = false;
+        #[cfg(debug_assertions)]
+        let mut navigation_input = false;
         let mut eof = false;
         let event = if exit_code.is_some() {
             match rx.recv_timeout(std::time::Duration::from_millis(100)) {
                 Ok(e) => e,
+                Err(_) => break,
+            }
+        } else if state.pending_history_edit.is_some()
+            || state.pending_history_paste.is_some()
+            || state.pending_native_search_end
+        {
+            match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(event) => event,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    state.pending_history_edit = None;
+                    state.pending_history_paste = None;
+                    state.pending_native_search_end = false;
+                    HostEvent::Diagnostic("原生编辑确认超时，保留历史浏览；请检查桥接状态".into())
+                }
                 Err(_) => break,
             }
         } else {
@@ -2911,7 +3308,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     for part in state.decoder.feed(&bytes) {
                         match part {
                             Part::Data(data) => {
-                                state.overlay.erase(state.parser.screen(), &mut frame)?;
+                                erase_overlay(
+                                    &mut state.overlay,
+                                    state.parser.screen(),
+                                    &mut frame,
+                                    &mut output,
+                                )?;
                                 state.parser.process(&data);
                                 frame.extend_from_slice(&data);
                                 ui_dirty = true;
@@ -2982,6 +3384,18 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     let mut input_frame = Vec::with_capacity(inputs.len() * 8);
                     for input in inputs {
                         #[cfg(debug_assertions)]
+                        {
+                            navigation_input |= matches!(&input, Event::Key(key) if matches!(key.code, crossterm::event::KeyCode::Up | crossterm::event::KeyCode::Down) && key.kind != crossterm::event::KeyEventKind::Release);
+                        }
+                        if state.overlay.is_native()
+                            && !matches!(&input, Event::Key(key) if key.kind == crossterm::event::KeyEventKind::Release)
+                        {
+                            flush_native_prefix(&mut frame, &mut output)?;
+                            if !state.overlay.close_for_input(&mut output) {
+                                state.presented_candidate = None;
+                            }
+                        }
+                        #[cfg(debug_assertions)]
                         if matches!(&input, Event::Key(key) if key.code == crossterm::event::KeyCode::Tab && key.kind != crossterm::event::KeyEventKind::Release)
                             && let Some(token) = &probe_token
                         {
@@ -3010,9 +3424,25 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             || matches!(&input, Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release);
                         // Restore the old coordinates before changing the model size.
                         if matches!(&input, Event::Resize(..)) {
-                            state.overlay.erase(state.parser.screen(), &mut frame)?;
+                            state.overlay.resized();
+                            erase_overlay(
+                                &mut state.overlay,
+                                state.parser.screen(),
+                                &mut frame,
+                                &mut output,
+                            )?;
                         }
+                        let previous_selection = (state.selected, state.details, state.detail_page);
                         state.input(input, &mut input_frame, master.as_ref(), &worker)?;
+                        if state.overlay.is_native()
+                            && input_frame.is_empty()
+                            && previous_selection
+                                != (state.selected, state.details, state.detail_page)
+                        {
+                            // Navigation and Tab can arrive in the same native
+                            // read. Confirm the new visible frame between keys.
+                            render_overlay(&mut state, &mut frame, &mut output)?;
+                        }
                     }
                     if !input_frame.is_empty() {
                         let write_started = Instant::now();
@@ -3030,7 +3460,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if revision == state.revision
                         && state.prompt
                         && !state.dismissed
-                        && state.hub_query.is_none()
+                        && state.workbench.query().is_none()
                         && state.interaction_mode == InteractionMode::Completion
                         && !state.native_menu =>
                 {
@@ -3040,7 +3470,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         Some(queued_at.elapsed()),
                         Some(completion.candidates.len()),
                     );
-                    if state.hub_query.is_none()
+                    if state.workbench.query().is_none()
                         && state.cursor == state.line.len()
                         && !state.line.contains(['\n', '\r'])
                     {
@@ -3062,11 +3492,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     // the list, but preserve a candidate explicitly navigated
                     // to by the user. An incidental early fuzzy match must not
                     // scroll a later exact match out of the visible page.
-                    state.selected = selection_after_refresh(
-                        &state.completion,
+                    state.selected = state.selection.refresh(
+                        Some(&state.completion),
                         state.selected,
-                        state.selection_touched,
-                        &completion,
+                        &mut completion,
                     );
                     state.completion = completion;
                 }
@@ -3090,7 +3519,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if let Some(status) = crate::packs::cached_status() {
                         state.notification = Some(status);
                     }
-                    if state.hub_query.is_some() {
+                    if state.workbench.active {
                         state.refresh_hub();
                     }
                     ui_dirty = true;
@@ -3103,18 +3532,29 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         if partial {
                             state.notification = Some("部分历史：已按读取预算截取最近记录".into());
                         }
-                        if state.hub_query.is_some() {
+                        if state.workbench.active {
                             state.refresh_hub();
                         }
                         ui_dirty = true;
                     }
                 }
-                HostEvent::FormValues(request, name, values, elapsed) => {
-                    trace.event("hub_values", None, Some(elapsed), Some(values.len()));
+                HostEvent::FormValues(request, name, values, elapsed, cwd, environment) => {
+                    trace.event(
+                        "hub_values",
+                        None,
+                        Some(elapsed),
+                        Some(values.as_ref().map_or(0, Vec::len)),
+                    );
                     if request == state.form_values_request
-                        && let Some(form) = state.hub_form.as_mut()
+                        && cwd == state.cwd
+                        && environment == state.shell_environment
+                        && let Some(form) = state.workbench.form.as_mut()
+                        && form.current().is_some_and(|field| field.name == name)
                     {
-                        form.set_values(&name, values);
+                        match values {
+                            Ok(values) => form.set_values(&name, values),
+                            Err(error) => state.notification = Some(error),
+                        }
                         state.refresh_hub();
                         ui_dirty = true;
                     }
@@ -3162,9 +3602,36 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 last_probe_request_state = value;
             }
         }
+        if (state.pending_history_edit.is_some()
+            || state.pending_history_paste.is_some()
+            || state.pending_native_search_end)
+            && state
+                .history_edit_started
+                .is_some_and(|started| started.elapsed() >= std::time::Duration::from_secs(2))
+        {
+            state.pending_history_edit = None;
+            state.pending_history_paste = None;
+            state.pending_native_search_end = false;
+            state.diagnostic = Some("原生编辑确认超时，保留历史浏览；请检查桥接状态".into());
+        }
+        if state.pending_history_edit.is_none()
+            && state.pending_history_paste.is_none()
+            && !state.pending_native_search_end
+            && !state.history_keys.is_empty()
+        {
+            let keys = std::mem::take(&mut state.history_keys);
+            for key in keys {
+                state.input(key, &mut writer, master.as_ref(), &worker)?;
+            }
+            ui_dirty = true;
+        }
         if std::mem::take(&mut state.repaint) {
-            frame.extend_from_slice(b"\x1b[2J\x1b[H");
-            frame.extend_from_slice(&state.parser.screen().state_formatted());
+            erase_overlay(
+                &mut state.overlay,
+                state.parser.screen(),
+                &mut frame,
+                &mut output,
+            )?;
             ui_dirty = true;
         }
         if std::mem::take(&mut state.bell) {
@@ -3176,91 +3643,32 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
         let repaint_start = Instant::now();
         let bytes_before = frame.len();
-        if ui_dirty && state.prompt && !state.dismissed {
-            let notice = state
-                .notification
-                .as_ref()
-                .map(|message| Candidate {
-                    label: "Blueberry".into(),
-                    description: message.clone(),
-                    ..Default::default()
-                })
-                .or_else(|| {
-                    if !state.completion.argument_hint.is_empty() {
-                        Some(Candidate {
-                            label: state.completion.argument_hint.clone(),
-                            description: "请输入参数值".into(),
-                            ..Default::default()
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .or_else(|| {
-                    state.completion.incomplete.then(|| Candidate {
-                        label: "环境刷新中…".into(),
-                        ..Default::default()
-                    })
-                })
-                .or_else(|| {
-                    state
-                        .hub_query
-                        .as_ref()
-                        .filter(|query| !query.is_empty())
-                        .map(|_| Candidate {
-                            label: "无匹配命令".into(),
-                            description: "修改关键词后重试".into(),
-                            ..Default::default()
-                        })
-                });
-            let displayed = if state.completion.candidates.is_empty() {
-                notice.as_slice()
-            } else {
-                &state.completion.candidates
-            };
-            let query = state.hub_query.as_deref().unwrap_or_else(|| {
-                state
-                    .line
-                    .get(state.completion.replace_start..state.cursor)
-                    .unwrap_or("")
-            });
-            state.overlay.draw_with_state(
-                state.parser.screen(),
-                &mut frame,
-                displayed,
-                state.selected,
-                query,
-                &state.config,
-                crate::menu::MenuState {
-                    incomplete: state.completion.incomplete,
-                    details: state.details,
-                    detail_page: state.detail_page,
-                    argument_hint: (!state.completion.candidates.is_empty())
-                        .then_some(state.completion.argument_hint.as_str()),
-                    searching: state.searching && state.hub_query.is_none(),
-                    diagnostic: state.notification.as_deref().or_else(|| {
-                        state.completion.candidates.is_empty().then_some(
-                            if state.completion.incomplete {
-                                "环境刷新中"
-                            } else if state.hub_query.as_ref().is_some_and(|q| !q.is_empty()) {
-                                "无匹配命令"
-                            } else {
-                                "提示 · 请继续输入"
-                            },
-                        )
-                    }),
-                },
-            )?;
-            state.presented_candidate = PresentedCandidate::capture(
-                state.revision,
-                &state.line,
-                state.cursor,
-                &state.completion,
-                state.selected,
-            );
-        } else if ui_dirty {
-            state.overlay.erase(state.parser.screen(), &mut frame)?;
+        if ui_dirty {
+            render_overlay(&mut state, &mut frame, &mut output)?;
+        }
+        if let Some(error) = state.overlay.take_native_error() {
             state.presented_candidate = None;
+            state.overlay.fallback_to_ordinary();
+            state.terminal_fallback_reason =
+                Some(format!("companion Terminal overlay failed: {error}"));
+            state.adapter_status["terminal_connected"] = json!(false);
+            state.adapter_status["terminal_restore"] = json!("reserved_below_input");
+            state.reserve_menu_pending = true;
+            state.adapter_status["terminal_fallback_reason"] =
+                json!(state.terminal_fallback_reason);
+            render_overlay(&mut state, &mut frame, &mut output)?;
+            state.status_writer.update(state.adapter_status.clone());
+            state
+                .trace
+                .event("native_overlay_failed", Some(state.revision), None, None);
+        } else if state.overlay.frame_visible()
+            && state.adapter_status["disabled_reason"]
+                .as_str()
+                .is_some_and(|reason| reason.starts_with("companion Terminal overlay failed: "))
+        {
+            state.adapter_status["automatic_menu"] = json!(true);
+            state.adapter_status["disabled_reason"] = Value::Null;
+            state.status_writer.update(state.adapter_status.clone());
         }
         if frame.len() > bytes_before {
             trace.event(
@@ -3289,6 +3697,25 @@ pub fn run(options: RunOptions) -> Result<u32> {
         if state.prompt && !frame.is_empty() {
             frame.extend_from_slice(MOUSE_OFF);
         }
+        #[cfg(debug_assertions)]
+        if navigation_input && let Some(token) = &probe_token {
+            let value = json!({"event":"navigation_presented", "label":state.presented_candidate.as_ref().map(|shown|shown.candidate.label.as_str())});
+            frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
+        }
+        #[cfg(debug_assertions)]
+        if ui_dirty
+            && state.workbench.active
+            && let Some(token) = &probe_token
+            && let Some(shown) = &state.presented_candidate
+        {
+            // The marker follows the entire draw. A ConPTY test must not
+            // mistake a partially repainted selector for a completed frame.
+            let value = json!({"event":"hub_presented", "revision":shown.revision,
+                "label":shown.candidate.label, "id":shown.candidate.id,
+                "query":state.workbench.query(),
+                "incomplete":state.completion.incomplete});
+            frame.extend_from_slice(format!("\x1b]7776;{token};{value}\x07").as_bytes());
+        }
         if !frame.is_empty() {
             let started = Instant::now();
             output.write_all(&frame)?;
@@ -3305,7 +3732,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
     }
     frame.clear();
-    state.overlay.erase(state.parser.screen(), &mut frame)?;
+    erase_overlay(
+        &mut state.overlay,
+        state.parser.screen(),
+        &mut frame,
+        &mut output,
+    )?;
     frame.extend_from_slice(&state.decoder.finish());
     output.write_all(&frame)?;
     output.flush()?;

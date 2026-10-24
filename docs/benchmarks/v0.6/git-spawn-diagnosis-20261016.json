@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "kind": "separate traced diagnosis; not formal timing or isolated optimization A/B",
+  "source_under_test": "01fa187 plus temporary instrumentation",
+  "observations": [
+    {
+      "path": "artifacts/git-provider-stage-diagnostic-20261016/traces/git-provider-stages.jsonl",
+      "sha256": "48A68363CE43868A3FAE9BE84573DE9FD756EEEEF6705610C389EC51AADBA364",
+      "spawn_phase_ms": [
+        1773.8788,
+        6.3915999999999995,
+        1843.5006999999998
+      ],
+      "finished": [
+        {
+          "cancelled": true,
+          "read_error": false,
+          "status": 1,
+          "stdout_bytes": 0,
+          "timed_out": false
+        },
+        {
+          "cancelled": false,
+          "read_error": false,
+          "status": 0,
+          "stdout_bytes": 258,
+          "timed_out": false
+        },
+        {
+          "cancelled": false,
+          "read_error": false,
+          "status": 1,
+          "stdout_bytes": 0,
+          "timed_out": true
+        }
+      ]
+    },
+    {
+      "path": "artifacts/git-skip-metadata-diagnostic-20261016/traces/git-provider-stages.jsonl",
+      "sha256": "2E39931C15AB8E621E497BB60FB322EBCE834315C167A2E63508BAB80BEA8523",
+      "spawn_phase_ms": [
+        5.2692,
+        8.228900000000001
+      ],
+      "finished": [
+        {
+          "cancelled": false,
+          "read_error": false,
+          "status": 0,
+          "stdout_bytes": 258,
+          "timed_out": false
+        },
+        {
+          "cancelled": false,
+          "read_error": false,
+          "status": 0,
+          "stdout_bytes": 258,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "path": "artifacts/git-provider-cli-diagnostic-20261016/git-provider-stages.jsonl",
+      "sha256": "3F439279964511076A8ADD572B58E8DB8CE1B9D57D428CE53A512E4A79043C4C",
+      "spawn_phase_ms": [
+        17.415,
+        9.3516,
+        8.653599999999999
+      ],
+      "finished": [
+        {
+          "cancelled": false,
+          "read_error": false,
+          "status": 0,
+          "stdout_bytes": 258,
+          "timed_out": false
+        },
+        {
+          "cancelled": false,
+          "read_error": false,
+          "status": 0,
+          "stdout_bytes": 258,
+          "timed_out": false
+        },
+        {
+          "cancelled": false,
+          "read_error": false,
+          "status": 0,
+          "stdout_bytes": 258,
+          "timed_out": false
+        }
+      ]
+    }
+  ],
+  "temporary_instrumentation_removed": true,
+  "metadata_disabled_only_in_causal_diagnostic": true,
+  "raw_code_patch": "artifacts\\git-spawn-diagnosis-20261016\\temporary-instrumentation.patch",
+  "rust_source_reference": "https://github.com/rust-lang/rust/blob/1.94.0/library/std/src/sys/process/windows.rs#L335",
+  "diagnostic_binary_limitation": "The local debug executable was rebuilt between variants; no frozen executable claim or final performance qualification.",
+  "correction": "Maintain one shared Git execution budget across fixed read-only commands, excluding synchronous creation wait. End-to-end measured latency still includes all creation wait.",
+  "hot_measurement_precondition": "Wait for completed direct session and system command discovery before the untimed first-query warmup; record preparation separately. Cold product startup remains independently measured.",
+  "remaining": [
+    "two independent clean-package optimization A/B",
+    "resources and final performance qualification"
+  ],
+  "release_blocked": true,
+  "cold_correctness_after_fix": {
+    "report": "artifacts/git-budget-cold-regression-20261016/report.json",
+    "all_six_scenarios_collected": true,
+    "git_first_query_ms": 1637.6095,
+    "metadata_discovery_enabled": true,
+    "probe": "frozen b873a4d without the new hot-setup barrier",
+    "target": "local debug with execution-budget correction; not a frozen package",
+    "trace": "enabled_diagnostic",
+    "formal_eligible": false
+  },
+  "correctness": {
+    "core_passed": 134,
+    "native_opt_in_ignored": 2,
+    "providers_passed": 20,
+    "real_timeout_output_budget_and_read_only_regression": "passed",
+    "provider_log": "artifacts/providers-neutral-git-budget-20261016.log",
+    "hot_setup_against_old_package": "six scenes and both cache states completed with new setup barrier; traced/debug infrastructure preflight only",
+    "hot_setup_report": "artifacts/hot-setup-old-package-preflight-20261016/report.json"
+  },
+  "fixture_policy": {
+    "neutral_root": "C:/Windows/Temp/Blueberry-perf-20261016",
+    "avoid_ancestors": [
+      ".git",
+      "Cargo.toml",
+      "package.json"
+    ],
+    "historical_workspace_data": "preserved as scoped reference; not neutral final qualification",
+    "timed_output": "outside repository; archive copy only after timed batch completes"
+  }
+}

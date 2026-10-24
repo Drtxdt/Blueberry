@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "kind": "measurement correctness regression; not a performance result",
+  "problem": "The reader could advance TerminalCore past the last consumed output chunk. Reading its live viewport paired future content with an earlier arrival timestamp.",
+  "fix": "Capture the native viewport and timestamp after parsing each received chunk, then deliver that immutable observation together. Propagate native snapshot failures instead of returning stale content.",
+  "metadata": {
+    "snapshot_binding": "per_received_chunk",
+    "timestamp": "after_native_parser_write_and_snapshot",
+    "screen_pixels": "not_measured"
+  },
+  "regression": {
+    "test": "probe::native_observation_tests::native_snapshot_cannot_outrun_its_observation_timestamp",
+    "old_live_viewport_behavior": "failed: unconsumed future output became a measured viewport",
+    "fixed_behavior": "passed",
+    "raw_evidence": "artifacts/native-observer-ordering-regression-20261015",
+    "model_dll_sha256": "CA9D5CE2BBD6399FECB3E957068F9AA4D6C44113F2EBF266249AC71B46659FA5"
+  },
+  "previous_native_batches": {
+    "native-startup-baseline-20261015": "ineligible for performance or version gates; requires an independent collection with the fixed probe",
+    "native-comparison-preflight-20261015": "infrastructure pilot only",
+    "legacy_observer_baseline": "separate implementation; not invalidated by this native observation defect"
+  },
+  "release_blocked": true
+}

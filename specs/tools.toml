@@ -45,7 +45,7 @@ name = "python"
 aliases = ["python3", "python.exe", "python3.exe"]
 help = "python"
 required = []
-providers = ["python.scripts", "python.dependencies", "python.environments"]
+providers = ["python.scripts", "python.dependencies", "python.environments", "python.groups", "python.tests"]
 resources = "local"
 
 [[tools]]
@@ -149,7 +149,7 @@ name = "docker"
 aliases = ["docker.exe"]
 help = "docker"
 required = ["build", "compose", "container", "image", "network", "volume"]
-providers = ["docker.services", "docker.profiles", "docker.contexts"]
+providers = ["docker.services", "docker.compose.service", "docker.profiles", "docker.contexts"]
 resources = "manual"
 
 [[tools]]

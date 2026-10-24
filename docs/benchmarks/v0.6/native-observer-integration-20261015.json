@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "kind": "measurement infrastructure diagnostic; not performance acceptance",
+  "runtime_source_commit": "b1a2d3f0ebd0a8e6c4a89777d07de6424fa931a6",
+  "model_dll_sha256": "CA9D5CE2BBD6399FECB3E957068F9AA4D6C44113F2EBF266249AC71B46659FA5",
+  "abi_version": 1,
+  "companion_interface_version": 4,
+  "backend": "production_terminalcore_buffer",
+  "renderer": "DummyRenderer",
+  "timestamp": "after_native_parser_write",
+  "startup_origin": "before_child_spawn_after_observer_initialization",
+  "screen_pixels": "not_measured",
+  "eof_dispatch": "explicit_model_api_boundaries; does not establish GUI dispatcher latency",
+  "smoke": {
+    "raw_directory": "artifacts/native-observer-smoke-20261015",
+    "probe_and_host": "local debug build with uncommitted changes",
+    "shell": "7.6.6",
+    "psreadline": "2.4.5",
+    "adapter": "editor_hooks_v1 / native_overlay_v4",
+    "queries_including_warmup": 3,
+    "status": "passed",
+    "formal_eligible": false
+  },
+  "guards": ["DLL digest before code loading", "ABI and interface match", "native path without frozen observer rejected before spawn", "reader/model failures invalidate collection", "bounded callback replies", "debug/diagnostic probes ineligible for formal evidence"],
+  "formal_matrix": "not_executed for native interface",
+  "release_blocked": true
+}

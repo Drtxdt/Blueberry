@@ -11,6 +11,10 @@ namespace Microsoft.PowerShell
     {
         public static int EditorIntegrationVersion { get { return 1; } }
         public static string EditorIntegrationPatch { get { return "blueberry-editor-v1.2"; } }
+        public static string EditorNativeArgumentPassing
+        {
+            get { return Convert.ToString(_singleton._engineIntrinsics.SessionState.PSVariable.GetValue("PSNativeCommandArgumentPassing", "Legacy")); }
+        }
 
         // Absolute console rows, including the prompt and continuation lines.
         // Use the editor's own cell-width/wrapping rules, on its owning thread.

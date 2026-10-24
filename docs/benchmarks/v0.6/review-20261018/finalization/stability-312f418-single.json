@@ -1,0 +1,270 @@
+{
+  "source_commit": "312f41897c92553019cfe7514cfbc4a6d361013b",
+  "run_id": 39393219193,
+  "conclusion": "success",
+  "repeats": 1,
+  "jobs": [
+    {
+      "job_id": 118529521575,
+      "name": "stability / targeted (ps51-200, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.0.0)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118529521575.log",
+      "log_sha256": "d82e1425c9bd3a3adc58b388bc34a320fa094926b675f811eaa55c513ee89b02",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/completion_before_resize_event_does_not_paint_using_old_geometry/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    },
+    {
+      "job_id": 118529522052,
+      "name": "stability / targeted (ps51-245, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.4.5)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118529522052.log",
+      "log_sha256": "26ac6b5832867b727c19dc3f50143385e2c0aaf57faf5d929f7871ee5c31fec1",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/completion_before_resize_event_does_not_paint_using_old_geometry/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    },
+    {
+      "job_id": 118529522104,
+      "name": "stability / targeted (ps7-245, pwsh.exe, 2.4.5)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118529522104.log",
+      "log_sha256": "07343725011f41e4c62f233a1cb65f8f2789d71f5d47ecaa2fa9497945c53d45",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/completion_before_resize_event_does_not_paint_using_old_geometry/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    }
+  ],
+  "archives": [
+    {
+      "id": 12250942119,
+      "sha256": "20e180f6f02f64713c886b0049910640889c5f8ddbea2d77eb2fd3ddd873285c",
+      "path": "artifacts/stability-312f418-single-12250942119.zip"
+    },
+    {
+      "id": 12250703254,
+      "sha256": "d23581243547bc84bf2bbe58494e8ddbcc4f7be57ee58e69095059ef56f514a9",
+      "path": "artifacts/stability-312f418-single-12250703254.zip"
+    },
+    {
+      "id": 12250284748,
+      "sha256": "c4e38729c9055cb9fefd695ef594a3fe12075ceec8867b97027ac58676ed67aa",
+      "path": "artifacts/stability-312f418-single-12250284748.zip"
+    }
+  ],
+  "snapshots": [
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-DSbTMn/resize-24-80.json",
+      "stage": "resize-24-80.json",
+      "sha256": "0e0c3818815e6c55e9fcc569e96d2025c735b3ee9595c885dda09722c0f09712",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-DSbTMn/resize-30-120.json",
+      "stage": "resize-30-120.json",
+      "sha256": "cec7a0655e5df8c3b92a75ec4c71c4c27b5732ec453cac370be588f3796ff758",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-DSbTMn/resize-dismissed.json",
+      "stage": "resize-dismissed.json",
+      "sha256": "e132eae30228fb366cd536ff4f2f3cfd2040e390574027c7bd3cd39f17659449",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-lq2CGy/resize-24-80.json",
+      "stage": "resize-24-80.json",
+      "sha256": "93d98de111922d44a655136c6a49e4de7298fe4eb1852e32b9c8ffaa42e5ce0e",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-lq2CGy/resize-30-120.json",
+      "stage": "resize-30-120.json",
+      "sha256": "a9fec329d1d73d79086929e1d912c56cae08e9a782d7401a7dca880035a68e8d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-lq2CGy/resize-dismissed.json",
+      "stage": "resize-dismissed.json",
+      "sha256": "ba44bc306571c5197885026db5b30f519c74cfa5f95da16c4dfe15149e317e0e",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-89gnAA/resize-24-80.json",
+      "stage": "resize-24-80.json",
+      "sha256": "504e0b163e7ffbc9daedda69e5b0038ed13aefbc201ceab2f02cccc7162b4110",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-89gnAA/resize-30-120.json",
+      "stage": "resize-30-120.json",
+      "sha256": "14ca8cc35e0066dc0b12068f4355bf32b90a6c04adf99b82deea743b1aedaaf4",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-89gnAA/resize-dismissed.json",
+      "stage": "resize-dismissed.json",
+      "sha256": "a12683a8d27c2bfafa933572ab8109798ce8b08671fad04a0c08eddd3de1b7f0",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-p7GHow/resize-24-80.json",
+      "stage": "resize-24-80.json",
+      "sha256": "32ed1992a2113564b34a32aa121325ca1e5eb36dd4b0f4d6247f90a18be044cd",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-p7GHow/resize-30-120.json",
+      "stage": "resize-30-120.json",
+      "sha256": "e82d8b427236a4e2bf891bef1be82704ea6e78c5db3894fb38824357cf8b3adc",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-p7GHow/resize-dismissed.json",
+      "stage": "resize-dismissed.json",
+      "sha256": "eccb2d4f39824a86dc34a6f2ebff48f0b778dd6b3e5308cfad20e1e3b7192183",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-gXNKKE/resize-24-80.json",
+      "stage": "resize-24-80.json",
+      "sha256": "67431bbbddc0be8fbccd793420d46fa1bb228054a30f419f31589b854a59bdce",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-gXNKKE/resize-30-120.json",
+      "stage": "resize-30-120.json",
+      "sha256": "574f7059bd37ecb82b55ae6ed807d928d87c5f1ebb5ccb1387ac203e89f64f6c",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-gXNKKE/resize-dismissed.json",
+      "stage": "resize-dismissed.json",
+      "sha256": "b6ed7a3984e7e1256ed8505d855f531812fd77130458544b93bad252050810b1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-VJ6D1H/resize-24-80.json",
+      "stage": "resize-24-80.json",
+      "sha256": "f048e1b92b8418b8f30a1f4a3cd9a702befe5572ff05624f907470a73845edfb",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-VJ6D1H/resize-30-120.json",
+      "stage": "resize-30-120.json",
+      "sha256": "f20fc8f5bc0f4952d7e70f490276eac93d19500a6ca0318efeb5fe282d0e1598",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-VJ6D1H/resize-dismissed.json",
+      "stage": "resize-dismissed.json",
+      "sha256": "7a7b7461a94d329eed0bc9dbd0d8a5cfb0bd875ebaae5157bd4df3fff264a54c",
+      "prompt_found": true,
+      "residue": []
+    }
+  ],
+  "ownership": [
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-DSbTMn/overlay-ownership.jsonl",
+      "sha256": "7af16a0ef1d0dfe79f1ba29817fd522ef4fff33162f35148539ee44c89829ac8",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250942119/Blueberry/Blueberry/target/nested-terminal-evidence/host-lq2CGy/overlay-ownership.jsonl",
+      "sha256": "b615f61c2142187570cbcedb34461e4bd572683dacd119e943d43df387371759",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-89gnAA/overlay-ownership.jsonl",
+      "sha256": "3aa1e3097244ef491c30f9b4844fbe6578ad19fa4c4ae722ac1cacd614ef81ea",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250703254/Blueberry/Blueberry/target/nested-terminal-evidence/host-p7GHow/overlay-ownership.jsonl",
+      "sha256": "8fd70ec3eeb5dfdfead9de3c4fd67cd033b7ad050fd6db048be2d9fb59a1a46a",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-gXNKKE/overlay-ownership.jsonl",
+      "sha256": "2f5df96cc85c6adf5ea9eecab4bbfee0cff4e335f81ba8f928ce5d3cc0de55af",
+      "unmatched": []
+    },
+    {
+      "file": "artifacts/stability-312f418-single-12250284748/Blueberry/Blueberry/target/nested-terminal-evidence/host-VJ6D1H/overlay-ownership.jsonl",
+      "sha256": "44e31a9270199adfcab8946de3e9ef850f0c572c2a8a50392af86e6c799a5df7",
+      "unmatched": []
+    }
+  ],
+  "visual_audit": "Diagnostic heuristic over native narrow snapshots and opt-in ownership logs; not GUI acceptance."
+}

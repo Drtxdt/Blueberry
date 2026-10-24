@@ -1,6 +1,23 @@
 param([Parameter(Mandatory=$true)][string]$AssemblyPath)
 $ErrorActionPreference = 'Stop'
 $null = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $AssemblyPath)))
+$contract = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'direct-diagnostics.json') -Raw | ConvertFrom-Json
+foreach ($event in $contract.events.PSObject.Properties) {
+    foreach ($stage in $event.Value.stages) {
+        $diagnostic = [Collections.Generic.Dictionary[string,object]]::new()
+        $diagnostic['event']=$event.Name; $diagnostic['stage']=$stage; $diagnostic['qpc']=[long]123
+        if (-not [Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw "Declared diagnostic rejected: $stage" }
+        foreach ($field in $event.Value.required_integer_fields) {
+            $diagnostic.Remove($field) | Out-Null
+            if ([Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw "Missing diagnostic field accepted: $field" }
+            $diagnostic[$field]='invalid'
+            if ([Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw "Invalid diagnostic field accepted: $field" }
+            $diagnostic[$field]=[long]123
+        }
+        $diagnostic['stage']='future_event'
+        if ([Blueberry.Direct.DiagnosticContract]::Valid($diagnostic)) { throw 'Unknown diagnostic accepted' }
+    }
+}
 function Assert-Rejected([string]$Text) {
     $rejected = $false
     try { $null = [Blueberry.Direct.Json]::Parse($Text) } catch { $rejected = $true }
@@ -23,23 +40,20 @@ $bridge = [Blueberry.Direct.Bridge]
 $flags = [Reflection.BindingFlags]'NonPublic,Static'
 $bridge.GetField('api',$flags).SetValue($null,[Microsoft.PowerShell.PSConsoleReadLine])
 $bridge.GetField('moduleVersion',$flags).SetValue($null,(Get-Module PSReadLine).Version)
-# The public API canonicalizes a literal space as Spacebar. Exercise actual
-# bulk registration against a pre-existing verified built-in binding, rather
-# than testing just the string filter.
+# Manual fallback leaves custom handlers and ordinary character bindings intact.
 Set-PSReadLineKeyHandler -Chord Spacebar -Function ForwardChar
-$bound = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-foreach ($binding in Get-PSReadLineKeyHandler) { $null = $bound.Add($binding.Key) }
-$registerType = $bridge.GetField('register',$flags).FieldType
-$registerMethod = [Microsoft.PowerShell.PSConsoleReadLine].GetMethod('SetKeyHandler',[type[]]@([string[]],[Action[Nullable[ConsoleKeyInfo],object]],[string],[string]))
-$bridge.GetField('register',$flags).SetValue($null,[Delegate]::CreateDelegate($registerType,$registerMethod))
-$null = $bridge.GetMethod('RegisterCharacters',$flags).Invoke($null,(,$bound))
-if ((Get-PSReadLineKeyHandler | Where-Object Key -eq Spacebar).Function -ne 'ForwardChar') { throw 'Character registration overwrote original Spacebar action' }
-$null = $bridge.GetMethod('RememberBindingVersion',$flags).Invoke($null,@())
 Set-PSReadLineKeyHandler -Chord Backspace -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('CUSTOM') }
-$rejected = $false
-try { $null = $bridge.GetMethod('AuditBindings',$flags).Invoke($null,@()) } catch { $rejected = $_.Exception.ToString().Contains('custom binding: Backspace') }
-if (-not $rejected) { throw 'Equal-count custom binding replacement escaped identity audit' }
-if ((Get-PSReadLineKeyHandler | Where-Object Key -eq Backspace).Function -ne 'CustomAction') { throw 'Audit changed custom binding' }
+$before = @(Get-PSReadLineKeyHandler)
+$arguments = @([Diagnostics.Stopwatch]::GetTimestamp(), [long]0, [long]0)
+$null = $bridge.GetMethod('InitializeLegacy',$flags).Invoke($null,$arguments)
+$after = @(Get-PSReadLineKeyHandler)
+if ($after.Count -gt $before.Count + 3) { throw 'Manual mode registered more than three shortcuts' }
+if (($after | Where-Object Key -eq Spacebar).Function -ne 'ForwardChar') { throw 'Manual mode changed Spacebar' }
+if (($after | Where-Object Key -eq Backspace).Function -ne 'CustomAction') { throw 'Manual mode changed custom binding' }
+$bridge.GetField('connected',$flags).SetValue($null,$true)
+$bridge.GetField('negotiated',$flags).SetValue($null,$true)
+if (-not $bridge::ServiceAvailable -or $bridge::AutomaticMenu) { throw 'Service availability and automatic mode are coupled' }
+$bridge.GetField('connected',$flags).SetValue($null,$false)
 # Fault injection at the wire boundary: a late frame must not replace a newer
 # candidate, and workbench/control responses must survive ordinary coalescing.
 function New-Frame([long]$Revision,[long]$Id,[string]$Kind='frame',[string]$Interaction='completion') {

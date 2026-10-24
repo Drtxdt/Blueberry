@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "controller_receipt": "artifacts\\package-continuation-20261024\\controller\\batch.json",
+  "owner": {
+    "pid": 21744,
+    "created": 134373176333710828
+  },
+  "plan_sha256": "7EB51C8DB61AECFD3DB04E0359A9EDC010A48993D5D006C56C55F6998238C204",
+  "frozen_files": 124,
+  "status_observed": {
+    "schema": 1,
+    "measurement_complete": false,
+    "status": "waiting_for_predecessor",
+    "predecessor": {
+      "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r1-resources-20261024\\controller\\batch.json",
+      "owner": {
+        "pid": 5324,
+        "created": 134373164026725960
+      },
+      "plan_sha256": "B4ECFA86840E8BCF42D1CF5B03029F58BDA9B1659C083C0C8019DB4B612A4690"
+    },
+    "updated_at_utc": "2026-10-24T12:13:53.650290+00:00"
+  },
+  "acceptance_completed": false,
+  "transition_executed": false
+}

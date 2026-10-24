@@ -1,0 +1,31 @@
+Package SHA-256 verified.
+已安装 Blueberry 0.5.2 到 E:\OpenSource\shellsense-rs\target\public-upgrade-14aed8a4b99842c5a057f65f027fc08b\中文 install（unsigned）
+
+Installed: E:\OpenSource\shellsense-rs\target\public-upgrade-14aed8a4b99842c5a057f65f027fc08b\中文 install\blueberry.exe
+Run: blueberry
+Startup: blueberry startup enable | disable | status
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":29,"phase":"validation","succeeded":true,"elapsed_ms":124.8864}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":0,"phase":"component_migration","succeeded":true,"elapsed_ms":22.1334}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":28,"phase":"backup","succeeded":true,"elapsed_ms":1399.3668}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":11370858,"files":28,"phase":"snapshot_prepare","succeeded":true,"elapsed_ms":1563.03}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":28,"phase":"snapshot_copy","succeeded":true,"elapsed_ms":1289.2623}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":28,"phase":"payload_copy","succeeded":true,"elapsed_ms":1714.1202}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":1,"phase":"commit","succeeded":true,"elapsed_ms":345.2919}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":0,"files":0,"phase":"journal","succeeded":true,"elapsed_ms":0.0}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/2bead54e34a048d4a3a62f1bb14cbb67
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":29,"phase":"backup","succeeded":true,"elapsed_ms":3511.4065}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":18121774,"files":29,"phase":"snapshot_prepare","succeeded":true,"elapsed_ms":3576.5742}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":29,"phase":"snapshot_copy","succeeded":true,"elapsed_ms":3820.5014}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":1,"phase":"commit","succeeded":true,"elapsed_ms":577.5878}
+已回滚到 Blueberry 0.5.2（unsigned）；回滚前的完整受管文件和元数据保存在 previous/be4c772f1cf84b25bb36f3b9ccbe86f5
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":0,"files":0,"phase":"journal","succeeded":true,"elapsed_ms":0.0}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":88,"phase":"validation","succeeded":true,"elapsed_ms":595.2195}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":0,"phase":"component_migration","succeeded":true,"elapsed_ms":1.898}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":28,"phase":"backup","succeeded":true,"elapsed_ms":1831.3581}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":11370858,"files":28,"phase":"snapshot_prepare","succeeded":true,"elapsed_ms":1644.2578}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":28,"phase":"snapshot_copy","succeeded":true,"elapsed_ms":1954.9012}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":28,"phase":"payload_copy","succeeded":true,"elapsed_ms":3391.6562}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":null,"files":1,"phase":"commit","succeeded":true,"elapsed_ms":789.5332}
+BLUEBERRY_MAINTENANCE_METRIC {"bytes":0,"files":0,"phase":"journal","succeeded":true,"elapsed_ms":0.0}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/2af4eebeb58a4151844922757c0398c0
+Public 0.5.2 upgrade/rollback/re-upgrade passed: E:\OpenSource\shellsense-rs\target\public-upgrade-14aed8a4b99842c5a057f65f027fc08b

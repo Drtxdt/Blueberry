@@ -1,0 +1,176 @@
+{
+  "kind": "local_script_completion_receipt",
+  "command": "scripts/test-release.ps1 -BlueberryExecutable ./target/debug/blueberry.exe -KeepTemp",
+  "exit_code": 0,
+  "manager_revision": "e27cf46ff9afe27f1640fae1988ef15d1fb4121d",
+  "package_sha256": "e3a10157473da2fd1bbc29ce62ac3cdf056246040716de4cdf621a40ae0f6e10",
+  "test_directory": "C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-release-test-f55501394af54a429c50b52a90076cb9",
+  "managed_script_sha256": "6c3dcd512888e5ae7be0a5944bca0be44834ad17b871baf74cae3ed12cdd8af0",
+  "exe_sha256": "67d5c3ba4b8240b9d8871fec7fc262033f52d273df5c7fc8f2677f257e7f7279",
+  "observed_result": "发布准备自测通过",
+  "checks": [
+    "install",
+    "locked executable failure and restoration",
+    "upgrade",
+    "rollback",
+    "preserve user configuration and Terminal settings",
+    "JSON/JSONC settings behavior",
+    "reparse rejection",
+    "release write failure preservation",
+    "uninstall changed-file preservation and retry"
+  ],
+  "limitations": [
+    "Diagnostic bundled package, not final core/enhancement artifacts",
+    "No async 300-second lifecycle or 0/1/5 history matrix in this invocation",
+    "PowerShell Write-Host output was observed by the tool but not captured by 2>&1 Tee-Object; this receipt is not a complete raw transcript",
+    "Not formal performance/version evidence"
+  ],
+  "binary_build": {
+    "allocation_diagnostics": false,
+    "commit": "65332cf3622a5a15547c02094d2bd2e0682b68f6",
+    "companion_overlay_interface": 4,
+    "conpty": {
+      "architecture": "x86_64",
+      "files": [
+        {
+          "member": "runtimes/win-x64/native/conpty.dll",
+          "path": "conpty.dll",
+          "sha256": "feeef341d891643c62d30b6b07800bc70f0bc148f44cb8c3bee84aa557ae805a"
+        },
+        {
+          "member": "build/native/runtimes/x64/OpenConsole.exe",
+          "path": "OpenConsole.exe",
+          "sha256": "3d66b23d0a71bb8eed2b77edc8b9df9bf54ce6c8fb74c863a30e760997f80586"
+        }
+      ],
+      "input_wakeup_fix": "https://github.com/microsoft/terminal/pull/18816",
+      "license": "MIT",
+      "package": "Microsoft.Windows.Console.ConPTY",
+      "sha256": "02b07b349af66d801159bdf9e440d4a1ce78bb951f37fc8609731665afdae7ee",
+      "source": "https://github.com/microsoft/terminal",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.windows.console.conpty/1.25.260930003/microsoft.windows.console.conpty.1.25.260930003.nupkg",
+      "version": "1.25.260930003"
+    },
+    "default_host_mode": "direct",
+    "dirty": true,
+    "private_editors": {
+      "files": [
+        {
+          "path": "License.txt",
+          "sha256": "2c679724a13cec8a7589034b5725c749a304cef4a8ce4dc474f508095e627f4b",
+          "version": "2.0.0"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine2.dll",
+          "sha256": "9569e044976c27ce4ce375a89cef6404a0af42853872c50b5719be57798b2299",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "da79d15c91edd0559d70dbcda76f9b41ef1b17a141d137a485027971a08df1bb",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "8da4596d105078a4d6d5ae64ddf433fd7a538acea8c253df2945612bc0c98dd7",
+          "version": "2.0.0"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "98c2733e43ffe148378f645b5626e585578fcfd04fcc2fcb443ba61d54430912",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-LICENSE.txt",
+          "sha256": "b7d43d08f59637129c482c63dcd4811077101ac41cc763b3b58490137f741977",
+          "version": "2.0.0"
+        },
+        {
+          "path": "RUNTIME-NOTICES.txt",
+          "sha256": "fd880d29a522f238c178452b38cbf196bb5c0dab7ebfdc590b02b8e5019ebc71",
+          "version": "2.0.0"
+        },
+        {
+          "path": "System.Runtime.InteropServices.RuntimeInformation.dll",
+          "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8",
+          "version": "2.0.0"
+        },
+        {
+          "path": "License.txt",
+          "sha256": "577273b040bdddb01b02768d9ad07fcb40415479fc2e65c8287294c6abf56de6",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.Pager.dll",
+          "sha256": "451994c3d3e38d939b4fa5f8594d0207840f45e7a210aa75f81aef85aa17c592",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Microsoft.PowerShell.PSReadLine.dll",
+          "sha256": "1be6bd1dec7fa6ec8f467f9edbbe5a60a109b028b83c15f07f11a592bd5e7d17",
+          "version": "2.4.5"
+        },
+        {
+          "path": "net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "413cccf7469e9e3af17ade0ae6c1ac9f3754dba039bf340dc4ebda12f39bf9ea",
+          "version": "2.4.5"
+        },
+        {
+          "path": "netstd/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+          "sha256": "23e84b4263945b608487562669c200a72be5a227c2d4b16b70c2eae352e7da11",
+          "version": "2.4.5"
+        },
+        {
+          "path": "Pager-LICENSE.txt",
+          "sha256": "ac40d0ffe53b81204451b78b6772b5bb53c5c9ea7d32f694596fae5b9150c9b9",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.format.ps1xml",
+          "sha256": "9676711e5883b8aeea5affae7868c6b651e5250a132691ec26a6e94c79702e22",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psd1",
+          "sha256": "243b46505e5e0ed7d313d340d9c717b2a7bdd1a9e184b99d36d921e9d48cee02",
+          "version": "2.4.5"
+        },
+        {
+          "path": "PSReadLine.psm1",
+          "sha256": "ea065fe561207681b987eee788ac24e7d58c45daca310ff53ceeff01ceb86edd",
+          "version": "2.4.5"
+        }
+      ],
+      "patch": "blueberry-editor-v1.2",
+      "repository": "https://github.com/PowerShell/PSReadLine",
+      "versions": {
+        "2.0.0": {
+          "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c",
+          "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6"
+        },
+        "2.4.5": {
+          "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0",
+          "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f"
+        }
+      }
+    },
+    "profile": "debug",
+    "time_unix": 1792306738
+  },
+  "terminal_dependency": {
+    "interface_version": 4,
+    "source_commit": "b1a2d3f0ebd0a8e6c4a89777d07de6424fa931a6",
+    "upstream_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+    "run_id": 38664398242,
+    "artifact_id": 11941135812,
+    "asset_name": "blueberry-terminal-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip",
+    "package_sha256": "22F6C01A91C19506782ADE2E98FF2C2AA46835DCF7CD5AD8BA3C09249CA5EA48",
+    "executable_member": "bin/x64/Release/WindowsTerminal/WindowsTerminal.exe",
+    "executable_sha256": "332818C5FA84C675DB21939974FB53E3D908408952D28CAD58035590FC0A32C8",
+    "licenses": {
+      "bin/x64/Release/WindowsTerminal/BLUEBERRY-PATCH-LICENSE.txt": "2FEB9979C41260E08EC02DFEC79AD2F0A4421E9C2531F6E6DAF461CB5E4B5DCE",
+      "bin/x64/Release/WindowsTerminal/TERMINAL-LICENSE.txt": "5D177F23ECFEB0EA8E050B6A5A16355E1AE9A0B286436CA8F83ED08B3795BE6B",
+      "bin/x64/Release/WindowsTerminal/TERMINAL-THIRD-PARTY-NOTICES.md": "E7FBAADEE6AB20C28B87730A510EE5F5815D8FB4BD88D1D54D282DC2A74C0726"
+    }
+  }
+}

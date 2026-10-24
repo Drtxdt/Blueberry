@@ -1,0 +1,394 @@
+{
+  "schema": 1,
+  "ci_run": 40090066092,
+  "artifact": {
+    "id": 12559776555,
+    "node_id": "MDg6QXJ0aWZhY3QxMjU1OTc3NjU1NQ==",
+    "name": "blueberry-packaged-profile",
+    "size_in_bytes": 80998,
+    "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559776555",
+    "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559776555/zip",
+    "expired": false,
+    "digest": "sha256:5443699d92678bccdc1ab3e8554278f56b19c2c2eedbfed34d41bde07450b23a",
+    "created_at": "2026-10-24T12:07:33Z",
+    "updated_at": "2026-10-24T12:07:33Z",
+    "expires_at": "2027-01-22T11:28:53Z",
+    "workflow_run": {
+      "id": 40090066092,
+      "repository_id": 1368459002,
+      "head_repository_id": 1368459002,
+      "head_branch": "codex/v053-reliability-performance",
+      "head_sha": "f8fc564d6a16161d8d746e4c0c38918fd9961e70"
+    }
+  },
+  "archive": "artifacts\\ci-f8-profile-12559776555.zip",
+  "archive_sha256": "5443699d92678bccdc1ab3e8554278f56b19c2c2eedbfed34d41bde07450b23a",
+  "manifest": {
+    "entries": [
+      {
+        "report": "ps51-200-cold/startup.json",
+        "restoration": "ps51-200-cold/restoration.json",
+        "combination": "ps51-200",
+        "cache": "cold"
+      },
+      {
+        "report": "ps51-200-warm/startup.json",
+        "restoration": "ps51-200-warm/restoration.json",
+        "combination": "ps51-200",
+        "cache": "warm"
+      },
+      {
+        "report": "ps51-245-cold/startup.json",
+        "restoration": "ps51-245-cold/restoration.json",
+        "combination": "ps51-245",
+        "cache": "cold"
+      },
+      {
+        "report": "ps51-245-warm/startup.json",
+        "restoration": "ps51-245-warm/restoration.json",
+        "combination": "ps51-245",
+        "cache": "warm"
+      },
+      {
+        "report": "ps7-245-cold/startup.json",
+        "restoration": "ps7-245-cold/restoration.json",
+        "combination": "ps7-245",
+        "cache": "cold"
+      },
+      {
+        "report": "ps7-245-warm/startup.json",
+        "restoration": "ps7-245-warm/restoration.json",
+        "combination": "ps7-245",
+        "cache": "warm"
+      }
+    ],
+    "package_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38",
+    "observation": "ConPTY receive timestamps; separate from GUI and local AB/BA qualification",
+    "executable_sha256": "9EA046D6E022D7135C803E6532B6A013401C09D826B9164FA26EBC7D2B690D45",
+    "update_check": "Off"
+  },
+  "reports": [
+    {
+      "combination": "ps51-200",
+      "cache": "cold",
+      "report": "ps51-200-cold/startup.json",
+      "report_sha256": "4cd579f3f80aec23a1dde4411a1865881831af25809ecbf5b6c909b9fe229778",
+      "source_commit": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+      "samples": 30,
+      "cache_observations": "rebuild",
+      "restored": true,
+      "metrics": {
+        "plain_first_input": {
+          "p50_ms": 1304.9284,
+          "p95_ms": 1320.7779
+        },
+        "candidate_first_input": {
+          "p50_ms": 1578.8998000000001,
+          "p95_ms": 1597.4621
+        },
+        "paired_first_input_delta": {
+          "p50_ms": 281.14144999999996,
+          "p95_ms": 296.2012
+        },
+        "first_key_echo": {
+          "p50_ms": 34.6443,
+          "p95_ms": 39.0976
+        },
+        "first_visible_static_candidate": {
+          "p50_ms": 48.5463,
+          "p95_ms": 52.2908
+        },
+        "complete_static_candidates": {
+          "p50_ms": 49.12805,
+          "p95_ms": 53.0448
+        },
+        "first_visible_dynamic_candidate": {
+          "p50_ms": 33.24355,
+          "p95_ms": 40.6143
+        },
+        "complete_dynamic_candidates": {
+          "p50_ms": 33.373900000000006,
+          "p95_ms": 40.734399999999994
+        }
+      },
+      "preparation": null,
+      "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+      "process_tree_observation": "untimed snapshot after candidate measurements; transient startup processes are not captured",
+      "startup_p50_under_50_ms": false
+    },
+    {
+      "combination": "ps51-200",
+      "cache": "warm",
+      "report": "ps51-200-warm/startup.json",
+      "report_sha256": "9182df04550c820f407933b6bd1d42ff8f175196288d0373da2676296aafb25b",
+      "source_commit": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+      "samples": 30,
+      "cache_observations": "hit",
+      "restored": true,
+      "metrics": {
+        "plain_first_input": {
+          "p50_ms": 1304.18275,
+          "p95_ms": 1321.4259
+        },
+        "candidate_first_input": {
+          "p50_ms": 1579.1891,
+          "p95_ms": 1590.2581
+        },
+        "paired_first_input_delta": {
+          "p50_ms": 274.1219000000001,
+          "p95_ms": 296.8269
+        },
+        "first_key_echo": {
+          "p50_ms": 35.5942,
+          "p95_ms": 40.4615
+        },
+        "first_visible_static_candidate": {
+          "p50_ms": 48.7287,
+          "p95_ms": 53.1813
+        },
+        "complete_static_candidates": {
+          "p50_ms": 49.4874,
+          "p95_ms": 53.5319
+        },
+        "first_visible_dynamic_candidate": {
+          "p50_ms": 29.10295,
+          "p95_ms": 34.8497
+        },
+        "complete_dynamic_candidates": {
+          "p50_ms": 29.179250000000003,
+          "p95_ms": 34.918400000000005
+        }
+      },
+      "preparation": {
+        "elapsed_ms": 6724.400799999999,
+        "included_in_timed_pairs": false,
+        "system_commands": {
+          "cache": "rebuild",
+          "complete": true,
+          "count": 2546,
+          "error": null,
+          "source": "system module export metadata"
+        }
+      },
+      "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+      "process_tree_observation": "untimed snapshot after candidate measurements; transient startup processes are not captured",
+      "startup_p50_under_50_ms": false
+    },
+    {
+      "combination": "ps51-245",
+      "cache": "cold",
+      "report": "ps51-245-cold/startup.json",
+      "report_sha256": "1b6a63180dca261d87a87a39dc6deaf8f227f73838b638befc12ed5cfc9ae5e8",
+      "source_commit": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+      "samples": 30,
+      "cache_observations": "rebuild",
+      "restored": true,
+      "metrics": {
+        "plain_first_input": {
+          "p50_ms": 1341.4129,
+          "p95_ms": 1355.9694
+        },
+        "candidate_first_input": {
+          "p50_ms": 1619.2274000000002,
+          "p95_ms": 1634.816
+        },
+        "paired_first_input_delta": {
+          "p50_ms": 280.3750000000001,
+          "p95_ms": 316.1677000000002
+        },
+        "first_key_echo": {
+          "p50_ms": 42.982549999999996,
+          "p95_ms": 51.0753
+        },
+        "first_visible_static_candidate": {
+          "p50_ms": 57.79825,
+          "p95_ms": 74.7132
+        },
+        "complete_static_candidates": {
+          "p50_ms": 58.1749,
+          "p95_ms": 75.1186
+        },
+        "first_visible_dynamic_candidate": {
+          "p50_ms": 31.45745,
+          "p95_ms": 38.9568
+        },
+        "complete_dynamic_candidates": {
+          "p50_ms": 31.53275,
+          "p95_ms": 39.044200000000004
+        }
+      },
+      "preparation": null,
+      "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+      "process_tree_observation": "untimed snapshot after candidate measurements; transient startup processes are not captured",
+      "startup_p50_under_50_ms": false
+    },
+    {
+      "combination": "ps51-245",
+      "cache": "warm",
+      "report": "ps51-245-warm/startup.json",
+      "report_sha256": "72cc6b60083bb385eaacbf360e0cf0c80ef565234fc7c9f2ce2d9fa4fbc432c6",
+      "source_commit": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+      "samples": 30,
+      "cache_observations": "hit",
+      "restored": true,
+      "metrics": {
+        "plain_first_input": {
+          "p50_ms": 1337.74865,
+          "p95_ms": 1359.0148
+        },
+        "candidate_first_input": {
+          "p50_ms": 1617.6041500000001,
+          "p95_ms": 1636.7399
+        },
+        "paired_first_input_delta": {
+          "p50_ms": 279.93325000000016,
+          "p95_ms": 317.5803000000001
+        },
+        "first_key_echo": {
+          "p50_ms": 43.005900000000004,
+          "p95_ms": 50.375
+        },
+        "first_visible_static_candidate": {
+          "p50_ms": 57.647949999999994,
+          "p95_ms": 73.9305
+        },
+        "complete_static_candidates": {
+          "p50_ms": 58.0129,
+          "p95_ms": 74.50189999999999
+        },
+        "first_visible_dynamic_candidate": {
+          "p50_ms": 26.8269,
+          "p95_ms": 28.6366
+        },
+        "complete_dynamic_candidates": {
+          "p50_ms": 26.901600000000002,
+          "p95_ms": 28.685200000000002
+        }
+      },
+      "preparation": {
+        "elapsed_ms": 6751.5538,
+        "included_in_timed_pairs": false,
+        "system_commands": {
+          "cache": "rebuild",
+          "complete": true,
+          "count": 2546,
+          "error": null,
+          "source": "system module export metadata"
+        }
+      },
+      "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+      "process_tree_observation": "untimed snapshot after candidate measurements; transient startup processes are not captured",
+      "startup_p50_under_50_ms": false
+    },
+    {
+      "combination": "ps7-245",
+      "cache": "cold",
+      "report": "ps7-245-cold/startup.json",
+      "report_sha256": "87ce8de72afeab3db23773db243cf325a7e7e1637a808ed3e777489cd52e7ac2",
+      "source_commit": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+      "samples": 30,
+      "cache_observations": "rebuild",
+      "restored": true,
+      "metrics": {
+        "plain_first_input": {
+          "p50_ms": 1466.8349,
+          "p95_ms": 1483.5751
+        },
+        "candidate_first_input": {
+          "p50_ms": 1862.2480500000001,
+          "p95_ms": 1879.8981
+        },
+        "paired_first_input_delta": {
+          "p50_ms": 390.01980000000003,
+          "p95_ms": 418.4236000000001
+        },
+        "first_key_echo": {
+          "p50_ms": 32.2294,
+          "p95_ms": 36.322100000000006
+        },
+        "first_visible_static_candidate": {
+          "p50_ms": 43.215900000000005,
+          "p95_ms": 47.268299999999996
+        },
+        "complete_static_candidates": {
+          "p50_ms": 43.55075,
+          "p95_ms": 47.607299999999995
+        },
+        "first_visible_dynamic_candidate": {
+          "p50_ms": 25.532650000000004,
+          "p95_ms": 27.938100000000002
+        },
+        "complete_dynamic_candidates": {
+          "p50_ms": 25.597250000000003,
+          "p95_ms": 28.0124
+        }
+      },
+      "preparation": null,
+      "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+      "process_tree_observation": "untimed snapshot after candidate measurements; transient startup processes are not captured",
+      "startup_p50_under_50_ms": false
+    },
+    {
+      "combination": "ps7-245",
+      "cache": "warm",
+      "report": "ps7-245-warm/startup.json",
+      "report_sha256": "a84c183e2208cb0202620ca57cb3ac2697ea9eb7f6aafa51476b4a3c33236662",
+      "source_commit": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+      "samples": 30,
+      "cache_observations": "hit",
+      "restored": true,
+      "metrics": {
+        "plain_first_input": {
+          "p50_ms": 1468.9720499999999,
+          "p95_ms": 1484.6602
+        },
+        "candidate_first_input": {
+          "p50_ms": 1857.3709,
+          "p95_ms": 1870.7381
+        },
+        "paired_first_input_delta": {
+          "p50_ms": 392.50445000000013,
+          "p95_ms": 407.3412000000001
+        },
+        "first_key_echo": {
+          "p50_ms": 33.7091,
+          "p95_ms": 36.836800000000004
+        },
+        "first_visible_static_candidate": {
+          "p50_ms": 46.16055,
+          "p95_ms": 55.1288
+        },
+        "complete_static_candidates": {
+          "p50_ms": 46.53435,
+          "p95_ms": 55.728100000000005
+        },
+        "first_visible_dynamic_candidate": {
+          "p50_ms": 26.4835,
+          "p95_ms": 33.2215
+        },
+        "complete_dynamic_candidates": {
+          "p50_ms": 26.57575,
+          "p95_ms": 33.289699999999996
+        }
+      },
+      "preparation": {
+        "elapsed_ms": 3462.5571,
+        "included_in_timed_pairs": false,
+        "system_commands": {
+          "cache": "rebuild",
+          "complete": true,
+          "count": 1848,
+          "error": null,
+          "source": "system module export metadata"
+        }
+      },
+      "observation": "VT observation formed from receive-thread timestamps; physical screen pixels are not measured",
+      "process_tree_observation": "untimed snapshot after candidate measurements; transient startup processes are not captured",
+      "startup_p50_under_50_ms": false
+    }
+  ],
+  "total_pairs": 180,
+  "final_local_qualification": false,
+  "full_transient_process_tree_captured": false,
+  "gui_pixels_measured": false
+}

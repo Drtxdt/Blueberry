@@ -1,0 +1,25 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.61s
+     Running tests\direct_terminal.rs (target\debug\deps\direct_terminal-16474eefb2441229.exe)
+
+running 2 tests
+Error: resize prompt colors: E:\OpenSource\shellsense-rs\target/input-protocol-evidence\direct-resize-prompt-colors-yfEoRn
+
+Caused by:
+    history disappeared after menu resize and Esc
+test direct_above_menu_resize_preserves_truecolor_history ... FAILED
+Error: resize prompt colors: E:\OpenSource\shellsense-rs\target/input-protocol-evidence\direct-resize-prompt-colors-cvkXcF
+
+Caused by:
+    history disappeared after menu resize and Esc
+test direct_above_menu_resize_preserves_unicode_and_wrapped_history ... FAILED
+
+failures:
+
+failures:
+    direct_above_menu_resize_preserves_truecolor_history
+    direct_above_menu_resize_preserves_unicode_and_wrapped_history
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 37 filtered out; finished in 9.60s
+
+error: test failed, to rerun pass `--test direct_terminal`

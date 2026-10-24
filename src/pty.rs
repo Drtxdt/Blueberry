@@ -14,33 +14,202 @@ pub struct Session {
     pub child: Box<dyn Child + Send + Sync>,
 }
 
+#[cfg(windows)]
+fn known_folder(folder: windows_sys::core::GUID) -> Option<PathBuf> {
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
+    use windows_sys::Win32::{
+        System::Com::CoTaskMemFree,
+        UI::Shell::{KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath},
+    };
+    let mut value = ptr::null_mut();
+    let status = unsafe {
+        SHGetKnownFolderPath(
+            &folder,
+            KF_FLAG_DONT_VERIFY as u32,
+            ptr::null_mut(),
+            &mut value,
+        )
+    };
+    let result = if status >= 0 && !value.is_null() {
+        let mut length = 0;
+        while unsafe { *value.add(length) } != 0 {
+            length += 1;
+        }
+        Some(PathBuf::from(OsString::from_wide(unsafe {
+            std::slice::from_raw_parts(value, length)
+        })))
+    } else {
+        None
+    };
+    unsafe { CoTaskMemFree(value.cast()) };
+    result
+}
+
+fn is_core_module_path(path: &Path, roots: &[PathBuf]) -> bool {
+    let normalized = |path: &Path| {
+        path.to_string_lossy()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_ascii_lowercase()
+    };
+    roots
+        .iter()
+        .any(|root| normalized(path) == normalized(root))
+        || path
+            .parent()
+            .is_some_and(|parent| parent.join("pwsh.exe").is_file())
+}
+
+#[cfg(windows)]
+fn default_windows_module_paths(legacy: bool) -> Vec<PathBuf> {
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
+    use windows_sys::Win32::System::Registry::{
+        HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ,
+        RegGetValueW,
+    };
+    fn read(hive: HKEY, key: &str) -> Option<OsString> {
+        let key: Vec<_> = key.encode_utf16().chain([0]).collect();
+        let name: Vec<_> = "PSModulePath".encode_utf16().chain([0]).collect();
+        let flags = RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ;
+        let mut bytes = 0;
+        if unsafe {
+            RegGetValueW(
+                hive,
+                key.as_ptr(),
+                name.as_ptr(),
+                flags,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                &mut bytes,
+            )
+        } != 0
+        {
+            return None;
+        }
+        for _ in 0..3 {
+            if !(2..=131072).contains(&bytes) || bytes % 2 != 0 {
+                return None;
+            }
+            let mut value = vec![0u16; bytes as usize / 2];
+            let status = unsafe {
+                RegGetValueW(
+                    hive,
+                    key.as_ptr(),
+                    name.as_ptr(),
+                    flags,
+                    ptr::null_mut(),
+                    value.as_mut_ptr().cast(),
+                    &mut bytes,
+                )
+            };
+            if status == 234 {
+                continue;
+            }
+            if status != 0 {
+                return None;
+            }
+            let end = value.iter().position(|unit| *unit == 0)?;
+            return Some(OsString::from_wide(&value[..end]));
+        }
+        None
+    }
+    let mut paths = Vec::new();
+    if legacy {
+        use windows_sys::Win32::UI::Shell::{FOLDERID_Documents, FOLDERID_ProgramFiles};
+        // A GUI environment may contain a previous image user's registry path.
+        for folder in [FOLDERID_Documents, FOLDERID_ProgramFiles] {
+            if let Some(path) = known_folder(folder) {
+                paths.push(path.join("WindowsPowerShell/Modules"));
+            }
+        }
+    }
+    for (hive, key) in [
+        (HKEY_CURRENT_USER, "Environment"),
+        (
+            HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+        ),
+    ] {
+        if let Some(value) = read(hive, key) {
+            paths.extend(std::env::split_paths(&value));
+        }
+    }
+    paths
+}
+
 /// PowerShell 7 sanitizes PSModulePath when it launches powershell.exe
 /// directly; native intermediate launchers must do the same themselves.
 pub fn module_search_paths(shell: &Path) -> Vec<PathBuf> {
     let legacy = shell
         .file_name()
         .is_some_and(|name| name.eq_ignore_ascii_case("powershell.exe"));
-    let inherited = if legacy {
+    let module_path = std::env::var_os("PSModulePath").filter(|p| !p.is_empty());
+    let inherited = if legacy && module_path.is_some() {
         std::env::var_os("WinPSModulePath").filter(|p| !p.is_empty())
     } else {
         None
     }
-    .or_else(|| std::env::var_os("PSModulePath"));
+    .or(module_path);
+    #[cfg(windows)]
+    let use_defaults = inherited.is_none();
     let mut paths = inherited
         .map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
         .unwrap_or_default();
+    // A GUI launcher need not inherit PSModulePath. If we pass only the
+    // private editor root, ConsoleHost reconstructs its default path ahead
+    // of it and eagerly loads stock PSReadLine before our bootstrap runs.
+    // Include PSHOME/Modules so PowerShell retains the supplied ordering.
+    let resolved = if shell.components().count() == 1 {
+        std::env::var_os("PATH").and_then(|value| {
+            std::env::split_paths(&value)
+                .map(|root| root.join(shell))
+                .find(|path| path.is_file())
+        })
+    } else {
+        None
+    };
+    if let Some(parent) = resolved.as_deref().unwrap_or(shell).parent() {
+        let modules = parent.join("Modules");
+        if modules.is_dir() && !paths.iter().any(|path| path == &modules) {
+            paths.push(modules);
+        }
+    }
+    // Supplying PSHOME suppresses PowerShell's registry-path merge. Restore
+    // that merge for an absent/empty inherited path, without overriding an
+    // explicitly configured nonempty path or starting another shell process.
+    #[cfg(windows)]
+    if use_defaults {
+        for path in default_windows_module_paths(legacy) {
+            if !paths.iter().any(|existing| existing == &path) {
+                paths.push(path);
+            }
+        }
+    }
     if legacy {
-        paths.retain(|path| {
-            let normalized = path
-                .to_string_lossy()
-                .replace('/', "\\")
-                .trim_end_matches('\\')
-                .to_ascii_lowercase();
-            !normalized.ends_with("\\powershell\\modules")
-                && !path
-                    .parent()
-                    .is_some_and(|parent| parent.join("pwsh.exe").is_file())
-        });
+        let roots: Vec<PathBuf> = {
+            #[cfg(windows)]
+            {
+                use windows_sys::Win32::UI::Shell::{
+                    FOLDERID_Documents, FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86,
+                };
+                [
+                    FOLDERID_Documents,
+                    FOLDERID_ProgramFiles,
+                    FOLDERID_ProgramFilesX86,
+                ]
+                .into_iter()
+                .filter_map(known_folder)
+                .map(|path| path.join("PowerShell/Modules"))
+                .collect()
+            }
+            #[cfg(not(windows))]
+            {
+                Vec::new()
+            }
+        };
+        // A suffix also matches legitimate SQL Server/Tools/PowerShell/Modules.
+        // Remove only actual Core roots and directories belonging to pwsh.
+        paths.retain(|path| !is_core_module_path(path, &roots));
     }
     paths
 }
@@ -104,7 +273,9 @@ pub fn spawn(
     // ConsoleHost can load PSReadLine before -Command runs. Put the selected
     // test module first in discovery instead of attempting to replace an
     // already loaded binary module with Import-Module -Force.
-    if (std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1")
+    if program.file_name().is_some_and(|name| {
+        name.eq_ignore_ascii_case("powershell.exe") || name.eq_ignore_ascii_case("pwsh.exe")
+    }) && (std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1")
         || env.get("BLUEBERRY_NO_HISTORY").map(String::as_str) == Some("1"))
         && let Some(module) =
             std::env::var_os("BLUEBERRY_TEST_PSREADLINE_MODULE").filter(|module| !module.is_empty())
@@ -266,6 +437,32 @@ pub fn default_shell() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_module_filter_keeps_sql_and_custom_powershell_directories() {
+        let core = vec![
+            PathBuf::from(r"C:\Program Files\PowerShell\Modules"),
+            PathBuf::from(r"C:\Users\user\Documents\PowerShell\Modules"),
+        ];
+        for path in [
+            r"C:\Program Files\Microsoft SQL Server\130\Tools\PowerShell\Modules\",
+            r"C:\Tools\PowerShell\Modules",
+            r"C:\Program Files\WindowsPowerShell\Modules",
+        ] {
+            assert!(
+                !is_core_module_path(Path::new(path), &core),
+                "removed a non-Core module root: {path}"
+            );
+        }
+        assert!(is_core_module_path(
+            Path::new("c:/program files/PowerShell/Modules/"),
+            &core
+        ));
+        assert!(is_core_module_path(
+            Path::new(r"C:\Users\user\Documents\PowerShell\Modules"),
+            &core
+        ));
+    }
 
     #[test]
     fn initial_public_key_snapshot_contains_every_adapter_chord() {

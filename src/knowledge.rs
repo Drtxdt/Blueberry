@@ -5,9 +5,8 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     fs,
-    io::{Read, Write},
+    io::Write,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
     sync::{
         Arc, Condvar, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -710,170 +709,35 @@ fn now() -> u64 {
         .as_secs()
 }
 
-/// One hidden child, with a Job Object so timeout closes all descendants too.
+/// Compatibility wrapper: help parsers consume both streams, including nonzero exits.
 pub fn capture(
     target: &Path,
     args: &[String],
     cwd: &Path,
     cancelled: &AtomicBool,
 ) -> Result<String, String> {
-    let mut command = Command::new(target);
-    command
-        .args(args)
-        .current_dir(cwd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env("NO_COLOR", "1")
-        .env("TERM", "dumb")
-        .env("GIT_PAGER", "cat")
-        .env("PAGER", "cat")
-        .env("AWS_PAGER", "")
-        .env("AZURE_CORE_ONLY_SHOW_ERRORS", "true")
-        .env("CLOUDSDK_CORE_DISABLE_PROMPTS", "1")
-        .env("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1")
-        .env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x08000004);
-    }
-    let mut child = command.spawn().map_err(|e| e.to_string())?;
-    #[cfg(windows)]
-    let _job = match Job::attach(&child) {
-        Ok(job) => job,
-        Err(e) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(e);
-        }
-    };
-    #[cfg(windows)]
-    if let Err(error) = resume_child(child.id()) {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err(error);
-    }
-    let stdout = child.stdout.take().ok_or("stdout unavailable")?;
-    let stderr = child.stderr.take().ok_or("stderr unavailable")?;
-    let (tx, rx) = std::sync::mpsc::sync_channel(2);
-    for mut stream in [Box::new(stdout) as Box<dyn Read + Send>, Box::new(stderr)] {
-        let tx = tx.clone();
-        std::thread::spawn(move || {
-            let mut bytes = Vec::new();
-            let result = stream
-                .by_ref()
-                .take(OUTPUT_LIMIT as u64 + 1)
-                .read_to_end(&mut bytes)
-                .map(|_| bytes);
-            let _ = tx.send(result);
-        });
-    }
-    drop(tx);
-    let deadline = Instant::now() + Duration::from_secs(2);
-    let mut bytes = Vec::new();
-    let mut streams = 0;
-    loop {
-        if cancelled.load(Ordering::Relaxed) || Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err("帮助查询已取消或超过 2 秒".into());
-        }
-        if streams < 2 {
-            match rx.try_recv() {
-                Ok(Ok(output)) => {
-                    if output.len() + bytes.len() > OUTPUT_LIMIT {
-                        let _ = child.kill();
-                        let _ = child.wait();
-                        return Err("帮助输出超过 256 KiB".into());
-                    }
-                    bytes.extend_from_slice(&output);
-                    bytes.push(b'\n');
-                    streams += 1;
-                }
-                Ok(Err(e)) => return Err(e.to_string()),
-                _ => {}
-            }
-        }
-        if child.try_wait().map_err(|e| e.to_string())?.is_some() && streams == 2 {
-            return String::from_utf8(bytes).map_err(|_| "帮助不是 UTF-8 文本".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-    }
-}
-#[cfg(windows)]
-fn resume_child(process_id: u32) -> Result<(), String> {
-    use windows_sys::Win32::{
-        Foundation::*,
-        System::{Diagnostics::ToolHelp::*, Threading::*},
-    };
-    unsafe {
-        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-        if snapshot == INVALID_HANDLE_VALUE {
-            return Err(std::io::Error::last_os_error().to_string());
-        }
-        let mut entry: THREADENTRY32 = std::mem::zeroed();
-        entry.dwSize = std::mem::size_of_val(&entry) as u32;
-        let mut found = Thread32First(snapshot, &mut entry);
-        let mut resumed = false;
-        while found != 0 {
-            if entry.th32OwnerProcessID == process_id {
-                let thread = OpenThread(THREAD_SUSPEND_RESUME, 0, entry.th32ThreadID);
-                if !thread.is_null() {
-                    resumed = ResumeThread(thread) != u32::MAX;
-                    CloseHandle(thread);
-                }
-                break;
-            }
-            found = Thread32Next(snapshot, &mut entry);
-        }
-        CloseHandle(snapshot);
-        if resumed {
-            Ok(())
-        } else {
-            Err("无法恢复帮助进程".into())
-        }
-    }
-}
-#[cfg(windows)]
-struct Job(windows_sys::Win32::Foundation::HANDLE);
-#[cfg(windows)]
-impl Job {
-    fn attach(child: &std::process::Child) -> Result<Self, String> {
-        use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::System::JobObjects::*;
-        unsafe {
-            let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
-            if handle.is_null() {
-                return Err(std::io::Error::last_os_error().to_string());
-            }
-            let job = Self(handle);
-            let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            if SetInformationJobObject(
-                handle,
-                JobObjectExtendedLimitInformation,
-                &info as *const _ as _,
-                std::mem::size_of_val(&info) as u32,
-            ) == 0
-                || AssignProcessToJobObject(handle, child.as_raw_handle() as _) == 0
-            {
-                return Err(std::io::Error::last_os_error().to_string());
-            }
-            Ok(job)
-        }
-    }
-}
-#[cfg(windows)]
-impl Drop for Job {
-    fn drop(&mut self) {
-        unsafe {
-            windows_sys::Win32::Foundation::CloseHandle(self.0);
-        }
-    }
+    let output = crate::bounded_process::capture(target, args, cwd, cancelled)?;
+    let mut bytes = output.stdout;
+    bytes.push(b'\n');
+    bytes.extend(output.stderr);
+    String::from_utf8(bytes).map_err(|_| "帮助不是 UTF-8 文本".into())
 }
 
 pub fn learn(
+    entry: Entry,
+    context: Vec<String>,
+    dir: &Path,
+    cancelled: &AtomicBool,
+) -> Result<Record, String> {
+    let record = learn_uncached(entry, context, dir, cancelled)?;
+    if cancelled.load(Ordering::Relaxed) {
+        return Err("学习已取消".into());
+    }
+    publish(&record, dir)?;
+    Ok(record)
+}
+
+pub(crate) fn learn_uncached(
     entry: Entry,
     context: Vec<String>,
     dir: &Path,
@@ -962,14 +826,21 @@ pub fn learn(
         fetched_at: now(),
         error: result.err(),
     };
+    if cancelled.load(Ordering::Relaxed) {
+        return Err("学习已取消".into());
+    }
+    Ok(record)
+}
+
+pub(crate) fn publish(record: &Record, dir: &Path) -> Result<(), String> {
     let path = record_path(dir, &record.entry, &record.context);
     let temporary = path.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
-    let bytes = serde_json::to_vec(&record).map_err(|e| e.to_string())?;
+    let bytes = serde_json::to_vec(record).map_err(|e| e.to_string())?;
     let mut file = fs::File::create(&temporary).map_err(|e| e.to_string())?;
     file.write_all(&bytes).map_err(|e| e.to_string())?;
     drop(file);
     crate::engine::replace_file(&temporary, &path).map_err(|e| e.to_string())?;
-    Ok(record)
+    Ok(())
 }
 
 #[derive(Default)]

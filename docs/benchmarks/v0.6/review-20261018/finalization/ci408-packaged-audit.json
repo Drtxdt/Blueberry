@@ -1,0 +1,346 @@
+{
+  "schema": 1,
+  "ci_run_id": 39399839301,
+  "pr_head_commit": "40884191d25f7528fa073625ee3b8d41562d0803",
+  "measured_build_commit": "20bcbb104e269f6af014e0013c082535c0472949",
+  "source_note": "PR workflow built its merge commit; do not label the EXE with the PR head.",
+  "package_sha256": "48D49FA02FA1D596C36C329B5550272D2B8BA8FF358853ED5DCD38110E83CE24",
+  "executable_sha256": "4BED0A817EC402B1D03B2F8FD0D83413FD32B4F5259A0E93868AC49AB0626CC0",
+  "archives": [
+    {
+      "id": 12256296398,
+      "node_id": "MDg6QXJ0aWZhY3QxMjI1NjI5NjM5OA==",
+      "name": "blueberry-installation-evidence",
+      "size_in_bytes": 207863,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12256296398",
+      "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12256296398/zip",
+      "expired": false,
+      "digest": "sha256:e4043c20d9f0d14b67df087ffc3e64ab32a5335201a816d7da1410da62cf0e9f",
+      "created_at": "2026-10-20T09:44:48Z",
+      "updated_at": "2026-10-20T09:44:48Z",
+      "expires_at": "2027-01-18T09:19:32Z",
+      "workflow_run": {
+        "id": 39399839301,
+        "repository_id": 1368459002,
+        "head_repository_id": 1368459002,
+        "head_branch": "codex/v053-reliability-performance",
+        "head_sha": "40884191d25f7528fa073625ee3b8d41562d0803"
+      },
+      "local_archive": {
+        "path": "artifacts/ci408-packaged-12256296398.zip",
+        "sha256": "E4043C20D9F0D14B67DF087FFC3E64AB32A5335201A816D7DA1410DA62CF0E9F"
+      }
+    },
+    {
+      "id": 12256031132,
+      "node_id": "MDg6QXJ0aWZhY3QxMjI1NjAzMTEzMg==",
+      "name": "blueberry-packaged-profile",
+      "size_in_bytes": 38858,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12256031132",
+      "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12256031132/zip",
+      "expired": false,
+      "digest": "sha256:1d657bfe7888ad176bbca012982eb17974ebef40442aba5e24050c6ab0901a99",
+      "created_at": "2026-10-20T09:42:56Z",
+      "updated_at": "2026-10-20T09:42:56Z",
+      "expires_at": "2027-01-18T09:19:32Z",
+      "workflow_run": {
+        "id": 39399839301,
+        "repository_id": 1368459002,
+        "head_repository_id": 1368459002,
+        "head_branch": "codex/v053-reliability-performance",
+        "head_sha": "40884191d25f7528fa073625ee3b8d41562d0803"
+      },
+      "local_archive": {
+        "path": "artifacts/ci408-packaged-12256031132.zip",
+        "sha256": "1D657BFE7888AD176BBCA012982EB17974EBEF40442ABA5E24050C6AB0901A99"
+      }
+    },
+    {
+      "id": 12253664795,
+      "node_id": "MDg6QXJ0aWZhY3QxMjI1MzY2NDc5NQ==",
+      "name": "blueberry-packaged-interaction",
+      "size_in_bytes": 390687,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12253664795",
+      "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12253664795/zip",
+      "expired": false,
+      "digest": "sha256:a5bd87fa2a6f8abf94ce3151abb265a0ff255d3ec9d9c2b24b75324061c80144",
+      "created_at": "2026-10-20T09:35:10Z",
+      "updated_at": "2026-10-20T09:35:10Z",
+      "expires_at": "2027-01-18T09:19:32Z",
+      "workflow_run": {
+        "id": 39399839301,
+        "repository_id": 1368459002,
+        "head_repository_id": 1368459002,
+        "head_branch": "codex/v053-reliability-performance",
+        "head_sha": "40884191d25f7528fa073625ee3b8d41562d0803"
+      },
+      "local_archive": {
+        "path": "artifacts/ci408-packaged-12253664795.zip",
+        "sha256": "A5BD87FA2A6F8ABF94CE3151ABB265A0FF255D3EC9D9C2B24B75324061C80144"
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "combination": "ps51-200",
+      "report": {
+        "path": "artifacts/ci408-packaged-12256031132/ps51-200/startup.json",
+        "sha256": "7871372603865353868259FD4FCF88706D5A870988E1801255DE9E4C024BBFCC"
+      },
+      "restoration": {
+        "path": "artifacts/ci408-packaged-12256031132/ps51-200/restoration.json",
+        "sha256": "D823687A7A9DECD24F821541E2EC76BD07ACB0FF43A4596A0B69846E2F368A57"
+      },
+      "samples": 30,
+      "stages": {
+        "plain_first_input": {
+          "median": 1215.12635,
+          "p95": 1231.9927,
+          "unit": "ms"
+        },
+        "candidate_first_input": {
+          "median": 1406.2143,
+          "p95": 1434.876,
+          "unit": "ms"
+        },
+        "paired_first_input_delta": {
+          "median": 192.53279999999995,
+          "p95": 223.28949999999986,
+          "unit": "ms"
+        },
+        "first_key_echo": {
+          "median": 23.9108,
+          "p95": 26.6648,
+          "unit": "ms"
+        },
+        "first_visible_static_candidate": {
+          "median": 33.7551,
+          "p95": 36.726,
+          "unit": "ms"
+        },
+        "first_visible_dynamic_candidate": {
+          "median": 20.9604,
+          "p95": 24.197,
+          "unit": "ms"
+        },
+        "complete_static_candidates": {
+          "median": 33.93135,
+          "p95": 36.9009,
+          "unit": "ms"
+        },
+        "complete_dynamic_candidates": {
+          "median": 21.02505,
+          "p95": 24.2022,
+          "unit": "ms"
+        }
+      },
+      "cache_state": "ambient; not isolated"
+    },
+    {
+      "combination": "ps51-245",
+      "report": {
+        "path": "artifacts/ci408-packaged-12256031132/ps51-245/startup.json",
+        "sha256": "1BCB9EA98A3D2939BDCD9B60F340ED7E80F18D35F70EEF810E633C1C97035FA2"
+      },
+      "restoration": {
+        "path": "artifacts/ci408-packaged-12256031132/ps51-245/restoration.json",
+        "sha256": "D823687A7A9DECD24F821541E2EC76BD07ACB0FF43A4596A0B69846E2F368A57"
+      },
+      "samples": 30,
+      "stages": {
+        "plain_first_input": {
+          "median": 1240.6228999999998,
+          "p95": 1258.0998000000002,
+          "unit": "ms"
+        },
+        "candidate_first_input": {
+          "median": 1448.1174,
+          "p95": 1508.226,
+          "unit": "ms"
+        },
+        "paired_first_input_delta": {
+          "median": 209.52549999999974,
+          "p95": 271.0050000000001,
+          "unit": "ms"
+        },
+        "first_key_echo": {
+          "median": 29.4452,
+          "p95": 32.169000000000004,
+          "unit": "ms"
+        },
+        "first_visible_static_candidate": {
+          "median": 40.6493,
+          "p95": 43.5651,
+          "unit": "ms"
+        },
+        "first_visible_dynamic_candidate": {
+          "median": 19.24895,
+          "p95": 21.0002,
+          "unit": "ms"
+        },
+        "complete_static_candidates": {
+          "median": 40.83930000000001,
+          "p95": 43.7832,
+          "unit": "ms"
+        },
+        "complete_dynamic_candidates": {
+          "median": 19.30565,
+          "p95": 21.025499999999997,
+          "unit": "ms"
+        }
+      },
+      "cache_state": "ambient; not isolated"
+    },
+    {
+      "combination": "ps7-245",
+      "report": {
+        "path": "artifacts/ci408-packaged-12256031132/ps7-245/startup.json",
+        "sha256": "636F5D18470DC61727B64301050CED7BD34CB93BF3EC040D8DE879B8B7A1C64B"
+      },
+      "restoration": {
+        "path": "artifacts/ci408-packaged-12256031132/ps7-245/restoration.json",
+        "sha256": "130118083A23A1C90ADFFCC010A1BE38E891EBFB7167689E546C1FA0A8E37590"
+      },
+      "samples": 30,
+      "stages": {
+        "plain_first_input": {
+          "median": 1313.9353999999998,
+          "p95": 1365.2368999999999,
+          "unit": "ms"
+        },
+        "candidate_first_input": {
+          "median": 1575.9021,
+          "p95": 1619.2959,
+          "unit": "ms"
+        },
+        "paired_first_input_delta": {
+          "median": 259.7582,
+          "p95": 289.81790000000024,
+          "unit": "ms"
+        },
+        "first_key_echo": {
+          "median": 20.24655,
+          "p95": 21.5914,
+          "unit": "ms"
+        },
+        "first_visible_static_candidate": {
+          "median": 28.303399999999996,
+          "p95": 30.4658,
+          "unit": "ms"
+        },
+        "first_visible_dynamic_candidate": {
+          "median": 17.1142,
+          "p95": 18.0352,
+          "unit": "ms"
+        },
+        "complete_static_candidates": {
+          "median": 28.504649999999998,
+          "p95": 30.6921,
+          "unit": "ms"
+        },
+        "complete_dynamic_candidates": {
+          "median": 17.1582,
+          "p95": 18.0831,
+          "unit": "ms"
+        }
+      },
+      "cache_state": "ambient; not isolated"
+    }
+  ],
+  "interaction": {
+    "receipt": {
+      "path": "artifacts/ci408-packaged-12253664795/Blueberry/Blueberry/target/packaged-interaction.json",
+      "sha256": "7CA26F66AC1A25643E334E10F9F8619CAA7A8E1C0E7F28B5F3554ADEC87E0162"
+    },
+    "result": {
+      "standalone_ui": "passed",
+      "input_protocol": [
+        {
+          "workflows": 12,
+          "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "status": "passed",
+          "executable_sha256": "4BED0A817EC402B1D03B2F8FD0D83413FD32B4F5259A0E93868AC49AB0626CC0",
+          "workflow_trace": "disabled",
+          "editor": "2.0.0"
+        },
+        {
+          "workflows": 12,
+          "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "status": "passed",
+          "executable_sha256": "4BED0A817EC402B1D03B2F8FD0D83413FD32B4F5259A0E93868AC49AB0626CC0",
+          "workflow_trace": "disabled",
+          "editor": "2.4.5"
+        },
+        {
+          "workflows": 12,
+          "shell": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+          "status": "passed",
+          "executable_sha256": "4BED0A817EC402B1D03B2F8FD0D83413FD32B4F5259A0E93868AC49AB0626CC0",
+          "workflow_trace": "disabled",
+          "editor": "2.4.5"
+        }
+      ],
+      "executable_sha256": "4BED0A817EC402B1D03B2F8FD0D83413FD32B4F5259A0E93868AC49AB0626CC0",
+      "package_sha256": "48D49FA02FA1D596C36C329B5550272D2B8BA8FF358853ED5DCD38110E83CE24"
+    }
+  },
+  "history": {
+    "receipt": {
+      "path": "artifacts/ci408-packaged-12256296398/install-history-63b04a5a7bfd4c6c96c847d8122e71f3/results.json",
+      "sha256": "9184427101CA863996796E98320CF59F8FFF5AC344BC6499305CE625CE8AFECA"
+    },
+    "result": [
+      {
+        "initial_history": 0,
+        "status": "passed",
+        "package_sha256": "48D49FA02FA1D596C36C329B5550272D2B8BA8FF358853ED5DCD38110E83CE24",
+        "elapsed_ms": 4905.9206,
+        "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\install-history-63b04a5a7bfd4c6c96c847d8122e71f3\\history-0"
+      },
+      {
+        "initial_history": 1,
+        "status": "passed",
+        "package_sha256": "48D49FA02FA1D596C36C329B5550272D2B8BA8FF358853ED5DCD38110E83CE24",
+        "elapsed_ms": 7661.6949,
+        "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\install-history-63b04a5a7bfd4c6c96c847d8122e71f3\\history-1"
+      },
+      {
+        "initial_history": 5,
+        "status": "passed",
+        "package_sha256": "48D49FA02FA1D596C36C329B5550272D2B8BA8FF358853ED5DCD38110E83CE24",
+        "elapsed_ms": 24114.3515,
+        "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\install-history-63b04a5a7bfd4c6c96c847d8122e71f3\\history-5"
+      }
+    ]
+  },
+  "public_upgrade": {
+    "receipt": {
+      "path": "artifacts/ci408-packaged-12256296398/public-upgrade-4b9d77bde93446a3a7735e70157dc3b7/receipt.json",
+      "sha256": "280B97B766EAD7882CBCA35E03B23CDB1E8F929A557E4A6761ED305AF1A78F4B"
+    },
+    "result": {
+      "schema": 1,
+      "previous_package_sha256": "921E22454E89106E553479D58804ACFAB88D23238D9CD3956C920C625972267D",
+      "previous_installer_sha256": "314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C",
+      "candidate_package_sha256": "48D49FA02FA1D596C36C329B5550272D2B8BA8FF358853ED5DCD38110E83CE24",
+      "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\public-upgrade-4b9d77bde93446a3a7735e70157dc3b7\\中文 install",
+      "passed": true
+    }
+  },
+  "physical_storage": [
+    {
+      "path": "artifacts/ci408-packaged-12256296398/storage-failures-62c30308e3c749efb4bb67d135e65463/results.json",
+      "sha256": "40D1CC3055D7F75573B6BF794E1163726478218A85887CF3884D546B242D446B"
+    },
+    {
+      "path": "artifacts/ci408-packaged-12256296398/storage-failures-f341292763574e1d8247b5701602e880/results.json",
+      "sha256": "99E9A8C86B36FBC061970D7B6D4413437AE4E71E914DD6AB8744ECAC8A249B39"
+    }
+  ],
+  "limitations": [
+    "Historical package, superseded by long-path cache fix.",
+    "Profile measurements use ambient metadata cache and cloud hardware; not final cold/warm or local AB/BA.",
+    "GUI and final manual acceptance remain unexecuted."
+  ],
+  "final_package_qualified": false
+}

@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "pilot_complete": true,
+  "formal_complete": false,
+  "probe_source_commit": "d2351fb39a220fac80abb7a18d07e2b273d8674f",
+  "probe_sha256": "B6A6985F2C58BAF9C8BBD77895041D5F9223158955E960A353A28DC4AB05B75B",
+  "batch_sha256": "f4ef64e7f5e9a338de225d2d40e25be4de48d43f224281aacf491656d9ca8432",
+  "profiles": [
+    {
+      "profile": "ps51-2.0.0",
+      "report": "E:\\OpenSource\\shellsense-rs\\artifacts\\cb4-1014\\pilot-ps51-200\\comparison.json",
+      "sha256": "EE7B308676674E19B5FCEF488D74579706042EB4FCBB45D30B0713F5B1B6213E",
+      "measurement_complete": true,
+      "passed": true,
+      "formal": false,
+      "hot_samples_per_mode": 3,
+      "startup_pairs": 2
+    },
+    {
+      "profile": "ps51-2.4.5",
+      "report": "E:\\OpenSource\\shellsense-rs\\artifacts\\cb4-1014\\pilot-ps51-245\\comparison.json",
+      "sha256": "C32B88E16E092F164F7A787A813C20F90650873C697C6F10B5BE2A91C0856AE9",
+      "measurement_complete": true,
+      "passed": true,
+      "formal": false,
+      "hot_samples_per_mode": 3,
+      "startup_pairs": 2
+    },
+    {
+      "profile": "ps7-2.4.5",
+      "report": "E:\\OpenSource\\shellsense-rs\\artifacts\\cb4-1014\\pilot-ps7-245\\comparison.json",
+      "sha256": "38B0875BD8C0D88A01AA21C36E0D248F9F4CA37C22F4CC9AA8BE690BA6E8BF82",
+      "measurement_complete": true,
+      "passed": true,
+      "formal": false,
+      "hot_samples_per_mode": 3,
+      "startup_pairs": 2
+    }
+  ],
+  "collector_reset_changed": false,
+  "screen_pixels": "not_measured",
+  "version_decision_allowed": false
+}

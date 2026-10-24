@@ -1,0 +1,61 @@
+name: Isolated startup cache observation
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  cache:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shell: powershell.exe
+            editor: '2.0.0'
+          - shell: powershell.exe
+            editor: '2.4.5'
+          - shell: pwsh.exe
+            editor: '2.4.5'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.425'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            target/private-editor/nuget
+            target/psreadline-upstream
+          key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
+      - name: Prepare frozen editors and runtime
+        shell: pwsh
+        run: |
+          python scripts/prepare-editor.py
+          if ($LASTEXITCODE -ne 0) { throw 'Private editor preparation failed' }
+          python scripts/prepare-conpty.py
+          if ($LASTEXITCODE -ne 0) { throw 'ConPTY preparation failed' }
+          $root = Join-Path $env:RUNNER_TEMP 'cache-probe-editor'
+          python scripts/prepare-original-editor.py --version '${{ matrix.editor }}' --root $root
+          if ($LASTEXITCODE -ne 0) { throw 'Original editor preparation failed' }
+          "BLUEBERRY_TEST_SHELL=$((Get-Command '${{ matrix.shell }}').Source)" >> $env:GITHUB_ENV
+          "BLUEBERRY_TEST_PSREADLINE_MODULE=$(Join-Path $root 'PSReadLine/${{ matrix.editor }}/PSReadLine.psd1')" >> $env:GITHUB_ENV
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Exercise real cold and warm startup
+        shell: pwsh
+        run: |
+          cargo test --locked --lib product_probe::tests -- --test-threads=1
+          if ($LASTEXITCODE -ne 0) { throw 'Probe unit regressions failed' }
+          cargo test --locked --test product_probe_cache -- --test-threads=1 --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'Cache observation regression failed' }
+      - name: Preserve original reports and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-cache-${{ matrix.shell }}-${{ matrix.editor }}
+          path: ${{ runner.temp }}/blueberry-cache-probe-evidence
+          retention-days: 90
+          if-no-files-found: ignore

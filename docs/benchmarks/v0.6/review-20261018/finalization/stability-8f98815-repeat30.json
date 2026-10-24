@@ -1,0 +1,1022 @@
+{
+  "source_commit": "8f98815525fc81461b40ca9165824d25af12d13e",
+  "run_id": 39385912604,
+  "conclusion": "failure",
+  "repeats": 30,
+  "jobs": [
+    {
+      "job_id": 118505595861,
+      "name": "stability / targeted (ps51-245, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.4.5)",
+      "conclusion": "failure",
+      "log": "artifacts/stability-job-118505595861.log",
+      "log_sha256": "bf081164dc24c34b48115449f8893b083f8078594cd42f4fa21804c3cd5e09fb",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 30,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/FAILED": 1
+      }
+    },
+    {
+      "job_id": 118505596043,
+      "name": "stability / targeted (ps51-200, C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, 2.0.0)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118505596043.log",
+      "log_sha256": "f866f44ade81a5b3e62393cb0ee5ad5871fc0e36dd907e94d7fdbb2bd9e79e02",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 60
+      }
+    },
+    {
+      "job_id": 118505596058,
+      "name": "stability / targeted (ps7-245, pwsh.exe, 2.4.5)",
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118505596058.log",
+      "log_sha256": "057fb720b2ec935b559784558dff2f624e58f46217a8bb46e1782892d11d3fa4",
+      "tests": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/widening_after_narrow_repaint_removes_reflowed_menu_fragments/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 60
+      }
+    }
+  ],
+  "archives": [
+    {
+      "id": 12248945827,
+      "sha256": "dfa179fb92028a81a3fb252e1a869b939e63df1ba50f3048d51ec1fbde4adeb2",
+      "path": "artifacts/stability-8f98815-repeat-12248945827.zip"
+    },
+    {
+      "id": 12248816021,
+      "sha256": "b93fafc92599345a80aa8d244e3e8a7efe6c6a1dbb1a329155186561147b0e50",
+      "path": "artifacts/stability-8f98815-repeat-12248816021.zip"
+    },
+    {
+      "id": 12248367413,
+      "sha256": "9ad0e50b8750b01e1241a9f8d25605922f14442b2455101ecbc636205e1f1288",
+      "path": "artifacts/stability-8f98815-repeat-12248367413.zip"
+    }
+  ],
+  "snapshots": [
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-3EPGCf/resize-24-80.json",
+      "sha256": "aac4da8f6c8c266ae2eebcd2f6a4fe1e2d7602faf5159fbe46295b02e9af68b8",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-4iTZjY/resize-24-80.json",
+      "sha256": "11510636e457f6dc48eed544f4a19215888417284a1d317c2c5d71983c3f7f37",
+      "prompt_found": true,
+      "residue": [
+        {
+          "row": 1,
+          "text": "│  ⌘ git-receive-pack  本地程序"
+        }
+      ]
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-6FKQcA/resize-24-80.json",
+      "sha256": "6a0fe9d297aa8cc013384960af40cd8714546476acabc95aeed354436d3a0b97",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-72btHG/resize-24-80.json",
+      "sha256": "9f7206c6d2b9968eaadd099adcaed9a7d110d80298647792997b2d2f1ec327e2",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-7GFk4u/resize-24-80.json",
+      "sha256": "52228ac16a2e1b63560f1af680e7008e4b06fd831190458ecbfaaf3b95fe7cf5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-7MzxNH/resize-24-80.json",
+      "sha256": "1e9aec83b62487d7a9c53c73c76b380b0ba6ee6034444e12ca0ad83dcfd4b52f",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-7tnMnd/resize-24-80.json",
+      "sha256": "15d80092aa1fde474c70ef3db6cadfa47b96be3fd2b34ae66e7ddab26785016d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-a921M1/resize-24-80.json",
+      "sha256": "7c84050838be6779f0b3d8cfa205ed89ec5cf8f2790c3e823566e357e24d2656",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-AxHqdL/resize-24-80.json",
+      "sha256": "ac05a15f56173b7fefc3de4b0d35c136a340def9ea7f098840f3bb7091312b06",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-DSCjRs/resize-24-80.json",
+      "sha256": "e59851ef3548ffe91c56c625cf5389c3c4e1d501c8f2645e2bd2a765ab9b4b15",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-FzdMSQ/resize-24-80.json",
+      "sha256": "746d2cc12563a9d4f6d16e892a8a2d4aa8a37a0d7cb9812afb5aa7a521eceb36",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-G5BY5v/resize-24-80.json",
+      "sha256": "73b0112e5d408c8e68218231ab548e00755ff66601e20364a355b9861e73bfb9",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-JXHtqE/resize-24-80.json",
+      "sha256": "421e12abf79e643a4531183724e157bdc1762cd03a10ebecb841c244d90233e6",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-mTKNaG/resize-24-80.json",
+      "sha256": "d8ec2b0786284dbe736c8d2337dd4a0c7c48bf4920d4a13b0a384bccc02df5ba",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-NTaEdq/resize-24-80.json",
+      "sha256": "3d1feb7affc6097270b416f6ce8aa1bf69ddb736ee8431c110dff9e8a9d51d51",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-OucuSK/resize-24-80.json",
+      "sha256": "b90177a2ff85b2903a392356c50bd20f6546a29d3a72a0dc3146b63bc5991834",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-P7WhCj/resize-24-80.json",
+      "sha256": "ee881be229387414df30e7889d41f3dd2d0dca5185b75d2d42ee154b413f3bd5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-pAOGJF/resize-24-80.json",
+      "sha256": "6885d5070c91567b42f1edc8b577d53b8911a97ebf6252d0e243e2b1392b103d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-PaWiYn/resize-24-80.json",
+      "sha256": "915857bf6a9f78e9aa847e05212c35db188ada967db1e6ca07c25017f0270330",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-PBQnOd/resize-24-80.json",
+      "sha256": "cc4f821da9ffed3868d92da5b79ad922081bc63bfb8f3b312136ab98bad22b15",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-POpbV1/resize-24-80.json",
+      "sha256": "66e8540f7cd9453a481b7dd09688b6fb352800e94c81f9c544eebbfba27841c5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-qOfyDo/resize-24-80.json",
+      "sha256": "6685afc88824404b211a5eafec73e55c6a6c7f1fa97aa9023f9f3ec0d687c06a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-u18eKr/resize-24-80.json",
+      "sha256": "9761df678b9b9539731a5485825b32435505b438aa8f7fd3020ea5b7abb3948d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-UPQH48/resize-24-80.json",
+      "sha256": "f744f97909db7eff68ce56e24481d3fe287462406a8752f5b278230fa4ec99d1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-VPLJSx/resize-24-80.json",
+      "sha256": "7d73c87c19a6967be7f20b6a0153f98c0ac1a7220fca6c73fc98b0ba12dbd8d5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-WhBulA/resize-24-80.json",
+      "sha256": "4cf3a055aa022cd2f37881885022ffc00b4a23763c0d0eff65d9820a5b5b0cd7",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-wnYXph/resize-24-80.json",
+      "sha256": "cec85c350c613df14bb0e739e37d85fae2dba6a32dc2269aadd05bf6edbfdbd8",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-WPBWG6/resize-24-80.json",
+      "sha256": "9e7bb50b31176c1b34d5a3de3eb072470bd6e8d7fe15c14089a9dc66b7399be8",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-WZAVCw/resize-24-80.json",
+      "sha256": "824640287373e1fa833f27a1b726e3845166403136e0b455c28b708ef3202d6e",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-yX3ntK/resize-24-80.json",
+      "sha256": "30c5cb007888c61347a6c7f39e3f83808bd9d162f231bc28334b92dddc7b6777",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248945827/Blueberry/Blueberry/target/nested-terminal-evidence/host-zP3g69/resize-24-80.json",
+      "sha256": "47ab80dbd7fc6be7a71dcf512d94299138998c77895373c16c362a5cf3cbfab7",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-0GyO4m/resize-24-80.json",
+      "sha256": "f903ee1a41012f2340ad856fc9a0f144acc237e96a4b0c121ca50adc695b8093",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-34i5D5/resize-24-80.json",
+      "sha256": "4df6fc26f9584eb9ae3f6b74713a92d065b5f05fd5497dc3fb162275eb4969ff",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-3BdVrT/resize-24-80.json",
+      "sha256": "8e375ec2eeca3336df49964622bec85ddedbaed3229a4b604fe2be19452f8c61",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-3LMJQm/resize-24-80.json",
+      "sha256": "b124c4e3af284fb63eaee8d23a57366c6a584e57c961358cf30874153579d5f1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-72UgkO/resize-24-80.json",
+      "sha256": "04edc4f7a9a1635408c30d4e5682775893f099847bfb46cf14e03977410777cf",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-7cROvq/resize-24-80.json",
+      "sha256": "252e2f1af4187ad0363e81692bdd3237baa2b03913125d05ded3cda360492ad0",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-7DdRNI/resize-24-80.json",
+      "sha256": "e59a6c36288a312957f66e3b2dff4da59f3446eb845c44ec86ed72154196f6be",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-7NLhdq/resize-24-80.json",
+      "sha256": "058955b7b30112cf19d3c5cc9ea07547a6a1b2e900a49124d71b587024ed7eb5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-9xPYL5/resize-24-80.json",
+      "sha256": "0c2f13956e27631ce5aa72558cf6ccb1ff4caa31ca0acdbe7867f1f9f3317196",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-aSkIzr/resize-24-80.json",
+      "sha256": "8c756294d457392fe10b69f0935fb5759aba5801f4c79f57016f87076ec3af1c",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-AWUzNq/resize-24-80.json",
+      "sha256": "31014da59ab9b73f3f1450e93e8c0236cfa252144011aeb3fa0ab38f48591337",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-AxyM8V/resize-24-80.json",
+      "sha256": "d63c796cb3f6566edec7d584917ab0ac6d807397d77948fe6a0e33e2ffa0f0c1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-Ay5rTg/resize-24-80.json",
+      "sha256": "9bb63fc953a44d906eeee01967d174388893ec7d29213b91b3b7db395942cdf6",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-b0Wvl4/resize-24-80.json",
+      "sha256": "03150bbcbba1fbc39c498a3ce1756289c551991297902df4bc01c459a76431ee",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-cB16Mx/resize-24-80.json",
+      "sha256": "2c4d41255e4b7bc0b677754de68d760e3501e106234b0806cd57daf2dcf560b8",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-DE3j7d/resize-24-80.json",
+      "sha256": "88e4e0a86c45129795b37fc112e65e5aa1a60333c8e056532666d50510f49e72",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-djcvsQ/resize-24-80.json",
+      "sha256": "478e6755c9652b952184864c981950876d3401daf834d035a15620564c14e265",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-fLpXrx/resize-24-80.json",
+      "sha256": "9f65b2269a0421cfe19f442275050ed0319ff307d4fe986d0854aa2ddf225aa5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-Fuivjq/resize-24-80.json",
+      "sha256": "88b08e761ce0f93f89575fd27b65b001c8c90f7daf3393068516c85025babfd5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-g12GsD/resize-24-80.json",
+      "sha256": "5f56d422b47953867e24457a0707c84594a6a1c1156cb3aa1d54f2b7b0e95256",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-gBvM3C/resize-24-80.json",
+      "sha256": "053dd80a9ca360cc9cd9657d9896d7210415f250bacf3e527a127c2aacb36aa9",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-GTxvyd/resize-24-80.json",
+      "sha256": "cf809c5be232bc55ffb7e546b946a0be5638fc35bc3579f4c4d9ef419945252c",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-h436ED/resize-24-80.json",
+      "sha256": "f53dfd8816d68ce036c2502ae33fa7972080ea560fafd2592b976bb21e931cfa",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-hdX3s8/resize-24-80.json",
+      "sha256": "1a5a20b53c9178c619817db640249924ba2d3f82c7351d40c80e195b477c35b8",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-HUsq9x/resize-24-80.json",
+      "sha256": "d193752980ef9f6a5d259ba1cdacd3db1cbf473e9d0f45d629bf851c2e1c47a3",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-IRrclT/resize-24-80.json",
+      "sha256": "ad34559900c3dcfc7821d410de9ad35fcb31a0bfe1114e0813b324065ae88fcb",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-jUOiC2/resize-24-80.json",
+      "sha256": "4fd36fbd9376d8b096e5e732f5a78dbd51226d85a30e09e59f61cffe18592a5e",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-JxSYJG/resize-24-80.json",
+      "sha256": "d5c01b89f593aca82ec0eff2fb36e6b626958b758877d41b5ce0f2637062ca12",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-kA0Cqr/resize-24-80.json",
+      "sha256": "6e85d0de465b998bfac43d7183f268f8e52a357089d8f1db375f21f2323295f7",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-lcbHDM/resize-24-80.json",
+      "sha256": "68ad7b5f08f1b93f988f413c10032724ff604d4dadb4d7fcfaba181545ab6522",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-lKUuvf/resize-24-80.json",
+      "sha256": "16f493500eec35d17d0dd30ba933ac01ef10447bff4cf68f816357c6b296d54c",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-m3vMAd/resize-24-80.json",
+      "sha256": "2c3ae8b1c41da2f63db0569fc588fae904fea968db50fdba8d5a133b007d5f18",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-m7boeq/resize-24-80.json",
+      "sha256": "1ffe82896cfa3640bfc998bbcd6dc1b57c6eca1edad9b94447665f0c9508da5d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-mF1v3A/resize-24-80.json",
+      "sha256": "db598a63cad7b3a3bc7d7b034f411c1434ec8aa31ead78be788553fe49f716cf",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-nPJ2L1/resize-24-80.json",
+      "sha256": "1f270624781bc903e4b34092c4addb3defbb55e1b7dcfaa92ba6475833bd128d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-nRu309/resize-24-80.json",
+      "sha256": "5961b6668176190a255447dada477fd4092fb107495f2b0ff65fbbf2a1eb219c",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-nzHiKI/resize-24-80.json",
+      "sha256": "a09057f19cd59d3b2c8d2eb5f8f4cf964f1fb5e68cababe5633105b1ac37e8dd",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-o3tnAL/resize-24-80.json",
+      "sha256": "ef39550d44aefe2e95e479a2ff9812aa13f66a24419166559ae5ffc8e3a56630",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-oY4mF3/resize-24-80.json",
+      "sha256": "85c5676967448950ac2955f3dd6fbf76b625129830a6c2345596ec8fe5145ccf",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-Q708Nk/resize-24-80.json",
+      "sha256": "7c7170ad75604282179e77d9e61bca0b3986355a21ba185cdb592d27669323fb",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-QxG4l1/resize-24-80.json",
+      "sha256": "8aa7560a215f57bde2725e177f09f96f84db60244eb7d5ad3dea96567b646ace",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-r7nL57/resize-24-80.json",
+      "sha256": "69fb5b23cc3ab71900796764f0838fd48177e876b77a38ddb033c63bae9b6d35",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-rfCvRS/resize-24-80.json",
+      "sha256": "59f6d8fa2e6baf245dd6854dddb26823daf93ddffdf4976d7552b16a6597e6eb",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-ruDP0p/resize-24-80.json",
+      "sha256": "1f289fdbb65f2d128da6c1fdd255590678926dc44626a2872cbd10543156c845",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-RxnWC8/resize-24-80.json",
+      "sha256": "50cedd5e244ebd9444e774a6ee2e2475d1c29f0aecc634ae934e65bc885f346a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-S8UxAB/resize-24-80.json",
+      "sha256": "823e95066ea813161e748f548466c87b4e56f20d9d77cb650052308af79092c1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-SjOmdO/resize-24-80.json",
+      "sha256": "040dfe5a6c9af3c238af1046765a0dd1d63acac8fb9ea94fc2cb325683bd8ece",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-sYUfhA/resize-24-80.json",
+      "sha256": "137408b2c453042e902e555543c745d126c307a140a254ff895c0f2bd34ca641",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-T37XN5/resize-24-80.json",
+      "sha256": "10ef2a59bbc6c7a53686ae2f7895d10631f4bba1880581a92930323746e5b156",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-TU6qgI/resize-24-80.json",
+      "sha256": "be2ef0ff9ee371f8b6307cf4f0e1cd9b888e77a1477edfdb8fbf17dd9558e189",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-Tz9Sox/resize-24-80.json",
+      "sha256": "667dfab082f71556031d70178992c129bbde270e1cbc8d18eff0f547e78c0cc1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-UkYubc/resize-24-80.json",
+      "sha256": "dc7c2953e36faf7a1cab721e89371045c1909b45eac8837177784ca999e2ed47",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-VDI7ov/resize-24-80.json",
+      "sha256": "1b2867827ec79c71c707b799be8d07cffeb302ff8a1725b42bd570f4ccd59d00",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-vJ6SrV/resize-24-80.json",
+      "sha256": "2344a19fdac59ed28b47e8ec23f7d6d2fc2d7dc3e4198d33383a6e24440f0c7d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-VMkeCY/resize-24-80.json",
+      "sha256": "be6b69a14b01d65eb4afb0f1595a4cfd7d6c4ebf104c4dbc7f1b3ba184ea9167",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-WQS52F/resize-24-80.json",
+      "sha256": "10ffd9feddcb41c9bc1019a7811e07fd83c41f47e07439f11c9229cd24779cc5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-XBUOFD/resize-24-80.json",
+      "sha256": "9aeeb5952676db296ebd42ae41282dc5e0a495223dfd41830843195a413b7b03",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-Y6Zh51/resize-24-80.json",
+      "sha256": "3d573a819e33f1b75067717ff1cbe0dc0b1e9b1ed3e91d02e45801b2953dc4d4",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-zJW8X8/resize-24-80.json",
+      "sha256": "9eef1a297c06f2a82a1fa45a040d163b4cbc5d6c1cd07f04c2c4a6a31eb76c45",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248816021/Blueberry/Blueberry/target/nested-terminal-evidence/host-zScjJB/resize-24-80.json",
+      "sha256": "ea1eca3984562900834bc70be5ce96f35e408f328120b62ff5e98c164fd1f880",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-1r0sLZ/resize-24-80.json",
+      "sha256": "c48f4a0685e55eb41c0aae0f9f19bfe59b8cc0742bd5251d301018fd1ad8218f",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-2yPpcO/resize-24-80.json",
+      "sha256": "e05be127a30847d551fed7a9b25d35d9ea5f97f28fde4dd97628cecd2cc3f908",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-4U1b6e/resize-24-80.json",
+      "sha256": "ec7d669a9e9b81acc66cbf8ed9f833956cb7a2e7a512d7f816fccc2eed316f83",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-5BfNwo/resize-24-80.json",
+      "sha256": "afa7404fbcd0fd50dbecdfaa0da31a573fe63a6a0c00431784a1acc12134db9c",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-5FlUD6/resize-24-80.json",
+      "sha256": "b909d74b839221a49a7853de428920205ce79cad3db181bdf53aff8748f1b787",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-696TsS/resize-24-80.json",
+      "sha256": "48434c1e84434dff74496196f7a041c641770d2050482e5cba0e81816208a9f9",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-7uRy4E/resize-24-80.json",
+      "sha256": "2a872658dc34b2904fce90102db17dfcdb051fd7932e297a94cd70678ba0fa5d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-8qS2Cg/resize-24-80.json",
+      "sha256": "fc1d5fb320fc5cee74c7c28b80009672d636ef78fd1710b8c51c0d17040be99f",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-AgVTQS/resize-24-80.json",
+      "sha256": "6d3fc3a34c5b01e8f2db7f5e2146902d99ef2fbdbbbd072a31e4776334cb6c0d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-bOAN18/resize-24-80.json",
+      "sha256": "f48bdb9cdf76c269f3700935906e8ce47d32d602c5789c35ef07c80dddbf04c1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-bptUjF/resize-24-80.json",
+      "sha256": "aa9d9d970dea722735ad68dcda871e27f44ffeadd65f5e847493111e61754886",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-brXfQa/resize-24-80.json",
+      "sha256": "1c39fcd4af8ebedba45c1c48f8342c1fbec582510d3c3ca96544932f55bce8a6",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-cUKxMc/resize-24-80.json",
+      "sha256": "39ece31e4e498d0e9e0e8b2cff0d042f3f8d34b277122543e5ec0e0fb149bd5a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-D4mFUP/resize-24-80.json",
+      "sha256": "3a594d4e9e462882e40b3e7702d15e3e71c9ec8bb8f735d78cac06b4d579186a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-d8sFGG/resize-24-80.json",
+      "sha256": "fa11bad7efe5417e1e857da35697143ea97bc70aa33342e008006274d9298254",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-DdoMas/resize-24-80.json",
+      "sha256": "5aee37228148b796eeb6c30b4f501e7eedd1ff30fea3037f00bd75bfeee7ea23",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-DTNk0U/resize-24-80.json",
+      "sha256": "f9aae85978dca4183be0103b1e891b5c8f9f3e9c9661e2f4758cbe227d10564e",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-etgq9e/resize-24-80.json",
+      "sha256": "4cef37f472ade8ca41512bcf58b0546b294c8a03c46cad2b14a0d416a9759294",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-EVes50/resize-24-80.json",
+      "sha256": "0d5484fd7e9dcd90689b6cf30a446ef305498227b80d9b9cc3072ec772aca74c",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-FGPx1H/resize-24-80.json",
+      "sha256": "9f19f2c43fd8c9af58db1ab286500808224ec13bb500f7ce1ad173449a572012",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-fhF8M5/resize-24-80.json",
+      "sha256": "fb9e3bbaaf1de6ccdffe2dcaa42ebf391d0f5ac78af26327d7a4c377327e85d1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-FXC0UP/resize-24-80.json",
+      "sha256": "1d9293dc4ea862b1e5e028deda4cc66d04e6bec60157a69718e9a95c7752c38d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-g2udgA/resize-24-80.json",
+      "sha256": "162d77febfef4915486997e4ee44632231feff1c8f618a3008b25becc1a59c8d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-hdk3Mu/resize-24-80.json",
+      "sha256": "d13a110a92a215559e3b21fd282decb37844e2681eeb8f08713f3b9355366364",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-Hej1CL/resize-24-80.json",
+      "sha256": "1b86055737c58d6b21a08ba08097547b3d9f0bce7d4b7fb96cfbc1cad667b667",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-IWcPT1/resize-24-80.json",
+      "sha256": "73ce69fd8bdfedc2c7df637213425574b854da6399b1daec6aa612624cd4d9bd",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-jiW2i6/resize-24-80.json",
+      "sha256": "ca05d9948cf916a3273cad7274c966ed6d8dbf54ddeb657a51d96cefd74c040d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-JtsQ6T/resize-24-80.json",
+      "sha256": "1b139d74f53a2b387852fa7561fd347bf3e9f9ab04dd0d2fd85560a054f7c77d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-KIBq6g/resize-24-80.json",
+      "sha256": "fc3e95719775c8f1cd65fd4d43939de57cc1e8834e39f5847a3aeaa33649afaa",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-Klu1Dt/resize-24-80.json",
+      "sha256": "dd2f8fefed543b14f2633cdd7e827d0f9b09a6b87fc7e9f3cc1ce6b15013b8ec",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-KvcZQz/resize-24-80.json",
+      "sha256": "e94f9fcf9f31d0981eb446fd538bacffaaa927ea05ecabcccf6c17dbf4df5fa4",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-L8alSY/resize-24-80.json",
+      "sha256": "2a89d612d8392a4b941bc285d4a4614fce3e759ca5a9720395bb00a809dde556",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-LIrn8Y/resize-24-80.json",
+      "sha256": "dadd1b5fe88aacb2758f98f119d46a150a8ca7976654d37fa62be311e4a3bd77",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-lWs2Cu/resize-24-80.json",
+      "sha256": "d0faa6c41ad4970689bd7b180f5a6f3b25cdbf0578c244dc6e3af092c4585705",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-lzk6Zf/resize-24-80.json",
+      "sha256": "41c0416443f6100c2b753a634a098327dfbbd869b16811b607ffd9ab9046ed76",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-mgsWo1/resize-24-80.json",
+      "sha256": "d4ad2e0c036e6c98d70a3355b7cf3c5f26aa9b6f48cd1e917addd03a88eb1ddc",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-MkzKPj/resize-24-80.json",
+      "sha256": "32a4175c7d54253189791d49075dfd95f9828ae66ead166c06c62873a400d059",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-MsNe4w/resize-24-80.json",
+      "sha256": "5aa35add54d4b503875a1ff38058003b5d6cb90f87b3582044e1f188d9a5362d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-MXlR6x/resize-24-80.json",
+      "sha256": "9e3f51a6c114e7c91e4d403c1aa2770d0bf2564506001685fa30c563cf44de8d",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-Nr4Fdo/resize-24-80.json",
+      "sha256": "577e609eb80fdbf07a504c1065bb62d1f0d2e99f6db753e09fe608553a5c0deb",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-nV7fz8/resize-24-80.json",
+      "sha256": "c64757f43e300b1dc0e5424feff21a2a030a02cdbc536f387282acf6965b8971",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-oXhklK/resize-24-80.json",
+      "sha256": "d34509ad79bd7c6a85a8acda1e15986d12431100ef54270f0563c8b5d5f5c880",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-P9T235/resize-24-80.json",
+      "sha256": "a1d23a0f928dd3b87afdb35a5b6c54fba05a20340a77b5b09002322c1561a86b",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-PJkaAP/resize-24-80.json",
+      "sha256": "f857adc61e7108edcb3fd3c1260db815a1e9ee22a9088f9c49fae021ba25800a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-PooBLs/resize-24-80.json",
+      "sha256": "6e92d70f64c2f9e879b446e23e09bf4706a29e3e34c9fce5fb3a5d2b2befbeed",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-PSpZoc/resize-24-80.json",
+      "sha256": "c359482a3b452007a7ffbfc432d31c0100ef175c3914e4d1b20957168d3eb471",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-RolqBf/resize-24-80.json",
+      "sha256": "5ff880b2481ea179279555bb1b4b34f68f1520035c92ec64ff1f1283eb2bb868",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-rq25oY/resize-24-80.json",
+      "sha256": "1216f467879002fbf929263db4f103245078aa63860227ac2032274ec8f8db3a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-RzFcCu/resize-24-80.json",
+      "sha256": "bed85c8245e8574e38ef65c5872702b0ab6133ae1c9458e045ff7445f74440bf",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-rzILB0/resize-24-80.json",
+      "sha256": "939354d1b6eeb561763e0a9c330964f4b33fa32b4c62c972d5cca1d4c4089ba6",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-S0XaFT/resize-24-80.json",
+      "sha256": "520ee9c005c612669c8788fa3a7173f6f82c6a12e7d68dbdcdf3f1d8bf0b3fe1",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-t71isy/resize-24-80.json",
+      "sha256": "50ffbc1f5d2cbb77a0e4adc7ade4e4c75c214ede65df964057de1e7f90d03e6b",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-TBc1pq/resize-24-80.json",
+      "sha256": "56345a589411617b843694ea7263b51a28fe4642d2bc5509a05b860ba6025e8a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-vGXlmB/resize-24-80.json",
+      "sha256": "663325726b2380e9ba7a9580b50272a3726b0dda46e69b20b9826f46ecc46151",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-wI1IJz/resize-24-80.json",
+      "sha256": "bfff6815d01c2e6ff498fa2d8a0cc1a26dc704fdb28275f06d520c9cf7b1c90a",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-WOv7u6/resize-24-80.json",
+      "sha256": "7fed3e556943a5d453f0dcb565bdc97db2ba7e1be84bc8a9ab10f5e63babb575",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-WT1HLL/resize-24-80.json",
+      "sha256": "63a390ccb32efdfb99d8b2b627c92bbfbfc06844b568c6d680b53cf51ca8cdd5",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-Y85bUU/resize-24-80.json",
+      "sha256": "8ed725dea59908b3de220b9779e60c6bf5306a320b1e5b661db5e7e38bef6979",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-YHmGpJ/resize-24-80.json",
+      "sha256": "e6b3e7d90b7380f7abab25c37b7981f56b2f7826e51223e79c5abfb95eb20911",
+      "prompt_found": true,
+      "residue": []
+    },
+    {
+      "file": "artifacts/stability-8f98815-repeat-12248367413/Blueberry/Blueberry/target/nested-terminal-evidence/host-yiSIQn/resize-24-80.json",
+      "sha256": "4724bea9bfe2d21db96bbc4bae0697d16298f2e018a54447f41ef2674a6fc7bf",
+      "prompt_found": true,
+      "residue": []
+    }
+  ],
+  "ownership": [],
+  "visual_audit": "Diagnostic heuristic over native narrow snapshots and opt-in ownership logs; not GUI acceptance."
+}

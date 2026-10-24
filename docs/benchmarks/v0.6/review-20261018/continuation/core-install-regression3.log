@@ -1,0 +1,165 @@
+已安装 Blueberry 0.5.3 到 C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\install-root（unsigned）
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":93.4531,"files":30,"succeeded":true,"phase":"validation","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":3314.6785,"files":29,"succeeded":true,"phase":"backup","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":3388.0159,"files":29,"succeeded":true,"phase":"snapshot_prepare","bytes":18120872}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":3475.0722,"files":29,"succeeded":true,"phase":"snapshot_copy","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":2917.8816,"files":28,"succeeded":false,"phase":"payload_copy","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":132.4961,"files":29,"succeeded":true,"phase":"recovery","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":0.0,"files":0,"succeeded":true,"phase":"journal","bytes":0}
+升级失败；已恢复升级前的全部受管文件和 install.json 元数据。
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":138.641,"files":30,"succeeded":true,"phase":"validation","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":3001.358,"files":29,"succeeded":true,"phase":"backup","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":2646.2858,"files":29,"succeeded":true,"phase":"snapshot_prepare","bytes":18120872}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":3010.6299,"files":29,"succeeded":true,"phase":"snapshot_copy","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":2897.8847,"files":28,"succeeded":true,"phase":"payload_copy","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":288.183,"files":1,"succeeded":true,"phase":"commit","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":0.0,"files":0,"succeeded":true,"phase":"journal","bytes":0}
+已从本地包升级 Blueberry 0.5.3（unsigned）；上一版完整快照保存在 previous/c5c03e3d9a884070bfc93cb17d066e2f
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":2907.3595,"files":29,"succeeded":true,"phase":"backup","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":3233.3141,"files":29,"succeeded":true,"phase":"snapshot_prepare","bytes":18121774}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":3069.7857,"files":29,"succeeded":true,"phase":"snapshot_copy","bytes":null}
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":444.6091,"files":1,"succeeded":true,"phase":"commit","bytes":null}
+已回滚到 Blueberry 0.5.3（unsigned）；回滚前的完整受管文件和元数据保存在 previous/f36796bf7ef04d5f8608f16a216ed0d4
+BLUEBERRY_MAINTENANCE_METRIC {"elapsed_ms":0.0,"files":0,"succeeded":true,"phase":"journal","bytes":0}
+Windows Terminal profile 预览（C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\settings.json）：
+  +       },
+  +       {
+  +         "guid": "{28E40931-78EB-4F61-8932-DAB5CB555972}",
+  +         "name": "Blueberry",
+  +         "commandline": "\"C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\\install-root\\blueberry.exe\" run",
+  +         "hidden": false
+Windows Terminal profile 预览（C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\settings.json）：
+  +       },
+  +       {
+  +         "guid": "{28E40931-78EB-4F61-8932-DAB5CB555972}",
+  +         "name": "Blueberry",
+  +         "commandline": "\"C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\\install-root\\blueberry.exe\" run",
+  +         "hidden": false
+已应用 Blueberry profile；原 settings 字节备份为 C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\settings.json.20261018T082504653Z.bak
+Windows Terminal profile 预览（C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\settings-jsonc.json）：
+  +       },
+  +       {
+  +         "guid": "{28E40931-78EB-4F61-8932-DAB5CB555972}",
+  +         "name": "Blueberry",
+  +         "commandline": "\"C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\\install-root\\blueberry.exe\" run",
+  +         "hidden": false
+  检测到 JSONC 注释或尾逗号；ApplySettings 将拒绝改写并只输出手动合并 profile。
+
+无法安全改写带注释或尾逗号的 Windows Terminal JSONC。请手动合并以下 profile（原文件未修改）：
+{
+  "guid": "{28E40931-78EB-4F61-8932-DAB5CB555972}",
+  "name": "Blueberry",
+  "commandline": "\"C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\\install-root\\blueberry.exe\" run",
+  "hidden": false
+}
+Windows Terminal profile 预览（C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\settings-jsonc-inline.json）：
+  +       },
+  +       {
+  +         "guid": "{28E40931-78EB-4F61-8932-DAB5CB555972}",
+  +         "name": "Blueberry",
+  +         "commandline": "\"C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\\install-root\\blueberry.exe\" run",
+  +         "hidden": false
+  检测到 JSONC 注释或尾逗号；ApplySettings 将拒绝改写并只输出手动合并 profile。
+
+无法安全改写带注释或尾逗号的 Windows Terminal JSONC。请手动合并以下 profile（原文件未修改）：
+{
+  "guid": "{28E40931-78EB-4F61-8932-DAB5CB555972}",
+  "name": "Blueberry",
+  "commandline": "\"C:\\Users\\dell\\AppData\\Local\\Temp\\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\\install-root\\blueberry.exe\" run",
+  "hidden": false
+}
+检测到受管文件内容已改变；这些文件已保留，install.json 也已保留以便再次核对。
+已保留变更的受管文件: README.md
+已删除完整性校验通过的 Blueberry 文件；安装根仍包含用户或保留文件，已保留: C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\install-root
+已删除完整性校验通过的 Blueberry 文件；安装根仍包含用户或保留文件，已保留: C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\install-root
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/cloud_database.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/cloud_database.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/javascript.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/containers.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/javascript.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/containers.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/_catalog.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/_catalog.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/docs/powershell-adapter.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/docs/powershell-adapter.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/windows.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/windows.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/python.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/remote.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/devops.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/devops.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/python.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/remote.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/build.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/build.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/rust.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/core.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/rust.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/THIRD-PARTY-NOTICES.txt
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/core.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/THIRD-PARTY-NOTICES.txt
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/docs/specifications.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/docs/specifications.md
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/blueberry-terminal.cmd
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/builtin/vcs.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/builtin/vcs.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/blueberry-terminal.cmd
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/docs/installation.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/docs/installation.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/config.example.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/config.example.toml
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/manage-install.ps1
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/manage-install.ps1
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/install-common.ps1
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/install-common.ps1
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/docs/releasing.md
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/docs/releasing.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/RELEASE-NOTES.md
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/specs/tools.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/RELEASE-NOTES.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/specs/tools.toml
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/blueberry.exe
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/blueberry.exe
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/release.json
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/release.json
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/VERSION.txt
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/install.ps1
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/VERSION.txt
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/install.ps1
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/README.md
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/README.md
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/files/LICENSE
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/files/LICENSE
+受管文件原已缺失: previous/c5c03e3d9a884070bfc93cb17d066e2f/install.json
+受管文件原已缺失: previous/f36796bf7ef04d5f8608f16a216ed0d4/install.json
+受管文件原已缺失: specs/builtin/cloud_database.toml
+受管文件原已缺失: specs/builtin/javascript.toml
+受管文件原已缺失: specs/builtin/containers.toml
+受管文件原已缺失: specs/builtin/_catalog.toml
+受管文件原已缺失: docs/powershell-adapter.md
+受管文件原已缺失: specs/builtin/windows.toml
+受管文件原已缺失: specs/builtin/python.toml
+受管文件原已缺失: specs/builtin/devops.toml
+受管文件原已缺失: specs/builtin/remote.toml
+受管文件原已缺失: specs/builtin/build.toml
+受管文件原已缺失: specs/builtin/rust.toml
+受管文件原已缺失: THIRD-PARTY-NOTICES.txt
+受管文件原已缺失: specs/builtin/core.toml
+受管文件原已缺失: specs/builtin/vcs.toml
+受管文件原已缺失: blueberry-terminal.cmd
+受管文件原已缺失: docs/specifications.md
+受管文件原已缺失: docs/installation.md
+受管文件原已缺失: config.example.toml
+受管文件原已缺失: manage-install.ps1
+受管文件原已缺失: install-common.ps1
+受管文件原已缺失: docs/releasing.md
+受管文件原已缺失: RELEASE-NOTES.md
+受管文件原已缺失: specs/tools.toml
+受管文件原已缺失: blueberry.exe
+受管文件原已缺失: release.json
+受管文件原已缺失: install.ps1
+受管文件原已缺失: VERSION.txt
+受管文件原已缺失: LICENSE
+变更文件保留与干净重试检查完成；自测临时安装根:  C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123\install-root
+发布准备自测通过；临时目录: C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123
+已保留自测临时目录: C:\Users\dell\AppData\Local\Temp\blueberry-release-test-53905d43536647c29cb5beeee9f7b123
