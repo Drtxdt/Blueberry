@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "failed_batch": "performance-serial-20261024e",
+  "failed_reason": "Metadata helper exited during idle sampling after falsely stable PID list",
+  "fix": "Require published system and session metadata before four stable process snapshots; retain all timed samples and reject later tree changes",
+  "unit_shells": [
+    "Windows PowerShell 5.1",
+    "PowerShell 7"
+  ],
+  "statistics_tests": 3,
+  "preflights": [
+    {
+      "name": "preflight-run1-before-ps51-200",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\preflight-run1-before-ps51-200\\resources.json",
+      "sha256": "13919BDD44F3FB3157C98136BF96A4B0A45DF5125CE358F97DB5538F5DDD0B7B",
+      "raw_sha256": "C146F5DA52A235BC9B562D61ACE3B6AED3534591FB4811EC7668F11E9A964E66",
+      "warmup_seconds": 9.3962282,
+      "idle_seconds": 30.142104
+    },
+    {
+      "name": "preflight-run1-before-ps51-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\preflight-run1-before-ps51-245\\resources.json",
+      "sha256": "F11974C7E32F6187C6FBD602758FE5072C134AFE6C602BF7D804E56943BAC89D",
+      "raw_sha256": "436CC44AA8E3655F00B8C97F1C8D781D976A27B9998932C3D44BD8DD04472D53",
+      "warmup_seconds": 4.2776133,
+      "idle_seconds": 30.3117564
+    },
+    {
+      "name": "preflight-run1-before-ps7-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\preflight-run1-before-ps7-245\\resources.json",
+      "sha256": "C2A560707F947F35A603031D83ACFFFDFBF0061D00E0FD6336AFC7C516951AC9",
+      "raw_sha256": "3C21ECE18B6A1CBF8ADAA95CCCCD54E9EB1ADB4690E086401C774D9431005C11",
+      "warmup_seconds": 4.3643208,
+      "idle_seconds": 30.0629133
+    },
+    {
+      "name": "preflight-run1-after-ps51-200",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\preflight-run1-after-ps51-200\\resources.json",
+      "sha256": "BB8BEA6B8CC73A9930BDB21A366606DE91014DE0938B3D1AA8145FAA5A031FEE",
+      "raw_sha256": "51A2AE0EDDFDF2940537ACE87E511027825EF2953272E2276A1EBFA1463FA33A",
+      "warmup_seconds": 4.6455242,
+      "idle_seconds": 30.2989045
+    },
+    {
+      "name": "preflight-run1-after-ps51-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\preflight-run1-after-ps51-245\\resources.json",
+      "sha256": "FE2123ED01A35338B95B160F84A4D7A5ED88FB98550EBD018F2FCD50972D4BA2",
+      "raw_sha256": "40C84C1371E21C205ED1414B6A9DCDC0C83AB241936FA3700503F1EF8764DFAE",
+      "warmup_seconds": 4.7628588,
+      "idle_seconds": 30.4586161
+    },
+    {
+      "name": "preflight-run1-after-ps7-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\preflight-run1-after-ps7-245\\resources.json",
+      "sha256": "02F81637FD62079AD95EB0534014286817C06B3FC86C5B8275F1253396D33848",
+      "raw_sha256": "EE5BC7C7503DD93C9D3983B128CBDC4E819220C902BA32DCB601BC10C305CAB2",
+      "warmup_seconds": 4.9917841,
+      "idle_seconds": 30.4476776
+    }
+  ],
+  "formal_samples_included": false,
+  "current_plan_sha256": "5447DB81754BEE0F1E0D0F7E86B2876AF30F820A6480484B239C47A7AB415AF6",
+  "current_owner": {
+    "pid": 30820,
+    "created": 134373243306034438
+  },
+  "r3_controller": {
+    "schema": 1,
+    "owner": {
+      "pid": 14148,
+      "created": 134373245328527823
+    },
+    "measurement_complete": false,
+    "controller_sha256": "DAA60B8C0F50A311AADAAB3B7A274F2734BB9376C3BED1F14BF9724115EB0DE3",
+    "spec_sha256": "86C4F02C74B60021C9C53AB345308557AD66B9A9F32CA63A9AD88EA402161064",
+    "plan_sha256": "840F91A885F14C6C662E6E689377677D333F35B080A503E3EF405B830CF1CF75",
+    "status": "waiting_for_complete_r1_resources_and_r2",
+    "predecessor": {
+      "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\performance-serial-20261024f\\batch\\batch.json",
+      "owner": {
+        "pid": 30820,
+        "created": 134373243306034438
+      },
+      "plan_sha256": "5447DB81754BEE0F1E0D0F7E86B2876AF30F820A6480484B239C47A7AB415AF6",
+      "task_count": 34
+    },
+    "updated_at_utc": "2026-10-24T14:08:53.041641+00:00"
+  }
+}

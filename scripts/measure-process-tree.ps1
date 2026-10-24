@@ -3,12 +3,14 @@ param(
     [Parameter(Mandatory)][int]$RootProcessId,
     [Parameter(Mandatory)][string]$OutputPath,
     [ValidateRange(10,300)][int]$Seconds = 30,
-    [switch]$IncludeThreadCounters
+    [switch]$IncludeThreadCounters,
+    [string]$ReadyAdapterDirectory = $env:BLUEBERRY_RESOURCE_READY_ADAPTER_DIRECTORY
 )
 $ErrorActionPreference='Stop'
 if (Test-Path -LiteralPath $OutputPath) { throw 'Refusing to overwrite resource evidence' }
 $rootProcess=Get-Process -Id $RootProcessId
 $rootStarted=$rootProcess.StartTime.ToUniversalTime().ToString('o')
+. (Join-Path $PSScriptRoot 'resource-readiness.ps1')
 function Read-TreeSample {
     $all=@(Get-CimInstance Win32_Process)
     $ids=[Collections.Generic.HashSet[int]]::new()
@@ -54,10 +56,13 @@ $stable=0
 $lastIdentity=$null
 do {
     $sample=Read-TreeSample
+    $readiness=Get-ResourceReadiness -Directory $ReadyAdapterDirectory
+    $sample['initialization']=$readiness
     $warmup+=$sample
     $identity=@($sample.processes | ForEach-Object { "$($_.pid):$($_.started_utc)" } | Sort-Object) -join ','
     $valid=(@($sample.processes | Where-Object { $_.error }).Count -eq 0 -and
         @($sample.processes | Where-Object { $_.pid -eq $RootProcessId -and $_.started_utc -eq $rootStarted }).Count -eq 1)
+    $valid=$valid -and $readiness.ready
     if ($valid -and $identity -eq $lastIdentity) { $stable++ } elseif ($valid) { $stable=1 } else { $stable=0 }
     $lastIdentity=$identity
     $root=Get-Process -Id $RootProcessId -ErrorAction SilentlyContinue
@@ -112,6 +117,8 @@ $result=[ordered]@{
     sampler_sha256=(Get-FileHash -LiteralPath $PSCommandPath).Hash
     warmup_complete=$settled;warmup_required_stable_snapshots=$requiredStable
     warmup_elapsed_seconds=$warmupElapsed;warmup_samples=$warmup
+    readiness_directory=$ReadyAdapterDirectory
+    readiness_sha256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'resource-readiness.ps1')).Hash
     thread_counters_measured=$IncludeThreadCounters.IsPresent
     diagnostic_only=$IncludeThreadCounters.IsPresent
     context_switch_note=$(if($IncludeThreadCounters) {'Raw per-thread context-switch counters are a scheduling proxy, not an exact count of wait-handle signals. Exited/new threads remain in snapshots and are excluded from deltas.'} else {'Thread context-switch counts are not measured. Use a separate -IncludeThreadCounters diagnostic batch.'})

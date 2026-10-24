@@ -1,5 +1,9 @@
 # 16 项评审实施记录
 
+2026-10-24 22:12（UTC+8）最新完整 CI 40097143597 的十项必需任务及伴随 native CI 40097143545 均通过。同轮核心／增强包分别核验 28／84 项文件，实际构建提交 `8b97ebbc02d4b4908b060a939f418e1ac9d2507c`；本机隔离核心安装、公开 0.5.2 升级／回滚／再升级和组件卸载重装通过，用户 PATH 与配置未变。原始工件另核验 180 对冷／暖真实 profile、36 项工作流、0/1/5 历史及两组 NTFS 故障恢复；profile 增量 P50 为 289–411 ms，未达 50 ms。[包与安装证据](benchmarks/v0.6/review-20261018/finalization/ci-83963b1-package-evidence-audit.json)、[本机隔离验收](benchmarks/v0.6/review-20261018/finalization/83963b1-isolated-acceptance-20261024.json)。
+
+R1 新完整启动 AB/BA 的 360 对已审计：PS5.1/2.0.0 两批启动增量 P50 26.81→44.24、35.42→48.46 ms，不能判为无回退；静态完整候选等待有收益，仍须资源及归因复核。机器在 21:52 重启，旧 c 批次只有启动段完成，部分资源不拼接。新 e 批次被严格拒绝：扫描助手尚在初始化，PID 名单短暂稳定后助手退出，CPU 区间不完整。采样器现要求系统／会话元数据已发布，再等待四个稳定快照；不修改 30 秒区间或进程变化拒绝规则。两种 PowerShell 状态测试、三项统计测试和六组真实宿主预检通过。f 批次正在正式执行 R1 资源→R2；冻结 R3 的 18 项 AB/BA 只在前置 34 项全部完成且进程退出后运行，未作保留或可发布判定。[启动数据](benchmarks/v0.6/review-20261018/finalization/r1-startup-ab-20261024c.json)、[就绪边界与队列](benchmarks/v0.6/review-20261018/finalization/resource-initialization-readiness-20261024.json)。
+
 2026-10-24 第三轮已完成三组合独立分配诊断，随后移除菜单布局每次构造／复制整份配置的成本，改为借用配置并传入行数与边框限制。36 个诊断布局逐帧一致，每例 100 次渲染，每帧减少 29–30 次分配请求；七项菜单回归、默认全目标及独立诊断 Clippy 通过。该变更仍是待测候选，分配次数不替代两批延迟／资源 A/B，也未作保留判定。[实际宿主诊断](benchmarks/v0.6/review-20261018/finalization/r3-baseline-diagnostics-20261024.json)、[布局归因与逐帧对照](benchmarks/v0.6/review-20261018/finalization/r3-menu-layout-allocation-20261024.json)。
 
 2026-10-24 20:21（UTC+8）串行队列已停止：R2 首组 path 第 29 对的命中缓存被重建。前后 1,765 条命令完全一致，仅 C:\Windows 目录时间戳变化；旧夹具仅冻结 System32，现扩展根目录命令快照，三个针对性测试通过，不放宽命中断言。R1 资源及包等待控制器均因前置未完成而停止，后文“等待中”是历史状态。全部进程退出后，同轮 f8 原包已单独完成隔离核心安装、真实 0.5.2 升级／回滚／再升级和组件重装逐文件校验，设置、配置及用户 PATH 保留；GUI 和三轮性能仍未完成。[失败原因](benchmarks/v0.6/review-20261018/finalization/r2-windows-directory-churn-20261024.json)、[本机隔离验收](benchmarks/v0.6/review-20261018/finalization/f8-isolated-acceptance-20261024.json)。

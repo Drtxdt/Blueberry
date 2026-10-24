@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "result": "E:\\OpenSource\\shellsense-rs\\artifacts\\83963b1-isolated-acceptance-20261024\\result.json",
+  "result_sha256": "da74c300ee942dd7be243c6193c7be68d0f6f44bdbc6468a86036e44cca706cd",
+  "transcript_sha256": "30dc6e9d7813c98b016408de051311cd6977c4dac98bbbea031c105813dc62a7",
+  "receipt": {
+    "user_path_unchanged": true,
+    "cases": [
+      {
+        "case": "fresh_core_only",
+        "passed": true
+      },
+      {
+        "case": "core_Upgrade",
+        "passed": true
+      },
+      {
+        "case": "core_Rollback",
+        "passed": true
+      },
+      {
+        "case": "core_Upgrade",
+        "passed": true
+      },
+      {
+        "case": "component_reinstall_all_files_and_settings",
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "config_unchanged": true,
+    "gui_acceptance": false,
+    "packages": [
+      {
+        "kind": "terminal",
+        "package": "E:\\OpenSource\\shellsense-rs\\artifacts\\sealed-package-validation-83963b1-20261024\\blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip",
+        "sha256": "547ABC51DA22682DDA50EB789105109E2B51AB53E190317C1B3E08D30A7C9D58",
+        "files_verified": 84,
+        "source_artifact": 12563045006
+      },
+      {
+        "kind": "core",
+        "package": "E:\\OpenSource\\shellsense-rs\\artifacts\\sealed-package-validation-83963b1-20261024\\blueberry-v0.5.3-windows-x64.zip",
+        "sha256": "734BF7F7853178445C5E52E928A6E14CC4EAF0E58F30BF18DEB875D4436D22EE",
+        "files_verified": 28,
+        "source_artifact": 12563040016
+      }
+    ],
+    "schema": 1
+  }
+}

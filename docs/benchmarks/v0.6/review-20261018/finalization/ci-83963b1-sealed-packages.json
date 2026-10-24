@@ -1,0 +1,55 @@
+{
+  "ci_run_id": 40097143597,
+  "source_head": "83963b120016c8f7b9fef2425a73297246535914",
+  "measured_build_commit": "8b97ebbc02d4b4908b060a939f418e1ac9d2507c",
+  "artifacts": [
+    {
+      "artifact": {
+        "id": 12563045006,
+        "node_id": "MDg6QXJ0aWZhY3QxMjU2MzA0NTAwNg==",
+        "name": "blueberry-terminal-component-windows-x64",
+        "size_in_bytes": 16131530,
+        "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12563045006",
+        "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12563045006/zip",
+        "expired": false,
+        "digest": "sha256:44cfe79b9bcc3b7c878e11853d90bafc7654130c69ee6fdfa61809a55362cc28",
+        "created_at": "2026-10-24T13:58:20Z",
+        "updated_at": "2026-10-24T13:58:20Z",
+        "expires_at": "2027-01-22T13:12:32Z",
+        "workflow_run": {
+          "id": 40097143597,
+          "repository_id": 1368459002,
+          "head_repository_id": 1368459002,
+          "head_branch": "codex/v053-reliability-performance",
+          "head_sha": "83963b120016c8f7b9fef2425a73297246535914"
+        }
+      },
+      "local_archive": "artifacts\\ci-83963b1-12563045006.zip",
+      "verified_archive_sha256": "44cfe79b9bcc3b7c878e11853d90bafc7654130c69ee6fdfa61809a55362cc28"
+    },
+    {
+      "artifact": {
+        "id": 12563040016,
+        "node_id": "MDg6QXJ0aWZhY3QxMjU2MzA0MDAxNg==",
+        "name": "blueberry-windows-x64",
+        "size_in_bytes": 4202657,
+        "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12563040016",
+        "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12563040016/zip",
+        "expired": false,
+        "digest": "sha256:2bfb118a5c78d3fea84bfa634d1099fd65d01a1cca880b4e296d041314f1269d",
+        "created_at": "2026-10-24T13:58:23Z",
+        "updated_at": "2026-10-24T13:58:23Z",
+        "expires_at": "2027-01-22T13:12:32Z",
+        "workflow_run": {
+          "id": 40097143597,
+          "repository_id": 1368459002,
+          "head_repository_id": 1368459002,
+          "head_branch": "codex/v053-reliability-performance",
+          "head_sha": "83963b120016c8f7b9fef2425a73297246535914"
+        }
+      },
+      "local_archive": "artifacts\\ci-83963b1-12563040016.zip",
+      "verified_archive_sha256": "2bfb118a5c78d3fea84bfa634d1099fd65d01a1cca880b4e296d041314f1269d"
+    }
+  ]
+}

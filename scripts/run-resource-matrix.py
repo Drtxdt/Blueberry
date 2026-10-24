@@ -67,6 +67,7 @@ def run(options):
     (out / 'power-policy.txt').write_bytes(power)
     frozen = inventory([__file__, Path(__file__).with_name('run-comparison.py'),
                         Path(__file__).with_name('resource-statistics.py'), options.plan, options.sampler,
+                        Path(options.sampler).with_name('resource-readiness.ps1'),
                         plan['probe'], plan['shell'], plan['original_editor'], plan['fixtures']]
                        + [spec['program'] for spec in plan['modes'].values()]
                        + [path for spec in plan['modes'].values() for path in spec['dependency_paths']])
@@ -107,9 +108,13 @@ def run(options):
                 entry = dict(mode=mode, repeat=repeat, status='running', report=(folder / 'result.json').relative_to(out).as_posix())
                 manifest['sessions'].append(entry)
                 write(receipt, manifest)
+                probe_environment = dict(environment)
+                probe_environment.pop('BLUEBERRY_RESOURCE_READY_ADAPTER_DIRECTORY', None)
+                if mode == 'candidate':
+                    probe_environment['BLUEBERRY_RESOURCE_READY_ADAPTER_DIRECTORY'] = str(data)
                 with (folder / 'probe.log').open('wb') as log:
                     result = subprocess.run([plan['probe'], '--session', str(folder / 'session.json'),
-                                             '--output', str(folder / 'result.json')], env=environment,
+                                             '--output', str(folder / 'result.json')], env=probe_environment,
                                             stdout=log, stderr=subprocess.STDOUT, timeout=150)
                 value = read(folder / 'result.json')
                 assert value.get('diagnostic_only') is not True, 'Diagnostic editor hooks cannot qualify as resource samples'

@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "previous_receipt": "artifacts\\performance-serial-20261024c\\batch\\batch.json",
+  "previous_receipt_sha256": "CCFBEAE015D565ED5FD9B36D5766F7C4ECEB68181A3806AC788BE00B550FCBE4",
+  "previous_receipt_modified": false,
+  "previous_owner": {
+    "pid": 14664,
+    "created": 134373195057763800
+  },
+  "system_boot_local": "2026-10-24T21:52:50+08:00",
+  "exclusion_audit": "artifacts/serial-interruption-audit-20261024c.json",
+  "exclusion_audit_sha256": "2FA19D4191C7E076CDD5787790AAA93383DE64EB59B382BB90FB46E292B510D1",
+  "completed_startup_comparison": "r1-startup-ab-20261024c.json",
+  "partial_resources_excluded": true,
+  "new_receipt": "artifacts\\performance-serial-20261024e\\batch\\batch.json",
+  "new_owner": {
+    "pid": 2584,
+    "created": 134373238703926144
+  },
+  "new_plan_sha256": "C65DB72B31C6680F7EE05CDDF63C7323C7D06963C8963197221E151D18F98468",
+  "new_task_count": 28,
+  "scope": "Fresh complete R1 resources and R2 latency/resources; no resumed partial session",
+  "limitations": "System reboot is observed; exact earlier termination time/cause is not established. No claim of restart survival."
+}
