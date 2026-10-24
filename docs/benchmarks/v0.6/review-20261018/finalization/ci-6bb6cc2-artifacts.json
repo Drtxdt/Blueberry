@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "source_commit": "6bb6cc2cd33b97fd77adec2df78c2925abaf9573",
+  "push_run_id": 39228676557,
+  "package_job_id": 117983005894,
+  "package_job_conclusion": "success",
+  "status": "complete_ci_passed_pending_performance_version_selection_and_manual_acceptance",
+  "artifacts": [
+    {
+      "id": 12177100408,
+      "name": "blueberry-windows-x64",
+      "size_in_bytes": 4191288,
+      "digest": "sha256:e6653ea30e2e58bba81a464f81f83e545356f7f92f44696bb467dffc963e7127",
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12177100408",
+      "expires_at": "2027-01-17T09:15:24Z"
+    },
+    {
+      "id": 12177005375,
+      "name": "blueberry-terminal-component-windows-x64",
+      "size_in_bytes": 16131545,
+      "digest": "sha256:caa27f7a605d8454cea94bf4b2fa8a62aa755d2da0ebac87effaf1658d8d0507",
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12177005375",
+      "expires_at": "2027-01-17T09:15:24Z"
+    },
+    {
+      "id": 12176975470,
+      "name": "blueberry-installation-evidence",
+      "size_in_bytes": 207727,
+      "digest": "sha256:0e4857973ca786cf43591172848aed557bc25e54faa29f61031dccccf7b56cf0",
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12176975470",
+      "expires_at": "2027-01-17T09:15:24Z"
+    },
+    {
+      "id": 12176649074,
+      "name": "blueberry-packaged-interaction",
+      "size_in_bytes": 316763,
+      "digest": "sha256:bc46f8ebe8d67ebeec9a2ae11b3c928949c6341bdec544cf2c13f9733a2f7ee3",
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12176649074",
+      "expires_at": "2027-01-17T09:15:24Z"
+    },
+    {
+      "id": 12175393656,
+      "name": "blueberry-benchmark-probes-windows-x64",
+      "size_in_bytes": 2496411,
+      "digest": "sha256:6e7b4351e9911fd39e6081a8a5faccb38b6b9eef245b128f9a3a0f8143ed091a",
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12175393656",
+      "expires_at": "2027-01-17T09:15:24Z"
+    }
+  ],
+  "package_downloads_performed": false,
+  "verified_evidence_archive_ids": [
+    12176975470,
+    12176649074
+  ],
+  "functional_ci": {
+    "report": "ci-6bb6cc2-functional.json",
+    "sha256": "584CD01E6CB9BD1FA60D3F774BE595B0887E55CA1B96BA695D7C9C6E96DC7228"
+  }
+}

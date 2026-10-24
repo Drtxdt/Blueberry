@@ -1,7 +1,10 @@
+pub mod allocation_diagnostics;
 pub mod beta_metrics;
+mod bounded_process;
 pub mod cache_writer;
 pub mod completion;
 pub mod config;
+pub mod config_store;
 #[cfg(windows)]
 pub mod conpty;
 #[cfg(windows)]
@@ -10,10 +13,15 @@ pub mod engine;
 pub mod host;
 pub mod hub;
 pub mod input;
+pub mod invocation;
 pub mod maintenance;
 pub mod menu;
 pub mod metrics;
 pub mod model;
+#[cfg(windows)]
+mod native_observer;
+#[cfg(windows)]
+pub mod native_overlay;
 pub mod overlay;
 pub mod packs;
 pub mod paths;
@@ -26,6 +34,7 @@ pub mod providers;
 pub mod pty;
 pub mod ranking;
 pub mod reload;
+mod selection;
 pub mod settings;
 pub mod setup;
 pub mod sources;
@@ -34,10 +43,15 @@ pub mod specs;
 pub mod status;
 #[cfg(windows)]
 pub mod system_commands;
+#[cfg(windows)]
+mod system_commands_cache;
+pub mod terminal_component;
+pub mod terminal_profile;
 pub mod terminal_ui;
 pub mod tool_registry;
 pub mod tools_ui;
 pub mod trace;
+mod workbench;
 
 #[cfg(windows)]
 pub(crate) mod vt_input;

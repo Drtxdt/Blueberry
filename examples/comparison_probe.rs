@@ -34,10 +34,15 @@ struct Session {
     resource_sampler: Option<PathBuf>,
     #[serde(default)]
     resource_output: Option<PathBuf>,
+    // Independent diagnostic only. Never enable this hook in formal timing.
+    #[serde(default)]
+    diagnostic_buffer_path: Option<PathBuf>,
     #[serde(default)]
     data_dir: Option<PathBuf>,
     #[serde(default)]
     expected_host_mode: Option<String>,
+    #[serde(default)]
+    expected_transport: Option<String>,
 }
 #[derive(Deserialize)]
 struct Query {
@@ -54,6 +59,74 @@ fn prompt(screen: &str) -> bool {
     screen
         .lines()
         .any(|line| line.trim_end().ends_with(['>', '$', '', '❯', '❱', 'λ']))
+}
+fn input_echo(screen: &str, input: &str) -> bool {
+    screen
+        .lines()
+        .any(|row| row.trim_end().strip_suffix(input).is_some_and(prompt))
+}
+
+fn adapter_identity(adapter: &Value) -> Value {
+    let mut identity = adapter.clone();
+    if let Some(fields) = identity.as_object_mut() {
+        fields.remove("session_commands");
+        fields.remove("system_commands");
+    }
+    identity
+}
+
+fn validate_adapter(adapter: &Value, host: Option<&str>, transport: Option<&str>) -> Result<()> {
+    if host == Some("direct") {
+        ensure!(
+            transport.is_none_or(|value| value == "pipe")
+                && adapter["host_mode"] == "direct"
+                && adapter["editor_mode"] == "editor_hooks_v1"
+                && adapter["automatic_menu"] == true
+                && adapter["transport"] == "pipe",
+            "direct fallback: {adapter}"
+        );
+    } else {
+        let transport = transport.unwrap_or("osc");
+        ensure!(
+            matches!(transport, "osc" | "pipe")
+                && adapter["transport"] == transport
+                && adapter["ready"] == true
+                && (host != Some("nested") || adapter["host_mode"] == "nested"),
+            "nested adapter not ready: {adapter}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn nested_pipe_requires_an_explicit_transport_and_cannot_silently_fall_back() {
+    let pipe = json!({"host_mode":"nested","transport":"pipe","ready":true});
+    assert!(validate_adapter(&pipe, Some("nested"), Some("pipe")).is_ok());
+    assert!(validate_adapter(&pipe, Some("nested"), None).is_err());
+    let osc = json!({"transport":"osc","ready":true});
+    assert!(validate_adapter(&osc, None, None).is_ok());
+    assert!(validate_adapter(&osc, Some("nested"), Some("pipe")).is_err());
+}
+
+#[test]
+fn menu_candidate_is_not_input_echo() {
+    assert!(!input_echo("❯\n│› ⌘ ssbeta-root-0", "ssbeta-root-0"));
+    assert!(input_echo("❯ ssbeta-root-0", "ssbeta-root-0"));
+    assert!(input_echo(
+        "PS C:\\work> git switch test",
+        "git switch test"
+    ));
+}
+
+#[test]
+fn command_refresh_does_not_change_adapter_identity() {
+    let before = json!({"editor_mode":"editor_hooks_v1","session_commands":{"session":1},"system_commands":{"count":0}});
+    let mut after = before.clone();
+    after["session_commands"]["session"] = json!(2);
+    after["system_commands"]["count"] = json!(100);
+    assert_eq!(adapter_identity(&before), adapter_identity(&after));
+    after["editor_mode"] = json!("legacy");
+    assert_ne!(adapter_identity(&before), adapter_identity(&after));
 }
 fn menu(screen: &str, query: &Query, style: &str) -> bool {
     if style == "plain" {
@@ -80,7 +153,7 @@ fn menu(screen: &str, query: &Query, style: &str) -> bool {
 fn wait(h: &mut Harness, predicate: impl Fn(&str) -> bool) -> Result<()> {
     let until = Instant::now() + TIMEOUT;
     loop {
-        if predicate(&h.viewport_contents()) {
+        if predicate(&h.observed_viewport()?) {
             return Ok(());
         }
         ensure!(Instant::now() < until, "timeout: {}", h.viewport_contents());
@@ -93,8 +166,55 @@ fn ms(h: &Harness, start: Instant) -> Result<f64> {
     Ok(arrival.duration_since(start).as_secs_f64() * 1000.0)
 }
 fn clear(h: &mut Harness, line: &str) -> Result<()> {
-    h.send(b"\x01\x7f")?;
-    wait(h, |screen| !screen.contains(line) && !screen.contains('│'))
+    // Cancel the unexecuted query before clearing stale renderer cells. This
+    // setup work is outside every timed interval and applies to all products.
+    h.send(b"\x03")?;
+    // Some hosts consume the first Ctrl+C to dismiss their menu. A second
+    // Ctrl+C cancels the edit buffer; it never submits the measured command.
+    let until = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < until {
+        let _ = h.pump(Duration::from_millis(25));
+    }
+    h.send(b"\x03")?;
+    let until = Instant::now() + Duration::from_millis(500);
+    while Instant::now() < until {
+        let _ = h.pump(Duration::from_millis(25));
+    }
+    h.send(b"Clear-Host\r")?;
+    wait(h, |screen| {
+        prompt(screen)
+            && !screen.contains(line)
+            && !screen.contains('│')
+            && !screen.contains("Clear-Host")
+    })?;
+    settle_prompt(h)
+}
+fn settle_prompt(h: &mut Harness) -> Result<()> {
+    // A printed prompt can precede PSReadLine's cursor query and a nested
+    // renderer's final repaint. Establish readiness outside measured input.
+    let deadline = Instant::now() + TIMEOUT;
+    let mut last = h.last_output_arrival();
+    let mut quiet_since = Instant::now();
+    loop {
+        let _ = h.pump(Duration::from_millis(25));
+        let arrived = h.last_output_arrival();
+        if arrived != last {
+            last = arrived;
+            quiet_since = Instant::now();
+        }
+        let screen = h.observed_viewport()?;
+        if quiet_since.elapsed() >= Duration::from_millis(250)
+            && prompt(&screen)
+            && !screen.contains('│')
+            && !screen.contains("Clear-Host")
+        {
+            return Ok(());
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "prompt did not settle before measurement"
+        );
+    }
 }
 fn run(session: &Session, result: &mut Value) -> Result<()> {
     ensure!(
@@ -119,12 +239,18 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         &session.environment,
         String::new(),
     )?;
+    let started = h.observation_start(started);
+    result["native_observer"] = json!(h.native_observer_identity());
+    result["diagnostic_only"] = json!(h.diagnostic() || cfg!(debug_assertions));
+    result["probe_build_profile"] = json!(env!("BLUEBERRY_BUILD_PROFILE"));
+    result["probe_source_commit"] = json!(env!("BLUEBERRY_BUILD_COMMIT"));
+    result["probe_source_dirty"] = json!(env!("BLUEBERRY_BUILD_DIRTY") == "true");
     let run = (|| -> Result<()> {
         wait(&mut h, prompt)?;
-        let before = h.viewport_contents();
+        let before = h.observed_viewport()?;
         let prefix = before.lines().last().unwrap_or("").trim_end().to_owned();
         let key_start = Instant::now();
-        h.send_text("g")?;
+        h.send(b"g")?;
         wait(&mut h, |screen| {
             screen.lines().any(|row| {
                 row.trim_end()
@@ -143,14 +269,69 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         }
         if let Some(path) = &session.metadata_path {
             ensure!(!path.exists(), "metadata file must be new");
-            let command = format!(
-                "[IO.File]::WriteAllText('{}',(@{{shell=$PSVersionTable.PSVersion.ToString();psreadline=(Get-Module PSReadLine).Version.ToString();dll=[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location;profiles=@($PROFILE.AllUsersAllHosts,$PROFILE.AllUsersCurrentHost,$PROFILE.CurrentUserAllHosts,$PROFILE.CurrentUserCurrentHost)}}|ConvertTo-Json -Compress)); Write-Output 'BB_COMPARATOR_META_DONE'\r",
+            let script = path.with_extension("query.ps1");
+            ensure!(!script.exists(), "metadata query must be new");
+            let source = format!(
+                "\u{feff}[IO.File]::WriteAllText('{}',(@{{shell=$PSVersionTable.PSVersion.ToString();psreadline=(Get-Module PSReadLine).Version.ToString();dll=[Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location;profiles=@($PROFILE.AllUsersAllHosts,$PROFILE.AllUsersCurrentHost,$PROFILE.CurrentUserAllHosts,$PROFILE.CurrentUserCurrentHost)}}|ConvertTo-Json -Compress)); Write-Output 'BB_COMPARATOR_META_DONE'\r\n",
                 path.to_string_lossy().replace('\'', "''")
             );
-            h.send_text(&command)?;
-            h.wait_line("BB_COMPARATOR_META_DONE", TIMEOUT)?;
-            wait(&mut h, prompt)?;
-            result["actual_shell"] = serde_json::from_slice(&fs::read(path)?)?;
+            fs::write(&script, source)?;
+            if let Some(buffer_path) = &session.diagnostic_buffer_path {
+                ensure!(!buffer_path.exists(), "diagnostic buffer log must be new");
+                ensure!(
+                    session.style == "inshellisense",
+                    "buffer diagnostic is comparator-only"
+                );
+                use std::io::Write;
+                let mut script_file = fs::OpenOptions::new().append(true).open(&script)?;
+                writeln!(
+                    script_file,
+                    "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ param($key,$arg) $line=$null; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); [IO.File]::AppendAllText('{}',((@{{line=$line;cursor=$cursor;qpc=[Diagnostics.Stopwatch]::GetTimestamp()}}|ConvertTo-Json -Compress)+[Environment]::NewLine),[Text.UTF8Encoding]::new($false)) }}",
+                    buffer_path.to_string_lossy().replace('\'', "''")
+                )?;
+                result["diagnostic_only"] = json!(true);
+            }
+            // Setup is outside timing. Keep its input short, and let an
+            // external comparator finish processing the command before
+            // submitting it. The metadata file remains the authority.
+            let command = format!("& '{}'", script.to_string_lossy().replace('\'', "''"));
+            h.send(command.as_bytes())?;
+            let until = Instant::now() + Duration::from_millis(250);
+            while Instant::now() < until {
+                let _ = h.pump(Duration::from_millis(25));
+            }
+            if session.style == "inshellisense" && h.observed_viewport()?.contains('│') {
+                h.send(b"\x1b")?;
+                // A comparator can leave old menu cells in the viewport.
+                // Do not treat those pixels as an active-menu handshake.
+                let until = Instant::now() + Duration::from_millis(100);
+                while Instant::now() < until {
+                    let _ = h.pump(Duration::from_millis(25));
+                }
+            }
+            h.send(b"\r")?;
+            let deadline = Instant::now() + TIMEOUT;
+            loop {
+                if let Ok(bytes) = fs::read(path)
+                    && let Ok(metadata) = serde_json::from_slice::<Value>(&bytes)
+                {
+                    result["actual_shell"] = metadata;
+                    break;
+                }
+                ensure!(Instant::now() < deadline, "metadata query did not complete");
+                let _ = h.pump(Duration::from_millis(25));
+            }
+            // An external renderer can leave menu cells after output, so an
+            // exact marker *screen row* is not a reliable completion signal.
+            // The fresh metadata file proves execution; clear setup output
+            // before waiting for a clean prompt and beginning measured input.
+            h.send(b"Clear-Host\r")?;
+            wait(&mut h, |screen| {
+                prompt(screen)
+                    && !screen.contains("BB_COMPARATOR_META_DONE")
+                    && !screen.contains("actual-shell.query.ps1")
+            })?;
+            settle_prompt(&mut h)?;
             let dll = result["actual_shell"]["dll"]
                 .as_str()
                 .context("loaded editor DLL path missing")?;
@@ -166,20 +347,11 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                     .find(|path| path.is_file() && !old_adapters.contains(path))
                 {
                     let adapter: Value = serde_json::from_slice(&fs::read(&path)?)?;
-                    if session.expected_host_mode.as_deref() == Some("direct") {
-                        ensure!(
-                            adapter["host_mode"] == "direct"
-                                && adapter["editor_mode"] == "editor_hooks_v1"
-                                && adapter["automatic_menu"] == true
-                                && adapter["transport"] == "pipe",
-                            "direct fallback: {adapter}"
-                        );
-                    } else {
-                        ensure!(
-                            adapter["transport"] == "osc" && adapter["ready"] == true,
-                            "nested adapter not ready: {adapter}"
-                        );
-                    }
+                    validate_adapter(
+                        &adapter,
+                        session.expected_host_mode.as_deref(),
+                        session.expected_transport.as_deref(),
+                    )?;
                     result["adapter"] = adapter;
                     break Some(path);
                 }
@@ -207,7 +379,10 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 .arg(output)
                 .status()?;
             ensure!(status.success(), "resource sampler failed");
-            result["resources"] = serde_json::from_slice(&fs::read(output)?)?;
+            let raw_resources = fs::read(output)?;
+            result["resource_report_sha256"] =
+                json!(format!("{:X}", Sha256::digest(&raw_resources)));
+            result["resources"] = serde_json::from_slice(&raw_resources)?;
         }
         for query in &session.queries {
             ensure!(
@@ -215,19 +390,21 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 "echo-only capability comparison is restricted to inshellisense"
             );
             ensure!(
-                !h.viewport_contents().contains(&query.line),
+                !h.observed_viewport()?.contains(&query.line),
                 "stale input before query"
             );
             let start = Instant::now();
-            h.send_text(&query.line)?;
+            // Use the same UTF-8 terminal input stream for every comparator.
+            // An external nested host may not preserve Win32 key envelopes.
+            h.send(query.line.as_bytes())?;
             let mut echo = None;
             let mut observations = Vec::new();
             let mut last_observed = None;
             loop {
-                let screen = h.viewport_contents();
+                let screen = h.observed_viewport()?;
                 if h.last_output_arrival().is_some_and(|at| at >= start) {
                     let at = ms(&h, start)?;
-                    if echo.is_none() && screen.contains(&query.line) {
+                    if echo.is_none() && input_echo(&screen, &query.line) {
                         echo = Some(at);
                     }
                     if last_observed != h.last_output_arrival() {
@@ -241,6 +418,19 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
                 }
                 if start.elapsed() >= TIMEOUT {
                     result["queries"].as_array_mut().unwrap().push(json!({"line":query.line,"expected":query.expected,"warmup":query.warmup,"input_echo":echo,"menu":null,"failed":true,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,"observations":observations}));
+                    if let Some(path) = &session.diagnostic_buffer_path {
+                        h.send(b"\x1b[24~")?;
+                        let deadline = Instant::now() + Duration::from_secs(3);
+                        while !path.is_file() && Instant::now() < deadline {
+                            let _ = h.pump(Duration::from_millis(25));
+                        }
+                        result["diagnostic_buffer"] = match fs::read_to_string(path) {
+                            Ok(text) => json!({"observed_after_timing":true,"raw":text}),
+                            Err(error) => {
+                                json!({"observed_after_timing":true,"error":error.to_string()})
+                            }
+                        };
+                    }
                     bail!("menu timeout for {}", query.line);
                 }
                 let _ = h.pump(Duration::from_millis(25));
@@ -249,8 +439,9 @@ fn run(session: &Session, result: &mut Value) -> Result<()> {
         }
         if let Some(path) = adapter_path {
             let adapter: Value = serde_json::from_slice(&fs::read(path)?)?;
+            result["adapter_final"] = adapter.clone();
             ensure!(
-                adapter == result["adapter"],
+                adapter_identity(&adapter) == adapter_identity(&result["adapter"]),
                 "adapter mode changed during comparison"
             );
         }

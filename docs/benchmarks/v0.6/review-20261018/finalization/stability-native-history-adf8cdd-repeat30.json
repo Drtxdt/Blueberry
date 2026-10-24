@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-20",
+  "source_commit": "adf8cddcec22ef1afeb293c4b31703501de904c3",
+  "result": "passed",
+  "test": "nested_resize_preserves_native_unicode_and_truecolor_history",
+  "count": 180,
+  "runner_exit_code": 0,
+  "test_executable_sha256": "D3D8BC7035A9105D30939BBAEE5409195654FF7E98F939EE300E95813BA9C51C",
+  "product_sha256": [
+    "73E360C86E267868B50CE479B8F7ED2EDFFDAB45A689AF2148F661AD44B496CB"
+  ],
+  "groups": [
+    {
+      "shell": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "editor": "E:/OpenSource/shellsense-rs/target/original-editors/2.0.0/PSReadLine/2.0.0/PSReadLine.psd1",
+      "transport": "osc",
+      "passed": 30
+    },
+    {
+      "shell": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "editor": "E:/OpenSource/shellsense-rs/target/original-editors/2.0.0/PSReadLine/2.0.0/PSReadLine.psd1",
+      "transport": "pipe",
+      "passed": 30
+    },
+    {
+      "shell": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "editor": "E:/OpenSource/shellsense-rs/target/original-editors/2.4.5/PSReadLine/2.4.5/PSReadLine.psd1",
+      "transport": "osc",
+      "passed": 30
+    },
+    {
+      "shell": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "editor": "E:/OpenSource/shellsense-rs/target/original-editors/2.4.5/PSReadLine/2.4.5/PSReadLine.psd1",
+      "transport": "pipe",
+      "passed": 30
+    },
+    {
+      "shell": "D:/pwsh/7/pwsh.exe",
+      "editor": "E:/OpenSource/shellsense-rs/target/original-editors/2.4.5/PSReadLine/2.4.5/PSReadLine.psd1",
+      "transport": "osc",
+      "passed": 30
+    },
+    {
+      "shell": "D:/pwsh/7/pwsh.exe",
+      "editor": "E:/OpenSource/shellsense-rs/target/original-editors/2.4.5/PSReadLine/2.4.5/PSReadLine.psd1",
+      "transport": "pipe",
+      "passed": 30
+    }
+  ],
+  "raw_archive": "artifacts\\stability-native-history-adf8cdd-repeat30.zip",
+  "raw_archive_sha256": "07ea0f81a09ea0025f79d3c6d0fffea1a48c6608973819251a1eb7c7a0947a8c",
+  "limitations": [
+    "Uploaded raw archive identity is recorded in delivery.",
+    "Native model observer, not real GUI acceptance.",
+    "Transcript records ordered invocations; individual retained fixtures preserve history, colors and product identities."
+  ],
+  "delivery": {
+    "run_id": 39394098975,
+    "artifact_id": 12251427556,
+    "download_sha256": "5F4312CC25E3CCD1D7C8DD17083F7B9B0F0D751E2BAB21302DF9A3849264A14B",
+    "record": "raw-stability-delivery-20261020.json"
+  }
+}

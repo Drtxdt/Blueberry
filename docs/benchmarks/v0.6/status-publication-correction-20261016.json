@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "kind": "Confirmed status publication loss; not a slow performance sample",
+  "failed_batch": "artifacts/neutral-r2-latency-ab-20261016/session/batch.json",
+  "ab_complete": false,
+  "queued_formal_baseline": "not started because A/B dependency was invalid",
+  "canonical_system_commands": {
+    "count": 0,
+    "error": null,
+    "source": "system module export metadata"
+  },
+  "unpublished_system_commands": {
+    "count": 1713,
+    "error": null,
+    "source": "system module export metadata"
+  },
+  "raw": {
+    "adapter.json": {
+      "sha256": "61E0DDBA340A47ED16E4297DE9338021443D6A4F00325D7E4131D9DDFF6B9433",
+      "bytes": 577
+    },
+    "adapter.tmp": {
+      "sha256": "EC794636AF69582CDFFAAAD17E5DA540767DCF80688580F4DEAB179561B8F14B",
+      "bytes": 580
+    }
+  },
+  "controlled_before": {
+    "status_tests_failed": 2,
+    "favorite_tests_failed": 2,
+    "permanent_denial_preservation_passed": true,
+    "source_recipe": "artifacts\\windows-publication-regression-20261016\\before-sources.json"
+  },
+  "controlled_after": {
+    "core_passed": 137,
+    "native_opt_in_ignored": 2,
+    "store_passed": 6,
+    "python_tests": 90,
+    "python_skipped": 1,
+    "clippy": "passed",
+    "concurrent_writer_repetitions": 20,
+    "native_profiles": [
+      "ps51-200",
+      "ps51-245",
+      "ps7-245"
+    ],
+    "native_tests_per_profile": 3,
+    "native_hosts": [
+      "direct",
+      "nested"
+    ]
+  },
+  "legacy_diagnostic": {
+    "path": "artifacts/legacy-status-fallback-diagnostic-20261016/result.json",
+    "forced_target_handle": true,
+    "complete_hot_observation_before_handle_release": true,
+    "all_six_scenarios": true,
+    "recorded_legacy_fallbacks": 1,
+    "formal_eligible": false
+  },
+  "current_candidate_policy": "Explicit completion schema cannot use unpublished status; release validator rejects it.",
+  "remaining": [
+    "fresh clean probe and independent batches",
+    "final frozen-package performance and manual acceptance"
+  ],
+  "release_blocked": true
+}

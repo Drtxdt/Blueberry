@@ -1,0 +1,771 @@
+{
+  "schema": 1,
+  "round": 2,
+  "diagnostic_only": true,
+  "measurement_complete": true,
+  "independent_ab_runs": 2,
+  "scope": "First direct menu render on the Rust rendering thread after initial g; allocation requests and requested bytes, not retained heap or managed memory",
+  "rows": [
+    {
+      "run": 1,
+      "profile": "ps51-200",
+      "same_conditions": true,
+      "first_menu_lines": 11,
+      "products": {
+        "before": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-before\\report.json",
+          "report_sha256": "0AA4311967548FE60E44669824BC0A28D27CCE61ED70C6E32F3B3BF02DBB4A41",
+          "source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.0.0",
+              "2.0.0",
+              "2.0.0"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-before\\traces\\direct-product-0.jsonl",
+              "sha256": "884BFBE3AD953E9F4A2801E02B8F2E7CA63732DCCC59857BA79625267818805A",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-before\\traces\\direct-product-1.jsonl",
+              "sha256": "78403B28D1BB7B9AF88B087DD4E3636038185C8388406A20A545D57893A23CFF",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-before\\traces\\direct-product-2.jsonl",
+              "sha256": "807FEE6448E9CAA89D3BA7BAB63799DF9BE9C582772927C1FFB5CE3685AC31B0",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            }
+          ],
+          "median_requests": 3637,
+          "median_requested_bytes": 155562
+        },
+        "after": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-after\\report.json",
+          "report_sha256": "5271D7CC27E2B380451BD36373A75465BD2F0A965952CD1C4CDD6B865E2F1D70",
+          "source_commit": "6819f4297a42443262b1c4346c2c43dcd124c312",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.0.0",
+              "2.0.0",
+              "2.0.0"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-after\\traces\\direct-product-0.jsonl",
+              "sha256": "4FBBE2EBC5FE27AAB2583DE0E53A375BDE1533792EA612D245CBB6A747303258",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-after\\traces\\direct-product-1.jsonl",
+              "sha256": "F0A6C22E9CDB05FDA77AE249A4CBC10FB83154C3138E36C694584E4CFFBDBB73",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-200-after\\traces\\direct-product-2.jsonl",
+              "sha256": "7C717B344E2CABC5EA0C6B70B8B898241F2018DEC88C824FDB231CA673AF63A5",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            }
+          ],
+          "median_requests": 1448,
+          "median_requested_bytes": 45645
+        }
+      },
+      "request_reduction_percent": 60.18696728072588,
+      "requested_byte_reduction_percent": 70.65800131137424
+    },
+    {
+      "run": 1,
+      "profile": "ps51-245",
+      "same_conditions": true,
+      "first_menu_lines": 11,
+      "products": {
+        "before": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-before\\report.json",
+          "report_sha256": "F31B830F5B9FDAB51A2E34B9C07560E92F9E14B85A0C834A515E5687AA67DB79",
+          "source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-before\\traces\\direct-product-0.jsonl",
+              "sha256": "B4A2ADE4B8BF9CDB38D18F4AE75F29A53693D47968B618979F1DC5C38C6174DB",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-before\\traces\\direct-product-1.jsonl",
+              "sha256": "ACD2DB5B074DD629A6E86919DE692D482320FE2B3F32923DE7E0585E2C4A0A6A",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-before\\traces\\direct-product-2.jsonl",
+              "sha256": "AEB200542A4EDC2D012D3B4EBF5E7EFE74198D9077ACD573CBAB4853972F1E14",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            }
+          ],
+          "median_requests": 3637,
+          "median_requested_bytes": 155562
+        },
+        "after": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-after\\report.json",
+          "report_sha256": "6B25C6961C52FDE267E08F8E23532EC2A97C12DE2CA7EBD4519EAED8AC22547D",
+          "source_commit": "6819f4297a42443262b1c4346c2c43dcd124c312",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-after\\traces\\direct-product-0.jsonl",
+              "sha256": "109EF36F335F6DD7A7676C999E952B6C051C1FD1D38D1B9DD16935B008D2BDC3",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-after\\traces\\direct-product-1.jsonl",
+              "sha256": "C59D51F7A20D5B6C3EFC7613D064CD157915DD6DEE8AA9714BA73A338F801527",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps51-245-after\\traces\\direct-product-2.jsonl",
+              "sha256": "8D2A58CF40990E5C381CA20AFD59FC7FD97D02B9B5BC6109235D9A1FA23A012E",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            }
+          ],
+          "median_requests": 1448,
+          "median_requested_bytes": 45645
+        }
+      },
+      "request_reduction_percent": 60.18696728072588,
+      "requested_byte_reduction_percent": 70.65800131137424
+    },
+    {
+      "run": 1,
+      "profile": "ps7-245",
+      "same_conditions": true,
+      "first_menu_lines": 11,
+      "products": {
+        "before": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-before\\report.json",
+          "report_sha256": "B05619163AECE6A11408503EFE51D54E73A72A8DF6DE6AC0A6DDB71A83412D7C",
+          "source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "B20D571BA371284899E16232864AEBE3AD6BF412283CCCCDF9EAA03E93058A42",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "D:\\pwsh\\7\\pwsh.exe",
+            "shell_versions": [
+              "7.6.6",
+              "7.6.6",
+              "7.6.6"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-before\\traces\\direct-product-0.jsonl",
+              "sha256": "37F34EBC2365C4FAB3ACE3DB672F14966D9FA9DCFDEC127D8690692760E00325",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 154968
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-before\\traces\\direct-product-1.jsonl",
+              "sha256": "962E2723B8F8A7C2F279F997BBEFF59CC1A57075D523192FCE9780CCDBA43D14",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 154968
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-before\\traces\\direct-product-2.jsonl",
+              "sha256": "043BABAE6D94BB231C5789661AA8B0DA8A37D8D4B51AB490A43399E9F9773FFC",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 154968
+            }
+          ],
+          "median_requests": 3637,
+          "median_requested_bytes": 154968
+        },
+        "after": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-after\\report.json",
+          "report_sha256": "DD31AA08A15ECAC4D5412567D87007E46E1FBA705209892B98A81745C5BEC50C",
+          "source_commit": "6819f4297a42443262b1c4346c2c43dcd124c312",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "B20D571BA371284899E16232864AEBE3AD6BF412283CCCCDF9EAA03E93058A42",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "D:\\pwsh\\7\\pwsh.exe",
+            "shell_versions": [
+              "7.6.6",
+              "7.6.6",
+              "7.6.6"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-after\\traces\\direct-product-0.jsonl",
+              "sha256": "4257903F36F3B42AD0319CA8F7AAABD49E7438C7F4AE6BC65E49CD7D48F03643",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-after\\traces\\direct-product-1.jsonl",
+              "sha256": "8627CBC7FCB54D85B8B13371D4A6848F719A3D9FCB3AF7096276018CDE9E3650",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run1-ps7-245-after\\traces\\direct-product-2.jsonl",
+              "sha256": "DA4EEBA9E695C3291BFF30954CDC8F41075658438F9506589B30FF9C8B3204CC",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            }
+          ],
+          "median_requests": 1448,
+          "median_requested_bytes": 45645
+        }
+      },
+      "request_reduction_percent": 60.18696728072588,
+      "requested_byte_reduction_percent": 70.54553198079603
+    },
+    {
+      "run": 2,
+      "profile": "ps51-200",
+      "same_conditions": true,
+      "first_menu_lines": 11,
+      "products": {
+        "before": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-before\\report.json",
+          "report_sha256": "ACE86716DBE490D244EA8611B67617A1330E04476526295A2181F3BB51DBDECF",
+          "source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.0.0",
+              "2.0.0",
+              "2.0.0"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-before\\traces\\direct-product-0.jsonl",
+              "sha256": "7D945B028059257DDFAE79CA9BDE326806C08820240EC298CF7EA99DE8FFE562",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-before\\traces\\direct-product-1.jsonl",
+              "sha256": "FE12E12BC1CE27F2F8936187DCE75CB10824B771E55F56A0BB835E6B574125C2",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-before\\traces\\direct-product-2.jsonl",
+              "sha256": "F1496B75854CF01EEB745BF73771B53470A864A10D0B59F027333F23B7025CB6",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            }
+          ],
+          "median_requests": 3637,
+          "median_requested_bytes": 155562
+        },
+        "after": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-after\\report.json",
+          "report_sha256": "718606A2E7D126972273EE2A74CEFB01F76C41F969AD918037ECA35FEE07BF5D",
+          "source_commit": "6819f4297a42443262b1c4346c2c43dcd124c312",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.0.0",
+              "2.0.0",
+              "2.0.0"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-after\\traces\\direct-product-0.jsonl",
+              "sha256": "9F19F365638B0A3462049AFC14C03613A5E1261B6063DEB09274BD3A43280595",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-after\\traces\\direct-product-1.jsonl",
+              "sha256": "AA71F57CF9E0365CE4339F4F4BD6AEE40A454D31BFB298288DCDCF137DABD399",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-200-after\\traces\\direct-product-2.jsonl",
+              "sha256": "836ACC73EB676599703389937AC117BE6B51A3E7E4A97D8CEE36705CB44C389B",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            }
+          ],
+          "median_requests": 1448,
+          "median_requested_bytes": 45645
+        }
+      },
+      "request_reduction_percent": 60.18696728072588,
+      "requested_byte_reduction_percent": 70.65800131137424
+    },
+    {
+      "run": 2,
+      "profile": "ps51-245",
+      "same_conditions": true,
+      "first_menu_lines": 11,
+      "products": {
+        "before": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-before\\report.json",
+          "report_sha256": "DA92027E6C3C1DC9CF2D343106B2C1073567E2EDEA33336FED53D2DD0F4E2CD5",
+          "source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-before\\traces\\direct-product-0.jsonl",
+              "sha256": "01550E22EAC4CAA6E1FB9DA3F8E039CAF93DB5EA3D0CAEC2308635F26CC1A872",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-before\\traces\\direct-product-1.jsonl",
+              "sha256": "2CD28573FC9C942CA26898F9D2BCB248F0A7065353D72B90E451DA3DF04DDE0B",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-before\\traces\\direct-product-2.jsonl",
+              "sha256": "5B16ACA70D34B083FD48E6AA3D73D54F44FC736B5AF7D8A4AF93AE9EDB24CB6F",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 155562
+            }
+          ],
+          "median_requests": 3637,
+          "median_requested_bytes": 155562
+        },
+        "after": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-after\\report.json",
+          "report_sha256": "EE6B3A202759899DBC9EDD83905B22B38B38CAC6D931DCB6D99328B6FFDFB3FA",
+          "source_commit": "6819f4297a42443262b1c4346c2c43dcd124c312",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "67E894CDF88CAEDDC030847E51227BFD074AA3DC29AE29D4143DC93F3B1BBD28",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "shell_versions": [
+              "5.1.26100.9444",
+              "5.1.26100.9444",
+              "5.1.26100.9444"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-after\\traces\\direct-product-0.jsonl",
+              "sha256": "485342ED64F76EFC70A6464C2C82455E384130065FF4BA648EFF45A3FF9B807F",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-after\\traces\\direct-product-1.jsonl",
+              "sha256": "48BA41007DF10C86633ABB9BBB48BCDF0BD00A71835EA623CD4256BC22874647",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps51-245-after\\traces\\direct-product-2.jsonl",
+              "sha256": "0EAADF964A2B9B2545F1B09B42083E1AA84D77522AF45E66D06ABFA0424BB6D8",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            }
+          ],
+          "median_requests": 1448,
+          "median_requested_bytes": 45645
+        }
+      },
+      "request_reduction_percent": 60.18696728072588,
+      "requested_byte_reduction_percent": 70.65800131137424
+    },
+    {
+      "run": 2,
+      "profile": "ps7-245",
+      "same_conditions": true,
+      "first_menu_lines": 11,
+      "products": {
+        "before": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-before\\report.json",
+          "report_sha256": "E044181744BFBA35D86D884C7F52B6700583ED90860662C84E86CE3288329C0E",
+          "source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "B20D571BA371284899E16232864AEBE3AD6BF412283CCCCDF9EAA03E93058A42",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "D:\\pwsh\\7\\pwsh.exe",
+            "shell_versions": [
+              "7.6.6",
+              "7.6.6",
+              "7.6.6"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-before\\traces\\direct-product-0.jsonl",
+              "sha256": "E71232BE8029E2BDB8BEF453CBD240E0CE61EBCE855CA5146A24DE4255F09B57",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 154968
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-before\\traces\\direct-product-1.jsonl",
+              "sha256": "C95CA55CA6F1EB3B663DA901CFC4D6E3CCB9BAF5CFBD07369A63B67DDA8D309E",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 154968
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-before\\traces\\direct-product-2.jsonl",
+              "sha256": "C98670E9FC35FF1F151322D27DC345B2C2B6FDCA7F182D1A7FD429D04DCB664C",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 3637,
+              "reallocations": 192,
+              "requested_bytes": 154968
+            }
+          ],
+          "median_requests": 3637,
+          "median_requested_bytes": 154968
+        },
+        "after": {
+          "raw_report": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-after\\report.json",
+          "report_sha256": "00ACFC327659AA746F92916072574E6195487BA619A69A0C72A763EACA8719DD",
+          "source_commit": "6819f4297a42443262b1c4346c2c43dcd124c312",
+          "source_dirty": true,
+          "conditions": {
+            "profile_sha256": "B20D571BA371284899E16232864AEBE3AD6BF412283CCCCDF9EAA03E93058A42",
+            "power_policy": "84C9CE56AD7E43EC189583FB4980B05F4FEDDA128896FDA11D0611779CF92173",
+            "machine_id": "LIUHETONG",
+            "terminal_rows": 30,
+            "terminal_columns": 120,
+            "shell": "D:\\pwsh\\7\\pwsh.exe",
+            "shell_versions": [
+              "7.6.6",
+              "7.6.6",
+              "7.6.6"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5",
+              "2.4.5"
+            ],
+            "trace": "enabled",
+            "profile_mode": "with_profile",
+            "os_cache_cleared": false
+          },
+          "observations": [
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-after\\traces\\direct-product-0.jsonl",
+              "sha256": "0308C74E2707BD9E566203F00F8A868C844258857BCA34D05798DBD7153FB383",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-after\\traces\\direct-product-1.jsonl",
+              "sha256": "14F6B51278F86689B3D00AB47921858C6E25A5629751B17BA77C33F96028E533",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            },
+            {
+              "raw": "artifacts\\r2-allocation-ab-20261014\\run2-ps7-245-after\\traces\\direct-product-2.jsonl",
+              "sha256": "5CE90209B13A568C842F251CC838F9AD88E9743EF9EEF57096780E96D0051AED",
+              "revision": 2,
+              "rendered_lines": 11,
+              "requests": 1448,
+              "reallocations": 192,
+              "requested_bytes": 45645
+            }
+          ],
+          "median_requests": 1448,
+          "median_requested_bytes": 45645
+        }
+      },
+      "request_reduction_percent": 60.18696728072588,
+      "requested_byte_reduction_percent": 70.54553198079603
+    }
+  ],
+  "not_formal_timing": true,
+  "source_dirty_flags_retained": true,
+  "formal_latency_and_resource_ab_complete": false,
+  "retained_for_release": false,
+  "causality_limit": "Whole clean CI candidates differ in inactive history-handling paths as well as Rust snapshot sharing; compare the isolated per-thread render stage, do not claim total process-memory reduction."
+}

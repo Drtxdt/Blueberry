@@ -26,6 +26,118 @@ fn has_border_width(screen: &str, width: usize) -> bool {
     })
 }
 
+fn current_editor_region(screen: &str) -> Option<&str> {
+    // Resize can retain earlier output above the current prompt. Assertions
+    // about the active menu must not treat that history as its candidate list.
+    if let Some(offset) = screen.rfind("\nPS ") {
+        Some(&screen[offset + 1..])
+    } else {
+        screen.starts_with("PS ").then_some(screen)
+    }
+}
+
+#[test]
+fn active_menu_observation_excludes_history_but_keeps_current_candidates() {
+    let screen = "PS old> gi\n│› ≈ gi 命令别名│\nPS new> git\n╭────╮\n│› ⌘ git │\n╰────╯";
+    let current = current_editor_region(screen).unwrap();
+    assert!(current.contains("PS new> git"));
+    assert!(current.contains("⌘ git "));
+    assert!(!current.contains("≈ gi "));
+    let current_alias = "PS new> gi\n╭────╮\n│› ≈ gi 命令别名│\n╰────╯";
+    assert!(
+        current_editor_region(current_alias)
+            .unwrap()
+            .contains("≈ gi ")
+    );
+    assert!(current_editor_region("no active prompt").is_none());
+    assert!(assert_no_old_menu_above_prompt(&serde_json::json!({"screen":screen})).is_err());
+    assert!(assert_no_old_menu_above_prompt(&serde_json::json!({"screen":current_alias})).is_ok());
+    assert!(
+        assert_no_old_menu_above_prompt(&serde_json::json!({"screen":"no active prompt"})).is_err()
+    );
+}
+
+#[test]
+#[ignore = "requires frozen CI EXE and native history observer DLL"]
+fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> {
+    let cwd = tempdir()?;
+    std::fs::write(cwd.path().join("git.cmd"), b"@echo off\r\n")?;
+    let expected = format!("RGB-HISTORY-中🚀é{}", "x".repeat(150));
+    let setup = cwd.path().join("history.ps1");
+    std::fs::write(
+        &setup,
+        format!(
+            "\u{feff}$e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145m{expected}${{e}}[0m`r`n\"); 1..40 | ForEach-Object {{ 'HISTORY-SENTINEL' }}\r\n"
+        ),
+    )?;
+    let mut host = start_host(cwd.path())?;
+    host.harness.send_text(&format!(
+        ". '{}'\r",
+        setup.display().to_string().replace('\'', "''")
+    ))?;
+    // The fixture deliberately scrolls the previous prompt out of the viewport.
+    // Visible prompt counts cannot be used as a monotonically increasing clock.
+    host.harness.event("prompt_end", PTY_TIMEOUT)?;
+    wait_until(&mut host.harness, "history fixture prompt", |screen| {
+        screen.lines().last().is_some_and(|line| {
+            line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
+        })
+    })?;
+    let colors = [
+        3,
+        123 | (45 << 8) | (67 << 16),
+        3,
+        23 | (89 << 8) | (145 << 16),
+    ];
+    let before = host.harness.native_history()?;
+    let row = before
+        .lines()
+        .position(|line| line.starts_with("RGB-HISTORY-"))
+        .context("native history fixture missing")?;
+    ensure!(host.harness.native_cell_colors(row as u32, 0)? == colors);
+    std::fs::write(host._data_dir.path().join("history-before.txt"), &before)?;
+    host.harness.send_text("gi")?;
+    host.harness.wait_text("⌘ git ", PTY_TIMEOUT)?;
+    for (rows, columns) in [(12, 40), (28, 95), (18, 60)] {
+        host.harness.resize(rows, columns)?;
+        wait_until(&mut host.harness, "resized native menu", |screen| {
+            has_border_width(screen, columns as usize - 1)
+        })?;
+    }
+    host.harness.send_text("\x1b")?;
+    wait_until(&mut host.harness, "dismissed native menu", |screen| {
+        !screen.contains("⌘ git ")
+    })?;
+    let after = host.harness.native_history()?;
+    std::fs::write(host._data_dir.path().join("history-after.txt"), &after)?;
+    let row = after
+        .lines()
+        .position(|line| line.starts_with("RGB-HISTORY-"))
+        .context("native history disappeared after resize")?;
+    let actual_colors = host.harness.native_cell_colors(row as u32, 0)?;
+    std::fs::write(
+        host._data_dir.path().join("history-observer.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "observer": host.harness.native_observer_identity(),
+            "colors": actual_colors,
+            "expected_colors": colors,
+        }))?,
+    )?;
+    ensure!(actual_colors == colors, "native history RGB changed");
+    ensure!(
+        after
+            .lines()
+            .map(str::trim_end)
+            .collect::<String>()
+            .contains(&expected),
+        "native history Unicode or soft wrapping changed"
+    );
+    clear_line_and_send(&mut host.harness, b"git st", "completion after resize")?;
+    host.harness.wait_text("status", PTY_TIMEOUT)?;
+    host.harness.stop()?;
+    Ok(())
+}
+
 struct RunningHost {
     harness: Harness,
     // Keep the data directory alive until the host process has exited. The
@@ -33,9 +145,51 @@ struct RunningHost {
     _data_dir: TempDir,
 }
 
+fn wait_native_screen(
+    host: &mut RunningHost,
+    name: &str,
+    size: (u64, u64),
+    matches: impl Fn(&str) -> bool,
+) -> Result<serde_json::Value> {
+    let path = host._data_dir.path().join(name);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        console_snapshot::capture(&mut host.harness, &path)?;
+        let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+        if actual["height"] == size.0
+            && actual["width"] == size.1
+            && matches(actual["screen"].as_str().unwrap_or_default())
+        {
+            return Ok(actual);
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "native screen did not satisfy {name}: {actual}"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    }
+}
+
+fn assert_no_old_menu_above_prompt(actual: &serde_json::Value) -> Result<()> {
+    let screen = actual["screen"].as_str().context("native screen missing")?;
+    let current = current_editor_region(screen).context("native prompt missing")?;
+    let history = &screen[..screen.len() - current.len()];
+    ensure!(
+        !history
+            .lines()
+            .any(|line| line.contains('│') && (line.contains('⌘') || line.contains('≈'))),
+        "historical candidate residue in native console: {actual}"
+    );
+    Ok(())
+}
+
 impl Drop for RunningHost {
     fn drop(&mut self) {
         let _ = self.harness.save_evidence(self._data_dir.path());
+        let _ = console_snapshot::capture(
+            &mut self.harness,
+            &self._data_dir.path().join("native-final.json"),
+        );
     }
 }
 
@@ -124,7 +278,9 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         config::example().replace("icon_style = \"nerd\"", "icon_style = \"unicode\""),
     )
     .context("write test config")?;
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
+    let program = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_BIN_EXE_blueberry")));
     let transport = std::env::var("BLUEBERRY_TEST_TRANSPORT").unwrap_or_else(|_| "osc".into());
     ensure!(matches!(transport.as_str(), "osc" | "pipe"));
     std::fs::write(
@@ -169,7 +325,7 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
     paths.extend(std::env::split_paths(&inherited_path));
     let path = std::env::join_paths(paths).context("construct test PATH")?;
     let token = format!("host-test-{}", uuid::Uuid::new_v4());
-    let env = BTreeMap::from([
+    let mut env = BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), ".COM;.EXE;.BAT;.CMD".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
@@ -177,6 +333,16 @@ fn start_host(cwd: &Path) -> Result<RunningHost> {
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
     ]);
+    if std::env::var("BLUEBERRY_TEST_OVERLAY_AUDIT").as_deref() == Ok("1") {
+        env.insert(
+            "BLUEBERRY_TEST_OVERLAY_AUDIT".into(),
+            data_dir
+                .path()
+                .join("overlay-ownership.jsonl")
+                .to_string_lossy()
+                .into_owned(),
+        );
+    }
     let mut harness = Harness::start(&program, &args, cwd, &env, token)
         .with_context(|| format!("start {}", program.display()))?;
     harness
@@ -565,19 +731,37 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
         &mut host.harness,
         "menu after 24x80 resize",
         Duration::from_secs(5),
-        |contents| contents.contains("git") && has_border_width(contents, 79),
+        |contents| {
+            current_editor_region(contents)
+                .is_some_and(|current| current.contains("git") && has_border_width(current, 79))
+        },
     )?;
     // The column outside the 79-cell overlay can legitimately retain shell
     // text. Check the border itself and independently verify the native screen.
     let snapshot_path = host._data_dir.path().join("resize-24-80.json");
-    console_snapshot::capture(&host.harness, &snapshot_path)?;
-    let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
+    let resize_deadline = Instant::now() + Duration::from_secs(5);
+    let actual: serde_json::Value = loop {
+        console_snapshot::capture(&mut host.harness, &snapshot_path)?;
+        let actual: serde_json::Value = serde_json::from_slice(&std::fs::read(&snapshot_path)?)?;
+        if actual["width"] == 80
+            && actual["height"] == 24
+            && has_border_width(actual["screen"].as_str().unwrap_or_default(), 79)
+        {
+            break actual;
+        }
+        ensure!(
+            Instant::now() < resize_deadline,
+            "Native narrow menu did not finish repainting: {actual}"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    };
     ensure!(
         actual["width"] == 80
             && actual["height"] == 24
             && has_border_width(actual["screen"].as_str().unwrap_or_default(), 79),
         "Native narrow menu size mismatch: {actual}"
     );
+    assert_no_old_menu_above_prompt(&actual)?;
     let narrow_contents = host.harness.contents();
     ensure!(
         narrow_contents.lines().count() <= 24,
@@ -587,37 +771,56 @@ fn host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out()
     // narrow child viewport before issuing the next resize, so an old frame
     // reflowed by the outer PTY cannot masquerade as that acknowledgement.
     host.harness.send_text("t")?;
+    let query_deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let buffer = host.harness.event(
+            "buffer",
+            query_deadline.saturating_duration_since(Instant::now()),
+        )?;
+        if buffer["line"] == "git" && buffer["cursor"] == 3 {
+            break;
+        }
+        ensure!(
+            Instant::now() < query_deadline,
+            "native buffer did not acknowledge git after resize"
+        );
+    }
     wait_until(
         &mut host.harness,
         "editable menu in narrow viewport",
-        |contents| contents.contains("⌘ git ") && !contents.contains("≈ gi "),
+        |contents| {
+            current_editor_region(contents).is_some_and(|current| {
+                has_border_width(current, 79)
+                    && current.contains("⌘ git ")
+                    && !current.contains("≈ gi ")
+            })
+        },
     )?;
     host.harness
         .resize(30, 120)
         .context("resize PTY back to 30x120")?;
-    wait_until_for(
-        &mut host.harness,
-        "menu after 30x120 resize",
-        Duration::from_secs(5),
-        |contents| {
-            contents.contains("git")
-                && contents.contains("⌘ git ")
-                && contents.lines().any(|line| {
+    // vt100::set_size crops rather than performing ConPTY's native reflow.
+    // Require the actual prompt and menu, without relaxing prompt presence
+    // just because that approximate observer lost it during resize.
+    let wide = wait_native_screen(&mut host, "resize-30-120.json", (30, 120), |contents| {
+        current_editor_region(contents).is_some_and(|current| {
+            current.contains("⌘ git ")
+                && current.lines().any(|line| {
                     line.find('╭')
                         .zip(line.rfind('╮'))
                         .is_some_and(|(start, end)| {
                             start <= end && line[start..end + '╮'.len_utf8()].chars().count() == 100
                         })
                 })
-        },
-    )?;
+        })
+    })?;
+    assert_no_old_menu_above_prompt(&wide)?;
     host.harness.send_text("\x1b")?;
-    wait_until_for(
-        &mut host.harness,
-        "menu dismissal after resize",
-        Duration::from_secs(5),
-        |contents| !contents.contains("⌘ git "),
-    )?;
+    let dismissed =
+        wait_native_screen(&mut host, "resize-dismissed.json", (30, 120), |contents| {
+            current_editor_region(contents).is_some_and(|current| !current.contains("⌘ git "))
+        })?;
+    assert_no_old_menu_above_prompt(&dismissed)?;
 
     host.harness.stop().context("stop host process")?;
     Ok(())

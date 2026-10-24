@@ -14,86 +14,216 @@ use std::{
 };
 use windows_sys::Win32::System::Threading::{CREATE_NO_WINDOW, WaitForSingleObject};
 
-pub struct Discovery(Arc<Mutex<Child>>);
+struct DiscoveryState {
+    cancelled: bool,
+    child: Option<Child>,
+    job: Option<crate::latency_layers::DirectChildJob>,
+    cache: String,
+}
+pub struct Discovery(Arc<Mutex<DiscoveryState>>);
+impl Discovery {
+    pub fn cache_status(&self) -> String {
+        self.0.lock().unwrap().cache.clone()
+    }
+}
 impl Drop for Discovery {
     fn drop(&mut self) {
-        let _ = self.0.lock().unwrap().kill();
+        let mut state = self.0.lock().unwrap();
+        state.cancelled = true;
+        state.job.take();
+        if let Some(child) = &mut state.child {
+            let _ = child.kill();
+        }
     }
 }
 pub fn start(
     shell: &Path,
     done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
 ) -> Result<Discovery> {
-    start_script(shell, include_str!("../shell/system-commands.ps1"), done)
+    start_cached(shell, false, done)
 }
+pub fn start_cached(
+    shell: &Path,
+    refresh: bool,
+    done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
+) -> Result<Discovery> {
+    start_worker(
+        shell,
+        include_str!("../shell/system-commands.ps1"),
+        Some(refresh),
+        done,
+    )
+}
+#[cfg(test)]
 fn start_script(
     shell: &Path,
     script: &str,
     done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
 ) -> Result<Discovery> {
-    let mut child = Command::new(shell)
-        .args([
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            script,
-        ])
-        .env(
-            "PSModulePath",
-            std::env::join_paths(crate::pty::module_search_paths(shell))?,
-        )
-        .creation_flags(CREATE_NO_WINDOW)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-    let handle = child.as_handle().try_clone_to_owned()?;
-    let stdout = child.stdout.take().context("metadata stdout")?;
-    let stderr = child.stderr.take().context("metadata stderr")?;
-    let shared = Arc::new(Mutex::new(child));
+    start_worker(shell, script, None, done)
+}
+fn start_worker(
+    shell: &Path,
+    script: &str,
+    cache_mode: Option<bool>,
+    done: impl FnOnce(Result<Vec<ShellCommand>>) + Send + 'static,
+) -> Result<Discovery> {
+    let requested = std::time::SystemTime::now();
+    let shared = Arc::new(Mutex::new(DiscoveryState {
+        cancelled: false,
+        child: None,
+        job: None,
+        cache: "pending".into(),
+    }));
     let process = shared.clone();
-    thread::spawn(move || {
-        let out = thread::spawn(move || {
-            let mut bytes = Vec::new();
-            stdout
-                .take(4 * 1024 * 1024 + 1)
-                .read_to_end(&mut bytes)
-                .map(|_| bytes)
-        });
-        let err = thread::spawn(move || {
-            let mut bytes = Vec::new();
-            stderr
-                .take(64 * 1024 + 1)
-                .read_to_end(&mut bytes)
-                .map(|_| bytes)
-        });
-        let result = (|| -> Result<Vec<ShellCommand>> {
-            let waited = unsafe { WaitForSingleObject(handle.as_raw_handle(), 30_000) };
-            if waited != 0 {
-                let _ = process.lock().unwrap().kill();
-            }
-            let status = process.lock().unwrap().wait()?;
-            let bytes = out
-                .join()
-                .map_err(|_| anyhow::anyhow!("metadata reader failed"))??;
-            let errors = err
-                .join()
-                .map_err(|_| anyhow::anyhow!("metadata error reader failed"))??;
-            ensure!(waited == 0, "system metadata helper timed out");
-            ensure!(
-                status.success(),
-                "system metadata helper: {}",
-                String::from_utf8_lossy(&errors)
-            );
-            ensure!(
-                bytes.len() <= 4 * 1024 * 1024,
-                "system metadata output limit"
-            );
-            parse(&String::from_utf8(bytes)?)
-        })();
-        done(result);
-    });
+    let shell = shell.to_owned();
+    let script = script.to_owned();
+    thread::Builder::new()
+        .name("blueberry module metadata".into())
+        .spawn(move || {
+            let result = (|| -> Result<Vec<ShellCommand>> {
+                ensure!(
+                    !process.lock().unwrap().cancelled,
+                    "system metadata cancelled"
+                );
+                let cache = cache_mode.and_then(|_| {
+                    crate::system_commands_cache::identity(&shell, &script)
+                        .ok()
+                        .and_then(|key| {
+                            crate::system_commands_cache::Cache::open(key, || {
+                                process.lock().unwrap().cancelled
+                            })
+                            .ok()
+                        })
+                });
+                if let Some(cache) = &cache
+                    && let Some(output) = cache.read(if cache_mode == Some(true) {
+                        Some(requested)
+                    } else {
+                        None
+                    })
+                    && let Ok(commands) = parse(&output)
+                {
+                    process.lock().unwrap().cache = "hit".into();
+                    return Ok(commands);
+                }
+                process.lock().unwrap().cache = if cache.is_some() {
+                    "rebuild"
+                } else {
+                    "unavailable"
+                }
+                .into();
+                ensure!(
+                    !process.lock().unwrap().cancelled,
+                    "system metadata cancelled"
+                );
+                // CreateProcess itself can stall the caller. Keep process creation,
+                // module-path inspection, and collection off the host dispatcher.
+                let mut child = Command::new(&shell)
+                    .args([
+                        "-NoLogo",
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-Command",
+                        &script,
+                    ])
+                    .env(
+                        "PSModulePath",
+                        std::env::join_paths(crate::pty::module_search_paths(&shell))?,
+                    )
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()?;
+                let job = match crate::latency_layers::DirectChildJob::attach(&child) {
+                    Ok(job) => job,
+                    Err(error) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return Err(error);
+                    }
+                };
+                let handle = child.as_handle().try_clone_to_owned()?;
+                let stdout = child.stdout.take().context("metadata stdout")?;
+                let stderr = child.stderr.take().context("metadata stderr")?;
+                {
+                    let mut state = process.lock().unwrap();
+                    if state.cancelled {
+                        drop(job);
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        anyhow::bail!("system metadata cancelled");
+                    }
+                    state.child = Some(child);
+                    state.job = Some(job);
+                }
+                let out = thread::spawn(move || {
+                    let mut bytes = Vec::new();
+                    stdout
+                        .take(4 * 1024 * 1024 + 1)
+                        .read_to_end(&mut bytes)
+                        .map(|_| bytes)
+                });
+                let err = thread::spawn(move || {
+                    let mut bytes = Vec::new();
+                    stderr
+                        .take(64 * 1024 + 1)
+                        .read_to_end(&mut bytes)
+                        .map(|_| bytes)
+                });
+                let waited = unsafe { WaitForSingleObject(handle.as_raw_handle(), 30_000) };
+                let mut child = {
+                    let mut state = process.lock().unwrap();
+                    // Also close any descendants' inherited output handles before
+                    // joining readers, including on cancellation or timeout.
+                    state.job.take();
+                    state.child.take().context("metadata process missing")?
+                };
+                if waited != 0 {
+                    let _ = child.kill();
+                }
+                let status = child.wait()?;
+                let bytes = out
+                    .join()
+                    .map_err(|_| anyhow::anyhow!("metadata reader failed"))??;
+                let errors = err
+                    .join()
+                    .map_err(|_| anyhow::anyhow!("metadata error reader failed"))??;
+                ensure!(
+                    !process.lock().unwrap().cancelled,
+                    "system metadata cancelled"
+                );
+                ensure!(waited == 0, "system metadata helper timed out");
+                ensure!(
+                    status.success(),
+                    "system metadata helper: {}",
+                    String::from_utf8_lossy(&errors)
+                );
+                ensure!(
+                    bytes.len() <= 4 * 1024 * 1024,
+                    "system metadata output limit"
+                );
+                let output = String::from_utf8(bytes)?;
+                let commands = parse(&output)?;
+                if let Some(cache) = cache {
+                    if crate::system_commands_cache::identity(&shell, &script)
+                        .ok()
+                        .as_ref()
+                        == Some(&cache.identity)
+                    {
+                        if cache.publish(&output).is_err() {
+                            process.lock().unwrap().cache = "write_failed".into();
+                        }
+                    } else {
+                        process.lock().unwrap().cache = "inventory_changed".into();
+                    }
+                }
+                Ok(commands)
+            })();
+            done(result);
+        })
+        .context("start system metadata worker")?;
     Ok(Discovery(shared))
 }
 fn parse(output: &str) -> Result<Vec<ShellCommand>> {
@@ -133,6 +263,42 @@ fn parse(output: &str) -> Result<Vec<ShellCommand>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn persistent_cache_child() -> Result<()> {
+        if std::env::var("BLUEBERRY_METADATA_CACHE_CHILD").as_deref() != Ok("1") {
+            return Ok(());
+        }
+        for expected in ["rebuild", "hit"] {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let discovery = start(&crate::pty::default_shell(), move |result| {
+                let _ = tx.send(result);
+            })?;
+            let commands = rx.recv_timeout(std::time::Duration::from_secs(40))??;
+            assert!(!commands.is_empty());
+            assert_eq!(discovery.cache_status(), expected);
+        }
+        Ok(())
+    }
+    #[test]
+    fn persistent_hit_avoids_metadata_helper_in_isolated_cache() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let output = Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "system_commands::tests::persistent_cache_child",
+                "--nocapture",
+            ])
+            .env("BLUEBERRY_METADATA_CACHE_CHILD", "1")
+            .env("LOCALAPPDATA", dir.path())
+            .output()?;
+        ensure!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(())
+    }
     #[test]
     fn metadata_analysis_does_not_execute_or_import_script_module() -> Result<()> {
         let dir = tempfile::tempdir()?;
@@ -178,5 +344,70 @@ mod tests {
             parse("C\t476574\tCmdlet\nCOMPLETE\n").unwrap()[0].name,
             "Get"
         );
+    }
+
+    #[test]
+    fn cancelled_metadata_reaps_hanging_helper_and_descendant() -> Result<()> {
+        use std::os::windows::io::{FromRawHandle, OwnedHandle};
+        use std::time::{Duration, Instant};
+        use windows_sys::Win32::System::Threading::OpenProcess;
+        let dir = tempfile::tempdir()?;
+        let marker = dir.path().join("metadata-processes.json");
+        let shell = crate::pty::default_shell();
+        let script = format!(
+            "$info=New-Object Diagnostics.ProcessStartInfo; $info.FileName='{}'; $info.Arguments='-NoLogo -NoProfile -NonInteractive -Command Start-Sleep -Seconds 60'; $info.UseShellExecute=$false; $info.CreateNoWindow=$true; $owned=New-Object Diagnostics.Process; $owned.StartInfo=$info; $null=$owned.Start(); [IO.File]::WriteAllText('{}', ('['+$PID+','+$owned.Id+']')); Start-Sleep -Seconds 60",
+            shell.display().to_string().replace('\'', "''"),
+            marker.display().to_string().replace('\'', "''")
+        );
+        let (tx, rx) = std::sync::mpsc::channel();
+        let discovery = start_script(&shell, &script, move |result| {
+            let _ = tx.send(result);
+        })?;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let ids: Vec<u32> = loop {
+            if let Ok(bytes) = std::fs::read(&marker)
+                && let Ok(ids) = serde_json::from_slice(&bytes)
+            {
+                break ids;
+            }
+            ensure!(Instant::now() < deadline, "metadata helper did not start");
+            thread::sleep(Duration::from_millis(10));
+        };
+        ensure!(ids.len() == 2, "missing owned descendant");
+        let handles: Vec<_> = ids
+            .into_iter()
+            .map(|pid| {
+                let raw = unsafe { OpenProcess(0x0010_0000, 0, pid) };
+                ensure!(!raw.is_null(), "cannot observe metadata child");
+                Ok(unsafe { OwnedHandle::from_raw_handle(raw) })
+            })
+            .collect::<Result<_>>()?;
+        drop(discovery);
+        let result = rx.recv_timeout(Duration::from_secs(5))?;
+        ensure!(
+            result.is_err_and(|error| error.to_string().contains("cancelled")),
+            "cancelled metadata reported success"
+        );
+        for handle in handles {
+            ensure!(
+                unsafe { WaitForSingleObject(handle.as_raw_handle(), 5_000) } == 0,
+                "owned metadata process survived cancellation"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn helper_start_failure_is_reported_by_background_worker() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let (tx, rx) = std::sync::mpsc::channel();
+        let _discovery = start_script(&dir.path().join("missing.exe"), "", move |result| {
+            let _ = tx.send(result);
+        })?;
+        ensure!(
+            rx.recv_timeout(std::time::Duration::from_secs(5))?.is_err(),
+            "helper launch failure was not reported"
+        );
+        Ok(())
     }
 }

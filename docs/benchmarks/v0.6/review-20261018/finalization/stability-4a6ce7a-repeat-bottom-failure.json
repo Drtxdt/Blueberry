@@ -1,0 +1,38 @@
+{
+  "source_commit": "4a6ce7acc57b1735d771aa0b215c58a8c86c8182",
+  "run_id": 39379818074,
+  "job_id": 118486117751,
+  "editor": "PS5.1/PSReadLine 2.0.0",
+  "test": "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+  "trace": "off",
+  "repetition": 24,
+  "error": "input missing",
+  "archive_id": 12245049391,
+  "archive_sha256": "BD36B2AB2C3047868925E49F25A157EAF684DEBCCE13E91E1C9F5A3830EF2AF6",
+  "files": {
+    "probe-screen.txt": {
+      "path": "artifacts/stability-4a6ce7a-repeat-ps51200/_temp/blueberry-direct-evidence/direct-Tfphe2/probe-screen.txt",
+      "sha256": "411562574b4a4125842e40df8e63b2151bf6329cd71f3be97a73172966532ed5"
+    },
+    "native-screen.json": {
+      "path": "artifacts/stability-4a6ce7a-repeat-ps51200/_temp/blueberry-direct-evidence/direct-Tfphe2/native-screen.json",
+      "sha256": "03bf4fb594a669f842837d141ca8a3ded64be9c473c01f4604974a17639bbe37"
+    },
+    "probe-output-tail.bin": {
+      "path": "artifacts/stability-4a6ce7a-repeat-ps51200/_temp/blueberry-direct-evidence/direct-Tfphe2/probe-output-tail.bin",
+      "sha256": "ca59ab279969b7d332e8633f8f93e810240346c99442dc6252f6e1ae73d534c7"
+    },
+    "0a84d436-c78f-4f77-957e-18cf984a3e15/adapter.json": {
+      "path": "artifacts/stability-4a6ce7a-repeat-ps51200/_temp/blueberry-direct-evidence/direct-Tfphe2/0a84d436-c78f-4f77-957e-18cf984a3e15/adapter.json",
+      "sha256": "4b9868a162ccf3f33c1bc1abe828abebd324206e9f68d99016726e43baaa5d94"
+    }
+  },
+  "observations": [
+    "Saved VT screen ends with partially typed Get-ChildItem .\\na, menu border and first selected nav-00.txt row.",
+    "Later independent native snapshot contains complete Get-ChildItem .\\nav- at row 17 and selected nav-00.txt at row 19, with full menu below input.",
+    "Adapter automatic_menu=true and disabled_reason=null.",
+    "nav-00 is already a valid candidate for the partial input .\\na; seeing that label does not acknowledge all injected input."
+  ],
+  "correction": "Wait for one complete rendered frame containing both the full input and the selected first path, before comparing input/menu rows. Use existing opt-in completed-frame observer and unchanged 20-second deadline.",
+  "scope": "Observation correction, not evidence of a product input-loss fix."
+}

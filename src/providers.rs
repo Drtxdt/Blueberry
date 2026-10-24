@@ -1752,11 +1752,57 @@ fn read_available_git_stdout(
 }
 
 #[cfg(windows)]
+fn spawn_git_with_budget(
+    command: &mut Command,
+    deadline: &mut Instant,
+    spawn: impl FnOnce(&mut Command) -> io::Result<std::process::Child>,
+) -> io::Result<std::process::Child> {
+    // Windows process creation can wait behind another thread's spawn. That
+    // wait cannot be cancelled here and must not consume the child's entire
+    // execution budget before it has run. Observation timings still include it.
+    let started = Instant::now();
+    let result = spawn(command);
+    if result.is_ok() {
+        *deadline += started.elapsed();
+    }
+    result
+}
+
+#[cfg(all(test, windows))]
+mod spawn_budget_tests {
+    use super::*;
+
+    #[test]
+    fn queued_creation_does_not_expire_a_command_before_it_runs() {
+        let mut command = Command::new("cmd.exe");
+        command
+            .args(["/D", "/C", "echo GIT-BUDGET-READY"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        let mut deadline = Instant::now() + Duration::from_millis(200);
+        let child = spawn_git_with_budget(&mut command, &mut deadline, |command| {
+            // Deterministically stand in for an OS/stdlib creation queue.
+            std::thread::sleep(Duration::from_millis(250));
+            command.spawn()
+        })
+        .unwrap();
+        assert!(
+            Instant::now() < deadline,
+            "command was expired before execution"
+        );
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success());
+        assert!(String::from_utf8_lossy(&output.stdout).contains("GIT-BUDGET-READY"));
+    }
+}
+
+#[cfg(windows)]
 fn run_fixed_git(
     query: &ProjectQuery,
     ctx: &GitContext,
     args: &[&str],
-    deadline: Instant,
+    deadline: &mut Instant,
     cancelled_flag: &AtomicBool,
 ) -> FixedOutput {
     if cancelled(cancelled_flag) {
@@ -1787,7 +1833,7 @@ fn run_fixed_git(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    let mut child = match command.spawn() {
+    let mut child = match spawn_git_with_budget(&mut command, deadline, Command::spawn) {
         Ok(child) => child,
         Err(error) => {
             return FixedOutput {
@@ -1814,7 +1860,7 @@ fn run_fixed_git(
             let _ = child.kill();
             break child.wait().ok();
         }
-        if Instant::now() >= deadline {
+        if Instant::now() >= *deadline {
             timed_out = true;
             let _ = child.kill();
             break child.wait().ok();
@@ -1850,7 +1896,7 @@ fn run_fixed_git(
                         was_cancelled = true;
                         break;
                     }
-                    if Instant::now() >= deadline {
+                    if Instant::now() >= *deadline {
                         timed_out = true;
                         break;
                     }
@@ -1900,7 +1946,7 @@ fn run_fixed_git(
     query: &ProjectQuery,
     ctx: &GitContext,
     args: &[&str],
-    deadline: Instant,
+    deadline: &mut Instant,
     cancelled_flag: &AtomicBool,
 ) -> FixedOutput {
     if cancelled(cancelled_flag) {
@@ -1952,7 +1998,7 @@ fn run_fixed_git(
             let _ = child.kill();
             break child.wait().ok();
         }
-        if Instant::now() >= deadline {
+        if Instant::now() >= *deadline {
             timed_out = true;
             let _ = child.kill();
             break child.wait().ok();
@@ -2020,12 +2066,12 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
         ..ProviderResult::default()
     };
     git_watch_paths(&ctx, &mut result, needs.status_paths);
-    if ctx.subcommand.is_empty()
+    if (ctx.subcommand.is_empty() && query.provider.is_none())
         || (!needs.refs && !needs.remotes && !needs.worktrees && !needs.status_paths)
     {
         return result;
     }
-    let deadline = Instant::now() + GIT_DEADLINE;
+    let mut deadline = Instant::now() + GIT_DEADLINE;
     let mut refs = GitRefs::default();
     if needs.refs {
         let output = run_fixed_git(
@@ -2039,7 +2085,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
                 "refs/remotes",
                 "refs/tags",
             ],
-            deadline,
+            &mut deadline,
             cancelled_flag,
         );
         append_git_process_diagnostic(&mut result, "引用", &output);
@@ -2048,7 +2094,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
         }
     }
     if needs.remotes && !cancelled(cancelled_flag) && Instant::now() < deadline {
-        let output = run_fixed_git(query, &ctx, &["remote"], deadline, cancelled_flag);
+        let output = run_fixed_git(query, &ctx, &["remote"], &mut deadline, cancelled_flag);
         append_git_process_diagnostic(&mut result, "远端", &output);
         if !output.interrupted() && !output.failed() {
             refs.remotes.extend(
@@ -2066,7 +2112,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
             query,
             &ctx,
             &["worktree", "list", "--porcelain"],
-            deadline,
+            &mut deadline,
             cancelled_flag,
         );
         append_git_process_diagnostic(&mut result, "工作树", &output);
@@ -2088,7 +2134,7 @@ fn collect_git(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderRes
             query,
             &ctx,
             &["status", "--short", "--untracked-files=all", "-z"],
-            deadline,
+            &mut deadline,
             cancelled_flag,
         );
         append_git_process_diagnostic(&mut result, "状态路径", &output);
@@ -3595,7 +3641,37 @@ fn node_project_root(query: &ProjectQuery) -> Option<PathBuf> {
         .and_then(|manifest| manifest.parent().map(lexical_normalize))
 }
 
-pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProviderCandidate> {
+/// Identity belongs to the project and action, never its display position or description.
+#[derive(Clone, Debug)]
+pub struct ProjectAction {
+    pub invocation: crate::invocation::Invocation,
+    pub id: String,
+    pub candidate: ProviderCandidate,
+}
+impl ProjectAction {
+    fn new(
+        manifest: &Path,
+        candidate: ProviderCandidate,
+        words: Vec<crate::invocation::Word>,
+    ) -> Self {
+        use sha2::{Digest, Sha256};
+        let root = manifest.parent().unwrap_or(manifest);
+        let root = root
+            .canonicalize()
+            .unwrap_or_else(|_| lexical_normalize(root));
+        let identity = serde_json::to_vec(&(&candidate.source, root, &candidate.value))
+            .expect("project action identity serializes");
+        let id = format!("project-action:{:x}", Sha256::digest(identity));
+        Self {
+            id,
+            candidate,
+            invocation: crate::invocation::Invocation { words },
+        }
+    }
+}
+
+pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProjectAction> {
+    use crate::invocation::Word::{Literal, Syntax};
     let query = query.trim().to_lowercase();
     let mut actions = Vec::new();
     let matches = |words: &[&str]| {
@@ -3618,38 +3694,72 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProviderCandidate> {
                 vec!["运行脚本"]
             };
             if matches(&words) {
-                actions.push(ProviderCandidate {
-                    value: format!("npm run {name}"),
-                    description: format!("package.json 脚本 · {}", words[0]),
-                    kind: CandidateKind::Command,
-                    source: "project.action.node".into(),
-                });
+                actions.push(ProjectAction::new(
+                    &path,
+                    ProviderCandidate {
+                        value: format!("npm run {}", crate::hub::quote_powershell_token(name)),
+                        description: format!("package.json 脚本 · {}", words[0]),
+                        kind: CandidateKind::Command,
+                        source: "project.action.node".into(),
+                    },
+                    vec![
+                        Syntax("npm".into()),
+                        Syntax("run".into()),
+                        Literal(name.clone()),
+                    ],
+                ));
             }
         }
     }
-    if find_upwards(cwd, "Cargo.toml").is_some() && matches(&["测试", "运行测试"]) {
-        actions.push(ProviderCandidate {
-            value: "cargo test".into(),
-            description: "当前 Rust 项目测试".into(),
-            kind: CandidateKind::Command,
-            source: "project.action.cargo".into(),
-        });
+    if let Some(path) = find_upwards(cwd, "Cargo.toml")
+        && matches(&["测试", "运行测试"])
+    {
+        actions.push(ProjectAction::new(
+            &path,
+            ProviderCandidate {
+                value: "cargo test".into(),
+                description: "当前 Rust 项目测试".into(),
+                kind: CandidateKind::Command,
+                source: "project.action.cargo".into(),
+            },
+            vec![Syntax("cargo".into()), Syntax("test".into())],
+        ));
     }
-    if find_upwards(cwd, "go.mod").is_some() && matches(&["测试", "运行测试"]) {
-        actions.push(ProviderCandidate {
-            value: "go test ./...".into(),
-            description: "当前 Go 模块测试".into(),
-            kind: CandidateKind::Command,
-            source: "project.action.go".into(),
-        });
+    if let Some(path) = find_upwards(cwd, "go.mod")
+        && matches(&["测试", "运行测试"])
+    {
+        actions.push(ProjectAction::new(
+            &path,
+            ProviderCandidate {
+                value: "go test ./...".into(),
+                description: "当前 Go 模块测试".into(),
+                kind: CandidateKind::Command,
+                source: "project.action.go".into(),
+            },
+            vec![
+                Syntax("go".into()),
+                Syntax("test".into()),
+                Literal("./...".into()),
+            ],
+        ));
     }
-    if find_upwards(cwd, "pyproject.toml").is_some() && matches(&["测试", "运行测试"]) {
-        actions.push(ProviderCandidate {
-            value: "uv run pytest".into(),
-            description: "当前 Python 项目测试".into(),
-            kind: CandidateKind::Command,
-            source: "project.action.python".into(),
-        });
+    if let Some(path) = find_upwards(cwd, "pyproject.toml")
+        && matches(&["测试", "运行测试"])
+    {
+        actions.push(ProjectAction::new(
+            &path,
+            ProviderCandidate {
+                value: "uv run pytest".into(),
+                description: "当前 Python 项目测试".into(),
+                kind: CandidateKind::Command,
+                source: "project.action.python".into(),
+            },
+            vec![
+                Syntax("uv".into()),
+                Syntax("run".into()),
+                Syntax("pytest".into()),
+            ],
+        ));
     }
     if let Some(path) = [
         "compose.yaml",
@@ -3677,12 +3787,25 @@ pub fn project_actions(cwd: &Path, query: &str) -> Vec<ProviderCandidate> {
             {
                 let service = line.trim().trim_end_matches(':');
                 if matches(&["日志", "服务日志", "查看日志"]) {
-                    actions.push(ProviderCandidate {
-                        value: format!("docker compose logs -f {service}"),
-                        description: "当前 Compose 服务日志".into(),
-                        kind: CandidateKind::Command,
-                        source: "project.action.compose".into(),
-                    });
+                    actions.push(ProjectAction::new(
+                        &path,
+                        ProviderCandidate {
+                            value: format!(
+                                "docker compose logs -f {}",
+                                crate::hub::quote_powershell_token(service)
+                            ),
+                            description: "当前 Compose 服务日志".into(),
+                            kind: CandidateKind::Command,
+                            source: "project.action.compose".into(),
+                        },
+                        vec![
+                            Syntax("docker".into()),
+                            Syntax("compose".into()),
+                            Syntax("logs".into()),
+                            Syntax("-f".into()),
+                            Literal(service.into()),
+                        ],
+                    ));
                 }
             }
         }
@@ -3791,6 +3914,157 @@ fn add_values<I>(
     }
 }
 
+fn python_test_paths(
+    query: &ProjectQuery,
+    manifest: &Path,
+    value: &toml::Value,
+    result: &mut ProviderResult,
+    cancelled_flag: &AtomicBool,
+) {
+    let root = manifest.parent().unwrap_or(&query.cwd);
+    let options = value
+        .get("tool")
+        .and_then(|v| v.get("pytest"))
+        .and_then(|v| v.get("ini_options"));
+    let strings = |name: &str| -> Vec<String> {
+        match options.and_then(|v| v.get(name)) {
+            Some(toml::Value::Array(values)) => values
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect(),
+            Some(toml::Value::String(value)) => {
+                value.split_whitespace().map(str::to_owned).collect()
+            }
+            _ => Vec::new(),
+        }
+    };
+    let mut paths = strings("testpaths");
+    let mut patterns = strings("python_files");
+    for name in ["pytest.ini", "setup.cfg"] {
+        let config = root.join(name);
+        add_watch_path(result, &config);
+        if let Ok(text) = read_limited(&config, MANIFEST_LIMIT) {
+            let mut active = false;
+            let mut option = None;
+            for raw in text.lines() {
+                let line = raw.trim();
+                if line.is_empty() || line.starts_with(['#', ';']) {
+                    continue;
+                }
+                if line.starts_with('[') {
+                    active = matches!(line, "[pytest]" | "[tool:pytest]");
+                    option = None;
+                    continue;
+                }
+                if !active {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    option = match key.trim() {
+                        "testpaths" => Some(false),
+                        "python_files" => Some(true),
+                        _ => None,
+                    };
+                    if let Some(pattern) = option {
+                        let target = if pattern { &mut patterns } else { &mut paths };
+                        *target = value.split_whitespace().map(str::to_owned).collect();
+                    }
+                } else if raw.starts_with(char::is_whitespace)
+                    && let Some(pattern) = option
+                {
+                    let target = if pattern { &mut patterns } else { &mut paths };
+                    target.extend(line.split_whitespace().map(str::to_owned));
+                } else {
+                    option = None;
+                }
+            }
+        }
+    }
+    if patterns.is_empty() {
+        patterns = vec!["test_*.py".into(), "*_test.py".into()];
+    }
+    let roots = if paths.is_empty() {
+        vec![root.to_path_buf()]
+    } else {
+        paths.iter().map(|p| root.join(p)).collect()
+    };
+    let mut stack = roots.into_iter().map(|p| (p, 0)).collect::<Vec<_>>();
+    let mut visited = 0;
+    let started = Instant::now();
+    while let Some((path, depth)) = stack.pop() {
+        visited += 1;
+        if cancelled(cancelled_flag)
+            || visited > 4096
+            || started.elapsed() > Duration::from_millis(250)
+        {
+            result.incomplete = true;
+            break;
+        }
+        if depth > 12 {
+            result.incomplete = true;
+            continue;
+        }
+        add_watch_path(result, &path);
+        let Ok(meta) = fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            if meta.file_attributes() & 0x400 != 0 {
+                continue;
+            }
+        }
+        if meta.is_dir() {
+            if path != root
+                && path.file_name().is_some_and(|n| {
+                    matches!(
+                        n.to_str(),
+                        Some(".git" | ".venv" | "venv" | "__pycache__" | "node_modules" | "target")
+                    )
+                })
+            {
+                continue;
+            }
+            if let Ok(entries) = fs::read_dir(&path) {
+                for entry in entries.flatten() {
+                    // Bound admission as well as traversal: a single large
+                    // directory must not allocate an unbounded pending stack
+                    // before the next cancellation/deadline check.
+                    if cancelled(cancelled_flag)
+                        || visited + stack.len() >= 4096
+                        || started.elapsed() > Duration::from_millis(250)
+                    {
+                        result.incomplete = true;
+                        break;
+                    }
+                    stack.push((entry.path(), depth + 1));
+                }
+            }
+        } else if path.file_name().is_some_and(|name| {
+            patterns
+                .iter()
+                .any(|pattern| wildcard_match(pattern, &name.to_string_lossy()))
+        }) {
+            let relative = path
+                .strip_prefix(&query.cwd)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .into_owned();
+            add_values(
+                result,
+                [relative],
+                "静态发现的 pytest 测试路径（未执行收集）",
+                "python.test",
+                &query.prefix,
+            );
+        }
+    }
+}
+
 fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> ProviderResult {
     let mut result = ProviderResult::default();
     if (active_scope(query, "python") == "dependencies"
@@ -3823,6 +4097,19 @@ fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provider
     }
 
     let Some(manifest) = find_upwards(&query.cwd, "pyproject.toml") else {
+        if active_scope(query, "python") == "tests"
+            && let Some(config) = find_upwards(&query.cwd, "pytest.ini")
+                .or_else(|| find_upwards(&query.cwd, "setup.cfg"))
+        {
+            result.project_root = config.parent().map(Path::to_path_buf);
+            python_test_paths(
+                query,
+                &config,
+                &toml::Value::Table(Default::default()),
+                &mut result,
+                cancelled_flag,
+            );
+        }
         return result;
     };
     result.project_root = manifest.parent().map(Path::to_path_buf);
@@ -3831,12 +4118,61 @@ fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provider
         result.incomplete = true;
         return result;
     }
-    if let Ok(text) = read_limited(&manifest, MANIFEST_LIMIT) {
-        let scope = query.provider.as_deref().unwrap_or("");
-        if scope.ends_with("scripts") || query.args.iter().any(|a| a == "run") {
-            let Ok(value) = text.parse::<toml::Value>() else {
-                return result.finish();
-            };
+    let value = match read_limited(&manifest, MANIFEST_LIMIT)
+        .map_err(|error| error.to_string())
+        .and_then(|text| toml::from_str::<toml::Value>(&text).map_err(|error| error.to_string()))
+    {
+        Ok(value) => value,
+        Err(error) => {
+            result
+                .diagnostics
+                .push(format!("无法读取 Python 项目清单：{error}"));
+            return result.finish();
+        }
+    };
+    match active_scope(query, "python") {
+        "tests" => python_test_paths(query, &manifest, &value, &mut result, cancelled_flag),
+        "groups" => {
+            let groups = value
+                .get("dependency-groups")
+                .and_then(toml::Value::as_table)
+                .into_iter()
+                .flat_map(|table| table.keys().cloned());
+            add_values(
+                &mut result,
+                groups,
+                "Python 依赖组",
+                "python.group",
+                &query.prefix,
+            );
+        }
+        "environments" => {
+            let project = manifest.parent().unwrap_or(&query.cwd);
+            let mut environments = vec![project.join(".venv")];
+            if let Some(active) = query.environment.get("VIRTUAL_ENV") {
+                environments.push(active.into());
+            }
+            for environment in environments {
+                add_watch_path(&mut result, &environment.join("pyvenv.cfg"));
+                if environment.is_dir() {
+                    if !environment.join("pyvenv.cfg").is_file() {
+                        result.diagnostics.push(format!(
+                            "Python 环境缺少 pyvenv.cfg：{}",
+                            environment.display()
+                        ));
+                        continue;
+                    }
+                    add_values(
+                        &mut result,
+                        [environment.display().to_string()],
+                        "Python 虚拟环境",
+                        "python.environment",
+                        &query.prefix,
+                    );
+                }
+            }
+        }
+        scope if scope == "scripts" || query.args.iter().any(|a| a == "run") => {
             let scripts = value
                 .get("project")
                 .and_then(|v| v.get("scripts"))
@@ -3859,10 +4195,8 @@ fn collect_python(query: &ProjectQuery, cancelled_flag: &AtomicBool) -> Provider
                 "python.script",
                 &query.prefix,
             );
-        } else {
-            let Ok(value) = text.parse::<toml::Value>() else {
-                return result.finish();
-            };
+        }
+        _ => {
             let dependencies = value
                 .get("project")
                 .and_then(|v| v.get("dependencies"))

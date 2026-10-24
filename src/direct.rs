@@ -1,6 +1,7 @@
-//! Experimental inherited-console host. PSReadLine is the sole input reader
+//! Default Windows inherited-console host. PSReadLine is the sole input reader
 //! and console writer. This service reuses the nested host's completion worker.
 use super::*;
+include!(concat!(env!("OUT_DIR"), "/direct-diagnostics.rs"));
 use anyhow::{bail, ensure};
 use std::{
     os::windows::io::{AsHandle, AsRawHandle},
@@ -10,6 +11,43 @@ use std::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
+
+// Native foreground programs enable processed console input. Ctrl+C then
+// broadcasts a control event to every attached process, including this
+// supervisor. The shell and foreground child must handle it, while the host
+// stays alive to preserve its pipe and the child Job. Register a callback,
+// not SetConsoleCtrlHandler(NULL, TRUE): the latter's ignore flag is inherited
+// and would prevent newly spawned programs from receiving Ctrl+C.
+struct ConsoleInterruptGuard;
+unsafe extern "system" fn handle_console_interrupt(event: u32) -> i32 {
+    use windows_sys::Win32::System::Console::{CTRL_BREAK_EVENT, CTRL_C_EVENT};
+    i32::from(matches!(event, CTRL_C_EVENT | CTRL_BREAK_EVENT))
+}
+impl ConsoleInterruptGuard {
+    fn install() -> Result<Self> {
+        let installed = unsafe {
+            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(
+                Some(handle_console_interrupt),
+                1,
+            )
+        };
+        if installed == 0 {
+            return Err(std::io::Error::last_os_error())
+                .context("protect direct console supervisor");
+        }
+        Ok(Self)
+    }
+}
+impl Drop for ConsoleInterruptGuard {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(
+                Some(handle_console_interrupt),
+                0,
+            );
+        }
+    }
+}
 
 fn command_batch_matches(
     value: &Value,
@@ -36,28 +74,22 @@ struct Session {
     width: u16,
     rows: usize,
     available_rows: Option<usize>,
-    last_completion: Option<Completion>,
+    last_completion: Option<Arc<Completion>>,
     frame: u64,
-    visible: std::collections::VecDeque<(u64, String, Candidate, Completion)>,
+    visible: std::collections::VecDeque<(u64, String, Candidate, Arc<Completion>)>,
     accepting: bool,
     selected: usize,
     selected_id: Option<String>,
+    selection: crate::selection::SelectionState,
     cwd: PathBuf,
     ui: Option<Workbench>,
+    high_surrogate: Option<u16>,
     values_requested: u64,
     history_pending: bool,
     history_partial: bool,
     details: bool,
 }
-struct Workbench {
-    input: String,
-    high_surrogate: Option<u16>,
-    form: Option<crate::hub::TemplateForm>,
-    project: bool,
-    templates: BTreeMap<String, crate::hub::CommandTemplate>,
-    error: Option<String>,
-    generation: u64,
-}
+use crate::workbench::Workbench;
 
 impl Session {
     fn new() -> Self {
@@ -74,8 +106,10 @@ impl Session {
             accepting: false,
             selected: 0,
             selected_id: None,
+            selection: Default::default(),
             cwd: PathBuf::new(),
             ui: None,
+            high_surrogate: None,
             values_requested: 0,
             history_pending: false,
             history_partial: false,
@@ -100,6 +134,7 @@ impl Session {
         self.accepting = false;
         self.selected = 0;
         self.selected_id = None;
+        self.selection.reset();
         Ok(())
     }
     fn geometry(&mut self, value: &Value) {
@@ -127,35 +162,32 @@ impl Session {
         self.revision = revision;
         self.geometry(value);
         Some(match self.last_completion.clone() {
-            Some(completion) => self.render(completion, settings, token),
+            Some(completion) => self.render((*completion).clone(), settings, token),
             None => self.clear_frame(token),
         })
     }
     fn render(&mut self, mut completion: Completion, settings: &Config, token: &str) -> Value {
         self.frame += 1;
-        // An unfinished provider refresh must not remove the navigated item.
-        // A final result (including an empty one) is authoritative.
-        if self.ui.is_none()
-            && completion.incomplete
-            && let Some(id) = &self.selected_id
-            && !completion.candidates.iter().any(|c| c.identity() == id)
-            && let Some(previous) = &self.last_completion
-            && previous.replace_start == completion.replace_start
-            && previous.replace_end == completion.replace_end
-        {
-            completion.candidates.clone_from(&previous.candidates);
-        }
-        if let Some(id) = &self.selected_id
-            && let Some(index) = completion
-                .candidates
-                .iter()
-                .position(|c| c.identity() == id)
-        {
-            self.selected = index;
+        if self.ui.is_none() {
+            self.selected = self.selection.refresh(
+                self.last_completion.as_deref(),
+                self.selected,
+                &mut completion,
+            );
+        } else if let Some(ui) = self.ui.as_mut() {
+            self.selected = ui.refreshed_selection(
+                self.last_completion.as_deref(),
+                self.selected,
+                &mut completion,
+            );
         }
         self.selected = self
             .selected
             .min(completion.candidates.len().saturating_sub(1));
+        // Visible-frame validation and later layout reuse the same immutable
+        // snapshot. Keep candidate strings once, after selection has resolved
+        // any incomplete refresh; accepted frames never observe later mutation.
+        let completion = Arc::new(completion);
         let candidate = completion.candidates.get(self.selected);
         let id = candidate
             .map(|c| c.identity().to_owned())
@@ -240,30 +272,14 @@ impl Session {
     }
     fn refresh_hub(&mut self, settings: &Config, token: &str, history: &[String]) -> Value {
         let ui = self.ui.as_mut().expect("active workbench");
-        let completion = if let Some(form) = &ui.form {
-            crate::hub::form_completion(form, &ui.input, self.line.len())
-        } else {
-            let (candidates, templates) = crate::hub::search_with_history_guided(
-                settings,
-                &ui.input,
-                history,
-                None,
-                crate::hub::guided_template(&self.line, self.cursor),
-            );
-            ui.templates = templates;
-            Completion {
-                replace_start: 0,
-                replace_end: self.line.len(),
-                candidates,
-                incomplete: self.history_pending,
-                argument_hint: if self.history_partial {
-                    "工作台 · 部分历史 · Enter 填回 · Esc 取消"
-                } else {
-                    "工作台 · Enter 填回 · Esc 取消"
-                }
-                .into(),
-            }
-        };
+        let completion = ui.completion(
+            settings,
+            &self.line,
+            self.cursor,
+            history,
+            self.history_pending,
+            self.history_partial,
+        );
         self.render(completion, settings, token)
     }
     fn request_values(
@@ -283,14 +299,17 @@ impl Session {
             return;
         }
         self.values_requested = generation;
+        let context = ui.form.as_ref().unwrap().provider_context();
         thread::spawn(move || {
             let started = Instant::now();
-            let values = crate::hub::parameter_suggestions(&field, "", &cwd, &environment);
+            let values = crate::hub::parameter_suggestions(&field, &context, &cwd, &environment);
             let _ = tx.send(HostEvent::FormValues(
                 generation,
                 field.name,
                 values,
                 started.elapsed(),
+                cwd,
+                environment,
             ));
         });
     }
@@ -300,6 +319,7 @@ impl Session {
         settings: &Config,
         token: &str,
         history: &[String],
+        shell: (&BTreeMap<String, String>, &[ShellCommand]),
     ) -> Result<Value> {
         let next = value["revision"].as_u64().context("missing UI revision")?;
         ensure!(
@@ -332,75 +352,56 @@ impl Session {
         let ui = self.ui.as_mut().context("no active workbench")?;
         ui.error = None;
         match key {
+            "Tab" if value["modifiers"].as_u64().unwrap_or(0) & 1 != 0 => {
+                if ui.back() {
+                    ui.generation = self.revision;
+                }
+            }
             "Enter" => {
-                if let Some(form) = ui.form.as_mut() {
-                    match form.submit(&ui.input) {
-                        Ok(true) => {
-                            if ui.project {
-                                crate::packs::verify_approval(&self.cwd)?;
-                            }
-                            let command = form.finish()?;
-                            return Ok(self.edit_command(command, token));
-                        }
-                        Ok(false) => {
-                            ui.input.clear();
-                            ui.generation += 1;
-                        }
-                        Err(error) => ui.error = Some(format!("{error:#}")),
+                if ui.form.is_some() {
+                    if let Ok(Some(command)) = ui.advance(&self.cwd) {
+                        return Ok(self.edit_command(command, token));
                     }
+                    ui.generation = self.revision;
                 } else if let Some((_, _, candidate, _)) = seen {
-                    ui.project = candidate.id.starts_with("hub:project:");
-                    if ui.project {
-                        crate::packs::verify_approval(&self.cwd)?;
-                    }
-                    if let Some(template) = ui.templates.get(&candidate.id).cloned() {
-                        let form = crate::hub::TemplateForm::new(template)?;
-                        if form.is_empty() {
-                            return Ok(self.edit_command(form.finish()?, token));
-                        }
-                        ui.form = Some(form);
-                        ui.input.clear();
-                        ui.generation += 1;
-                    } else {
-                        return Ok(self.edit_command(candidate.insert_text, token));
+                    match ui.activate(&candidate, shell.0, shell.1, &self.cwd) {
+                        Ok(Some(command)) => return Ok(self.edit_command(command, token)),
+                        Ok(None) => ui.generation = self.revision,
+                        Err(_) => {}
                     }
                 }
             }
             "Backspace" => {
-                ui.high_surrogate = None;
+                self.high_surrogate = None;
                 ui.input.pop();
                 self.selected = 0;
             }
-            "UpArrow" | "DownArrow" => {
-                if let Some(field) = ui.form.as_ref().and_then(|form| form.current()) {
-                    if !field.values.is_empty() {
-                        let forward = key == "DownArrow";
-                        let index = field.values.iter().position(|v| v == &ui.input);
-                        let next = match index {
-                            Some(index) if forward => (index + 1) % field.values.len(),
-                            Some(0) => field.values.len() - 1,
-                            Some(index) => index - 1,
-                            None => 0,
-                        };
-                        ui.input = field.values[next].clone();
-                    }
-                } else if let Some((_, _, _, completion)) = seen {
+            "UpArrow" | "DownArrow" | "PageUp" | "PageDown" => {
+                if ui.form.is_some() && matches!(key, "UpArrow" | "DownArrow") {
+                    ui.cycle(key == "DownArrow");
+                } else if let Some((_, identity, _, completion)) = seen {
                     let count = completion.candidates.len();
                     if count > 0 {
-                        self.selected = if key == "DownArrow" {
-                            (self.selected + 1) % count
+                        let current = completion
+                            .candidates
+                            .iter()
+                            .position(|c| c.identity() == identity)
+                            .unwrap_or(0);
+                        self.selected = if matches!(key, "PageUp" | "PageDown") {
+                            ui.page(current, count, settings.ui.max_rows, key == "PageDown")
                         } else {
-                            (self.selected + count - 1) % count
+                            ui.navigate(current, count, key == "DownArrow")
                         };
+                        self.last_completion = Some(completion);
                     }
                 }
             }
             _ if value["modifiers"].as_u64().unwrap_or(0) & 6 == 0 => {
                 let unit = value["character_unit"].as_u64().unwrap_or(0) as u16;
                 if (0xd800..=0xdbff).contains(&unit) {
-                    ui.high_surrogate = Some(unit);
+                    self.high_surrogate = Some(unit);
                 } else if (0xdc00..=0xdfff).contains(&unit) {
-                    if let Some(high) = ui.high_surrogate.take() {
+                    if let Some(high) = self.high_surrogate.take() {
                         ui.input.push(
                             char::from_u32(
                                 0x10000 + (u32::from(high) - 0xd800) * 0x400 + u32::from(unit)
@@ -412,7 +413,7 @@ impl Session {
                 } else if let Some(ch) =
                     char::from_u32(u32::from(unit)).filter(|ch| !ch.is_control())
                 {
-                    ui.high_surrogate = None;
+                    self.high_surrogate = None;
                     ui.input.push(ch);
                 }
                 self.selected = 0;
@@ -458,7 +459,13 @@ impl Session {
             (current + count - 1) % count
         };
         self.selected_id = None;
-        Ok(self.render(completion, settings, token))
+        if value["key"] != "F1" {
+            self.selection.navigated();
+        }
+        // Navigation refers to a displayed snapshot, which may precede the
+        // most recent asynchronous result.
+        self.last_completion = Some(completion.clone());
+        Ok(self.render((*completion).clone(), settings, token))
     }
 }
 
@@ -502,6 +509,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         matches!(options.transport, Transport::Pipe),
         "direct host requires pipe transport; OSC is only supported by the nested host"
     );
+    let _interrupts = ConsoleInterruptGuard::install()?;
     let settings = config::load(options.config_path.as_deref())?;
     let trace = Trace::open(options.trace_path.as_deref())?;
     if trace.enabled() {
@@ -669,34 +677,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     }
                     match value["event"].as_str() {
                         Some("trace_point") if ready && trace.enabled() => {
-                            let stage = match value["stage"].as_str() {
-                                Some("editor_confirmed") => "editor_confirmed",
-                                Some("editor_refresh_enter") => "editor_refresh_enter",
-                                Some("editor_menu_written") => "editor_menu_written",
-                                Some("editor_frame_received") => "editor_frame_received",
-                                Some("direct_script_enter") => "direct_script_enter",
-                                Some("direct_command_enter") => "direct_command_enter",
-                                Some("direct_explicit_module_ready") => {
-                                    "direct_explicit_module_ready"
-                                }
-                                Some("direct_module_loaded") => "direct_module_loaded",
-                                Some("direct_bridge_jit_started") => "direct_bridge_jit_started",
-                                Some("direct_bridge_jit_finished") => "direct_bridge_jit_finished",
-                                Some("direct_module_lookup") => "direct_module_lookup",
-                                Some("direct_module_imported") => "direct_module_imported",
-                                Some("direct_background_jit_started") => {
-                                    "direct_background_jit_started"
-                                }
-                                Some("direct_background_jit_finished") => {
-                                    "direct_background_jit_finished"
-                                }
-                                Some("direct_assembly_loaded") => "direct_assembly_loaded",
-                                Some("editor_loop_enter") => "editor_loop_enter",
-                                Some("editor_begin_complete") => "editor_begin_complete",
-                                Some("editor_key_received") => "editor_key_received",
-                                Some("editor_native_dispatch") => "editor_native_dispatch",
-                                Some("editor_native_complete") => "editor_native_complete",
-                                _ => bail!("unknown direct timestamp phase"),
+                            let Some(stage) = diagnostic_stage(&value) else {
+                                continue;
                             };
                             trace.point(
                                 stage,
@@ -706,29 +688,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             );
                         }
                         Some("trace") if ready && trace.enabled() => {
-                            let stage = match value["stage"].as_str() {
-                                Some("direct_binding_snapshot") => "direct_binding_snapshot",
-                                Some("direct_binding_registration") => {
-                                    "direct_binding_registration"
-                                }
-                                Some("direct_bridge_initialization") => {
-                                    "direct_bridge_initialization"
-                                }
-                                Some("direct_readline_begin") => "direct_readline_begin",
-                                Some("direct_background_jit") => "direct_background_jit",
-                                Some("direct_bridge_jit") => "direct_bridge_jit",
-                                Some("direct_background_jit_failed") => {
-                                    "direct_background_jit_failed"
-                                }
-                                Some("direct_binding_audit") => "direct_binding_audit",
-                                Some("direct_response_wait") => "direct_response_wait",
-                                Some("direct_original_edit") => "direct_original_edit",
-                                Some("direct_confirmed_query_send") => {
-                                    "direct_confirmed_query_send"
-                                }
-                                Some("direct_console_menu_output") => "direct_console_menu_output",
-                                Some("direct_frame_to_paint") => "direct_frame_to_paint",
-                                _ => bail!("unknown numeric direct trace phase"),
+                            let Some(stage) = diagnostic_stage(&value) else {
+                                continue;
                             };
                             trace.event(
                                 stage,
@@ -740,6 +701,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 trace.flush();
                             }
                         }
+                        Some("trace_point" | "trace") if ready => {}
                         Some("hello") => {
                             ensure!(
                                 !ready
@@ -784,12 +746,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 .all(|name| capabilities.iter().any(|item| item == name)),
                                 "incompatible direct capabilities"
                             );
-                            pipe.write_json(&json!({"kind":"hello","token":token,"protocol":1,"host_mode":"direct","transport":"pipe","capabilities":capabilities}))?;
+                            pipe.write_json(&json!({"kind":"hello","token":token,"protocol":1,"host_mode":"direct","transport":"pipe","capabilities":capabilities,"up_arrow_history":settings.completion.up_arrow_history}))?;
                             automatic = value["automatic_menu"] == true;
                             adapter_status = json!({"shell_version":value["shell_version"],"psreadline_version":value["psreadline"],
                             "editor_mode":value["editor_mode"],"editor_patch":value["editor_patch"],"editor_dll_sha256":value["editor_dll_sha256"],"editor_fallback_reason":value["editor_fallback_reason"],
+                            "terminal_restore":value["terminal_restore"], "terminal_connected":value["terminal_connected"], "terminal_fallback_reason":value["terminal_fallback_reason"],
                             "session_commands":{"source":"editor","count":0,"complete":false,"error":null},
-                            "system_commands":{"source":"system module export metadata","count":0,"error":null},
+                            "system_commands":{"source":"system module export metadata","count":0,"complete":false,"error":null},
                             "transport":"pipe","host_mode":"direct","automatic_menu":automatic && settings.completion.auto_trigger,
                             "disabled_reason":if automatic && !settings.completion.auto_trigger {json!("completion.auto_trigger is disabled")} else {value["disabled_reason"].clone()}});
                             if value["editor_mode"] != "editor_hooks_v1" {
@@ -799,6 +762,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             }
                             status_writer.update(adapter_status.clone());
                             let system_tx = tx.clone();
+                            let launch_started = Instant::now();
                             match crate::system_commands::start(&options.shell, move |result| {
                                 let _ = system_tx.send(HostEvent::SystemCommands(1, result));
                             }) {
@@ -808,6 +772,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     status_writer.update(adapter_status.clone());
                                 }
                             }
+                            trace.event(
+                                "direct_system_discovery_launch",
+                                None,
+                                Some(launch_started.elapsed()),
+                                None,
+                            );
+                        }
+                        Some("terminal_fallback") if ready => {
+                            adapter_status["terminal_connected"] = json!(false);
+                            adapter_status["terminal_restore"] = json!("reserved_below_input");
+                            adapter_status["terminal_fallback_reason"] =
+                                value["terminal_fallback_reason"].clone();
+                            status_writer.update(adapter_status.clone());
+                            session.visible.clear();
                         }
                         Some("begin" | "end") if ready => {
                             let revision = value["revision"]
@@ -818,6 +796,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             session.visible.clear();
                             session.last_completion = None;
                             session.selected_id = None;
+                            session.selection.reset();
                             session.accepting = false;
                             session.ui = None;
                             active_query = None;
@@ -852,6 +831,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                         });
                                     }
                                 }
+                                adapter_status["terminal_connected"] =
+                                    value["terminal_connected"].clone();
+                                adapter_status["terminal_fallback_reason"] =
+                                    value["terminal_fallback_reason"].clone();
                                 automatic = value["automatic_menu"] == true;
                                 adapter_status["automatic_menu"] =
                                     json!(automatic && settings.completion.auto_trigger);
@@ -901,13 +884,19 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             command_offset = 0;
                             command_snapshot_id = None;
                             system_generation += 1;
+                            adapter_status["system_commands"] = json!({"source":"system module export metadata","count":0,"complete":false,"error":null});
+                            status_writer.update(adapter_status.clone());
                             let generation = system_generation;
                             let system_tx = tx.clone();
                             system_discovery.take();
-                            match crate::system_commands::start(&options.shell, move |result| {
-                                let _ =
-                                    system_tx.send(HostEvent::SystemCommands(generation, result));
-                            }) {
+                            match crate::system_commands::start_cached(
+                                &options.shell,
+                                true,
+                                move |result| {
+                                    let _ = system_tx
+                                        .send(HostEvent::SystemCommands(generation, result));
+                                },
+                            ) {
                                 Ok(discovery) => system_discovery = Some(discovery),
                                 Err(error) => {
                                     adapter_status["system_commands"]["error"] =
@@ -953,7 +942,12 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             adapter_status["session_commands"]["error"] = value["error"].clone();
                             status_writer.update(adapter_status.clone());
                         }
-                        Some("hub" | "query" | "cancel") if ready && automatic => {
+                        Some("hub" | "query" | "cancel")
+                            if ready
+                                && (automatic
+                                    || value["manual"] == true
+                                    || value["event"] == "cancel") =>
+                        {
                             session.query(&value)?;
                             let cwd =
                                 PathBuf::from(value["cwd"].as_str().context("missing shell cwd")?);
@@ -961,7 +955,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             crate::packs::set_cwd(cwd.clone());
                             if value["event"] == "cancel"
                                 || (value["event"] == "query"
-                                    && (!settings.completion.auto_trigger
+                                    && ((!settings.completion.auto_trigger
+                                        && value["manual"] != true)
                                         || session.line.trim().is_empty()))
                             {
                                 session.ui = None;
@@ -985,15 +980,15 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                     w.cancel = true;
                                     w.query = None;
                                 });
-                                session.values_requested = 0;
                                 session.ui = Some(Workbench {
                                     input: String::new(),
-                                    high_surrogate: None,
+                                    active: true,
                                     form: None,
                                     project: false,
                                     templates: Default::default(),
                                     error: None,
-                                    generation: 0,
+                                    generation: session.revision,
+                                    ..Default::default()
                                 });
                                 pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                                 continue;
@@ -1024,7 +1019,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             Arc::make_mut(&mut environment).remove("BLUEBERRY_REMOTE_REQUESTED");
                             worker.update(|w| w.query = Some(query));
                         }
-                        Some("accept") if ready && automatic => {
+                        Some("accept") if ready => {
                             if let Some(edit) = session.accept(&value, &token) {
                                 session.accepting = true;
                                 worker.update(|w| {
@@ -1034,14 +1029,36 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 pipe.write_json(&edit)?;
                             }
                         }
-                        Some("ui_key") if ready && automatic => {
+                        Some("ui_key") if ready => {
                             trace.event("direct_ui_key", value["revision"].as_u64(), None, None);
                             trace.flush();
-                            let frame = session.ui_key(&value, &settings, &token, &history)?;
+                            let frame = match session.ui_key(
+                                &value,
+                                &settings,
+                                &token,
+                                &history,
+                                (&environment, &command_snapshot.previous),
+                            ) {
+                                Ok(frame) => frame,
+                                Err(error) => {
+                                    if let Some(ui) = session.ui.as_mut() {
+                                        if let Some(form) = ui.form.as_mut()
+                                            && form.current().is_none()
+                                        {
+                                            form.back();
+                                        }
+                                        ui.error = Some(format!("{error:#}"));
+                                        ui.generation = session.revision;
+                                        session.refresh_hub(&settings, &token, &history)
+                                    } else {
+                                        session.clear_frame(&token)
+                                    }
+                                }
+                            };
                             pipe.write_json(&frame)?;
                             session.request_values(tx.clone(), environment.clone());
                         }
-                        Some("menu_key") if ready && automatic => {
+                        Some("menu_key") if ready => {
                             match session.navigate(&value, &settings, &token) {
                                 Ok(frame) => pipe.write_json(&frame)?,
                                 Err(_) => {
@@ -1059,7 +1076,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 }
                             }
                         }
-                        Some("layout") if ready && automatic => {
+                        Some("layout") if ready => {
                             if let Some(frame) = session.layout(&value, &settings, &token) {
                                 pipe.write_json(&frame)?;
                             }
@@ -1078,9 +1095,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
                 other => completion_event = other,
             }
             if let Some(event) = completion_event {
-                if let HostEvent::Completion(revision, completion, _) = &event
+                if let HostEvent::Completion(revision, _, _) = &event
                     && ready
-                    && automatic
                     && session.ui.is_none()
                     && !session.accepting
                     && active_query.as_ref().is_some_and(|query| {
@@ -1089,12 +1105,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             && query.cursor == session.cursor
                     })
                 {
+                    // Move only after the guarded completion arm is selected;
+                    // the other event variants remain available to their arms.
+                    let HostEvent::Completion(_, completion, _) = event else {
+                        unreachable!("completion event confirmed above")
+                    };
                     let rendered = Instant::now();
-                    let frame = session.render(completion.clone(), &settings, &token);
+                    let allocated = crate::allocation_diagnostics::snapshot();
+                    let frame = session.render(completion, &settings, &token);
+                    let render_elapsed = rendered.elapsed();
+                    trace.allocations("direct_menu_allocations", Some(session.revision), allocated);
                     trace.event(
                         "direct_menu_render",
                         Some(session.revision),
-                        Some(rendered.elapsed()),
+                        Some(render_elapsed),
                         frame["lines"].as_array().map(Vec::len),
                     );
                     let output = Instant::now();
@@ -1106,7 +1130,13 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             crate::latency_layers::qpc()?,
                         );
                     }
+                    let allocated = crate::allocation_diagnostics::snapshot();
                     pipe.write_json(&frame)?;
+                    trace.allocations(
+                        "direct_frame_allocations",
+                        Some(session.revision),
+                        allocated,
+                    );
                     if trace.enabled() {
                         trace.point(
                             "direct_frame_sent",
@@ -1125,14 +1155,17 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if generation == system_generation {
                         match result {
                             Ok(commands) => {
-                                adapter_status["system_commands"] = json!({"source":"system module export metadata","count":commands.len(),"error":null});
+                                adapter_status["system_commands"] = json!({"source":"system module export metadata","count":commands.len(),"complete":true,"error":null});
                                 worker.update(|w| w.system_commands = Some(commands));
                             }
                             Err(error) => {
+                                adapter_status["system_commands"]["complete"] = json!(true);
                                 adapter_status["system_commands"]["error"] =
                                     json!(error.to_string());
                             }
                         }
+                        adapter_status["system_commands"]["cache"] =
+                            json!(system_discovery.as_ref().map(|d| d.cache_status()));
                         status_writer.update(adapter_status.clone());
                     }
                 } else if let HostEvent::HistoryLoaded(_, values, partial, elapsed) = event {
@@ -1150,13 +1183,26 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     if session.ui.is_some() {
                         pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                     }
-                } else if let HostEvent::FormValues(generation, name, values, _) = event {
+                } else if let HostEvent::FormValues(
+                    generation,
+                    name,
+                    values,
+                    _,
+                    cwd,
+                    captured_environment,
+                ) = event
+                {
                     if let Some(ui) = session.ui.as_mut()
+                        && cwd == session.cwd
+                        && captured_environment == environment
                         && ui.generation == generation
                         && let Some(form) = ui.form.as_mut()
                         && form.current().is_some_and(|field| field.name == name)
                     {
-                        form.set_values(&name, values);
+                        match values {
+                            Ok(values) => form.set_values(&name, values),
+                            Err(error) => ui.error = Some(error),
+                        }
                         pipe.write_json(&session.refresh_hub(&settings, &token, &history))?;
                     }
                 } else if matches!(event, HostEvent::CommandsChanged) && session.ui.is_some() {
@@ -1181,6 +1227,84 @@ pub fn run(options: RunOptions) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn automatic_selection_follows_late_best_candidate() {
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":1,"line":"car","cursor":3}))
+            .unwrap();
+        let completion = |names: &[&str], incomplete| Completion {
+            replace_end: 3,
+            incomplete,
+            candidates: names
+                .iter()
+                .map(|name| Candidate {
+                    id: (*name).into(),
+                    label: (*name).into(),
+                    insert_text: (*name).into(),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let config = Config::default();
+        let early = session.render(completion(&["gcc-ar"], true), &config, "token");
+        session
+            .navigate(
+                &json!({"revision":2,"line":"car","cursor":3,
+            "frame_id":early["frame_id"],"candidate_id":"gcc-ar","key":"F1"}),
+                &config,
+                "token",
+            )
+            .unwrap();
+        session
+            .layout(
+                &json!({"revision":3,"line":"car","cursor":3,"width":40,"rows":12}),
+                &config,
+                "token",
+            )
+            .unwrap();
+        let frame = session.render(completion(&["cargo", "gcc-ar"], false), &config, "token");
+        assert_eq!(frame["candidate_id"], "cargo");
+        let request = json!({"revision":3,"line":"car","cursor":3,
+            "frame_id":frame["frame_id"],"candidate_id":"cargo"});
+        session.render(completion(&["car-new"], false), &config, "token");
+        assert_eq!(session.accept(&request, "token").unwrap()["text"], "cargo");
+        session
+            .query(&json!({"revision":4,"line":"new","cursor":3}))
+            .unwrap();
+        assert!(session.accept(&request, "token").is_none());
+    }
+    #[test]
+    fn visible_frame_keeps_its_replacement_when_same_identity_is_refreshed() {
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":1,"line":"git st","cursor":6}))
+            .unwrap();
+        let config = Config::default();
+        let mut snapshot = Completion {
+            replace_start: 4,
+            replace_end: 6,
+            candidates: vec![Candidate {
+                id: "stable-id".into(),
+                label: "stable-id".into(),
+                insert_text: "status-before".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let old = session.render(snapshot.clone(), &config, "token");
+        snapshot.candidates[0].insert_text = "status-after".into();
+        let current = session.render(snapshot, &config, "token");
+        for (frame, text) in [(old, "status-before"), (current, "status-after")] {
+            let request = json!({"revision":1,"line":"git st","cursor":6,
+                "frame_id":frame["frame_id"],"candidate_id":frame["candidate_id"]});
+            let edit = session.accept(&request, "token").unwrap();
+            assert_eq!(edit["text"], text);
+            assert_eq!(edit["start"], 4);
+            assert_eq!(edit["length"], 2);
+        }
+    }
     #[test]
     fn command_batches_reject_old_prompts_wrong_snapshots_gaps_and_completed_replays() {
         let value = json!({"session":10,"snapshot":"current","offset":64});

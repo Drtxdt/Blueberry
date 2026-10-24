@@ -1,0 +1,333 @@
+{
+  "source_commit": "ec70d5970417f58946a767abaa30600668245893",
+  "run_id": 39414992059,
+  "jobs": [
+    {
+      "id": 118601744464,
+      "name": "startup-cache / cache (powershell.exe, 2.0.0)",
+      "conclusion": "success"
+    },
+    {
+      "id": 118601744967,
+      "name": "startup-cache / cache (powershell.exe, 2.4.5)",
+      "conclusion": "success"
+    },
+    {
+      "id": 118601745008,
+      "name": "startup-cache / cache (pwsh.exe, 2.4.5)",
+      "conclusion": "success"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 12261281388,
+      "node_id": "MDg6QXJ0aWZhY3QxMjI2MTI4MTM4OA==",
+      "name": "startup-cache-pwsh.exe-2.4.5",
+      "size_in_bytes": 16394,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12261281388",
+      "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12261281388/zip",
+      "expired": false,
+      "digest": "sha256:63e2eff8a7ea041e8668764ca71622d552d102a5b4a683e5129ebad3099ba303",
+      "created_at": "2026-10-20T11:30:07Z",
+      "updated_at": "2026-10-20T11:30:07Z",
+      "expires_at": "2027-01-18T11:26:44Z",
+      "workflow_run": {
+        "id": 39414992059,
+        "repository_id": 1368459002,
+        "head_repository_id": 1368459002,
+        "head_branch": "codex/stability-diagnostics",
+        "head_sha": "ec70d5970417f58946a767abaa30600668245893"
+      }
+    },
+    {
+      "id": 12260912235,
+      "node_id": "MDg6QXJ0aWZhY3QxMjI2MDkxMjIzNQ==",
+      "name": "startup-cache-powershell.exe-2.4.5",
+      "size_in_bytes": 16496,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12260912235",
+      "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12260912235/zip",
+      "expired": false,
+      "digest": "sha256:331f257a859efe8f41980d05da5cc6d8001d0916c222f1ae2966e3edac8a4737",
+      "created_at": "2026-10-20T11:30:19Z",
+      "updated_at": "2026-10-20T11:30:19Z",
+      "expires_at": "2027-01-18T11:26:44Z",
+      "workflow_run": {
+        "id": 39414992059,
+        "repository_id": 1368459002,
+        "head_repository_id": 1368459002,
+        "head_branch": "codex/stability-diagnostics",
+        "head_sha": "ec70d5970417f58946a767abaa30600668245893"
+      }
+    },
+    {
+      "id": 12260877296,
+      "node_id": "MDg6QXJ0aWZhY3QxMjI2MDg3NzI5Ng==",
+      "name": "startup-cache-powershell.exe-2.0.0",
+      "size_in_bytes": 16531,
+      "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12260877296",
+      "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12260877296/zip",
+      "expired": false,
+      "digest": "sha256:e26d3478e8e7008679147a3427833bade870a8f2b101d7661dcd83a68b8a4e4b",
+      "created_at": "2026-10-20T11:30:14Z",
+      "updated_at": "2026-10-20T11:30:14Z",
+      "expires_at": "2027-01-18T11:26:44Z",
+      "workflow_run": {
+        "id": 39414992059,
+        "repository_id": 1368459002,
+        "head_repository_id": 1368459002,
+        "head_branch": "codex/stability-diagnostics",
+        "head_sha": "ec70d5970417f58946a767abaa30600668245893"
+      }
+    }
+  ],
+  "local_artifact_download_audit": {
+    "status": "verified",
+    "reports": 6,
+    "independent_timed_pairs": 12,
+    "scope": "debug functional cache-state checks; excluded from formal performance and version qualification",
+    "artifacts": [
+      {
+        "artifact_id": 12261281388,
+        "archive_sha256": "63e2eff8a7ea041e8668764ca71622d552d102a5b4a683e5129ebad3099ba303",
+        "reports": [
+          {
+            "path": "artifacts/cache-ec70d59-12261281388/probe-5z6xIc/cold.json",
+            "sha256": "d97964003ce3dbbd38d039f52e57259c07f47032213f930545bc2bd9c78ffaf5",
+            "cache_state": "cold",
+            "observations": [
+              {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 1848,
+                "error": null,
+                "source": "system module export metadata"
+              },
+              {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 1848,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            ],
+            "preparation": null,
+            "iterations": 2,
+            "shell_versions": [
+              "7.6.6",
+              "7.6.6"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5"
+            ],
+            "diagnostic_only": true
+          },
+          {
+            "path": "artifacts/cache-ec70d59-12261281388/probe-5z6xIc/warm.json",
+            "sha256": "d92d1a3d5c00307fe87ef6d5a4b7a645780d6358861902fd11df795e16d39d97",
+            "cache_state": "warm",
+            "observations": [
+              {
+                "cache": "hit",
+                "complete": true,
+                "count": 1848,
+                "error": null,
+                "source": "system module export metadata"
+              },
+              {
+                "cache": "hit",
+                "complete": true,
+                "count": 1848,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            ],
+            "preparation": {
+              "elapsed_ms": 3115.4824,
+              "included_in_timed_pairs": false,
+              "system_commands": {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 1848,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            },
+            "iterations": 2,
+            "shell_versions": [
+              "7.6.6",
+              "7.6.6"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5"
+            ],
+            "diagnostic_only": true
+          }
+        ]
+      },
+      {
+        "artifact_id": 12260912235,
+        "archive_sha256": "331f257a859efe8f41980d05da5cc6d8001d0916c222f1ae2966e3edac8a4737",
+        "reports": [
+          {
+            "path": "artifacts/cache-ec70d59-12260912235/probe-40cORU/cold.json",
+            "sha256": "fe672e5312b276a39e596998b239d42ea7ecb0e1f654fd2000ead052abc8dbf8",
+            "cache_state": "cold",
+            "observations": [
+              {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              },
+              {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            ],
+            "preparation": null,
+            "iterations": 2,
+            "shell_versions": [
+              "5.1.20348.5622",
+              "5.1.20348.5622"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5"
+            ],
+            "diagnostic_only": true
+          },
+          {
+            "path": "artifacts/cache-ec70d59-12260912235/probe-40cORU/warm.json",
+            "sha256": "b47cce21c5b7f36b4ac2106e325ecfcbbc85836ed302c05b9235c39de98ec762",
+            "cache_state": "warm",
+            "observations": [
+              {
+                "cache": "hit",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              },
+              {
+                "cache": "hit",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            ],
+            "preparation": {
+              "elapsed_ms": 4441.0081,
+              "included_in_timed_pairs": false,
+              "system_commands": {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            },
+            "iterations": 2,
+            "shell_versions": [
+              "5.1.20348.5622",
+              "5.1.20348.5622"
+            ],
+            "psreadline_versions": [
+              "2.4.5",
+              "2.4.5"
+            ],
+            "diagnostic_only": true
+          }
+        ]
+      },
+      {
+        "artifact_id": 12260877296,
+        "archive_sha256": "e26d3478e8e7008679147a3427833bade870a8f2b101d7661dcd83a68b8a4e4b",
+        "reports": [
+          {
+            "path": "artifacts/cache-ec70d59-12260877296/probe-JpWRfm/cold.json",
+            "sha256": "b2d01c081c9ad0b9074c2af4957655beb658c34cb177789ff59026e4aa9b1e66",
+            "cache_state": "cold",
+            "observations": [
+              {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              },
+              {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            ],
+            "preparation": null,
+            "iterations": 2,
+            "shell_versions": [
+              "5.1.20348.5622",
+              "5.1.20348.5622"
+            ],
+            "psreadline_versions": [
+              "2.0.0",
+              "2.0.0"
+            ],
+            "diagnostic_only": true
+          },
+          {
+            "path": "artifacts/cache-ec70d59-12260877296/probe-JpWRfm/warm.json",
+            "sha256": "afb5e05e9cabb6fb12991fa594e30fe4e4d9a20b72a9b07e94b997adb9618e29",
+            "cache_state": "warm",
+            "observations": [
+              {
+                "cache": "hit",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              },
+              {
+                "cache": "hit",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            ],
+            "preparation": {
+              "elapsed_ms": 4486.7065999999995,
+              "included_in_timed_pairs": false,
+              "system_commands": {
+                "cache": "rebuild",
+                "complete": true,
+                "count": 2546,
+                "error": null,
+                "source": "system module export metadata"
+              }
+            },
+            "iterations": 2,
+            "shell_versions": [
+              "5.1.20348.5622",
+              "5.1.20348.5622"
+            ],
+            "psreadline_versions": [
+              "2.0.0",
+              "2.0.0"
+            ],
+            "diagnostic_only": true
+          }
+        ]
+      }
+    ]
+  },
+  "functional_gate_passed": true,
+  "final_package_qualified": false
+}

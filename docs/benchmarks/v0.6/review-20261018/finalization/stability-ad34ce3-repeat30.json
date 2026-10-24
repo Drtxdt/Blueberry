@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "source_sha": "ad34ce30b4b1695fb8de5bd6452ca18225eb86dd",
+  "run_id": 39253381002,
+  "kind": "30 isolated repetitions",
+  "jobs": [
+    {
+      "combination": "ps51-200",
+      "job_id": 118062468603,
+      "log_sha256": "d7e66b3a50b978e5f507c3d665562dee6d914093b7965a5abe3c4b5bbae097d5",
+      "passed_counts": {
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields": 1,
+        "compiled_bridge_codec_runs_in_selected_shell": 1,
+        "unknown_diagnostic_events_do_not_disable_completion": 1,
+        "direct_resize_after_menu_clear_reflows_input": 30,
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed": 30,
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation": 30,
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions": 30,
+        "builtin_workflows_fill_native_editor_without_executing": 30,
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out": 60
+      },
+      "test_binary_hashes": [
+        "ACEF6D5E4605B69FD16912DCE70DABFCAB5EE0614E20AF9AFB1126146811A118",
+        "11A369130B4E28E11DE9538FED904EF56D145174736B9B1FF44EF4186C75120A",
+        "9250165C05750FF9DD5CE700056F3C23B74B6DB85F0EEA8D85925B64F548B3E4",
+        "718F19490CD49E608A4542BD60A37DF23759F194CA5F46C80EA4957C0285B61A",
+        "1FD7082AC9FFD2AB4305F097C1A77939C05C9F58064020CF8ED7644BAF1AD5E3",
+        "43A056A15C442C49408B49CC32877AFE20DA066B5D2A912ECC3D641F9112AB27",
+        "6AEC5E67B8E9610619345B1547A495A24C502A888807082D7F42F7CF7D4D933A"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "combination": "ps51-245",
+      "job_id": 118062468808,
+      "log_sha256": "43617cc94ba53db6643e92fb4419c21a028c408b10ccba448c0b5bb5aabfa151",
+      "passed_counts": {
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields": 1,
+        "compiled_bridge_codec_runs_in_selected_shell": 1,
+        "unknown_diagnostic_events_do_not_disable_completion": 1,
+        "direct_resize_after_menu_clear_reflows_input": 30,
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed": 30,
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation": 30,
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions": 30,
+        "builtin_workflows_fill_native_editor_without_executing": 30,
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out": 60
+      },
+      "test_binary_hashes": [
+        "D19E2D134F071C4772B6F92860496AF0D86466B18C451BF555745EC788AF073F",
+        "069C422CEF894811ED8830D1E61F6AE5EFA731538F6BD4E274CCBCD5C3FA6D9A",
+        "27EB565B7D3005E53D0634768F8738FFFFB8D83EC4BF1C0FC970F4DF97711323",
+        "E97A4D3116C8977D38764F1B17DBC3D2146AD2B22A3FE0B4A9B95C4E27F8BAD4",
+        "F1779D78EF875BBEE789493D23788F1FBAEA5D3568525176E4721B69B5D45E2A",
+        "092B38F3751E372AC392B0BDA85CA40F57A8760C0EB108806D9FFF78065A2855",
+        "663485E16DCC9FA079D65A600FEE695246DB7F1EA8CF39F4BA52C6E9DE5A00B5"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "combination": "ps7-245",
+      "job_id": 118062468952,
+      "log_sha256": "de0ad51a93fd16089f31be4f324455cbe15191fff6307a1fbb45ff840e36591a",
+      "passed_counts": {
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields": 1,
+        "compiled_bridge_codec_runs_in_selected_shell": 1,
+        "unknown_diagnostic_events_do_not_disable_completion": 1,
+        "direct_resize_after_menu_clear_reflows_input": 30,
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed": 30,
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation": 30,
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions": 30,
+        "builtin_workflows_fill_native_editor_without_executing": 30,
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out": 60
+      },
+      "test_binary_hashes": [
+        "9B825C0F5C6AADB6B0DE951809B9919C973DD3AD46933B9294CE617E8FD5AFBD",
+        "0297FDE19CC9FB4AFC610D47404700A353602400D9ACCFF61BE0A7271511A526",
+        "BABA3BCA5BB59CF7A4B31A92E63FCEDE9D42CE51EDFB121C990C8D9CAE78625F",
+        "8B367C3E25DD860D461CFCB9A026B1D526A32842B231E133B711ECF9B93EC1C9",
+        "4267568363E963F5CE3786EF48CD3EA6B88EB90A2B91E2FE5694E10D21A1870F",
+        "27EE137741E736CB975674A2F0351749B1BD508973C2D62CB35F7127BB09938A",
+        "CCE75C66A8A8DB4C080BA7C3F80AB5004260ED90D8B263D10738B41989830C31"
+      ],
+      "conclusion": "success"
+    }
+  ],
+  "direct_repetitions": 450,
+  "nested_repetitions": 180,
+  "direct_tracing": "on",
+  "diagnostic_injection_tracing": [
+    "on",
+    "off"
+  ],
+  "release_ready": false,
+  "remaining": [
+    "Trace-off interaction comparison",
+    "Native history final completion visibility assertion",
+    "Full CI, complete formal performance and final package/manual acceptance"
+  ]
+}

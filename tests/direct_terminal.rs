@@ -1,10 +1,61 @@
 #![cfg(all(windows, debug_assertions))]
+
 //! Inherited-console tests run in an outer observing ConPTY, never a second
 //! product ConPTY. Every session uses an isolated directory and no history.
+#[path = "support/incremental_trace.rs"]
+mod incremental_trace;
+#[path = "support/workflow_cases.rs"]
+mod workflow_cases;
 use anyhow::{Context, Result, ensure};
 use blueberry::probe::Harness;
 use std::{collections::BTreeMap, time::Duration};
 const TIMEOUT: Duration = Duration::from_secs(20);
+
+fn trace_disabled() -> bool {
+    std::env::var("BLUEBERRY_TEST_TRACE_DISABLED").as_deref() == Ok("1")
+}
+
+fn workflow_trace(
+    h: &mut Harness,
+    trace: &mut incremental_trace::Trace,
+) -> Result<incremental_trace::State> {
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    loop {
+        let _ = h.pump(Duration::from_millis(1));
+        if trace.poll()? {
+            return Ok(trace.state);
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "trace reader fell behind"
+        );
+    }
+}
+
+fn workflow_text(h: &mut Harness, text: &str) -> Result<()> {
+    // Exercise form input without blocking the terminal observer behind a
+    // whole native-key batch. Burst/paste semantics have separate regressions.
+    for character in text.chars() {
+        h.send_text(&character.to_string())?;
+        let _ = h.pump(Duration::from_millis(1));
+    }
+    Ok(())
+}
+
+fn direct_fixture() -> Result<tempfile::TempDir> {
+    // Keep the live fixture outside repository ancestry, and retain both
+    // passing and failing traces at a path uploaded by Windows CI.
+    let evidence = std::env::var_os("RUNNER_TEMP")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("blueberry-direct-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let mut directory = tempfile::Builder::new()
+        .prefix("direct-")
+        .tempdir_in(evidence)?;
+    directory.disable_cleanup(true);
+    Ok(directory)
+}
 
 #[path = "support/console_snapshot.rs"]
 mod console_snapshot;
@@ -185,7 +236,7 @@ fn native_unicode_input_helper() -> Result<()> {
 fn console_output_transport_experiment() -> Result<()> {
     let mut samples = Vec::new();
     for mode in 0..3 {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         let script = dir.path().join("experiment.ps1");
         let log = dir.path().join("qpc.csv");
         std::fs::write(&script, include_str!("output-fence.ps1"))?;
@@ -250,12 +301,16 @@ fn console_output_transport_experiment() -> Result<()> {
 
 #[test]
 fn compiled_bridge_codec_runs_in_selected_shell() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let bootstrap = blueberry::host::direct::ensure_bootstrap(dir.path())?;
     let script = dir.path().join("codec.ps1");
     std::fs::write(
         &script,
         format!("\u{feff}{}", include_str!("direct-bridge.tests.ps1")),
+    )?;
+    std::fs::write(
+        dir.path().join("direct-diagnostics.json"),
+        include_str!("../shell/direct-diagnostics.json"),
     )?;
     let result = std::process::Command::new(blueberry::pty::default_shell())
         .args([
@@ -279,7 +334,7 @@ fn compiled_bridge_codec_runs_in_selected_shell() -> Result<()> {
 
 #[test]
 fn plain_psreadline_preserves_the_same_unicode_input() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let module = std::env::var("BLUEBERRY_TEST_PSREADLINE_MODULE")
         .unwrap_or("PSReadLine".into())
         .replace('\'', "''");
@@ -318,6 +373,15 @@ fn start_delayed_executable(
     delay: u32,
     executable: &std::path::Path,
 ) -> Result<Harness> {
+    start_delayed_executable_with_pages(directory, delay, executable, false)
+}
+
+fn start_delayed_executable_with_pages(
+    directory: &std::path::Path,
+    delay: u32,
+    executable: &std::path::Path,
+    terminal_pages: bool,
+) -> Result<Harness> {
     let mut args = vec![
         "run".into(),
         "--host-mode".into(),
@@ -332,6 +396,10 @@ fn start_delayed_executable(
         "--trace".into(),
         directory.join("trace.jsonl").to_string_lossy().into_owned(),
     ];
+    let trace_disabled = trace_disabled() || directory.join("trace-disabled").is_file();
+    if trace_disabled {
+        args.truncate(args.len() - 2);
+    }
     if directory.join("config.toml").is_file() {
         args.extend([
             "--config".into(),
@@ -346,11 +414,87 @@ fn start_delayed_executable(
             ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
             ("TERM".into(), "xterm-256color".into()),
             ("BLUEBERRY_TEST_FRAME_DELAY_MS".into(), delay.to_string()),
+            (
+                "BLUEBERRY_TEST_UI_WAKE_DELAY_MS".into(),
+                if directory.join("delay-ui-wake").exists() {
+                    "600"
+                } else {
+                    "0"
+                }
+                .into(),
+            ),
+            (
+                "BLUEBERRY_TEST_OMIT_MENU_OWNERSHIP".into(),
+                if directory.join("omit-menu-ownership").exists() {
+                    "1"
+                } else {
+                    "0"
+                }
+                .into(),
+            ),
+            (
+                "BLUEBERRY_TEST_TERMINAL_PAGES".into(),
+                if terminal_pages { "1" } else { "0" }.into(),
+            ),
         ]),
         String::new(),
     )?;
-    wait_editor_begin(&mut harness, directory, 1)?;
+    if trace_disabled {
+        harness.wait_text("PS ", TIMEOUT)?;
+    } else {
+        wait_editor_begin(&mut harness, directory, 1)?;
+    }
     Ok(harness)
+}
+
+#[test]
+fn unknown_diagnostic_events_do_not_disable_completion() -> Result<()> {
+    for tracing in [true, false] {
+        let dir = direct_fixture()?;
+        if !tracing {
+            std::fs::write(dir.path().join("trace-disabled"), "1")?;
+        }
+        // Deliberately bypass the sender validator to exercise receiver policy.
+        std::fs::write(
+            dir.path().join("diagnostics.ps1"),
+            r#"
+$flags=[Reflection.BindingFlags]'NonPublic,Static'
+$bridge=[Blueberry.Direct.Bridge]
+$pipe=$bridge.GetField('pipe',$flags).GetValue($null)
+$token=$bridge.GetField('token',$flags).GetValue($null)
+$gate=$bridge.GetField('writeLock',$flags).GetValue($null)
+foreach ($kind in @('trace','trace_point')) {
+    foreach ($stage in @('future_diagnostic','editor_resize_reflow')) {
+        $message=[Collections.Generic.Dictionary[string,object]]::new()
+        $message['event']=$kind; $message['stage']=$stage; $message['token']=$token
+        $message['qpc']='invalid'
+        $bytes=[Text.Encoding]::UTF8.GetBytes([Blueberry.Direct.Json]::Encode($message)+"`n")
+        [Threading.Monitor]::Enter($gate)
+        try { $pipe.Write($bytes,0,$bytes.Length); $pipe.Flush() } finally { [Threading.Monitor]::Exit($gate) }
+    }
+}
+Write-Output 'DIAGNOSTICS-INJECTED'
+"#,
+        )?;
+        let mut h = start(dir.path())?;
+        let result = (|| -> Result<()> {
+            h.send_text(". .\\diagnostics.ps1\r")?;
+            h.wait_line("DIAGNOSTICS-INJECTED", TIMEOUT)?;
+            h.send_text("git sw")?;
+            h.wait_text("switch", TIMEOUT)?;
+            h.send(b"\t")?;
+            h.wait_text("git switch", TIMEOUT)?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error).with_context(|| {
+                format!("diagnostics tracing={tracing}: {}", dir.keep().display())
+            });
+        }
+    }
+    Ok(())
 }
 
 #[test]
@@ -487,18 +631,197 @@ fn wait_editor_begin(h: &mut Harness, directory: &std::path::Path, count: usize)
         {
             return Ok(());
         }
-        ensure!(
-            std::time::Instant::now() < deadline,
-            "editor did not enter its input loop"
-        );
+        if std::time::Instant::now() >= deadline {
+            let events: Vec<serde_json::Value> = trace
+                .lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            let adapter = std::fs::read_dir(directory)
+                .into_iter()
+                .flatten()
+                .filter_map(Result::ok)
+                .find_map(|entry| std::fs::read(entry.path().join("adapter.json")).ok())
+                .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+            let disabled = adapter.as_ref().and_then(|a| a["disabled_reason"].as_str());
+            let hello = events.iter().rev().find(|e| e["event"] == "direct_hello");
+            let last_frame = events
+                .iter()
+                .rev()
+                .find(|e| e["event"] == "editor_menu_written");
+            let classification = if disabled.is_some() {
+                "service_disabled"
+            } else if hello.is_none() {
+                "handshake_not_observed"
+            } else {
+                "readline_begin_not_observed"
+            };
+            let _ = h.save_evidence(directory);
+            let native_capture =
+                console_snapshot::capture(h, &directory.join("readline-timeout-native.json"))
+                    .err()
+                    .map(|error| format!("{error:#}"));
+            std::fs::write(
+                directory.join("readline-timeout.json"),
+                serde_json::to_vec_pretty(&serde_json::json!({
+                    "classification": classification,
+                    "expected_begin_count": count,
+                    "observed_begin_count": events.iter().filter(|e| e["event"] == "direct_readline_begin").count(),
+                    "timeout_seconds": TIMEOUT.as_secs(),
+                    "process": h.process_status(),
+                    "adapter": adapter,
+                    "handshake": hello,
+                    "last_painted_frame": last_frame,
+                    "trace_tail": &events[events.len().saturating_sub(80)..],
+                    "native_capture_error": native_capture,
+                }))?,
+            )?;
+            anyhow::bail!(
+                "expected ReadLine trace not observed within 20 seconds ({classification}); evidence: {}",
+                directory.display()
+            );
+        }
         let _ = h.pump(Duration::from_millis(5));
     }
 }
 
 #[test]
+fn direct_empty_up_keeps_native_history_until_a_real_edit() -> Result<()> {
+    for delay in [0, 40] {
+        let dir = direct_fixture()?;
+        let mut h = start_with_delay(dir.path(), delay)?;
+        let result = (|| -> Result<()> {
+            h.send(b"function global:TabExpansion2 { param($inputScript,$cursorColumn,$options) $m=[Collections.ObjectModel.Collection[Management.Automation.CompletionResult]]::new(); $m.Add([Management.Automation.CompletionResult]::new('git status','git status','Command','fixture')); [Management.Automation.CommandCompletion]::new($m,0,0,$inputScript.Length) }; [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git sw'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st')\r")?;
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+            for (key, expected) in [
+                (b"\x1b[A".as_slice(), "git st"),
+                (b"\x1b[A".as_slice(), "git sw"),
+                (b"\x1b[B".as_slice(), "git st"),
+            ] {
+                h.send(key)?;
+                let deadline = std::time::Instant::now() + TIMEOUT;
+                loop {
+                    let _ = h.pump(Duration::from_millis(10));
+                    let screen = h.screen_snapshot();
+                    let row = screen
+                        .rows(0, screen.size().1)
+                        .nth(screen.cursor_position().0 as usize)
+                        .unwrap_or_default();
+                    if row.contains(expected) {
+                        break;
+                    }
+                    ensure!(
+                        std::time::Instant::now() < deadline,
+                        "native history did not reach {expected}"
+                    );
+                }
+                let _ = h.pump(Duration::from_millis(350));
+                ensure!(
+                    !h.screen_snapshot().contents().contains("› "),
+                    "history recall reopened Blueberry completion"
+                );
+            }
+            for key in [
+                b"\x1b[D".as_slice(),
+                b"\x1b[H",
+                b"\x7f",
+                b"\t",
+                b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_",
+            ] {
+                h.send(key)?;
+                let until = std::time::Instant::now() + Duration::from_millis(350);
+                while std::time::Instant::now() < until {
+                    let _ = h.pump(Duration::from_millis(10));
+                }
+                if key == b"\t" {
+                    let until = std::time::Instant::now() + TIMEOUT;
+                    loop {
+                        let screen = h.screen_snapshot();
+                        let row = screen
+                            .rows(0, screen.size().1)
+                            .nth(screen.cursor_position().0 as usize)
+                            .unwrap_or_default();
+                        if row.contains("git status") {
+                            break;
+                        }
+                        ensure!(
+                            std::time::Instant::now() < until,
+                            "native Tab did not complete the fixture"
+                        );
+                        let _ = h.pump(Duration::from_millis(10));
+                    }
+                }
+                ensure!(
+                    !h.screen_snapshot().contents().contains("› "),
+                    "native history key reopened completion: {key:?}"
+                );
+            }
+            h.send(b"\x03")?;
+            h.wait_text("^C", TIMEOUT)?;
+            wait_editor_begin(&mut h, dir.path(), 3)?;
+            h.send(b"\x1b[A")?;
+            let _ = h.pump(Duration::from_millis(350));
+            h.send(b"\x1b[F\x7f")?;
+            h.wait_text("› ", TIMEOUT)?;
+            h.send(b"\x03")?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error)
+                .with_context(|| format!("native history regression: {}", dir.keep().display()));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn direct_history_respects_disabled_policy_and_custom_up_binding() -> Result<()> {
+    for custom in [false, true] {
+        let dir = direct_fixture()?;
+        if !custom {
+            std::fs::write(
+                dir.path().join("config.toml"),
+                "[completion]\nup_arrow_history = false\n",
+            )?;
+        }
+        let mut h = start(dir.path())?;
+        let result = (|| -> Result<()> {
+            if custom {
+                h.send(b"Set-PSReadLineKeyHandler -Chord UpArrow -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('git st') }\r")?;
+            } else {
+                h.send(b"[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st')\r")?;
+            }
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+            h.send(b"\x1b[A")?;
+            h.wait_text("› ", TIMEOUT)?;
+            ensure!(
+                h.screen_snapshot().contents().contains("git st"),
+                "Up binding text changed"
+            );
+            h.send(b"\x03")?;
+            h.finish(TIMEOUT)
+        })();
+        if let Err(error) = result {
+            let _ = h.save_evidence(dir.path());
+            let _ = h.stop();
+            return Err(error).with_context(|| {
+                format!("history policy/custom binding: {}", dir.keep().display())
+            });
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
     for delay in [0, 3, 5, 10, 40, 100] {
-        let dir = tempfile::tempdir()?;
+        let dir = tempfile::Builder::new()
+            .prefix("direct-wake-")
+            .tempdir_in(&evidence)?;
         let mut h = start_with_delay(dir.path(), delay)?;
         h.wait_text("PS ", TIMEOUT)?;
         h.send(b"if ([Blueberry.Direct.Bridge]::EditorHooks -and @(Get-PSReadLineKeyHandler).Count -lt 1000) { Write-Output 'HOOKS-VERIFIED' }\r")?;
@@ -532,16 +855,15 @@ fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() ->
             .filter(|event| event["event"] == "direct_frame_to_paint")
             .filter_map(|event| event["duration_ms"].as_f64())
             .collect();
-        ensure!(
-            !waits.is_empty(),
-            "missing receive-to-paint spans for delay {delay}"
-        );
         // This is a liveness regression with generous CI scheduling tolerance.
         // The stricter 5 ms P95 belongs to the isolated performance measurement.
-        ensure!(
-            waits.iter().all(|wait| *wait < 200.0),
-            "late frame waited on idle polling: {waits:?}"
-        );
+        if waits.is_empty() || waits.iter().any(|wait| *wait >= 200.0) {
+            let retained = dir.keep();
+            anyhow::bail!(
+                "receive-to-paint regression at delay {delay} ms: {waits:?}; all trace events retained at {}",
+                retained.display()
+            );
+        }
         eprintln!("frame delay {delay} ms: receive-to-paint {waits:?}");
     }
     Ok(())
@@ -550,7 +872,7 @@ fn direct_late_frames_wake_editor_without_another_key_or_character_bindings() ->
 #[test]
 fn direct_empty_line_cancels_menu_and_disabled_autotrigger_preserves_typing() -> Result<()> {
     for automatic in [true, false] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         if !automatic {
             std::fs::write(
                 dir.path().join("config.toml"),
@@ -595,7 +917,7 @@ fn direct_empty_line_cancels_menu_and_disabled_autotrigger_preserves_typing() ->
 
 #[test]
 fn direct_menu_accept_is_fill_only_and_shell_still_edits_unicode() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     send_unicode_input(&mut harness, "Write-Output '中文😀👩‍💻终端'\r")?;
@@ -633,7 +955,7 @@ fn direct_menu_accept_is_fill_only_and_shell_still_edits_unicode() -> Result<()>
 
 #[test]
 fn direct_runtime_custom_binding_is_preserved() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     harness.send(b"Set-PSReadLineKeyHandler -Chord g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('CUSTOM') }; Write-Output 'binding-installed'\r")?;
@@ -646,7 +968,7 @@ fn direct_runtime_custom_binding_is_preserved() -> Result<()> {
 
 #[test]
 fn direct_runtime_builtin_rebinding_takes_priority_over_menu_accept() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(
@@ -663,7 +985,7 @@ fn direct_runtime_builtin_rebinding_takes_priority_over_menu_accept() -> Result<
 
 #[test]
 fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let user = dir.path().join("user profile");
     for edition in ["PowerShell", "WindowsPowerShell"] {
         let documents = user.join("Documents").join(edition);
@@ -675,6 +997,9 @@ $global:BlueberryProfileCount++
 function global:bb-profile-function { 'PROFILE-FUNCTION' }
 Set-Alias -Name bb-profile-alias -Value bb-profile-function -Scope Global
 Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('PROFILE_BINDING') }
+# A second manifest record must not replace the actual cmdlet/assembly identity.
+New-Module -Name PSReadLine -ScriptBlock {} | Import-Module -Global
+$global:BlueberryProfileModuleCount = @(Get-Module PSReadLine).Count
 $global:LASTEXITCODE = 37
 "#,
         )?;
@@ -716,6 +1041,8 @@ $global:LASTEXITCODE = 37
     h.send(b"\x01\x7f")?;
     h.send(b"[Console]::WriteLine(('PROFILE:{0}:{1}' -f $global:BlueberryProfileCount, $LASTEXITCODE))\r")?;
     wait_output_line(&mut h, "PROFILE:1:37")?;
+    h.send_text("if ($global:BlueberryProfileModuleCount -ge 2) { Write-Output 'MULTIPLE-MODULE-RECORDS' }\r")?;
+    wait_output_line(&mut h, "MULTIPLE-MODULE-RECORDS")?;
     h.send(b"\x07")?;
     h.wait_text("PROFILE_BINDING", TIMEOUT)?;
     h.send(b"\x01\x7f")?;
@@ -724,7 +1051,7 @@ $global:LASTEXITCODE = 37
 
 #[test]
 fn direct_preserves_command_status_across_prompt_lifecycle() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(b"cmd.exe /d /c exit 7\r")?;
@@ -736,7 +1063,7 @@ fn direct_preserves_command_status_across_prompt_lifecycle() -> Result<()> {
 
 #[test]
 fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.send(b"if ((Get-Command Get-FileHash -ErrorAction Stop).Source -eq 'Microsoft.PowerShell.Utility' -and (Get-Command ConvertTo-Json -ErrorAction Stop)) { Write-Output 'MODULE-AUTOLOAD-OK' }\r")?;
     wait_output_line(&mut h, "MODULE-AUTOLOAD-OK")?;
@@ -744,13 +1071,161 @@ fn direct_preserves_standard_module_autoload_across_shell_editions() -> Result<(
 }
 
 #[test]
+fn direct_autoloads_a_module_under_a_sql_style_powershell_directory() -> Result<()> {
+    let dir = direct_fixture()?;
+    let modules = dir.path().join("SQL/Tools/PowerShell/Modules");
+    let module = modules.join("BlueberrySqlRootFixture");
+    std::fs::create_dir_all(&module)?;
+    std::fs::write(
+        module.join("BlueberrySqlRootFixture.psm1"),
+        "function Get-BlueberrySqlRootFixture { 'SQL-MODULE-AUTOLOAD-OK' }; Export-ModuleMember -Function Get-BlueberrySqlRootFixture",
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut paths = vec![modules];
+    if let Some(inherited) = std::env::var_os("PSModulePath") {
+        paths.extend(std::env::split_paths(&inherited));
+    }
+    let paths = std::env::join_paths(paths)?.to_string_lossy().into_owned();
+    let mut h = Harness::start(
+        &executable,
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--no-profile".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            ("PSModulePath".into(), paths.clone()),
+            ("WinPSModulePath".into(), paths),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    h.send_text("Get-BlueberrySqlRootFixture\r")?;
+    wait_output_line(&mut h, "SQL-MODULE-AUTOLOAD-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_without_inherited_module_path_keeps_editor_and_menu_above_input() -> Result<()> {
+    let dir = direct_fixture()?;
+    let mut h = Harness::start(
+        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--no-profile".into(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            ("PSModulePath".into(), String::new()),
+            (
+                "WinPSModulePath".into(),
+                dir.path()
+                    .join("stale-user/Modules")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            ("TERM".into(), "xterm-256color".into()),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    let status = std::fs::read_dir(dir.path())?
+        .filter_map(Result::ok)
+        .find_map(|entry| std::fs::read(entry.path().join("adapter.json")).ok())
+        .context("missing actual editor status")?;
+    let status: serde_json::Value = serde_json::from_slice(&status)?;
+    ensure!(
+        status["editor_mode"] == "editor_hooks_v1",
+        "GUI startup lost private editor: {status}"
+    );
+    let expected = std::process::Command::new(blueberry::pty::default_shell())
+        .env_remove("PSModulePath")
+        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+            "[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); [Console]::WriteLine((ConvertTo-Json -InputObject @($env:PSModulePath -split ';') -Compress))"])
+        .output()?;
+    ensure!(
+        expected.status.success(),
+        "plain module path control failed"
+    );
+    let expected: Vec<String> = serde_json::from_slice(&expected.stdout)?;
+    let paths_file = dir.path().join("actual-module-paths.json");
+    h.send_text(&format!("[IO.File]::WriteAllText('{}',(ConvertTo-Json -InputObject @($env:PSModulePath -split ';') -Compress)); [Console]::WriteLine('MODULE-PATHS-CAPTURED')\r",
+        paths_file.to_string_lossy().replace('\'', "''")))?;
+    wait_output_line(&mut h, "MODULE-PATHS-CAPTURED")?;
+    let actual: Vec<String> = serde_json::from_slice(&std::fs::read(paths_file)?)?;
+    let normalized = |path: &str| {
+        path.replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_lowercase()
+    };
+    for path in expected.iter().filter(|path| !path.is_empty()) {
+        ensure!(
+            actual
+                .iter()
+                .any(|entry| normalized(entry) == normalized(path)),
+            "GUI startup lost default module directory {path}: {actual:?}"
+        );
+    }
+    // Fill the viewport: a menu below the last prompt has no room. Only a
+    // verified editor can provide the input bounds for upward placement.
+    h.send(b"1..40 | ForEach-Object { 'HISTORY-ROW' }; 'BOTTOM-READY'\r")?;
+    wait_output_line(&mut h, "BOTTOM-READY")?;
+    h.send(b"git sw")?;
+    // The same scenario can also be run with the frozen native observer.
+    // Private companion frames intentionally never enter the legacy VT model.
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    let screen = loop {
+        let screen = h.observed_viewport()?;
+        if screen.contains("switch") {
+            break screen;
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "menu missing above bottom input: {screen}"
+        );
+        let _ = h.pump(Duration::from_millis(10));
+    };
+    let menu = screen
+        .lines()
+        .position(|line| line.contains("switch"))
+        .context("menu missing")?;
+    let input = screen
+        .lines()
+        .position(|line| line.trim_end().ends_with("git sw"))
+        .context("input missing")?;
+    ensure!(menu > input, "menu was not below input: {screen}");
+    h.send(b"\x01\x7f")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     // No command execution/autoload is allowed before these first-prompt checks.
     for prefix in ["get", "GET", "get-"] {
         h.send_text(prefix)?;
-        h.wait_text("Get-Help", TIMEOUT)?;
+        h.wait_text("PowerShell 命令", TIMEOUT)?; // The reserved page may not include Get-Help yet.
         h.send(b"\x01\x7f")?;
     }
     for command in ["Get-ChildItem", "Get-Process", "Get-FileHash"] {
@@ -766,7 +1241,7 @@ fn direct_shows_powershell_commands_before_execution_and_accepts_visible_menu() 
 
 #[test]
 fn direct_refreshes_large_runtime_snapshots_and_removals() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.send_text("1..705 | ForEach-Object { Set-Alias -Name ('bb-session-'+$_) -Value Get-Help }; function bb-runtime { 'old' }; 'SNAPSHOT-READY'\r")?;
     wait_output_line(&mut h, "SNAPSHOT-READY")?;
@@ -802,8 +1277,8 @@ fn direct_commands_are_isolated_between_live_sessions() -> Result<()> {
         atomic::{AtomicBool, Ordering},
         mpsc,
     };
-    let first = tempfile::tempdir()?;
-    let second = tempfile::tempdir()?;
+    let first = direct_fixture()?;
+    let second = direct_fixture()?;
     let stop = Arc::new(AtomicBool::new(false));
     let observer_stop = stop.clone();
     let (ready, ready_rx) = mpsc::channel();
@@ -854,7 +1329,7 @@ fn direct_commands_are_isolated_between_live_sessions() -> Result<()> {
 
 #[test]
 fn direct_tracks_imported_and_removed_module_exports() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     std::fs::write(
         dir.path().join("Commands.psm1"),
         "function Get-BlueberryModuleOnly { 'MODULE-RESULT' }; Export-ModuleMember -Function Get-BlueberryModuleOnly",
@@ -914,7 +1389,7 @@ fn editor_equivalence(vi: bool) -> Result<()> {
     };
     let mut results = Vec::new();
     for direct in [false, true] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         let snapshot = dir.path().join("snapshot.txt");
         let setup = dir.path().join("setup.ps1");
         std::fs::write(&setup, include_str!("editor-equivalence.ps1"))?;
@@ -951,7 +1426,7 @@ fn editor_equivalence(vi: bool) -> Result<()> {
             .as_bytes(),
         )?;
         wait_output_line(&mut h, "EQUIVALENCE-READY")?;
-        if direct {
+        if direct && !trace_disabled() {
             wait_editor_begin(&mut h, dir.path(), 2)?;
         } else {
             // The setup marker is emitted before ConsoleHost returns to the
@@ -1031,7 +1506,7 @@ fn editor_equivalence(vi: bool) -> Result<()> {
 
 #[test]
 fn editor_callback_exception_unregisters_without_losing_native_input() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let script = dir.path().join("inject-callback.ps1");
     let fault = dir.path().join("fault.txt");
     std::fs::write(
@@ -1066,8 +1541,94 @@ $global:BlueberryTestRegistration=[Microsoft.PowerShell.PSConsoleReadLine]::Regi
 }
 
 #[test]
+#[ignore = "native foreground child for the Ctrl+C lifecycle regression"]
+fn external_interrupt_helper() {
+    println!(
+        "BB-EXTERNAL-INTERRUPT-READY-{}",
+        std::env::var("BLUEBERRY_INTERRUPT_ROUND").unwrap()
+    );
+    std::thread::sleep(Duration::from_secs(60));
+}
+
+#[test]
+fn direct_ctrl_c_during_native_process_preserves_session_and_prompt() -> Result<()> {
+    check_native_interrupt(false)?;
+    check_native_interrupt(true)
+}
+
+fn check_native_interrupt(parent_shell: bool) -> Result<()> {
+    let dir = direct_fixture()?;
+    let mut h = if parent_shell {
+        let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+        let shell = blueberry::pty::default_shell();
+        let quote = |path: &std::path::Path| path.to_string_lossy().replace('\'', "''");
+        let command = format!(
+            "function global:prompt {{ 'BB-PARENT-RESTORED> ' }}; & '{}' run --host-mode direct --no-profile --shell '{}' --data-dir '{}' --trace '{}'",
+            quote(&executable),
+            quote(&shell),
+            quote(dir.path()),
+            quote(&dir.path().join("trace.jsonl"))
+        );
+        let mut h = Harness::start(
+            &shell,
+            &[
+                "-NoLogo".into(),
+                "-NoProfile".into(),
+                "-NoExit".into(),
+                "-Command".into(),
+                command,
+            ],
+            dir.path(),
+            &BTreeMap::from([("BLUEBERRY_NO_HISTORY".into(), "1".into())]),
+            String::new(),
+        )?;
+        wait_editor_begin(&mut h, dir.path(), 1)?;
+        h
+    } else {
+        start(dir.path())?
+    };
+    let initialize = if let Some(starship) = std::env::var_os("BLUEBERRY_TEST_STARSHIP") {
+        format!(
+            "Invoke-Expression (& '{}' init powershell)",
+            starship.to_string_lossy().replace('\'', "''")
+        )
+    } else {
+        "function global:prompt { 'BB-PLUGIN-PROMPT> ' }".into()
+    };
+    h.send_text(&format!("$global:BBInterruptPid=$PID; {initialize}; $global:BBInterruptPrompt=(Get-Command prompt).ScriptBlock.ToString(); Write-Output 'BB-PLUGIN-READY'\r"))?;
+    wait_output_line(&mut h, "BB-PLUGIN-READY")?;
+    let helper = std::env::current_exe()?
+        .to_string_lossy()
+        .replace('\'', "''");
+    for iteration in 0..3 {
+        h.send_text(&format!("$env:BLUEBERRY_INTERRUPT_ROUND='{iteration}'; & '{helper}' external_interrupt_helper --exact --ignored --nocapture\r"))?;
+        h.wait_text(&format!("BB-EXTERNAL-INTERRUPT-READY-{iteration}"), TIMEOUT)?;
+        let begins = std::fs::read_to_string(dir.path().join("trace.jsonl"))?
+            .lines()
+            .filter(|line| line.contains("direct_readline_begin"))
+            .count();
+        h.send(b"\x03")?;
+        wait_editor_begin(&mut h, dir.path(), begins + 1)?;
+        let marker = format!("BB-SESSION-PRESERVED-{iteration}");
+        h.send_text(&format!("if ($global:BBInterruptPid -eq $PID -and (Get-Command prompt).ScriptBlock.ToString() -eq $global:BBInterruptPrompt) {{ Write-Output '{marker}' }}\r"))?;
+        wait_output_line(&mut h, &marker)?;
+    }
+    h.send(b"git sw")?;
+    h.wait_text("switch", TIMEOUT)?;
+    h.send(b"\x03")?;
+    if parent_shell {
+        h.send_text("exit\r")?;
+        // Windows may expand an 8.3 TEMP path in its stock prompt.
+        wait_output_line(&mut h, "BB-PARENT-RESTORED>")?;
+    }
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_dismiss_external_program_and_ctrl_c_restore_shell() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(b"git sw")?;
@@ -1099,7 +1660,7 @@ fn direct_dismiss_external_program_and_ctrl_c_restore_shell() -> Result<()> {
 
 #[test]
 fn direct_selected_frame_navigation_survives_resize_and_disconnect() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     harness.send(b"git sw")?;
@@ -1160,7 +1721,7 @@ fn path_fixture(root: &std::path::Path) -> Result<()> {
 #[test]
 fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result<()> {
     for delay in [0, 40] {
-        let dir = tempfile::tempdir()?;
+        let dir = direct_fixture()?;
         path_fixture(dir.path())?;
         let mut h = start_with_delay(dir.path(), delay)?;
         let result = (|| -> Result<()> {
@@ -1209,17 +1770,44 @@ fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result
 }
 
 #[test]
-fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+fn direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation() -> Result<()> {
+    let dir = direct_fixture()?;
     path_fixture(dir.path())?;
     let mut h = start(dir.path())?;
+    h.observe_completed_frames();
     let result = (|| -> Result<()> {
-        h.send_text("1..40 | ForEach-Object { 'BOTTOM-SENTINEL' }")?;
+        h.send_text(
+            "1..40 | ForEach-Object { 'BOTTOM-SENTINEL' }; [Console]::WriteLine('BOTTOM-READY')",
+        )?;
         h.send(b"\r")?;
-        wait_editor_begin(&mut h, dir.path(), 2)?;
+        if trace_disabled() {
+            h.wait_line("BOTTOM-READY", TIMEOUT)?;
+            h.wait_text("PS ", TIMEOUT)?;
+        } else {
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+        }
         h.send_text("Get-ChildItem .\\nav-")?;
-        wait_selected_path(&mut h, "nav-00.txt")?;
-        let screen = h.viewport_contents();
+        // nav-00 already matches the partially typed ".\\na". Its first
+        // selected row is not acknowledgement that the rest of the input or
+        // the scroll-reserving paint has arrived. Inspect both in one complete
+        // rendered frame, rather than a partially received VT update.
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        let screen = loop {
+            if let Some((_, screen)) = h.completed_frame()
+                && screen.contains("Get-ChildItem .\\nav-")
+                && screen
+                    .lines()
+                    .any(|row| row.contains('›') && row.contains("nav-00.txt"))
+            {
+                break screen.to_owned();
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "complete bottom input/menu frame missing: {}",
+                h.viewport_contents()
+            );
+            let _ = h.pump(Duration::from_millis(10));
+        };
         let rows: Vec<_> = screen.lines().collect();
         let input = rows
             .iter()
@@ -1230,8 +1818,8 @@ fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Re
             .position(|row| row.contains('›'))
             .context("menu missing")?;
         ensure!(
-            menu < input,
-            "bottom menu did not open above input: {screen}"
+            menu > input,
+            "bottom menu did not reserve rows below input: {screen}"
         );
         h.resize(10, 90)?;
         h.send(b"\x1b[B")?;
@@ -1247,17 +1835,26 @@ fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Re
             !h.viewport_contents().contains('›'),
             "Escape left the overlay visible"
         );
-        ensure!(
-            h.viewport_contents().contains("BOTTOM-SENTINEL"),
-            "overlay failed to restore underlying output"
-        );
+        // Reserving rows can legitimately scroll history out of the viewport.
+        // Verify that the observer retained it in scrollback, not that the
+        // product copied old cells back over the current editor.
+        let mut history = h.screen_snapshot();
+        let mut retained = history.contents().contains("BOTTOM-SENTINEL");
+        for offset in 1..=1024 {
+            history.set_scrollback(offset);
+            retained |= history.contents().contains("BOTTOM-SENTINEL");
+            if history.scrollback() < offset {
+                break;
+            }
+        }
+        ensure!(retained, "reserved menu destroyed output history");
         h.send_text("x")?;
         h.wait_text("Get-ChildItem .\\nav-x", TIMEOUT)?;
         h.finish(TIMEOUT)
     })();
     if let Err(error) = result {
         let _ = h.save_evidence(dir.path());
-        let _ = console_snapshot::capture(&h, &dir.path().join("native-screen.json"));
+        let _ = console_snapshot::capture(&mut h, &dir.path().join("native-screen.json"));
         let _ = h.stop();
         return Err(error).with_context(|| format!("bottom menu: {}", dir.keep().display()));
     }
@@ -1266,7 +1863,7 @@ fn direct_bottom_menu_opens_above_and_survives_small_viewport_navigation() -> Re
 
 #[test]
 fn direct_pending_path_navigation_yields_to_typing_and_discards_late_frames() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     path_fixture(dir.path())?;
     let mut h = start_with_delay(dir.path(), 100)?;
     let result = (|| -> Result<()> {
@@ -1299,6 +1896,20 @@ fn direct_pending_path_navigation_yields_to_typing_and_discards_late_frames() ->
 
 #[test]
 fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<()> {
+    exercise_multiline_resize(false, false)
+}
+
+#[test]
+fn direct_resize_reflows_input_when_menu_ownership_readback_failed() -> Result<()> {
+    exercise_multiline_resize(true, false)
+}
+
+#[test]
+fn direct_resize_after_menu_clear_reflows_input() -> Result<()> {
+    exercise_multiline_resize(false, true)
+}
+
+fn exercise_multiline_resize(omit_capture: bool, resize_after_clear: bool) -> Result<()> {
     // Keep failed native snapshots and traces inside the uploaded CI evidence.
     let evidence =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
@@ -1306,6 +1917,9 @@ fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<
     let dir = tempfile::Builder::new()
         .prefix("direct-multiline-")
         .tempdir_in(evidence)?;
+    if omit_capture {
+        std::fs::write(dir.path().join("omit-menu-ownership"), "1")?;
+    }
     path_fixture(dir.path())?;
     let suffix = " ; Write-Output 'RIGHT'";
     let expected = format!(
@@ -1323,6 +1937,15 @@ fn direct_above_menu_preserves_wrapped_unicode_input_and_right_text() -> Result<
     let script = format!(
         r#"
 function global:prompt {{ 'BB> ' }}
+Set-PSReadLineKeyHandler -Chord F7 -ScriptBlock {{
+    # The editor's Before callback has already cleared the visible menu.
+    [IO.File]::WriteAllText('{cleared}', 'ready')
+    $deadline=[DateTime]::UtcNow.AddSeconds(5)
+    while (-not [IO.File]::Exists('{resized}')) {{
+        if ([DateTime]::UtcNow -gt $deadline) {{ throw 'Resize gate timed out' }}
+        [Threading.Thread]::Sleep(5)
+    }}
+}}
 Set-PSReadLineKeyHandler -Chord F6 -ScriptBlock {{
     [Microsoft.PowerShell.PSConsoleReadLine]::Insert([IO.File]::ReadAllText('{input}'))
     [Microsoft.PowerShell.PSConsoleReadLine]::BackwardChar($null,{back})
@@ -1330,11 +1953,14 @@ Set-PSReadLineKeyHandler -Chord F6 -ScriptBlock {{
 Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
     $line=''; $cursor=0
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor)
-    [IO.File]::WriteAllText('{snapshot}',$line)
+    [IO.File]::WriteAllText('{snapshot}.pending',$line)
+    [IO.File]::Move('{snapshot}.pending','{snapshot}')
 }}
 1..40 | ForEach-Object {{ 'MULTILINE-SENTINEL' }}
 "#,
         input = quote("input.txt"),
+        cleared = quote("menu-cleared.txt"),
+        resized = quote("resize-complete.txt"),
         back = suffix.encode_utf16().count(),
         snapshot = quote("buffer.txt")
     );
@@ -1344,7 +1970,14 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
         h.resize(12, 70)?;
         h.send_text(&format!(". '{}'", quote("setup.ps1")))?;
         h.send(b"\r")?;
-        wait_editor_begin(&mut h, dir.path(), 2)?;
+        if trace_disabled() {
+            // BB> is installed by this setup; the initial PS prompt cannot
+            // satisfy this gate. F6 then acknowledges the native binding by
+            // inserting the fixture and producing its actual path menu.
+            h.wait_text("BB> ", TIMEOUT)?;
+        } else {
+            wait_editor_begin(&mut h, dir.path(), 2)?;
+        }
         h.send(b"\x1b[17~")?;
         wait_selected_path(&mut h, "nav-00.txt")?;
         let snapshot = dir.path().join("native-screen.json");
@@ -1359,10 +1992,37 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
             .position(|row| row.contains('›'))
             .context("native menu missing")?;
         ensure!(
-            menu < input && screen.contains("RIGHT"),
+            menu > input && screen.contains("RIGHT"),
             "menu covered multiline input: {screen}"
         );
+        if resize_after_clear {
+            h.send(b"\x1b[18~")?;
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            while !dir.path().join("menu-cleared.txt").is_file() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "menu clear gate missing"
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+        }
         h.resize(10, 60)?;
+        if resize_after_clear {
+            std::fs::write(dir.path().join("resize-complete.txt"), "ready")?;
+            // F7 is a user handler: it revokes the displayed frame before
+            // dispatch. A queued arrow before a replacement is visible belongs
+            // to native editing, not to an invisible menu. Observe the new
+            // native frame before exercising its navigation contract.
+            let screen = wait_native_selected_path(
+                &mut h,
+                &dir.path().join("native-after-clear-resize.json"),
+                "nav-00.txt",
+            )?;
+            ensure!(
+                screen.contains("HEAD") && screen.contains("RIGHT"),
+                "clear/resize covered the input before navigation: {screen}"
+            );
+        }
         h.send(b"\x1b[B")?;
         wait_selected_path(&mut h, "nav-01.txt")?;
         let resized_screen = wait_native_selected_path(
@@ -1392,7 +2052,7 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
     })();
     if let Err(error) = result {
         let _ = h.save_evidence(dir.path());
-        let _ = console_snapshot::capture(&h, &dir.path().join("native-failure.json"));
+        let _ = console_snapshot::capture(&mut h, &dir.path().join("native-failure.json"));
         let _ = h.stop();
         return Err(error).with_context(|| format!("multiline overlay: {}", dir.keep().display()));
     }
@@ -1400,8 +2060,194 @@ Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{
 }
 
 #[test]
+fn direct_above_menu_preserves_truecolor_prompt_cells() -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let dir = tempfile::Builder::new()
+        .prefix("direct-prompt-colors-")
+        .tempdir_in(evidence)?;
+    let setup = dir.path().join("setup.ps1");
+    std::fs::write(
+        &setup,
+        "\u{feff}1..40 | ForEach-Object { 'COLOR-SENTINEL' }; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $e=[char]27; [Console]::Write(\"${e}[38;2;123;45;67m${e}[48;2;23;89;145mRGB-PROMPT-中🚀é${e}[0m`r`n\"); function global:prompt { 'BB> ' }\r\n",
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut h = start_delayed_executable_with_pages(dir.path(), 0, &executable, true)?;
+    let result = (|| -> Result<()> {
+        h.send_text(&format!(
+            ". '{}'\r",
+            setup.display().to_string().replace('\'', "''")
+        ))?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        h.wait_text("RGB-PROMPT-中🚀é", TIMEOUT)?;
+        let before = h.screen_snapshot();
+        let row = (0..before.size().0)
+            .find(|row| {
+                before
+                    .rows(0, before.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("prompt row missing")?;
+        ensure!(
+            before.cell(row, 0).unwrap().fgcolor() == vt100::Color::Rgb(123, 45, 67),
+            "fixture lacks truecolor"
+        );
+        h.send(b"git sw")?;
+        h.wait_text("switch", TIMEOUT)?;
+        h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+        let until = std::time::Instant::now() + Duration::from_millis(400);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        let after = h.screen_snapshot();
+        let after_row = (0..after.size().0)
+            .find(|row| {
+                after
+                    .rows(0, after.size().1)
+                    .nth(*row as usize)
+                    .is_some_and(|line| line.contains("RGB-PROMPT-"))
+            })
+            .context("scrolled prompt row missing")?;
+        for column in 0..before.size().1 {
+            let old = before.cell(row, column).unwrap();
+            let new = after.cell(after_row, column).unwrap();
+            ensure!(
+                old == new,
+                "prompt cell changed at {row},{column}: {old:?} -> {new:?}"
+            );
+        }
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error).with_context(|| format!("prompt colors: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires frozen CI EXE and native history observer DLL"]
+fn direct_above_menu_resize_preserves_truecolor_history() -> Result<()> {
+    check_above_menu_resized_history(true)
+}
+
+#[test]
+#[ignore = "requires frozen CI EXE and native history observer DLL"]
+fn direct_above_menu_resize_preserves_unicode_and_wrapped_history() -> Result<()> {
+    // Keep this independent of RGB: a colour assertion must not conceal a
+    // second regression in the character/soft-wrap restoration path.
+    check_above_menu_resized_history(false)
+}
+
+fn check_above_menu_resized_history(check_rgb: bool) -> Result<()> {
+    let evidence =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/input-protocol-evidence");
+    std::fs::create_dir_all(&evidence)?;
+    let mut dir = tempfile::Builder::new()
+        .prefix("direct-resize-prompt-colors-")
+        .tempdir_in(evidence)?;
+    dir.disable_cleanup(true);
+    let setup = dir.path().join("setup.ps1");
+    std::fs::write(
+        &setup,
+        format!(
+            "\u{feff}1..40 | ForEach-Object {{ 'COLOR-SENTINEL' }}; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145mRGB-PROMPT-中🚀é{}${{e}}[0m`r`n\"); function global:prompt {{ 'BB> ' }}\r\n",
+            "x".repeat(55)
+        ),
+    )?;
+    let executable = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
+    let mut h = start_delayed_executable_with_pages(dir.path(), 0, &executable, true)?;
+    let result = (|| -> Result<()> {
+        h.send_text(&format!(
+            ". '{}'\r",
+            setup.display().to_string().replace('\'', "''")
+        ))?;
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        h.wait_text("RGB-PROMPT-中🚀é", TIMEOUT)?;
+        let before = h.native_history()?;
+        std::fs::write(dir.path().join("native-history-before.txt"), &before)?;
+        let row = before
+            .lines()
+            .position(|line| line.starts_with("RGB-PROMPT-"))
+            .context("original native history row missing")?;
+        ensure!(
+            h.native_cell_colors(row as u32, 0)?
+                == [
+                    3,
+                    123 | (45 << 8) | (67 << 16),
+                    3,
+                    23 | (89 << 8) | (145 << 16)
+                ],
+            "fixture lacks original RGB attributes"
+        );
+        h.send(b"git sw")?;
+        h.wait_text("switch", TIMEOUT)?;
+        h.resize(12, 40)?;
+        let until = std::time::Instant::now() + Duration::from_millis(500);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+        let until = std::time::Instant::now() + Duration::from_millis(400);
+        while std::time::Instant::now() < until {
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        // Native TerminalCore retains and reflows logical scrollback. Read it
+        // directly; replaying or growing the lossy VT model is not evidence.
+        let after = h.native_history()?;
+        std::fs::write(dir.path().join("native-history-after.txt"), &after)?;
+        std::fs::write(
+            dir.path().join("native-observer.json"),
+            serde_json::to_vec_pretty(&h.native_observer_identity())?,
+        )?;
+        let row = after
+            .lines()
+            .position(|line| line.starts_with("RGB-PROMPT-"))
+            .context("native history disappeared after menu resize and Esc")?;
+        let colors = h.native_cell_colors(row as u32, 0)?;
+        std::fs::write(
+            dir.path().join("native-history-colors.json"),
+            serde_json::to_vec(&colors)?,
+        )?;
+        if check_rgb {
+            ensure!(
+                colors
+                    == [
+                        3,
+                        123 | (45 << 8) | (67 << 16),
+                        3,
+                        23 | (89 << 8) | (145 << 16)
+                    ],
+                "resized native history lost RGB: {colors:?}"
+            );
+        }
+        let expected = format!("RGB-PROMPT-中🚀é{}", "x".repeat(55));
+        let logical_text = after.lines().map(str::trim_end).collect::<String>();
+        ensure!(
+            logical_text.contains(&expected),
+            "resized native history clipped or changed the wrapped Unicode fixture"
+        );
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error)
+            .with_context(|| format!("resize prompt colors: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+#[test]
 fn direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut harness = start(dir.path())?;
     harness.wait_text("PS ", TIMEOUT)?;
     harness.send(b"git switch -c  --track")?;
@@ -1444,8 +2290,73 @@ fn direct_guided_form_cancel_preserves_right_text_and_confirm_does_not_execute()
 }
 
 #[test]
+fn direct_malformed_cargo_form_keeps_completion_and_native_history_alive() -> Result<()> {
+    let dir = direct_fixture()?;
+    std::fs::write(dir.path().join("Cargo.toml"), "[workspace\nbroken")?;
+    let snapshot = dir.path().join("error-buffer.json");
+    let mut h = start(dir.path())?;
+    h.send_text(&format!(
+        "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ $line=''; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); [IO.File]::WriteAllText('{}', (@{{line=$line;cursor=$cursor}} | ConvertTo-Json -Compress)) }}\r",
+        snapshot.display().to_string().replace('\'', "''")
+    ))?;
+    wait_editor_begin(&mut h, dir.path(), 2)?;
+    h.send_text("cargo test -p --release")?;
+    h.send(&b"\x1b[D".repeat(" --release".len()))?;
+    h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
+    h.wait_text("继续填写", TIMEOUT)?;
+    h.send(b"\r")?;
+    h.wait_text("填写参数：工作区包", TIMEOUT)?;
+    h.wait_text("Cargo.toml", TIMEOUT)?;
+    h.send(b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_")?;
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    while h.viewport_contents().contains("填写参数") {
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "form error could not be canceled: {}",
+            h.viewport_contents()
+        );
+        let _ = h.pump(Duration::from_millis(25));
+    }
+    for (expected, cursor) in [
+        ("cargo test -p --release", Some(13)),
+        ("Write-Output BB_DIRECT_FORM_RECOVERED", None),
+    ] {
+        h.send(b"\x1b[24~")?;
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        let value = loop {
+            if let Ok(bytes) = std::fs::read(&snapshot)
+                && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
+                && value["line"] == expected
+            {
+                break value;
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "native buffer unavailable after form error"
+            );
+            let _ = h.pump(Duration::from_millis(25));
+        };
+        if let Some(cursor) = cursor {
+            ensure!(
+                value["cursor"] == cursor,
+                "cancel changed original cursor: {value}"
+            );
+            h.send(b"\x01\x7f")?;
+            h.send_text("git ")?;
+            h.wait_text("archive", TIMEOUT)?;
+            h.send(b"\x01\x7f")?;
+            h.send_text("Write-Output BB_DIRECT_FORM_RECOVERED\r")?;
+            h.wait_line("BB_DIRECT_FORM_RECOVERED", TIMEOUT)?;
+            wait_editor_begin(&mut h, dir.path(), 3)?;
+            h.send(b"\x1b[A")?;
+        }
+    }
+    h.finish(TIMEOUT)
+}
+
+#[test]
 fn direct_form_confirmation_precedes_immediately_following_typing() -> Result<()> {
-    let dir = tempfile::tempdir()?;
+    let dir = direct_fixture()?;
     let mut h = start(dir.path())?;
     h.wait_text("PS ", TIMEOUT)?;
     h.send(b"git switch -c  --track")?;
@@ -1461,5 +2372,351 @@ fn direct_form_confirmation_precedes_immediately_following_typing() -> Result<()
         "form executed command"
     );
     h.send(b"\x01\x7f")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
+    let dir = direct_fixture()?;
+    let discovery = dir.path().join("unmatched.psd1");
+    std::fs::write(&discovery, "ModuleVersion = '2.3.6'")?;
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        "[keys]\ntrigger = 'F6'\nhub = 'F7'\nsearch = 'F8'\n",
+    )?;
+    let mut h = Harness::start(
+        std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+        &[
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--no-profile".into(),
+            "--shell".into(),
+            blueberry::pty::default_shell()
+                .to_string_lossy()
+                .into_owned(),
+            "--data-dir".into(),
+            dir.path().to_string_lossy().into_owned(),
+            "--config".into(),
+            config.to_string_lossy().into_owned(),
+        ],
+        dir.path(),
+        &BTreeMap::from([
+            ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
+            (
+                "BLUEBERRY_TEST_PSREADLINE_MODULE".into(),
+                discovery.to_string_lossy().into_owned(),
+            ),
+        ]),
+        String::new(),
+    )?;
+    h.wait_text("PS ", TIMEOUT)?;
+    h.send_text("git sw")?;
+    h.pump(Duration::from_millis(500))?;
+    ensure!(
+        !h.contents().contains("switch"),
+        "unmatched editor popped up automatically"
+    );
+    h.send(b"\x1b[17~")?;
+    h.wait_text("switch", TIMEOUT)?;
+    h.send(b"\t")?;
+    h.wait_text("git switch", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
+    h.send_text("Write-Output 'MANUAL-EDIT-OK'")?;
+    h.send(b"\r")?;
+    h.wait_line("MANUAL-EDIT-OK", TIMEOUT)
+        .context("post acceptance edit")?;
+    h.send(b"\x1b[18~")?;
+    h.wait_text("工作台", TIMEOUT)
+        .context("open manual workbench")?;
+    h.send_text("\x1b")?;
+    h.send_text("Write-Output 'MANUAL-CANCEL-OK'")?;
+    h.send(b"\r")?;
+    h.wait_line("MANUAL-CANCEL-OK", TIMEOUT)
+        .context("post cancel edit")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn builtin_workflows_fill_native_editor_without_executing() -> Result<()> {
+    exercise_builtin_workflows(false)
+}
+
+#[test]
+fn queued_workflow_responses_survive_a_late_editor_wake() -> Result<()> {
+    exercise_builtin_workflows(true)
+}
+
+#[test]
+fn queued_completion_acceptance_survives_a_late_editor_wake() -> Result<()> {
+    let dir = direct_fixture()?;
+    std::fs::write(dir.path().join("delay-ui-wake"), "600")?;
+    let mut h = start(dir.path())?;
+    h.send_text("git sw")?;
+    h.wait_text("switch", TIMEOUT)?;
+    h.send(b"\tX")?;
+    h.wait_text("git switch X", TIMEOUT)?;
+    h.finish(TIMEOUT)
+}
+
+fn exercise_builtin_workflows(delay_wake: bool) -> Result<()> {
+    let dir = direct_fixture()?;
+    if delay_wake {
+        std::fs::write(dir.path().join("delay-ui-wake"), "600")?;
+    }
+    let snapshot = dir.path().join("workflow-buffer.txt");
+    let setup = dir.path().join("setup.ps1");
+    let mode = dir.path().join("argument-mode.txt");
+    std::fs::write(
+        &setup,
+        format!(
+            "Set-PSReadLineKeyHandler -Chord F12 -ScriptBlock {{ $line=''; $cursor=0; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line,[ref]$cursor); $snapshotPath='{}'; [IO.File]::WriteAllText($snapshotPath+'.pending',$line); [IO.File]::Move($snapshotPath+'.pending',$snapshotPath) }}; [IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy'))",
+            snapshot.display().to_string().replace('\'', "''"),
+            mode.display().to_string().replace('\'', "''")
+        ),
+    )?;
+    let mut h = start(dir.path())?;
+    let result = (|| -> Result<()> {
+        // The fixture is already the Shell's working directory. Avoid sending
+        // a long temporary absolute path as hundreds of synchronous native
+        // key records before the observer can service cursor queries.
+        workflow_text(&mut h, ". .\\setup.ps1\r")?;
+        if trace_disabled() {
+            ensure!(
+                !delay_wake,
+                "untraced fixture does not measure delayed wakes"
+            );
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            while !mode.is_file() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "untraced setup missing"
+                );
+                let _ = h.pump(Duration::from_millis(5));
+            }
+            // A native F12 acknowledgement proves ReadLine is accepting keys;
+            // this path never waits on a diagnostic event or an arbitrary sleep.
+            h.send(b"\x1b[24~")?;
+            while !snapshot.is_file() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "untraced editor acknowledgement missing"
+                );
+                let _ = h.pump(Duration::from_millis(5));
+            }
+            std::fs::remove_file(&snapshot)?;
+            let legacy = std::fs::read_to_string(&mode)? == "True";
+            return exercise_builtin_workflow_cases_untraced(&mut h, &snapshot, legacy);
+        }
+        wait_editor_begin(&mut h, dir.path(), 2)?;
+        let legacy = std::fs::read_to_string(&mode)? == "True";
+        let cases = workflow_cases::CASES;
+        let mut trace = incremental_trace::Trace::open(&dir.path().join("trace.jsonl"))?;
+        for (name, values, expected) in cases {
+            let expected = if legacy && expected.starts_with("git worktree add") {
+                expected.replace("'../work tree'", "'\"../work tree\"'")
+            } else {
+                (*expected).to_owned()
+            };
+            h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
+            h.wait_text("工作台", TIMEOUT)?;
+            let before = workflow_trace(&mut h, &mut trace)?.keys;
+            workflow_text(&mut h, name)?;
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            loop {
+                let state = workflow_trace(&mut h, &mut trace)?;
+                if state.keys >= before + name.encode_utf16().count()
+                    && state.painted_revision >= state.key_revision.unwrap_or(u64::MAX)
+                    && h.viewport_contents()
+                        .lines()
+                        .any(|row| row.contains('›') && row.contains(name))
+                {
+                    break;
+                }
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "workflow not selected: {name}: {}",
+                    h.viewport_contents()
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            let state = workflow_trace(&mut h, &mut trace)?;
+            let applied_before = state.applied;
+            let mut form_keys_before = state.keys;
+            h.send(b"\r")?;
+            for (index, value) in values.iter().enumerate() {
+                let deadline = std::time::Instant::now() + TIMEOUT;
+                loop {
+                    let state = workflow_trace(&mut h, &mut trace)?;
+                    let screen = h.viewport_contents();
+                    if state.keys > form_keys_before
+                        && state.painted_revision >= state.key_revision.unwrap_or(u64::MAX)
+                        && screen.contains("填写参数：")
+                        && screen.contains(&format!("参数 {}/{}", index + 1, values.len()))
+                    {
+                        break;
+                    }
+                    ensure!(
+                        std::time::Instant::now() < deadline,
+                        "workflow field not painted: {name}/{}: {screen}",
+                        index + 1
+                    );
+                    let _ = h.pump(Duration::from_millis(10));
+                }
+                if !value.is_empty() {
+                    workflow_text(&mut h, value)?;
+                }
+                form_keys_before = workflow_trace(&mut h, &mut trace)?.keys;
+                h.send(b"\r")?;
+            }
+            let deadline = std::time::Instant::now() + TIMEOUT;
+            while workflow_trace(&mut h, &mut trace)?.applied <= applied_before {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "workflow did not finish: {name}: {}",
+                    h.viewport_contents()
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            h.send(b"\x1b[24~")?;
+            while !snapshot.exists() {
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "workflow buffer snapshot missing: {name}"
+                );
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            // F12 publishes by rename only after its complete buffer has
+            // reached disk. Existence must not race WriteAllText's create.
+            let observed = std::fs::read_to_string(&snapshot)?;
+            ensure!(
+                observed == expected,
+                "workflow filled unexpected command: {name}: {observed:?}"
+            );
+            std::fs::remove_file(&snapshot)?;
+            h.send(b"\x01\x7f")?;
+        }
+        h.send_text("Write-Output 'WORKFLOWS-STILL-EDITABLE'\r")?;
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        while !h
+            .viewport_contents()
+            .lines()
+            .any(|line| line.trim() == "WORKFLOWS-STILL-EDITABLE")
+        {
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "post-workflow command output missing: {}",
+                h.viewport_contents()
+            );
+            let _ = h.pump(Duration::from_millis(10));
+        }
+        h.finish(TIMEOUT)
+    })();
+    if let Err(error) = result {
+        let _ = h.save_evidence(dir.path());
+        let _ = h.stop();
+        return Err(error).with_context(|| format!("workflow evidence: {}", dir.keep().display()));
+    }
+    Ok(())
+}
+
+fn wait_workflow_screen(
+    h: &mut Harness,
+    description: &str,
+    predicate: impl Fn(&str) -> bool,
+) -> Result<()> {
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    loop {
+        let screen = h.viewport_contents();
+        if predicate(&screen) {
+            return Ok(());
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "{description}: {screen}"
+        );
+        let _ = h.pump(Duration::from_millis(5));
+    }
+}
+
+fn exercise_builtin_workflow_cases_untraced(
+    h: &mut Harness,
+    snapshot: &std::path::Path,
+    legacy: bool,
+) -> Result<()> {
+    h.observe_completed_frames();
+    for (name, values, expected) in workflow_cases::CASES {
+        let expected = if legacy && expected.starts_with("git worktree add") {
+            expected.replace("'../work tree'", "'\"../work tree\"'")
+        } else {
+            (*expected).to_owned()
+        };
+        let mut previous = h.completed_frame().map_or(0, |(sequence, _)| sequence);
+        h.send(b"\x1b[80;25;16;1;10;1_\x1b[80;25;16;0;10;1_")?;
+        // Search text is not echoed in the hub. A matching row can therefore
+        // belong to an earlier search revision. With tracing disabled, select
+        // through observable native navigation instead of guessing readiness
+        // from that unchanged row or adding a fixed delay.
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        loop {
+            let (sequence, screen) = loop {
+                if let Some((sequence, screen)) = h.completed_frame()
+                    && sequence > previous
+                    && screen.contains("工作台")
+                {
+                    break (sequence, screen);
+                }
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "untraced workflow frame missing: {name}"
+                );
+                let _ = h.pump(Duration::from_millis(5));
+            };
+            previous = sequence;
+            let selected = screen
+                .lines()
+                .find(|row| row.contains('›'))
+                .unwrap_or_default()
+                .to_owned();
+            if selected.contains(name) {
+                break;
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "untraced workflow not found: {name}"
+            );
+            h.send(b"\x1b[B")?;
+        }
+        h.send(b"\r")?;
+        for (index, value) in values.iter().enumerate() {
+            wait_workflow_screen(h, "untraced form field", |screen| {
+                screen.contains("填写参数：")
+                    && screen.contains(&format!("参数 {}/{}", index + 1, values.len()))
+            })?;
+            workflow_text(h, value)?;
+            h.send(b"\r")?;
+        }
+        wait_workflow_screen(h, "untraced form returned to editor", |screen| {
+            !screen.contains("填写参数：") && !screen.contains("工作台")
+        })?;
+        h.send(b"\x1b[24~")?;
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        while !snapshot.is_file() {
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "untraced native buffer missing: {name}"
+            );
+            let _ = h.pump(Duration::from_millis(5));
+        }
+        ensure!(
+            std::fs::read_to_string(snapshot)? == expected,
+            "untraced workflow buffer mismatch: {name}"
+        );
+        std::fs::remove_file(snapshot)?;
+        h.send(b"\x01\x7f")?;
+    }
+    h.send_text("Write-Output 'UNTRACED-WORKFLOWS-OK'\r")?;
+    wait_output_line(h, "UNTRACED-WORKFLOWS-OK")?;
     h.finish(TIMEOUT)
 }

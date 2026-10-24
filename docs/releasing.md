@@ -1,5 +1,15 @@
 # 发布 Blueberry
 
+> 2026-10-12 当前规则：按[三轮性能与发版验收](performance-next.md)执行。完整达到
+> 50 ms／20 ms 门槛且无明显回退发布 0.6.0，否则在三轮结束且数据有效完整后发布
+> 0.5.3。两版均须修好缩放历史提示符恢复，并完成最终包自动、安装和本机人工验收。
+> 下文修复候选的性能延期与 0.5.0–0.5.2 豁免均为历史记录，不能免除当前共同门槛。
+
+> 历史 0.5.3 修复候选政策：曾允许功能与安装先交付、性能继续推进。2026-10-12 的
+> 三轮优化计划已替代该延期条件；现在补丁版也必须取得完整有效的正式性能数据。
+> 见 [候选历史验收](v0.5.3-validation.md) 和 [原始证据保留](benchmark-artifacts.md)。
+
+
 GitHub 仓库存放源码；Release 存放用户下载的程序。CI 为已冻结的源码提交生成 Windows x64 包；发布工作流只复用这份绑定验收记录的包，不在打标签后重新构建替换。
 
 `0.5.0` 按用户 2026-10-06 的明确要求“如果没有bug先直接发版吧，性能以后再优化”，性能目标及正式性能矩阵延期，不再阻断本版发布，也不标记为通过。最新本地探索的 PS5.1／2.0.0 启动增量 P50 为 70.04770 ms，超过 50 ms 目标；其他历史探索不能代替最终包的正式验收。功能 CI、安装升级回滚和最终 main CI 包身份仍须通过。最终包交付后，用户进一步明确“本次也免除人工检查，按自动回归结果发布”；Windows Terminal 人工项目记录为豁免、未执行，不标记通过。目标用户试用保留此前明确豁免。后文完整性能流程保留给后续优化；本版使用下面的限版本延期记录。候选验证记录见 [0.5.0 验收](v0.5.0-validation.md)。
@@ -114,7 +124,44 @@ Windows 构建先执行 `scripts/prepare-editor.py` 和 `scripts/prepare-conpty.
 提供 CI EXE、探针及两者期望 SHA-256，并指定原版 2.0.0 和 2.4.5 模块用于 plain 对照。
 脚本拒绝覆盖既有目录，保存原始样本与失败日志，任何降级或子组超标即阻断。
 原始数据目录由 `BLUEBERRY_BENCH_EVIDENCE` 控制；正式矩阵脚本自动设置并在结束后还原。
+正式批次的输出和 TEMP／TMP 应位于独立中性目录；先检查其所有祖先没有 `.git`、
+`Cargo.toml`、`package.json` 等项目标记。仓库内或用户目录下的临时目录可能继承
+上级项目上下文。保留这类历史数组与摘要，但不能当作中性夹具的正式对照；计时
+全部结束后再复制原始目录归档，复制时保留原始路径记录和字节。
 诊断可用 `--diagnostic-trace-directory`，再由 `scripts/analyze-editor-trace.py` 关联 QPC 阶段，
 但启用 trace 的数据不能作为正式计时。
 
 自动矩阵不替代 Windows Terminal 的真实输入法、剪贴板、视觉、升级和回滚检查。最终包交付用户后按 [0.5.0 人工验收清单](v0.5.0-windows-terminal-acceptance.md) 留证；清单本身不表示已经通过。
+
+## 原生恢复依赖的发布绑定
+
+内嵌 `companion_overlay_interface=4` 的包必须提供 `terminal_dependency`，并独立
+附带成功 CI 的原始便携 Terminal Artifact ZIP。发布工作流按该记录的固定
+`run_id`、`artifact_id` 和 `source_commit` 下载，校验 `package_sha256`，不重打包。
+`asset_name` 使用 `blueberry-terminal-*.zip`；Blueberry 继续使用通过 main CI 的原包。
+
+依赖记录还包含固定上游提交、`executable_member`／`executable_sha256`、三份
+许可证成员及摘要，以及带摘要的 `ci_report` 和 `runtime_report`。CI 报告保存
+原始 run、artifact、jobs 和 `native_model_artifact` 元数据；原生缓冲专项必须
+通过，原始 Artifact digest 必须与发布 ZIP 一致。依赖源码提交可独立于最终
+Blueberry 提交，且必须能从公开仓库取得对应补丁。
+
+`native_model` 固定同一依赖 CI 的模型 Artifact ID、原始 ZIP 的相对 `package`
+路径和摘要、`dll_member` 与 `dll_sha256`。正式启动、direct 热态及 nested
+兼容报告必须使用该 DLL，采用逐接收块绑定的原生缓冲快照，屏幕像素阶段明确
+记录未测。模型 ZIP 和两份报告由固定身份的原始工件下载，并随证据包长期保存。
+
+三个编辑器组合的 `manual_acceptance.windows_terminal_matrix` 各自记录
+`terminal_package_sha256` 和 `terminal_executable_sha256`。更换任一原包后须重验
+受影响项目。原生缓冲证明、运行接口诊断和最终 GUI 人工结果分别记录，不能互相
+替代；全部历史属性恢复仍是发布关卡。
+
+配套自动安装采用单包交付：CI 使用 `scripts/terminal-dependency.json` 的固定
+Actions run／artifact／源码和 SHA-256 下载原始 Terminal ZIP，再以
+`BLUEBERRY_TERMINAL_PACKAGE`（或 `release.ps1 -TerminalPackagePath`）传入组包。
+组包脚本只提取便携运行文件，逐字节保留；PDB、构建日志和 stamp 留在独立原始
+Artifact，不进入安装目录。安装包增加受管 `terminal/`、非空 `.portable` 标记、
+`terminal-dependency.json` 和 `blueberry-terminal.cmd`；原始 Terminal ZIP 仍作为
+单独 Release 附件长期保存。发布校验同时核对两者的组件身份和全部运行文件，
+不允许注入预设用户设置或替换 DLL。便携 Terminal 自行生成的 `terminal/settings`
+不列入不可变受管清单，安装、升级、回滚及卸载测试须验证其内容保留。

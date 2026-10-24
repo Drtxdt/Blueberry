@@ -1,0 +1,203 @@
+{
+  "base_commit": "8f98815525fc81461b40ca9165824d25af12d13e",
+  "ci_failure": {
+    "run_id": 39385912604,
+    "job_id": 118505595861,
+    "artifact_id": 12248945827,
+    "passed_direct": 900,
+    "passed_nested": 150,
+    "failed": "PS5.1/2.4.5 Nested OSC repetition 1",
+    "native_prompt_present": true,
+    "vt_prompt_present": false,
+    "native_final_sha256": "7e8ec15662811a1378f2e3778adbe5cc033a1f5b9f7370efdbf896976a08691a",
+    "narrow_sha256": "11510636e457f6dc48eed544f4a19215888417284a1d317c2c5d71983c3f7f37",
+    "vt_screen_sha256": "d509156ed4dcb87854e8567bb8be58a9bed6996fe147b67c5f96397c2374574e",
+    "real_residue": "git-receive-pack candidate fragment above the prompt in native narrow and final snapshots"
+  },
+  "issue": "A completion can repaint using old model geometry after native resize but before its queued event. Out-of-range rows clamp/scroll, and replacing Painted forgets the old text needed for cleanup.",
+  "fix": "Borrow the actual stdout console handle. If viewport and model sizes differ, retire the old menu and defer new paint until resize updates the model. Native overlays keep their existing path.",
+  "observation": "Wide resize and dismissal require actual native prompt/menu snapshots; narrow/wide/dismissal reject historical candidate residue. The VT model crops on set_size and cannot prove native reflow. Existing timeouts unchanged.",
+  "before": {
+    "fixture": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-UT4veL",
+    "after_sha256": "47c06c4977cad87d0e66894647ad36ead98d4799a9db54dc0c4dd206aed0df30",
+    "passed": false
+  },
+  "repeat": {
+    "passed": 30,
+    "log": "artifacts\\stability-stale-geometry-final-repeat30.log",
+    "log_sha256": "435a27f7ae2df72fe64fa2789def81ea0d1bc02473dd213312de705825f16af6",
+    "test_binary_sha256": "4630474B03D8DA90D9BA4FB474A9B47CC8F2977F013916F89A02AD595253D11C",
+    "fixtures": [
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-at5ezk",
+        "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-2qhaiv",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-bpBZ74",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-DsBVAt",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-W47Mip",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-0yo4oX",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-ho14Lb",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-oxABmS",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-SMaS8k",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-G1SlqR",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-W1Amu2",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-27o8Yg",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-XF7L74",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-d2ryTM",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-4qI8rw",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-VRdEFg",
+        "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-iNiiYQ",
+        "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-Pdhozs",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-ZgdsL7",
+        "after_sha256": "c3e710a482093923b0c57a800d50417a912922a2ad1a9561daa748f902390e04"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-PI1Ajz",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-bwFbJm",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-dxnaaB",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-06ORp9",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-KPQwLk",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-JcCgd9",
+        "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-Bl1PK4",
+        "after_sha256": "ed0baea041b222dad86cece2de4e7de164a3e052e06559653265369ef8141abe"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-HMUTGb",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-GgwxvV",
+        "after_sha256": "c3e710a482093923b0c57a800d50417a912922a2ad1a9561daa748f902390e04"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-11uhcK",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      },
+      {
+        "path": "E:\\OpenSource\\shellsense-rs\\target\\overlay-resize-evidence\\race-VCisqa",
+        "after_sha256": "35f4859648ab6641c95bf000415474c5b3fc1389b4905a8dd7870c27a1b41632"
+      }
+    ]
+  },
+  "interaction_history": {
+    "passed": 12,
+    "log": "artifacts\\stability-stale-geometry-final-interaction-history.log",
+    "log_sha256": "d16c6fbf53484ddbcbf2184c8ea9982f064a1a9819eeb55739d3a0b3adf2a403",
+    "test_binary_sha256": "13D4E1FFEFBDA955C8F2CDFA7DE475EB27AB18B59805490CF06736B88C957FF7",
+    "fixtures": [
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-oXpl8L",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-l2w1pY",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-HEkhhW",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-I3zKtW",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-dMHMbd",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-4GODhq",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-Flh6yZ",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-u8LSkH",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-EVMXNq",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-shnd9U",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-vJRfKJ",
+      "E:\\OpenSource\\shellsense-rs\\target/nested-terminal-evidence\\host-FqdEWm"
+    ]
+  },
+  "prior_source_diagnostic": {
+    "passed": 100,
+    "log": "artifacts\\stability-8f98815-ps51245-osc-diagnostic100.log",
+    "log_sha256": "e75476eb93e8bddcb188d0452eb57862b80b5ae386650da8656c6e7938f048c8",
+    "test_binary_sha256": "08AA115CFAD0BD38CEA7A3254B45F2A5D95D6BE7FB0AEBD9279764C0A94EC4DB",
+    "scope": "Ownership logging enabled; no cloud failure reproduced locally. One audit ends in a truncated last record. Not repeated trace-off qualification."
+  },
+  "limits": "Isolated timing defect reproduced; remaining cloud causality and complete stability require fresh exact-source single-pass and repeated CI. Not performance or final package acceptance.",
+  "local_ownership_audit": {
+    "logs": 6,
+    "unmatched_resized_candidate_rows": 0
+  },
+  "checks": {
+    "clippy": {
+      "log": "artifacts\\stability-stale-geometry-final-clippy.log",
+      "sha256": "fe35b281cbc2800dc0715347c768b4326f64fe96cce98ab8a9532fa8adbdce6c"
+    },
+    "unit": {
+      "log": "artifacts\\stability-stale-geometry-final-unit.log",
+      "sha256": "16a3c64aedd034fd9fffd27a56cebcca90d4865eedeae47bfcf2aad657a45610"
+    },
+    "isolated": {
+      "log": "artifacts\\stability-stale-geometry-final-isolated.log",
+      "sha256": "735d26c5868adf4c4c60b660ad3bc6026c25059e1edae856623a969149e8136c"
+    },
+    "observation": {
+      "log": "artifacts\\stability-stale-geometry-final-observation.log",
+      "sha256": "c170fbabef46b29da60a88468712189be6dcdb99ab230f2a6983111252570007"
+    }
+  }
+}

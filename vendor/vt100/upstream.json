@@ -1,0 +1,7 @@
+{
+  "package": "vt100",
+  "version": "0.16.2",
+  "repository": "https://github.com/doy/vt100-rust",
+  "registry_sha256": "054ff75fb8fa83e609e685106df4faeffdf3a735d3c74ebce97ec557d5d36fd9",
+  "patch": "Clear truncated wide-cell leaders in Row::resize; preserve cell attributes."
+}

@@ -1,0 +1,45 @@
+Source: 21cfd5aef43b89c8823e1cb3c6a06f19b10d75d5
+Full CI logs: https://github.com/Drtxdt/Blueberry/actions/runs/39123622450
+These are actual job excerpts, not final package acceptance.
+
+ps51-200 job 117664107821 (suite once + ten independent repeats)
+2026-10-18T11:54:00.8178893Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:55:29.2742570Z test result: ok. 34 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 100.79s
+2026-10-18T11:58:27.1184657Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:58:38.8963913Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:58:55.6867604Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:59:10.8814534Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:59:25.7290644Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:59:40.3416111Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:59:56.0030149Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:00:09.3651490Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:00:22.0995733Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:00:37.7999774Z test builtin_workflows_fill_native_editor_without_executing ... ok
+
+ps51-245 job 117664107662 (suite once + ten independent repeats)
+2026-10-18T12:02:27.2709559Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:04:07.8475468Z test result: ok. 34 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 127.99s
+2026-10-18T12:08:27.3585945Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:08:53.9104946Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:09:16.4636583Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:09:35.5700640Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:09:58.3234113Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:10:17.5743964Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:10:39.0824340Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:10:57.9270879Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:11:17.4432766Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T12:11:41.5053235Z test builtin_workflows_fill_native_editor_without_executing ... ok
+
+ps7-245 job 117664107824 (suite once + ten independent repeats)
+2026-10-18T11:41:46.5424796Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:43:34.2368251Z test result: ok. 34 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 129.20s
+2026-10-18T11:44:52.0621640Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:45:10.5793620Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:45:29.5819484Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:45:48.2103318Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:46:07.6172526Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:46:27.7882386Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:46:46.8346566Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:47:05.9306498Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:47:24.7825416Z test builtin_workflows_fill_native_editor_without_executing ... ok
+2026-10-18T11:47:44.0374420Z test builtin_workflows_fill_native_editor_without_executing ... ok

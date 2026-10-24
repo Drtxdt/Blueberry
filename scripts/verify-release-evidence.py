@@ -8,6 +8,7 @@ after a source commit and its final package have been frozen.
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import math
 import re
@@ -19,8 +20,9 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 import tomllib
 
 VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
-USER_TRIAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2"}  # Explicit user authorization is version-bound.
-PERFORMANCE_WAIVERS = {"0.5.0", "0.5.1", "0.5.2"}  # User requested release now, performance optimization later.
+USER_TRIAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2", "0.5.3", "0.6.0"}  # No external testers are available; local acceptance is separate.
+PERFORMANCE_WAIVERS = {"0.5.0", "0.5.1", "0.5.2", "0.5.3"}
+PERFORMANCE_AUTHORIZATION = {"0.5.3": "三轮优化后，完整有效的测量仍未全部达标"}
 TERMINAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2"}  # User explicitly continued manual-check waivers for 0.5.2.
 PROFILES = {
     "ps51-2.0.0": ("powershell.exe", "5.", "2.0.0"),
@@ -35,10 +37,20 @@ NESTED_VARIANTS = {"osc_with_descriptions": "osc", "osc_without_descriptions": "
 SCENARIOS = {"root", "git", "cargo", "js", "path", "fuzzy"}
 COMPARISON_MODES = ("plain", "beta6", "candidate", "inshellisense")
 TERMINAL_TASKS = {"ime", "font_zoom", "selection", "paste", "nested_program"}
+CURRENT_RELEASES = {"0.5.3", "0.6.0"}
+CURRENT_TERMINAL_TASKS = TERMINAL_TASKS | {
+    "unicode", "right_text", "line_wrap", "multiline_paste", "small_window",
+    "live_resize", "history_rgb", "history_attributes", "alt_screen", "ctrl_c_pip", "ctrl_c_npm",
+    "undo_redo", "bridge_recovery", "history_browsing",
+}
+VSCODE_TASKS = {"startup", "input", "menu", "tab", "ctrl_c"}
 USER_TASKS = {"install", "explain", "project_parameters", "template", "exit_restore"}
 INSTALL_TASKS = {"install", "upgrade", "rollback", "uninstall", "queued_maintenance", "interrupted_maintenance"}
 HEX64 = re.compile(r"[0-9A-Fa-f]{64}\Z")
 HEX40 = re.compile(r"[0-9A-Fa-f]{40}\Z")
+_resource_spec = importlib.util.spec_from_file_location("release_resource_statistics", Path(__file__).with_name("resource-statistics.py"))
+_resources = importlib.util.module_from_spec(_resource_spec)
+_resource_spec.loader.exec_module(_resources)
 
 
 def require(condition, message):
@@ -74,17 +86,22 @@ def sha256_zip_member(archive, name):
     return digest.hexdigest().upper()
 
 
-def report_path(root, relative):
-    require(isinstance(relative, str) and relative.endswith(".json"), "report path must be .json")
+def evidence_file_path(root, relative):
+    require(isinstance(relative, str) and bool(relative), "evidence path must be a nonempty string")
     parts = PurePosixPath(relative).parts
     require(
         "\\" not in relative and not PurePosixPath(relative).is_absolute()
-        and all(part not in ("", ".", "..") for part in parts),
+        and all(part not in ("", ".", "..") and ":" not in part for part in parts),
         "report path must be a safe relative POSIX path",
     )
     path = (root / relative).resolve(strict=True)
     require(path.is_relative_to(root), f"report leaves evidence directory: {relative}")
     return path
+
+
+def report_path(root, relative):
+    require(isinstance(relative, str) and relative.endswith(".json"), "report path must be .json")
+    return evidence_file_path(root, relative)
 
 
 def samples(value, count, metric):
@@ -126,6 +143,10 @@ def check_frozen_report(report, commit, environment, label):
     for field in ("machine_id", "power_policy", "profile_sha256", "terminal_rows", "terminal_columns"):
         require(report.get(field) == environment.get(field), f"{label}: environment changed ({field})")
     require(report.get("trace") == "disabled", f"{label}: diagnostic trace enabled")
+    require(report.get("diagnostic_only") is not True, f"{label}: diagnostic probe cannot qualify")
+    if "probe_build_profile" in report:
+        require(report["probe_build_profile"] == "release" and report.get("probe_source_dirty") is False,
+                f"{label}: probe is not a frozen release build")
     require(report.get("os_cache_cleared") is False, f"{label}: OS cache state missing or changed")
 
 
@@ -134,8 +155,10 @@ def check_versions(versions, expected, count, label):
     require(all(isinstance(value, str) and value.startswith(expected) for value in versions), f"{label}: version mismatch")
 
 
-def check_startup(path, executable_hash, profile):
+def check_startup(path, executable_hash, profile, enforce_gate=True):
     report = read_json(path)
+    require(report.get("actual_entry", "direct_executable") == "direct_executable",
+            f"{profile}: automatic profile measurements cannot substitute for direct startup")
     shell_major, psreadline = check_identity(report, executable_hash, profile)
     require(report.get("schema") == 3 and report.get("measurement") == "complete_product", f"{profile}: startup must measure the complete product")
     require(report.get("host_mode") == "direct" and report.get("actual_host_modes") == ["direct"] * report.get("iterations", 0)
@@ -157,22 +180,29 @@ def check_startup(path, executable_hash, profile):
     require(report.get("startup_orders") == [["plain", "candidate"] if index % 2 == 0 else ["candidate", "plain"] for index in range(count)],
             f"{profile}: startup order is not alternating")
     require(report.get("actual_automatic_menu") == [True] * count, f"{profile}: automatic direct menu unavailable at startup")
-    require(median <= 50.0, f"{profile}: startup P50 {median:.3f} ms exceeds 50 ms")
+    if enforce_gate:
+        require(median <= 50.0, f"{profile}: startup P50 {median:.3f} ms exceeds 50 ms")
+    return median > 50.0
 
 
-def check_hot(path, executable_hash, profile, variant):
+def check_hot(path, executable_hash, profile, variant, enforce_gate=True):
     report = read_json(path)
     shell_major, psreadline = check_identity(report, executable_hash, profile)
     transport, descriptions = VARIANTS[variant]
     require(report.get("schema") == 2 and report.get("host_mode") == "direct", f"{profile}/{variant}: formal hot matrix must use direct host")
+    if VERSION in CURRENT_RELEASES:
+        require(report.get("candidate_stage_schema") == 1, f"{profile}/{variant}: first/complete candidate measurements missing")
     require(report.get("transport") == transport and report.get("descriptions") is descriptions, f"{profile}/{variant}: wrong variant")
     require(report.get("trace") == "disabled" and report.get("profile_mode") == "preserved", f"{profile}/{variant}: trace or profile mismatch")
     require(report.get("transport_degraded") is False, f"{profile}/{variant}: transport degraded")
-    require(report.get("target", {}).get("status") == "passed", f"{profile}/{variant}: target failed")
+    require(report.get("target", {}).get("status") in ("passed", "failed"), f"{profile}/{variant}: target invalid or incomplete")
+    if enforce_gate:
+        require(report.get("target", {}).get("status") == "passed", f"{profile}/{variant}: target failed")
     count = report.get("samples_per_cache_mode")
     require(type(count) is int and count >= 300, f"{profile}/{variant}: fewer than 300 samples")
     scenarios = report.get("scenarios")
     require(isinstance(scenarios, list) and {item.get("name") for item in scenarios} == SCENARIOS and len(scenarios) == 6, f"{profile}/{variant}: six scenarios required")
+    missed = False
     for scenario in scenarios:
         name = scenario["name"]
         for cache_mode in ("cache_miss", "cache_hit"):
@@ -184,10 +214,23 @@ def check_hot(path, executable_hash, profile, variant):
             require(measurement.get("actual_transport") == [transport] * session_count, f"{label}: transport mismatch")
             require(measurement.get("actual_host_mode") == ["direct"] * session_count and measurement.get("automatic_menu") == [True] * session_count, f"{label}: automatic direct menu unavailable")
             acceptance = scenario.get("acceptance", {}).get(cache_mode, {})
-            require(acceptance.get("status") == "passed", f"{label}: acceptance failed")
+            require(acceptance.get("status") in ("passed", "failed"), f"{label}: acceptance invalid or incomplete")
             require(acceptance.get("observed_samples") == count and acceptance.get("expected_samples") == count, f"{label}: sample count mismatch")
             _, p95 = samples(acceptance.get("statistics"), count, label)
-            require(p95 <= 20.0, f"{label}: P95 {p95:.3f} ms exceeds 20 ms")
+            if enforce_gate:
+                require(p95 <= 20.0, f"{label}: P95 {p95:.3f} ms exceeds 20 ms")
+            if report.get("candidate_stage_schema") == 1:
+                for stage in ("input_echo", "first_menu", "first_candidate_menu", "complete_candidate_menu"):
+                    samples(measurement.get(stage), count, f"{label}/{stage}")
+                require(acceptance["statistics"]["samples"] == measurement["complete_candidate_menu"]["samples"],
+                        f"{label}: gate is not based on complete candidates")
+                require(all(0 <= echo <= menu <= first <= complete for echo, menu, first, complete in zip(
+                    measurement["input_echo"]["samples"], measurement["first_menu"]["samples"], measurement["first_candidate_menu"]["samples"],
+                    measurement["complete_candidate_menu"]["samples"])), f"{label}: invalid candidate stage timing order")
+            missed |= p95 > 20.0
+            require(acceptance["status"] == ("failed" if p95 > 20.0 else "passed"), f"{label}: acceptance disagrees with raw statistics")
+    require(report["target"]["status"] == ("failed" if missed else "passed"), f"{profile}/{variant}: target disagrees with raw statistics")
+    return missed
 
 
 def check_nested(path, executable_hash, profile, variant):
@@ -208,6 +251,46 @@ def check_nested(path, executable_hash, profile, variant):
             samples(measurement, count, f"{profile}/{variant}/{scenario}/{mode}")
 
 
+def check_resources(path, executable_hash, commit, profile, environment, manual):
+    report = read_json(path)
+    require(report.get("mode_scope", "four_way") == "four_way", "Optimization-only resources cannot replace final four-way qualification")
+    check_frozen_report(report, commit, environment, f"{profile} resources")
+    require(report.get("schema") == 2 and report.get("formal") is True and report.get("measurement_complete") is True,
+            f"{profile}: resource collection incomplete")
+    require(report.get("profile") == profile and report.get("executable_sha256", "").upper() == executable_hash,
+            f"{profile}: resource identity mismatch")
+    count = report.get("sessions_per_mode")
+    require(type(count) is int and count >= 5 and report.get("requested_seconds", 0) >= 30,
+            f"{profile}: five independent 30-second resource sessions required")
+    sessions = report.get("sessions")
+    require(isinstance(sessions, list) and len(sessions) == count * len(COMPARISON_MODES), f"{profile}: resource modes incomplete")
+    expected_hashes = {"candidate": executable_hash, "beta6": manual["public_beta6_sha256"].upper(),
+                       "inshellisense": manual["inshellisense_sha256"].upper()}
+    seen = set()
+    raw_paths = set()
+    roots = set()
+    for session in sessions:
+        identity = (session.get("mode"), session.get("repeat"))
+        require(identity not in seen and identity[0] in COMPARISON_MODES and type(identity[1]) is int
+                and 0 <= identity[1] < count and session.get("status") == "completed", f"{profile}: invalid or duplicate resource session")
+        seen.add(identity)
+        if identity[0] != "plain":
+            require(session.get("program_sha256", "").upper() == expected_hashes[identity[0]], f"{profile}: resource comparator identity mismatch")
+        raw_path = report_path(path.parent, session.get("raw_report"))
+        require(raw_path not in raw_paths, f"{profile}: repeated resource raw report is not an independent session")
+        raw_paths.add(raw_path)
+        require(sha256_file(raw_path) == session.get("raw_sha256", "").upper(), f"{profile}: resource raw hash mismatch")
+        raw = read_json(raw_path)
+        identity = (raw.get("root_pid"), raw.get("root_started_utc"))
+        require(identity not in roots, f"{profile}: repeated resource process identity")
+        roots.add(identity)
+        try:
+            summary = _resources.summarize(raw)
+        except (AssertionError, KeyError, TypeError) as error:
+            raise ValueError(f"{profile}: invalid raw resource samples: {error}") from error
+        require(summary == session.get("summary"), f"{profile}: resource summary disagrees with raw samples")
+
+
 def check_manual_acceptance(evidence, executable_hash, commit):
     manual = evidence.get("manual_acceptance")
     require(isinstance(manual, dict), "manual acceptance record missing")
@@ -226,6 +309,30 @@ def check_manual_acceptance(evidence, executable_hash, commit):
                     "manual terminal waiver requires the final automated qualification record")
             continue
         require(isinstance(tasks, dict) and set(tasks) == expected and all(value is True for value in tasks.values()), f"{field}: incomplete manual acceptance")
+    if VERSION in CURRENT_RELEASES:
+        require(manual.get("package_sha256", "").upper() == evidence.get("package_sha256", "").upper(),
+                "manual acceptance belongs to another package")
+        matrix = manual.get("windows_terminal_matrix")
+        require(isinstance(matrix, dict) and set(matrix) == set(PROFILES), "manual terminal profile matrix incomplete")
+        for profile, (_, shell_major, editor) in PROFILES.items():
+            record = matrix[profile]
+            require(isinstance(record, dict) and record.get("executable_sha256", "").upper() == executable_hash,
+                    f"{profile}: manual terminal EXE mismatch")
+            require(isinstance(record.get("terminal_version"), str) and record["terminal_version"].strip()
+                    and str(record.get("shell_version", "")).startswith(shell_major)
+                    and record.get("psreadline_version") == editor, f"{profile}: manual terminal identity incomplete")
+            for mode in ("direct", "nested"):
+                tasks = record.get(mode)
+                require(isinstance(tasks, dict) and set(tasks) == CURRENT_TERMINAL_TASKS
+                        and all(value is True for value in tasks.values()), f"{profile}/{mode}: incomplete manual resize/functional acceptance")
+        record = manual.get("vscode_ps7_direct", {})
+        require(isinstance(record, dict) and record.get("executable_sha256", "").upper() == executable_hash
+                and str(record.get("shell_version", "")).startswith("7.") and record.get("psreadline_version") == "2.4.5"
+                and isinstance(record.get("terminal_version"), str) and record["terminal_version"].strip(),
+                "VS Code PS7 direct identity incomplete")
+        tasks = record.get("tasks")
+        require(isinstance(tasks, dict) and set(tasks) == VSCODE_TASKS and all(value is True for value in tasks.values()),
+                "VS Code PS7 direct acceptance incomplete")
     trials = manual.get("user_trials")
     waiver = manual.get("user_trial_waiver")
     if waiver is not None:
@@ -372,39 +479,234 @@ def check_comparison(path, executable_hash, commit, profile, manual):
             require(all(order == list(COMPARISON_MODES[index % 4:] + COMPARISON_MODES[:index % 4]) for index, order in enumerate(orders)), f"{label}/{scenario}/{cache_mode}: hot order is not rotated")
 
 
-def check_performance_waiver(evidence, root, commit):
+def check_performance_waiver(evidence, root, commit, ci_branch="main"):
     waiver = evidence["performance_waiver"]
     require(VERSION in PERFORMANCE_WAIVERS, "No performance waiver authorized for this release")
     require(isinstance(waiver, dict) and waiver.get("version") == VERSION
             and waiver.get("status") == "deferred_by_user" and waiver.get("passed") is False
-            and waiver.get("authorization") == "如果没有bug先直接发版吧，性能以后再优化"
+            and waiver.get("authorization") == PERFORMANCE_AUTHORIZATION.get(VERSION, "如果没有bug先直接发版吧，性能以后再优化")
             and isinstance(waiver.get("limitations"), str) and waiver["limitations"].strip(),
             "performance deferral must retain explicit authorization and cannot claim a pass")
-    for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
-        require(evidence.get(field) == {}, "deferred formal performance reports must be empty; retain exploratory data separately")
+    if VERSION == "0.5.3":
+        require(waiver.get("measurement_complete") is True, "0.5.3 fallback requires complete valid formal measurements")
+        rounds = waiver.get("optimization_rounds")
+        require(isinstance(rounds, list) and len(rounds) == 3
+                and [item.get("round") for item in rounds] == [1, 2, 3], "0.5.3 fallback requires all three optimization rounds")
+        for item in rounds:
+            require(item.get("status") == "completed", "optimization round is incomplete")
+            path = report_path(root, item.get("report"))
+            require(sha256_file(path) == item.get("sha256", "").upper(), "optimization round evidence hash mismatch")
+            record = read_json(path)
+            require(record.get("round") == item["round"] and record.get("measurement_complete") is True
+                    and record.get("diagnostic_only") is True, "optimization round diagnosis/A-B evidence incomplete")
+            comparisons = record.get("independent_ab_reports")
+            require(isinstance(comparisons, list) and len(comparisons) >= 2, "two independent A/B reports required for each round")
+            seen = set()
+            for comparison in comparisons:
+                ab_path = report_path(root, comparison.get("report"))
+                require(ab_path not in seen, "duplicate A/B evidence")
+                seen.add(ab_path)
+                require(sha256_file(ab_path) == comparison.get("sha256", "").upper(), "A/B report identity mismatch")
+                ab = read_json(ab_path)
+                require(ab.get("measurement_complete") is True and ab.get("same_conditions") is True,
+                        "A/B measurement invalid or conditions differ")
+    else:
+        for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
+            require(evidence.get(field) == {}, "deferred formal performance reports must be empty; retain exploratory data separately")
+    check_functional_ci(evidence, root, commit, ci_branch)
+
+
+def check_functional_ci(evidence, root, commit, ci_branch="main"):
     record = evidence.get("functional_ci", {})
     path = report_path(root, record.get("report"))
     require(sha256_file(path) == record.get("sha256", "").upper(), "functional CI evidence hash mismatch")
     data = read_json(path)
     run = data.get("run", {})
+    candidate = evidence.get("delivery_kind") == "unpublished_candidate" and ci_branch.startswith("codex/")
+    allowed_events = {"push", "workflow_dispatch"} if candidate else {"push"}
     require(run.get("id") == evidence["ci"]["run_id"] and run.get("head_sha") == commit
-            and run.get("event") == "push" and run.get("head_branch") == "main"
+            and run.get("event") in allowed_events
+            and run.get("event") == evidence["ci"].get("event") and run.get("head_branch") == ci_branch
             and run.get("name") == "Blueberry CI" and run.get("conclusion") == "success",
-            "functional evidence must be from the successful final main CI run")
+            f"functional evidence must be from the successful final {ci_branch} CI run")
     jobs = data.get("jobs", [])
     required = {"format", "Core / ubuntu-24.04", "Core / macos-15", "Core / windows-2022",
                 "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
                 "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
                 "PowerShell 7 / PSReadLine 2.4.5 / pipe", "package"}
+    conditional = {"evidence-upload", "stability", "startup-cache"}
     require(isinstance(jobs, list) and required <= {job.get("name") for job in jobs}
-            and all(job.get("conclusion") == "success" for job in jobs),
+            and all(job.get("conclusion") == ("skipped" if job.get("name") in conditional else "success") for job in jobs),
             "functional and package CI matrix incomplete or failed")
 
 
-def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None):
+def check_terminal_dependency(evidence, root, package_path):
+    """Bind the separately shipped original Terminal artifact to this acceptance."""
+    dependency = evidence.get("terminal_dependency")
+    require(isinstance(dependency, dict) and dependency.get("interface_version") == 4,
+            "native overlay release requires a fixed Terminal dependency")
+    require(package_path is not None, "original Terminal package is required")
+    package_path = Path(package_path).resolve(strict=True)
+    package_hash = sha256_file(package_path)
+    require(package_hash == dependency.get("package_sha256", "").upper(), "Terminal package SHA-256 mismatch")
+    source = dependency.get("source_commit", "")
+    require(HEX40.fullmatch(source) is not None, "Terminal patch source commit is not pinned")
+    require(dependency.get("upstream_commit") == "7ff11ee107c984e236960ec948b450ccbc10187b",
+            "Terminal upstream source differs from the verified native implementation")
+    executable_hash = dependency.get("executable_sha256", "").upper()
+    require(HEX64.fullmatch(executable_hash) is not None, "Terminal EXE is not frozen")
+    for field in ("ci_report", "runtime_report"):
+        record = dependency.get(field, {})
+        path = report_path(root, record.get("report"))
+        require(sha256_file(path) == record.get("sha256", "").upper(), f"Terminal {field} SHA-256 mismatch")
+    provenance = read_json(report_path(root, dependency["ci_report"]["report"]))
+    run, artifact = provenance.get("run", {}), provenance.get("artifact", {})
+    require(run.get("id") == dependency.get("run_id") and type(run.get("id")) is int
+            and run["id"] > 0 and run.get("head_sha") == source and run.get("conclusion") == "success"
+            and run.get("path") == ".github/workflows/wt-overlay-prototype.yml",
+            "Terminal dependency did not come from its successful pinned CI run")
+    require(artifact.get("id") == dependency.get("artifact_id") and type(artifact.get("id")) is int
+            and artifact["id"] > 0 and artifact.get("workflow_run", {}).get("id") == run["id"]
+            and artifact["workflow_run"].get("head_sha") == source,
+            "Terminal artifact does not belong to the pinned source/run")
+    require(artifact.get("digest", "").lower() == "sha256:" + package_hash.lower(),
+            "Terminal artifact digest differs from the original package")
+    jobs = provenance.get("jobs", [])
+    require(any(job.get("name") == "native-buffer-proof" and job.get("conclusion") == "success"
+                and job.get("run_id") == run["id"] for job in jobs), "Terminal native buffer proof is missing")
+    model = dependency.get("native_model", {})
+    model_package = evidence_file_path(root, model.get("package"))
+    model_hash = sha256_file(model_package)
+    require(model_hash == model.get("package_sha256", "").upper(), "native observer package SHA-256 mismatch")
+    model_artifact = provenance.get("native_model_artifact", {})
+    require(model_artifact.get("id") == model.get("artifact_id") and type(model.get("artifact_id")) is int
+            and model["artifact_id"] > 0 and model_artifact.get("workflow_run", {}).get("id") == run["id"]
+            and model_artifact["workflow_run"].get("head_sha") == source
+            and model_artifact.get("digest", "").lower() == "sha256:" + model_hash.lower(),
+            "native observer artifact differs from the companion CI source/run")
+    with zipfile.ZipFile(model_package) as archive:
+        require(archive.namelist().count(model.get("dll_member")) == 1
+                and HEX64.fullmatch(model.get("dll_sha256", "")) is not None
+                and sha256_zip_member(archive, model["dll_member"]) == model["dll_sha256"].upper(),
+                "native observer DLL differs from its original CI artifact")
+    with zipfile.ZipFile(package_path) as archive:
+        names = archive.namelist()
+        require(len(names) == len(set(names)) and len(names) == len({name.casefold() for name in names}),
+                "ambiguous Terminal package members")
+        member = dependency.get("executable_member")
+        require(isinstance(member, str) and PurePosixPath(member).name == "WindowsTerminal.exe"
+                and member in names, "Terminal executable member is missing")
+        require(sha256_zip_member(archive, member) == executable_hash, "packaged Terminal EXE SHA-256 mismatch")
+        prefix = str(PurePosixPath(member).parent) + "/"
+        require(prefix + ".portable" in names and prefix + "Microsoft.Terminal.Settings.Model.dll" in names,
+                "Terminal package is not the complete portable layout")
+        licenses = dependency.get("licenses", {})
+        require(set(licenses) == {prefix + name for name in (
+            "BLUEBERRY-PATCH-LICENSE.txt", "TERMINAL-LICENSE.txt", "TERMINAL-THIRD-PARTY-NOTICES.md")},
+            "Terminal source and third-party license records are incomplete")
+        for name, expected in licenses.items():
+            require(sha256_zip_member(archive, name) == expected.upper(), "Terminal license SHA-256 mismatch")
+    runtime = read_json(report_path(root, dependency["runtime_report"]["report"]))
+    proofs = [row for row in runtime.get("results", []) if row.get("kind") == "native_menu"]
+    require(len(proofs) == 1, "Terminal native runtime proof missing or duplicated")
+    row, proof = proofs[0], proofs[0].get("result", {})
+    require(row.get("terminal_sha256", "").upper() == executable_hash and row.get("exit_code") == 0
+            and proof.get("supported") is True and proof.get("interface_version") == 4
+            and proof.get("reader_stopped") is True and proof.get("output_mode_restored") is True,
+            "Terminal runtime proof belongs to another EXE or lacks fenced cleanup")
+    # Native buffer/runtime tests do not claim GUI pixels or final manual success.
+    for profile in PROFILES:
+        manual = evidence.get("manual_acceptance", {}).get("windows_terminal_matrix", {}).get(profile, {})
+        require(manual.get("terminal_package_sha256", "").upper() == package_hash
+                and manual.get("terminal_executable_sha256", "").upper() == executable_hash,
+                f"{profile}: manual history acceptance belongs to another Terminal package")
+    paths = list(evidence.get("startup_reports", {}).values())
+    for field in ("hot_reports", "nested_compatibility_reports"):
+        for variants in evidence.get(field, {}).values():
+            paths.extend(variants.values())
+    for relative in paths:
+        report = read_json(report_path(root, relative))
+        groups = [report] if "scenarios" not in report else [
+            scenario[cache] for scenario in report["scenarios"] for cache in ("cache_miss", "cache_hit")]
+        for group in groups:
+            observers = group.get("native_observers", [])
+            require(observers and all(observer.get("dll_sha256", "").upper() == model["dll_sha256"].upper()
+                    and observer.get("abi_version") == 1 and observer.get("companion_interface_version") == 4
+                    and observer.get("backend") == "production_terminalcore_buffer"
+                    and observer.get("snapshot_binding") == "per_received_chunk"
+                    and observer.get("screen_pixels") == "not_measured" for observer in observers),
+                    f"{relative}: native observer identity or observation boundary differs from the companion")
+            if "scenarios" in report:
+                preparation = group.get("hot_preparation_status", [])
+                require(isinstance(preparation, list) and len(preparation) == len(observers)
+                        and all(item.get("source") in ("adapter_json", "nested_adapter_readiness") for item in preparation),
+                        f"{relative}: current candidate cannot qualify using unpublished legacy status")
+                editors = group.get("editors", [])
+                require(len(editors) == len(observers) and all(editor.get("terminal_restore") == "native_overlay_v4" for editor in editors),
+                        f"{relative}: current candidate did not use the companion restore interface")
+                for item in preparation:
+                    if item["source"] == "adapter_json":
+                        raw = item.get("json")
+                        require(isinstance(raw, str) and hashlib.sha256(raw.encode("utf-8")).hexdigest().upper() == item.get("sha256", "").upper(),
+                                f"{relative}: hot setup status bytes are not bound")
+                        status = json.loads(raw)
+                        require(all(status.get(field, {}).get("complete") is True
+                                    and status[field].get("error") is None for field in ("session_commands", "system_commands")),
+                                f"{relative}: hot setup discovery was incomplete")
+
+
+def check_embedded_terminal(package_path, terminal_package, dependency, package_dependency=None):
+    """The installed runtime must be the original, separately released artifact."""
+    require(terminal_package is not None and isinstance(dependency, dict), "embedded Terminal dependency missing")
+    prefix = str(PurePosixPath(dependency["executable_member"]).parent) + "/"
+    with zipfile.ZipFile(package_path) as installed, zipfile.ZipFile(terminal_package) as original:
+        embedded = json.loads(installed.read("terminal-dependency.json"))["terminal_dependency"]
+        if package_dependency is not None:
+            require(package_dependency == embedded, "package manifest companion identity differs")
+        for field in ("interface_version", "source_commit", "upstream_commit", "run_id", "artifact_id",
+                      "package_sha256", "executable_member", "executable_sha256", "asset_name", "licenses"):
+            require(embedded.get(field) == dependency.get(field), f"embedded Terminal identity mismatch: {field}")
+        expected = set()
+        for item in original.infolist():
+            if not item.filename.startswith(prefix) or item.is_dir():
+                continue
+            relative = item.filename[len(prefix):]
+            if relative in ("stamp", ".portable") or relative.lower().endswith(".pdb"):
+                continue
+            path = "terminal/" + relative
+            expected.add(path)
+            require(sha256_zip_member(installed, path) == sha256_zip_member(original, item.filename),
+                    f"embedded Terminal runtime differs from original: {relative}")
+        actual = {item.filename for item in installed.infolist() if item.filename.startswith("terminal/") and not item.is_dir()}
+        require(actual == expected | {"terminal/.portable"}, "embedded Terminal runtime members differ")
+        require(installed.read("terminal/.portable") and installed.read("blueberry-terminal.cmd"), "portable launch entry missing")
+
+
+def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=None, terminal_package=None, *, candidate_branch=None):
     evidence_path = evidence_path.resolve(strict=True)
     package_path = package_path.resolve(strict=True)
     evidence = read_json(evidence_path)
+    ci_branch = candidate_branch if candidate_branch is not None else "main"
+    if candidate_branch is not None:
+        require(isinstance(candidate_branch, str) and candidate_branch.startswith("codex/")
+                and len(candidate_branch) > len("codex/") and not any(c.isspace() for c in candidate_branch),
+                "candidate validation requires an explicit codex branch")
+        require(evidence.get("delivery_kind") == "unpublished_candidate",
+                "candidate evidence must identify an unpublished candidate")
+    else:
+        require(evidence.get("delivery_kind") != "unpublished_candidate",
+                "unpublished candidate evidence cannot authorize a public release")
+    for artifact in evidence.get("raw_artifacts", []):
+        require(type(artifact.get("run_id")) is int and artifact["run_id"] > 0
+                and type(artifact.get("artifact_id")) is int and artifact["artifact_id"] > 0
+                and HEX64.fullmatch(artifact.get("sha256", "")) is not None,
+                "raw artifact identity missing")
+        files = artifact.get("files")
+        require(isinstance(files, dict) and files, "raw artifact file manifest missing")
+        for relative, expected in files.items():
+            require(HEX64.fullmatch(expected) is not None
+                    and sha256_file(evidence_file_path(evidence_path.parent, relative)) == expected.upper(),
+                    "raw artifact member hash mismatch")
     require(evidence.get("schema") == 2 and evidence.get("version") == VERSION, "wrong evidence version/schema")
     require(HEX40.fullmatch(commit) is not None, "--commit must be a 40-character Git SHA")
     require(evidence.get("source_commit", "").lower() == commit.lower(), "evidence source commit mismatch")
@@ -415,9 +717,12 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
     ci = evidence.get("ci", {})
     if ci_run_id is not None:
         require(ci.get("run_id") == ci_run_id, "evidence refers to a different CI run than the downloaded artifact")
+    allowed_events = {"push", "workflow_dispatch"} if candidate_branch is not None else {"push"}
     require(ci.get("source_commit", "").lower() == commit.lower() and ci.get("status") == "success"
-            and ci.get("branch") == "main" and ci.get("event") == "push" and type(ci.get("run_id")) is int and ci["run_id"] > 0
-            and ci.get("package_sha256", "").upper() == package_hash, "successful frozen main CI package record missing")
+            and ci.get("branch") == ci_branch and ci.get("event") in allowed_events and type(ci.get("run_id")) is int and ci["run_id"] > 0
+            and ci.get("package_sha256", "").upper() == package_hash, f"successful frozen {ci_branch} CI package record missing")
+    if candidate_branch is not None:
+        check_functional_ci(evidence, evidence_path.parent, commit, ci_branch)
     with zipfile.ZipFile(package_path) as archive:
         names = [entry.filename for entry in archive.infolist() if not entry.is_dir()]
         require(len(names) == len(set(names)), "package contains duplicate file paths")
@@ -432,6 +737,7 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         build = manifest.get("build", {})
         require(build.get("commit") == commit and build.get("dirty") is False
                 and build.get("profile") == "release", "package build is not the frozen release source")
+        require(build.get("allocation_diagnostics") is not True, "allocation diagnostic executable cannot be released")
         require(evidence.get("build_identity") == build, "package build/private dependency identity differs from measured EXE")
         editors = build.get("private_editors", {})
         pinned_editors = read_json(Path(__file__).resolve().parents[1] / "vendor/psreadline/upstream.json")
@@ -466,16 +772,31 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
                 require(item["bytes"] == archive.getinfo(path).file_size, f"package file size mismatch: {path}")
         records = [item for item in files if item.get("path") == "blueberry.exe"]
         require(len(records) == 1 and records[0].get("sha256", "").upper() == executable_hash, "manifest EXE SHA-256 mismatch")
+    package_kind = manifest.get("package_kind", "legacy")
+    require(package_kind in ("core", "bundled", "legacy"), "unknown package kind")
+    if package_kind == "core":
+        require("terminal_dependency" not in manifest, "core package embeds Terminal identity")
+        require(not any(item["path"].lower().startswith("terminal/") for item in files), "core package embeds Terminal runtime")
+    if package_kind == "bundled" or (package_kind == "legacy" and build.get("companion_overlay_interface") == 4):
+        check_terminal_dependency(evidence, evidence_path.parent, terminal_package)
+        require(isinstance(manifest.get("terminal_dependency"), dict), "package companion identity missing")
+        check_embedded_terminal(package_path, terminal_package, evidence["terminal_dependency"], manifest["terminal_dependency"])
     if "performance_waiver" in evidence:
-        check_performance_waiver(evidence, evidence_path.parent, commit)
-        check_manual_acceptance(evidence, executable_hash, commit)
-        check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
-        return executable_hash
+        check_performance_waiver(evidence, evidence_path.parent, commit, ci_branch)
+        if VERSION != "0.5.3":
+            check_manual_acceptance(evidence, executable_hash, commit)
+            check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
+            return executable_hash
+    enforce_gate = "performance_waiver" not in evidence
+    missed = False
     startup = evidence.get("startup_reports")
     hot = evidence.get("hot_reports")
     comparisons = evidence.get("comparison_reports")
     nested = evidence.get("nested_compatibility_reports")
     environments = evidence.get("environments")
+    resources = evidence.get("resource_reports")
+    if VERSION in CURRENT_RELEASES:
+        require(isinstance(resources, dict) and set(resources) == set(PROFILES), "resource profile matrix incomplete")
     require(isinstance(startup, dict) and set(startup) == set(PROFILES), "startup profile matrix incomplete")
     require(isinstance(hot, dict) and set(hot) == set(PROFILES), "hot profile matrix incomplete")
     require(isinstance(comparisons, dict) and set(comparisons) == set(PROFILES), "comparison profile matrix incomplete")
@@ -488,12 +809,12 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
                 and environment.get("terminal_rows") == 30 and environment.get("terminal_columns") == 120
                 and all(isinstance(environment.get(field), str) and environment[field].strip() for field in ("machine_id", "power_policy")), f"{profile}: frozen environment missing")
         check_frozen_report(read_json(report_path(root, startup[profile])), commit, environment, profile)
-        check_startup(report_path(root, startup[profile]), executable_hash, profile)
+        missed |= check_startup(report_path(root, startup[profile]), executable_hash, profile, enforce_gate)
         check_conpty(read_json(report_path(root, startup[profile])), conpty, profile)
         require(isinstance(hot[profile], dict) and set(hot[profile]) == set(VARIANTS), f"{profile}: hot variants incomplete")
         for variant in VARIANTS:
             check_frozen_report(read_json(report_path(root, hot[profile][variant])), commit, environment, f"{profile}/{variant}")
-            check_hot(report_path(root, hot[profile][variant]), executable_hash, profile, variant)
+            missed |= check_hot(report_path(root, hot[profile][variant]), executable_hash, profile, variant, enforce_gate)
             check_conpty(read_json(report_path(root, hot[profile][variant])), conpty, f"{profile}/{variant}")
         require(isinstance(nested[profile], dict) and set(nested[profile]) == set(NESTED_VARIANTS), f"{profile}: nested compatibility variants incomplete")
         for variant in NESTED_VARIANTS:
@@ -503,10 +824,14 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
             check_conpty(read_json(path), conpty, f"{profile}/{variant}")
         check_frozen_report(read_json(report_path(root, comparisons[profile])), commit, environment, f"{profile} comparison")
         check_conpty(read_json(report_path(root, comparisons[profile])), conpty, f"{profile} comparison", product=False)
+        if VERSION in CURRENT_RELEASES:
+            check_resources(report_path(root, resources[profile]), executable_hash, commit, profile, environment, evidence["manual_acceptance"])
     check_manual_acceptance(evidence, executable_hash, commit)
     check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
     for profile in PROFILES:
         check_comparison(report_path(root, comparisons[profile]), executable_hash, commit, profile, evidence["manual_acceptance"])
+    if not enforce_gate:
+        require(missed, "0.5.3 performance fallback requires a measured missed direct target")
     return executable_hash
 
 
@@ -514,9 +839,25 @@ def bundle(evidence_path, output_path):
     evidence_path = evidence_path.resolve(strict=True)
     evidence = read_json(evidence_path)
     reports = set(evidence["startup_reports"].values())
+    for artifact in evidence.get("raw_artifacts", []):
+        reports.update(artifact["files"])
+    if "terminal_dependency" in evidence:
+        reports.update(evidence["terminal_dependency"][field]["report"] for field in ("ci_report", "runtime_report"))
+        reports.add(evidence["terminal_dependency"]["native_model"]["package"])
     if "performance_waiver" in evidence:
         reports.add(evidence["functional_ci"]["report"])
+        for item in evidence["performance_waiver"].get("optimization_rounds", []):
+            reports.add(item["report"])
+            record = read_json(report_path(evidence_path.parent, item["report"]))
+            reports.update(ab["report"] for ab in record["independent_ab_reports"])
     reports.update(evidence["comparison_reports"].values())
+    for resource in evidence.get("resource_reports", {}).values():
+        reports.add(resource)
+        resource_path = report_path(evidence_path.parent, resource)
+        for session in read_json(resource_path)["sessions"]:
+            for field in ("raw_report", "report"):
+                raw_path = report_path(resource_path.parent, session[field])
+                reports.add(raw_path.relative_to(evidence_path.parent).as_posix())
     for comparison in evidence["comparison_reports"].values():
         comparison_path = report_path(evidence_path.parent, comparison)
         for mode in read_json(comparison_path)["modes"].values():
@@ -533,7 +874,7 @@ def bundle(evidence_path, output_path):
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.write(evidence_path, evidence_path.name)
         for relative in sorted(reports):
-            archive.write(report_path(evidence_path.parent, relative), relative)
+            archive.write(evidence_file_path(evidence_path.parent, relative), relative)
     output_path.with_name(output_path.name + ".sha256").write_text(
         f"{sha256_file(output_path)}  {output_path.name}\n", encoding="utf-8"
     )
@@ -548,14 +889,17 @@ def main():
     parser.add_argument("--public-beta6-package", required=True, type=Path,
                         help="original ZIP downloaded from this repository's public v0.5.0-beta.6 release")
     parser.add_argument("--bundle-out", type=Path, help="write a ZIP of verified raw reports")
+    parser.add_argument("--terminal-package", type=Path, help="original portable Terminal CI artifact, shipped separately")
+    parser.add_argument("--candidate-branch", help="validate an unpublished candidate from this exact codex branch; does not qualify a public release")
     args = parser.parse_args()
+    label = "unpublished candidate" if args.candidate_branch is not None else "release"
     try:
-        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package, args.ci_run_id)
+        executable_hash = verify(args.evidence, args.package, args.commit, args.public_beta6_package, args.ci_run_id, args.terminal_package, candidate_branch=args.candidate_branch)
         if args.bundle_out:
             bundle(args.evidence, args.bundle_out)
     except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:
-        parser.exit(1, f"release evidence rejected: {error}\n")
-    print(f"release evidence accepted: {VERSION}, {args.commit}, EXE {executable_hash}")
+        parser.exit(1, f"{label} evidence rejected: {error}\n")
+    print(f"{label} evidence accepted: {VERSION}, {args.commit}, EXE {executable_hash}")
 
 
 if __name__ == "__main__":

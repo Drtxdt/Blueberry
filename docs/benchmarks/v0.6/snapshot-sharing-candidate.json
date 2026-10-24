@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "kind": "optimization-candidate",
+  "status": "Correctness passed; two independent allocation A/B diagnoses passed; formal latency/resource A/B pending",
+  "diagnostic_only": true,
+  "date": "2026-10-13",
+  "before_source_commit": "8ad00fb5906f6d74198049a5d4347dfc5a36151e",
+  "diagnosis": {
+    "source_commit": "315b0212afae9b8b43d91be382e68e4e3d2a1227",
+    "source_dirty": true,
+    "scope": "Per-thread Rust allocation requests during direct menu rendering; startup diagnostic probe first types g",
+    "example_requests": 3637,
+    "example_requested_bytes": 163689,
+    "not_measured": [
+      "retained heap size",
+      "managed heap allocations",
+      "bytes copied"
+    ],
+    "raw": [
+      {
+        "path": "artifacts/sd315-1013/traces/direct-product-0.jsonl",
+        "sha256": "EEA539B0FCBD09C158E934D3264D571BA35085EE5FF55E255FA8B098B4D62EC9"
+      },
+      {
+        "path": "artifacts/sd315-1013/traces/direct-product-1.jsonl",
+        "sha256": "FEE354061CDF51072A9E648FF502F5059C981B21F840DEE12153DEA731D636D0"
+      },
+      {
+        "path": "artifacts/sd315-1013/traces/direct-product-2.jsonl",
+        "sha256": "9B5DBEEEA773EAD08826469B0E3674EC4BD0ABD35DCB50C77947730609B4662E"
+      }
+    ]
+  },
+  "candidate": "Move owned completion events into rendering, then share the resolved immutable Completion between the last snapshot and visible-frame records with Arc. Keep existing candidate-specific Tab validation and the 32-frame retention bound. Layout/navigation still copy before selection refresh, preserving incomplete-result semantics.",
+  "correctness_requirement": "Existing selection/layout/visible-frame tests plus same-identity changed-payload acceptance; terminal navigation/Tab regression",
+  "acceptance_requirement": "Two independent same-condition A/B reports from fixed clean CI packages, allocation diagnosis from separate instrumented batches, and no repeated latency/memory/CPU regression",
+  "measurement_complete": false,
+  "performance_passed": null,
+  "retained_for_release": false,
+  "independent_ab_reports": [],
+  "allocation_diagnosis_report": "snapshot-sharing-allocation-ab-20261014.json",
+  "correctness": "same-identity changed-payload test and 183 core/interface/rectangle checks passed; all-profile terminal CI still bound separately"
+}

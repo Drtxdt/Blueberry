@@ -1,23 +1,102 @@
 name: Blueberry CI
 on:
   push:
-    branches: ['**']
+    branches: ['main']
   pull_request:
   workflow_dispatch:
+    inputs:
+      evidence_validation_only:
+        description: Run only formatting and Python evidence-validator checks
+        type: boolean
+        default: false
+      startup_cache_only:
+        description: Validate only isolated cold and warm startup observations
+        type: boolean
+        default: false
+      stability_only:
+        description: Run only the frozen targeted stability checks
+        type: boolean
+        default: false
+      stability_repeats:
+        description: Isolated repetitions per targeted regression (1 first, then 30-100)
+        type: string
+        default: '1'
+      evidence_manifest:
+        description: Sealed local raw-evidence manifest basename; empty runs normal CI
+        type: string
+        default: ''
+      evidence_manifest_sha256:
+        description: SHA-256 of the sealed upload manifest
+        type: string
+        default: ''
+      evidence_runner_label:
+        description: Unique label of the one-job evidence upload runner
+        type: string
+        default: ''
+      evidence_name:
+        description: Immutable raw-evidence artifact name
+        type: string
+        default: ''
   workflow_call:
 permissions:
   contents: read
+concurrency:
+  # Manual/frozen runs have unique groups and are never cancelled by PR work.
+  group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.event_name == 'push' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 jobs:
+  startup-cache:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.startup_cache_only }}
+    uses: ./.github/workflows/startup-cache-targeted.yml
+  stability:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.stability_only }}
+    uses: ./.github/workflows/stability-targeted.yml
+    with:
+      repeats: ${{ inputs.stability_repeats }}
+  evidence-upload:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.evidence_manifest != '' && github.actor == github.repository_owner }}
+    runs-on: [self-hosted, Windows, X64, '${{ inputs.evidence_runner_label }}']
+    timeout-minutes: 20
+    env:
+      EVIDENCE_MANIFEST: ${{ inputs.evidence_manifest }}
+      EVIDENCE_MANIFEST_SHA256: ${{ inputs.evidence_manifest_sha256 }}
+      EVIDENCE_NAME: ${{ inputs.evidence_name }}
+      EVIDENCE_RUNNER_LABEL: ${{ inputs.evidence_runner_label }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sealed local evidence
+        id: verify
+        shell: pwsh
+        run: python scripts/verify-evidence-upload.py
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: ${{ inputs.evidence_name }}
+          path: ${{ steps.verify.outputs.path }}
+          retention-days: 90
+          if-no-files-found: error
+          include-hidden-files: true
+      - name: Recheck evidence after upload
+        shell: pwsh
+        run: python scripts/verify-evidence-upload.py
   format:
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
-      - run: python3 -m unittest discover -s tests -p test_release_evidence.py
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Reject new oversized benchmark artifacts
+        env:
+          BENCHMARK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Core / ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -48,8 +127,34 @@ jobs:
           python scripts/prepare-conpty.py
       - run: cargo build --locked
       - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Validate optional Rust allocation diagnostics
+        if: runner.os == 'Linux'
+        run: |
+          cargo clippy --lib --features allocation-diagnostics --locked -- -D warnings
+          cargo test --lib --features allocation-diagnostics --locked allocation_diagnostics::tests
       - name: Core tests (no interactive shell)
-        run: cargo test --locked --lib --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge -- --test-threads=1
+        run: cargo test --locked --lib --test direct_diagnostics --test cli --test commands_store --test engine --test packs_cli --test providers --test specs --test knowledge --test terminal_rectangles -- --test-threads=1
+      - name: Resource sampler initialization regression
+        if: runner.os == 'Windows'
+        run: python -m unittest discover -s tests -p 'test_resource*.py'
+      - name: Process lifecycle observer boundaries
+        if: runner.os == 'Windows'
+        run: |
+          python -m unittest discover -s tests -p 'test_process_lifecycle.py'
+          python -m unittest discover -s tests -p 'test_debug_lifecycle.py'
+      - name: Private Terminal acknowledgement channel / CLR and CoreCLR
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tests/native-overlay-client.tests.ps1 -OutputDirectory artifacts/native-overlay-client-tests
+      - name: Portable launcher / Unicode paths and isolated environment
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          foreach ($origin in @('explorer','windows-terminal','vscode')) {
+            ./tests/terminal-launcher.tests.ps1 -InheritedHost $origin
+            & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/terminal-launcher.tests.ps1 -InheritedHost $origin
+            if ($LASTEXITCODE -ne 0) { throw "5.1 companion launcher tests failed: $origin" }
+          }
       - run: cargo run --locked -- --version
       - run: cargo run --locked -- specs check
       - name: Repeat concurrent favorites writers
@@ -61,10 +166,12 @@ jobs:
         if: always() && runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: concurrent-store-windows
           path: target/store-evidence
           if-no-files-found: ignore
   powershell-51:
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
     strategy:
@@ -98,10 +205,8 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
-          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
-            Register-PSRepository -Default -ErrorAction Stop
-          }
-          Save-Module PSReadLine -RequiredVersion '${{ matrix.psreadline }}' -Path $root -Repository PSGallery -Force
+          python scripts/prepare-original-editor.py --version '${{ matrix.psreadline }}' --root $root
+          if ($LASTEXITCODE -ne 0) { throw 'Original editor preparation failed' }
           $manifest = Join-Path $root 'PSReadLine/${{ matrix.psreadline }}/PSReadLine.psd1'
           "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
           & $env:BLUEBERRY_TEST_SHELL -NoProfile -NonInteractive -Command "Import-Module '$manifest' -Force; if ((Get-Module PSReadLine).Version.ToString() -ne '${{ matrix.psreadline }}') { exit 1 }; Get-Module PSReadLine | Select Name,Version,Path"
@@ -113,6 +218,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: psreadline-upstream-${{ matrix.psreadline }}
           path: |
             target/private-editor/upstream-tests/**/TestResults/**/*.trx
@@ -134,14 +240,14 @@ jobs:
         env:
           BLUEBERRY_TEST_TRANSPORT: osc
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test overlay_resize --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'OSC terminal regressions failed' }
       - name: Pipe ConPTY regressions
         shell: pwsh
         env:
           BLUEBERRY_TEST_TRANSPORT: pipe
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test overlay_resize --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'pipe terminal regressions failed' }
       - name: Repeat OSC session command snapshot regression
         env:
@@ -150,6 +256,12 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/repeat-rust-test.ps1 -Target host -Test host_finds_real_cargo_and_merges_more_than_512_shell_commands -Count 100
+      - name: Repeat Windows PowerShell native history exit bursts
+        env:
+          BLUEBERRY_TEST_TRANSPORT: pipe
+        shell: pwsh
+        run: |
+          ./scripts/repeat-rust-test.ps1 -Target terminal_beta -Test terminal_history_search_exit_serializes_following_typing_and_delete -Count 10
       - name: Repeat pipe session command snapshot regression
         env:
           BLUEBERRY_TEST_TRANSPORT: pipe
@@ -160,9 +272,9 @@ jobs:
       - name: Direct inherited-console regressions
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal --test tools_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
-          cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+          cargo test --locked --test input_protocol --test product_probe_cache -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
       - name: Repeat Windows PowerShell pipe resize regression
         shell: pwsh
@@ -170,17 +282,29 @@ jobs:
           BLUEBERRY_TEST_TRANSPORT: pipe
         run: |
           ./scripts/repeat-rust-test.ps1 -Target terminal_modes -Test repeated_resize_and_large_output_preserve_menu_and_real_buffer -Count 30
+      - name: Repeat Windows PowerShell workflow forms
+        shell: pwsh
+        run: ./scripts/repeat-rust-test.ps1 -Target direct_terminal -Test builtin_workflows_fill_native_editor_without_executing -Count 30
+      - name: Automatic Windows PowerShell profile entry
+        shell: pwsh
+        run: ./scripts/test-ci-profile-entry.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -Executable target/debug/blueberry.exe -OutputDirectory target/ci-profile-entry
       - name: Preserve nested terminal evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: nested-terminal-ps51-${{ matrix.psreadline }}
           path: |
+            target/overlay-resize-evidence
             target/nested-terminal-evidence
             target/startup-terminal-evidence
+            target/ci-profile-entry
             target/input-protocol-evidence
+            ${{ runner.temp }}/blueberry-direct-evidence
+            ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   powershell-7:
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
     strategy:
@@ -215,10 +339,8 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'blueberry-modules'
-          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
-            Register-PSRepository -Default -ErrorAction Stop
-          }
-          Save-Module PSReadLine -RequiredVersion '2.4.5' -Path $root -Repository PSGallery -Force
+          python scripts/prepare-original-editor.py --version '2.4.5' --root $root
+          if ($LASTEXITCODE -ne 0) { throw 'Original editor preparation failed' }
           $manifest = Join-Path $root 'PSReadLine/2.4.5/PSReadLine.psd1'
           "BLUEBERRY_TEST_PSREADLINE_MODULE=$manifest" >> $env:GITHUB_ENV
           Import-Module $manifest -Force
@@ -236,31 +358,51 @@ jobs:
       - name: Real ConPTY interaction
         shell: pwsh
         run: |
-          cargo test --locked --test host --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test host --test overlay_resize --test startup_host --test terminal_beta --test terminal_modes --test hub_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'PowerShell 7 ConPTY regressions failed' }
       - name: Repeat the intermittent resize regression
         shell: pwsh
         run: |
           ./scripts/repeat-rust-test.ps1 -Target terminal_modes -Test repeated_resize_and_large_output_preserve_menu_and_real_buffer -Count 30
+      - name: Automatic isolated profile entry
+        if: matrix.transport == 'pipe'
+        shell: pwsh
+        run: |
+          ./scripts/prepare-profile-entry.ps1 -Shell $env:BLUEBERRY_TEST_SHELL -Executable target/debug/blueberry.exe -Destination target/profile-entry-shell
+          ./target/debug/blueberry.exe product-probe --shell (Resolve-Path target/profile-entry-shell/pwsh.exe).Path --profile-entry --iterations 2 --output target/profile-entry-diagnostic.json
+          if ($LASTEXITCODE -ne 0) { throw 'Automatic profile entry failed' }
+      - name: Repeat native history search exit bursts
+        shell: pwsh
+        run: |
+          ./scripts/repeat-rust-test.ps1 -Target terminal_beta -Test terminal_history_search_exit_serializes_following_typing_and_delete -Count 10
       - name: Direct inherited-console regressions
         if: matrix.transport == 'pipe'
         shell: pwsh
         run: |
-          cargo test --locked --test direct_terminal -- --test-threads=1 --nocapture
+          cargo test --locked --test direct_terminal --test tools_terminal -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'direct terminal regressions failed' }
-          cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+          cargo test --locked --test input_protocol --test product_probe_cache -- --test-threads=1 --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'input protocol regressions failed' }
+          ./scripts/repeat-rust-test.ps1 -Target direct_terminal -Test builtin_workflows_fill_native_editor_without_executing -Count 30
       - name: Preserve nested terminal evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: nested-terminal-ps7-${{ matrix.transport }}
           path: |
+            target/profile-entry-diagnostic.json
+            target/profile-entry-shell/blueberry-profile-probe.json
+            target/profile-entry-shell/Microsoft.PowerShell_profile.ps1
+            target/overlay-resize-evidence
             target/nested-terminal-evidence
             target/startup-terminal-evidence
             target/input-protocol-evidence
+            ${{ runner.temp }}/blueberry-direct-evidence
+            ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   native-mouse:
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
     env:
@@ -301,7 +443,8 @@ jobs:
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'protocol-modules'
           foreach ($version in @('2.0.0', '2.4.5')) {
-            Save-Module PSReadLine -RequiredVersion $version -Path $root -Repository PSGallery -Force
+            python scripts/prepare-original-editor.py --version $version --root $root
+            if ($LASTEXITCODE -ne 0) { throw 'Original editor preparation failed' }
           }
           foreach ($combination in @(@('powershell.exe','2.0.0'), @('powershell.exe','2.4.5'), @('pwsh.exe','2.4.5'))) {
             $env:BLUEBERRY_TEST_SHELL = (Get-Command $combination[0]).Source
@@ -313,12 +456,19 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: input-protocol-fixed-conpty
           path: target/input-protocol-evidence
           if-no-files-found: ignore
   package:
-    needs: [format, core, powershell-51, powershell-7, native-mouse]
+    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    # Exercise packaging faults while long interaction repetitions run.
+    # Final evidence still requires every functional job and this job to pass.
+    needs: [format, core]
     runs-on: windows-2022
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -342,8 +492,33 @@ jobs:
       - name: Fetch locked sources for offline license collection
         run: cargo fetch --locked --target x86_64-pc-windows-msvc
       - run: cargo build --release --locked
+      - name: Build frozen benchmark probes
+        run: cargo build --release --locked --example comparison_probe --example console_attributes_probe
+      - name: Preserve benchmark probes separately from the install package
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-benchmark-probes-windows-x64
+          path: |
+            target/release/examples/comparison_probe.exe
+            target/release/examples/console_attributes_probe.exe
+          if-no-files-found: error
+      - name: Build a separate allocation diagnostic executable
+        env:
+          CARGO_TARGET_DIR: target/allocation-diagnostic
+        run: cargo build --release --locked --features allocation-diagnostics
+      - name: Preserve allocation diagnostics outside the install package
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-allocation-diagnostic-windows-x64
+          path: target/allocation-diagnostic/release/blueberry.exe
+          if-no-files-found: error
+
       - name: Package and validate installation
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           ./scripts/licenses.ps1 -OutputPath ./THIRD-PARTY-NOTICES.txt
           $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
@@ -351,12 +526,184 @@ jobs:
           ./scripts/test-release.ps1 -BlueberryExecutable ./target/release/blueberry.exe
           $package = (Get-ChildItem ./dist/ci/*.zip).FullName
           ./scripts/test-install-51.ps1 -PackagePath $package
+          ./scripts/test-transaction-journal.ps1
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-transaction-journal.ps1
+          if ($LASTEXITCODE -ne 0) { throw '5.1 transaction journal tests failed' }
           ./scripts/test-maintenance.ps1 -Executable ./target/release/blueberry.exe -Package $package
+          'History regression fixture; not a release candidate.' | Set-Content ./target/history-fixture-notes.txt
+          ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -ReleaseNotesPath ./target/history-fixture-notes.txt -OutputDirectory ./target/history-fixture-package
+          $historyPackage = (Get-ChildItem ./target/history-fixture-package/*.zip).FullName
+          ./scripts/test-install-history.ps1 -PackagePath $package -NextPackagePath $historyPackage
           ./scripts/test-download.ps1 -PackagePath $package
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-download.ps1 -PackagePath $package
           if ($LASTEXITCODE -ne 0) { throw '5.1 download selection tests failed' }
+      - name: Exercise the packaged release executable through real ConPTY
+        shell: pwsh
+        run: |
+          $package = (Get-ChildItem ./dist/ci/*.zip).FullName
+          $destination = Join-Path $env:RUNNER_TEMP ('blueberry-package-acceptance-' + [Guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $package -DestinationPath $destination
+          $env:BLUEBERRY_TEST_PRODUCT_EXE = Join-Path $destination 'blueberry.exe'
+          $before = (Get-FileHash $env:BLUEBERRY_TEST_PRODUCT_EXE).Hash
+          $manifest = Get-Content (Join-Path $destination 'release.json') -Raw | ConvertFrom-Json
+          $expected = @($manifest.files | Where-Object path -eq 'blueberry.exe')[0].sha256
+          if ($before -ine $expected) { throw 'Packaged executable identity mismatch' }
+          $records = @()
+          try {
+            foreach ($combination in @(@('powershell.exe','2.0.0'), @('powershell.exe','2.4.5'), @('pwsh.exe','2.4.5'))) {
+              $moduleRoot = Join-Path $env:RUNNER_TEMP ('package-editor-' + $combination[1])
+              python scripts/prepare-original-editor.py --version $combination[1] --root $moduleRoot
+              if ($LASTEXITCODE -ne 0) { throw 'Package editor preparation failed' }
+              $env:BLUEBERRY_TEST_SHELL = (Get-Command $combination[0]).Source
+              $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $moduleRoot "PSReadLine/$($combination[1])/PSReadLine.psd1"
+              cargo test --locked --test input_protocol -- --test-threads=1 --nocapture
+              if ($LASTEXITCODE -ne 0) { throw 'Packaged input protocol regression failed' }
+              $env:BLUEBERRY_TEST_TRACE_DISABLED = '1'
+              try {
+                cargo test --locked --test direct_terminal builtin_workflows_fill_native_editor_without_executing -- --exact --test-threads=1 --nocapture
+                if ($LASTEXITCODE -ne 0) { throw 'Packaged untraced workflow regression failed' }
+              } finally {
+                Remove-Item Env:BLUEBERRY_TEST_TRACE_DISABLED -ErrorAction SilentlyContinue
+              }
+              $records += @{shell=$env:BLUEBERRY_TEST_SHELL; editor=$combination[1]; executable_sha256=$before; status='passed'; workflows=12; workflow_trace='disabled'}
+            }
+            cargo test --locked --test tools_terminal --test hub_terminal -- --test-threads=1 --nocapture
+            if ($LASTEXITCODE -ne 0) { throw 'Packaged standalone UI regression failed' }
+            if ((Get-FileHash $env:BLUEBERRY_TEST_PRODUCT_EXE).Hash -ne $before) { throw 'Packaged executable changed during validation' }
+            @{package_sha256=(Get-FileHash $package).Hash; executable_sha256=$before; input_protocol=$records; standalone_ui='passed'} |
+              ConvertTo-Json -Depth 6 | Set-Content ./target/packaged-interaction.json -Encoding UTF8
+          } finally {
+            Remove-Item Env:BLUEBERRY_TEST_PRODUCT_EXE -ErrorAction SilentlyContinue
+            Remove-Item Env:BLUEBERRY_TEST_SHELL -ErrorAction SilentlyContinue
+            Remove-Item Env:BLUEBERRY_TEST_PSREADLINE_MODULE -ErrorAction SilentlyContinue
+          }
+      - name: Preserve packaged interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-packaged-interaction
+          path: |
+            target/packaged-interaction.json
+            target/input-protocol-evidence
+            ${{ runner.temp }}/blueberry-direct-evidence
+          if-no-files-found: ignore
+      - name: Measure the packaged automatic profile entry
+        shell: pwsh
+        env:
+          POWERSHELL_UPDATECHECK: 'Off'
+        run: |
+          $package = (Get-ChildItem ./dist/ci/*.zip).FullName
+          $destination = Join-Path $env:RUNNER_TEMP ('blueberry-profile-package-' + [Guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $package -DestinationPath $destination
+          $executable = Join-Path $destination 'blueberry.exe'
+          $before = (Get-FileHash $executable).Hash
+          $manifest = Get-Content (Join-Path $destination 'release.json') -Raw | ConvertFrom-Json
+          if ($before -ine @($manifest.files | Where-Object path -eq 'blueberry.exe')[0].sha256) { throw 'Profile package identity mismatch' }
+          $records = @()
+          try {
+            foreach ($combination in @(@('powershell.exe','2.0.0','ps51-200'), @('powershell.exe','2.4.5','ps51-245'), @('pwsh.exe','2.4.5','ps7-245'))) {
+              $moduleRoot = Join-Path $env:RUNNER_TEMP ('package-editor-' + $combination[1])
+              $env:BLUEBERRY_TEST_PSREADLINE_MODULE = Join-Path $moduleRoot "PSReadLine/$($combination[1])/PSReadLine.psd1"
+              foreach ($cache in @('cold','warm')) {
+                $entry = "$($combination[2])-$cache"
+                ./scripts/test-ci-profile-entry.ps1 -Shell $combination[0] -Executable $executable -OutputDirectory "target/packaged-profile/$entry" -Pairs 30 -CacheState $cache -Formal
+                $records += @{combination=$combination[2]; cache=$cache; report="$entry/startup.json"; restoration="$entry/restoration.json"}
+              }
+            }
+            if ((Get-FileHash $executable).Hash -ne $before) { throw 'Profile executable changed during measurement' }
+            @{package_sha256=(Get-FileHash $package).Hash; executable_sha256=$before; entries=$records; update_check='Off'; observation='ConPTY receive timestamps; separate from GUI and local AB/BA qualification'} |
+              ConvertTo-Json -Depth 6 | Set-Content target/packaged-profile/manifest.json -Encoding UTF8
+          } finally {
+            Remove-Item Env:BLUEBERRY_TEST_PSREADLINE_MODULE -ErrorAction SilentlyContinue
+          }
+      - name: Preserve automatic profile measurements and restoration
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-packaged-profile
+          path: target/packaged-profile
+          if-no-files-found: ignore
+      - name: Package and validate optional Terminal component
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $terminalArchive = python scripts/stage-terminal-release-asset.py scripts/terminal-dependency.json --output artifacts/terminal-dependency
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned companion Terminal download failed' }
+          ./scripts/release-terminal.ps1 -PackagePath $terminalArchive.Trim() -OutputDirectory ./dist/terminal
+          ./scripts/release-terminal.ps1 -PackagePath $terminalArchive.Trim() -OutputDirectory ./target/terminal-test-package -Version '1.24.12741.0-native4-test2'
+          $first = (Get-ChildItem ./dist/terminal/*.zip).FullName
+          $second = (Get-ChildItem ./target/terminal-test-package/*.zip).FullName
+          ./scripts/test-terminal-component.ps1 -PackageOne $first -PackageTwo $second
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-terminal-component.ps1 -PackageOne $first -PackageTwo $second
+          if ($LASTEXITCODE -ne 0) { throw '5.1 Terminal component tests failed' }
+          $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          ./scripts/release.ps1 -ExePath ./target/release/blueberry.exe -Version $version -PackageKind bundled -TerminalPackagePath $terminalArchive.Trim() -OutputDirectory ./target/migration-bundled-package
+          $bundled = (Get-ChildItem ./target/migration-bundled-package/*.zip).FullName
+          $core = (Get-ChildItem ./dist/ci/*.zip).FullName
+          ./scripts/test-terminal-migration.ps1 -BundledPackage $bundled -CorePackage $core
+      - name: Real NTFS disk-full and permission failures
+        shell: pwsh
+        run: |
+          $core = (Get-ChildItem ./dist/ci/*.zip).FullName
+          $nextCore = (Get-ChildItem ./target/history-fixture-package/*.zip).FullName
+          $terminal = (Get-ChildItem ./dist/terminal/*.zip).FullName
+          $nextTerminal = (Get-ChildItem ./target/terminal-test-package/*.zip).FullName
+          ./scripts/test-storage-failures.ps1 -CorePackage $core -NextCorePackage $nextCore -TerminalPackage $terminal -NextTerminalPackage $nextTerminal
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-storage-failures.ps1 -CorePackage $core -NextCorePackage $nextCore -TerminalPackage $terminal -NextTerminalPackage $nextTerminal
+          if ($LASTEXITCODE -ne 0) { throw '5.1 physical storage failure tests failed' }
+      - name: Upgrade the original public 0.5.2 installation
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory ./target/public-v0.5.2 | Out-Null
+          $base = 'https://github.com/Drtxdt/Blueberry/releases/download/v0.5.2/'
+          foreach ($name in @('install.ps1','blueberry-v0.5.2-windows-x64.zip','blueberry-v0.5.2-windows-x64.zip.sha256')) {
+            Invoke-WebRequest ($base + $name) -OutFile (Join-Path ./target/public-v0.5.2 $name)
+          }
+          $previous = './target/public-v0.5.2/blueberry-v0.5.2-windows-x64.zip'
+          if ((Get-FileHash $previous).Hash -ine '921E22454E89106E553479D58804ACFAB88D23238D9CD3956C920C625972267D') { throw 'Public baseline identity changed' }
+          if ((Get-FileHash ./target/public-v0.5.2/install.ps1).Hash -ine '314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C') { throw 'Public installer identity changed' }
+          $core = (Get-ChildItem ./dist/ci/*.zip).FullName
+          ./scripts/test-public-upgrade.ps1 -PreviousInstaller ./target/public-v0.5.2/install.ps1 -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
+          if (!$?) { Get-Content ./target/public-upgrade.log; throw 'Public baseline upgrade failed' }
+      - name: Preserve optional Terminal component
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-terminal-component-windows-x64
+          path: |
+            dist/terminal/*.zip
+            dist/terminal/*.sha256
+          if-no-files-found: error
+      - name: Preserve installation failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 90
+          name: blueberry-installation-evidence
+          path: |
+            target/maintenance-tests-*/**/*.log
+            target/maintenance-tests-*/**/operation.json
+            target/maintenance-tests-*/**/transaction.json
+            target/maintenance-tests-*/**/transaction.wal
+            target/maintenance-tests-*/**/install.json
+            target/maintenance-tests-*/**/intended-install.json
+            target/journal-tests-*/**/transaction.json
+            target/journal-tests-*/**/transaction.wal
+            target/install-history-*/results.json
+            target/public-upgrade.log
+            target/public-upgrade-*/receipt.json
+            target/public-upgrade-*/original-install.json
+            target/terminal-migration-*/components/terminal/component-state.json
+            target/storage-failures-*/**/*.json
+            target/storage-failures-*/**/*.log
+            target/storage-failures-*/**/*.wal
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
+          retention-days: 90
           name: blueberry-windows-x64
           path: |
             dist/ci/*.zip

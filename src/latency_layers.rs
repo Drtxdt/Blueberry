@@ -556,11 +556,14 @@ pub fn direct_service(shell: &Path, report: &Path) -> Result<u32> {
     }
 }
 
-pub(crate) struct DirectChildJob(windows_sys::Win32::Foundation::HANDLE);
+pub(crate) struct DirectChildJob {
+    // OwnedHandle closes exactly once and can safely move with a worker.
+    _handle: std::os::windows::io::OwnedHandle,
+}
 
 impl DirectChildJob {
     pub(crate) fn attach(child: &std::process::Child) -> Result<Self> {
-        use std::os::windows::io::AsRawHandle;
+        use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
         use windows_sys::Win32::System::JobObjects::*;
         unsafe {
             let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
@@ -569,7 +572,9 @@ impl DirectChildJob {
                 "create direct-service child job: {}",
                 std::io::Error::last_os_error()
             );
-            let job = Self(handle);
+            let job = Self {
+                _handle: OwnedHandle::from_raw_handle(handle),
+            };
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
             // Only an explicitly detached maintenance worker leaves this job.
             // Ordinary children still terminate with their Blueberry session.
@@ -591,14 +596,6 @@ impl DirectChildJob {
                 std::io::Error::last_os_error()
             );
             Ok(job)
-        }
-    }
-}
-
-impl Drop for DirectChildJob {
-    fn drop(&mut self) {
-        unsafe {
-            windows_sys::Win32::Foundation::CloseHandle(self.0);
         }
     }
 }

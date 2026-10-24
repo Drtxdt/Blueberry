@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "terminal_source_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+  "prototype_source_commit": "523d1c96d2550d373fe7f613bb496caed42e2960",
+  "run_id": 38522319979,
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38522319979",
+  "ci_passed": true,
+  "native_buffer_tests": {
+    "passed": 6,
+    "failed": 0
+  },
+  "native_terminalcore_tests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "total_passed": 11,
+  "images_special_rendition_hidden_columns_snapshot_passed": true,
+  "prototype_capability_reply_passed": true,
+  "raw_log": "artifacts\\ci-8ad-ca19-failures\\wt-full-fields-523",
+  "raw_log_sha256": "8475CA97436BECE163EC0FE3620556F4747AD2E67D1D3546AD8ED1142BAA3F8D",
+  "artifacts": [
+    {
+      "id": 11875070140,
+      "name": "wt-native-overlay-523d1c96d2550d373fe7f613bb496caed42e2960",
+      "size_in_bytes": 24945217,
+      "digest": "sha256:aab3640974d48e1e13171a52e3da968da204f9dbfa187cea601c34b8d7f8d53e",
+      "expires_at": "2027-01-12T06:27:33Z"
+    }
+  ],
+  "complete_history_interface_passed": false,
+  "release_blocked": true,
+  "installed_terminal_modified": false,
+  "pixel_visible_test": "not executed",
+  "remaining": [
+    "Viewport-relative external coordinates regression",
+    "Arbitrary menu payload",
+    "Actual ConPTY capability consumption",
+    "Write-lock concurrency",
+    "Bridge EOF lifecycle",
+    "Blueberry integration and final package acceptance"
+  ]
+}

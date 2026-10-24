@@ -14,6 +14,8 @@ use std::{
     time::{Duration, Instant},
 };
 use tempfile::{TempDir, tempdir};
+#[path = "support/workflow_cases.rs"]
+mod workflow_cases;
 
 const PTY_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -51,6 +53,16 @@ fn ctrl_space_records() -> &'static [u8] {
 #[test]
 fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_line() -> Result<()> {
     let mut host = start_host()?;
+    let mode_path = host._cwd.path().join("argument-mode.txt");
+    send_command(
+        &mut host.harness,
+        &format!(
+            "[IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy')); Write-Output BB_ARGUMENT_MODE_READY",
+            mode_path.to_string_lossy().replace('\'', "''")
+        ),
+        "BB_ARGUMENT_MODE_READY",
+    )?;
+    let legacy = fs::read_to_string(mode_path)? == "True";
     clear_line(&mut host.harness)?;
     host.harness.send_text("cargo test -p --release")?;
     host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
@@ -61,7 +73,7 @@ fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_lin
         Some("cargo test -p".len() as u64),
     )?;
     host.harness.send(b"\x1b[112;7u")?;
-    select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    wait_for_presented_hub_candidate(&mut host.harness, "继续填写 Cargo 包")?;
     // Drain late ordinary completion/history replies before accepting. They
     // must not replace the selected hub operation with a normal -p menu.
     let until = Instant::now() + Duration::from_millis(400);
@@ -98,7 +110,11 @@ fn terminal_guided_package_form_fills_without_execution_and_cancel_preserves_lin
     read_real_buffer(
         &mut host.harness,
         "guided package",
-        "cargo test -p 'blue berry' --release",
+        if legacy {
+            "cargo test -p '\"blue berry\"' --release"
+        } else {
+            "cargo test -p 'blue berry' --release"
+        },
         None,
     )?;
 
@@ -118,7 +134,7 @@ fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
         Some("cargo test -p".len() as u64),
     )?;
     host.harness.send(b"\x1b[112;7u")?;
-    select_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    wait_for_presented_hub_candidate(&mut host.harness, "继续填写 Cargo 包")?;
     host.harness.send_text("\r")?;
     wait_until(
         &mut host.harness,
@@ -134,6 +150,126 @@ fn terminal_guided_form_cancel_preserves_original_line() -> Result<()> {
         Some("cargo test -p".len() as u64),
     )?;
     Ok(())
+}
+
+#[test]
+fn malformed_cargo_form_keeps_completion_and_native_history_alive() -> Result<()> {
+    let mut host = start_host()?;
+    fs::write(host._cwd.path().join("Cargo.toml"), "[workspace\nbroken")?;
+    clear_line(&mut host.harness)?;
+    let original = "cargo test -p --release";
+    host.harness.send_text(original)?;
+    host.harness.send(&b"\x1b[D".repeat(" --release".len()))?;
+    read_real_buffer(
+        &mut host.harness,
+        "before malformed form",
+        original,
+        Some(13),
+    )?;
+    host.harness.send(b"\x1b[112;7u")?;
+    wait_for_presented_hub_candidate(&mut host.harness, "继续填写 Cargo 包")?;
+    host.harness.send(b"\r")?;
+    host.harness.wait_text("填写参数：工作区包", PTY_TIMEOUT)?;
+    host.harness.wait_text("Cargo.toml", PTY_TIMEOUT)?;
+    host.harness.send_text("\x1b")?;
+    read_real_buffer(
+        &mut host.harness,
+        "cancel malformed form",
+        original,
+        Some(13),
+    )?;
+    clear_line(&mut host.harness)?;
+    host.harness.send_text("git ")?;
+    host.harness.wait_text("archive", PTY_TIMEOUT)?;
+    clear_line(&mut host.harness)?;
+    send_command(
+        &mut host.harness,
+        "Write-Output BB_FORM_RECOVERED",
+        "BB_FORM_RECOVERED",
+    )?;
+    host.harness.send(b"\x1b[A")?;
+    // History browsing intentionally defers automatic buffer-query chords.
+    // Observe the current cursor row, not an earlier echoed command/output.
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let screen = host.harness.screen_snapshot();
+        let row = screen
+            .rows(0, screen.size().1)
+            .nth(screen.cursor_position().0 as usize)
+            .unwrap_or_default();
+        if row.contains("Write-Output BB_FORM_RECOVERED") {
+            break;
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "native history did not recall after form error"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    }
+    clear_line(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
+fn nested_builtin_workflows_fill_without_execution() -> Result<()> {
+    let mut host = start_host()?;
+    let mode_path = host._cwd.path().join("workflow-mode.txt");
+    send_command(
+        &mut host.harness,
+        &format!(
+            "[IO.File]::WriteAllText('{}', [string]($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -ne 'Standard')); Write-Output BB_WORKFLOW_READY",
+            mode_path.to_string_lossy().replace('\'', "''")
+        ),
+        "BB_WORKFLOW_READY",
+    )?;
+    // This fixture's git.cmd selects Legacy under PS7 Windows mode as well.
+    let legacy_git = fs::read_to_string(mode_path)? == "True";
+    for (name, values, expected) in workflow_cases::CASES {
+        clear_line(&mut host.harness)?;
+        host.harness.send(b"\x1b[112;7u")?;
+        host.harness.wait_text("工作台", PTY_TIMEOUT)?;
+        host.harness.send_text(name)?;
+        let deadline = Instant::now() + PTY_TIMEOUT;
+        loop {
+            let event = host.harness.event(
+                "hub_presented",
+                deadline.saturating_duration_since(Instant::now()),
+            )?;
+            if event["label"] == *name && event["query"] == *name && event["incomplete"] == false {
+                break;
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "workflow query was not painted: {name}"
+            );
+        }
+        host.harness.send(b"\r")?;
+        for (index, value) in values.iter().enumerate() {
+            host.harness
+                .wait_text(&format!("参数 {}/{}", index + 1, values.len()), PTY_TIMEOUT)?;
+            host.harness.send_text(value)?;
+            host.harness.send(b"\r")?;
+        }
+        let edit = host.harness.event("edit_result", PTY_TIMEOUT)?;
+        ensure!(edit["applied"] == true, "workflow rejected: {name}: {edit}");
+        let expected = if legacy_git && expected.starts_with("git worktree add") {
+            expected.replace("'../work tree'", "'\"../work tree\"'")
+        } else {
+            (*expected).to_owned()
+        };
+        let buffer = read_real_buffer(&mut host.harness, name, &expected, None)?;
+        ensure!(
+            buffer["line"] == expected,
+            "workflow changed native edit: {name}: {buffer}"
+        );
+    }
+    clear_line(&mut host.harness)?;
+    send_command(
+        &mut host.harness,
+        "Write-Output BB_WORKFLOW_EDITABLE",
+        "BB_WORKFLOW_EDITABLE",
+    )?;
+    host.harness.finish(PTY_TIMEOUT)
 }
 
 #[test]
@@ -430,7 +566,24 @@ fn clear_line(harness: &mut Harness) -> Result<()> {
     // Do not concatenate Esc with Ctrl+A: VT input may decode that as an
     // Alt chord. Observe the actual cleared ReadLine buffer before continuing.
     harness.send(b"\x01\x7f")?;
-    harness.send(ctrl_space_records())?;
+    // Establish an editor-side barrier. Older empty buffer events can remain
+    // queued after acceptance, so observing "" alone is not a fresh clear.
+    let marker = format!(
+        "# clear-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos()
+    );
+    harness.send_text(&marker)?;
+    let observed = request_buffer(harness, &marker)?;
+    ensure!(
+        observed["line"] == marker,
+        "clear barrier did not replace the previous line: {observed}"
+    );
+    harness.send(b"\x01\x7f")?;
+    // Here the line has been cleared, so there is no continuation handler to
+    // serialize with. Read it without the public trigger's empty-line menu.
+    harness.send(&protocol_chord('s'))?;
     loop {
         if harness.event("buffer", PTY_TIMEOUT)?["line"] == "" {
             return wait_until(harness, "cleared menu", PTY_TIMEOUT, |screen| {
@@ -523,12 +676,33 @@ fn wait_absent(harness: &mut Harness, path: &Path, description: &str) -> Result<
     }
 }
 
+fn wait_for_presented_hub_candidate(harness: &mut Harness, label: &str) -> Result<()> {
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let presented = harness.event(
+            "hub_presented",
+            deadline.saturating_duration_since(Instant::now()),
+        )?;
+        if presented["label"].as_str() == Some(label) && presented["incomplete"] == false {
+            ensure!(
+                selected_candidate_line(&harness.viewport_contents())
+                    .is_some_and(|line| candidate_line_has(line, label)),
+                "completed hub frame disagrees with selected candidate: {presented}"
+            );
+            return Ok(());
+        }
+    }
+}
+
 fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
     wait_until(
         harness,
         &format!("real candidate before {label}"),
         PTY_TIMEOUT,
-        |screen| selected_candidate_line(screen).is_some(),
+        |screen| {
+            selected_candidate_line(screen).is_some()
+                && screen.lines().any(|line| candidate_line_has(line, label))
+        },
     )?;
     let deadline = Instant::now() + PTY_TIMEOUT;
     for _ in 0..128 {
@@ -536,16 +710,14 @@ fn select_candidate(harness: &mut Harness, label: &str) -> Result<()> {
         if selected_candidate_line(&contents).is_some_and(|line| candidate_line_has(line, label)) {
             return Ok(());
         }
-        let before = selected_candidate_line(&contents)
-            .context("completion menu lost its selectable row")?
-            .to_owned();
         harness.send(b"\x1b[B")?;
+        harness.event("navigation_presented", PTY_TIMEOUT)?;
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
             break;
         }
         wait_until(harness, "menu navigation repaint", remaining, |screen| {
-            selected_candidate_line(screen).is_some_and(|line| line != before)
+            selected_candidate_line(screen).is_some()
         })?;
     }
     bail!(
@@ -767,7 +939,11 @@ fn terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode() ->
     clear_line(&mut host.harness)?;
     host.harness.send_text("giXYZ")?;
     host.harness.send(b"\x1b[D\x1b[D\x1b[D")?;
-    let _ = request_buffer(&mut host.harness, "giXYZ")?;
+    let state = request_buffer(&mut host.harness, "giXYZ")?;
+    ensure!(
+        state["line"] == "giXYZ" && state["cursor"] == 2,
+        "right-hand fixture buffer/cursor differs: {state}"
+    );
     select_candidate(&mut host.harness, "git")?;
     let _ = accept_selected(&mut host.harness)?;
     wait_until(
@@ -923,6 +1099,233 @@ fn terminal_beta_native_completion_is_manual_and_uses_the_live_replacement_range
 }
 
 #[test]
+fn terminal_history_search_stays_native_until_a_real_edit() -> Result<()> {
+    let mut host = start_host()?;
+    let wait_history_row = |harness: &mut Harness, expected: &str| -> Result<()> {
+        let deadline = Instant::now() + PTY_TIMEOUT;
+        loop {
+            let screen = harness.screen_snapshot();
+            let row = screen
+                .rows(0, screen.size().1)
+                .nth(screen.cursor_position().0 as usize)
+                .unwrap_or_default();
+            if row.contains(expected) && harness.viewport_contents().contains("switch_") {
+                return Ok(());
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "native search did not reach {expected}"
+            );
+            let _ = harness.pump(Duration::from_millis(10));
+        }
+    };
+    send_command(
+        &mut host.harness,
+        "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git switch main'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git switch dev'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git status'); Write-Output SEARCH_HISTORY_SEEDED",
+        "SEARCH_HISTORY_SEEDED",
+    )?;
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    host.harness.send(b"\x12")?;
+    let started = host.harness.event("native_search", PTY_TIMEOUT)?;
+    ensure!(started["active"] == true, "native search did not start");
+    host.harness.send_text("switch")?;
+    wait_history_row(&mut host.harness, "git switch dev")?;
+    host.harness.send(b"\x7f")?;
+    host.harness.send_text("h")?;
+    host.harness.send(b"\x12")?;
+    wait_history_row(&mut host.harness, "git switch main")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !host.harness.viewport_contents().contains("› "),
+        "search reopened completion"
+    );
+    // Ctrl+G aborts the search without executing the recalled command.
+    host.harness.send(b"\x07")?;
+    let ended = host.harness.event("native_search", PTY_TIMEOUT)?;
+    ensure!(
+        ended["active"] == false,
+        "search restarted instead of continuing"
+    );
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !host.harness.viewport_contents().contains("› "),
+        "search exit reopened completion"
+    );
+    host.harness.send(b"\x1b[F\x7f")?;
+    wait_until(
+        &mut host.harness,
+        "completion after post-search deletion",
+        PTY_TIMEOUT,
+        |screen| screen.contains("› "),
+    )?;
+    cancel_to_prompt(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
+fn terminal_history_search_exit_serializes_following_typing_and_delete() -> Result<()> {
+    for burst in [
+        b"\x07git s".as_slice(),
+        b"\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_\x1b[F\x7ft",
+    ] {
+        let mut host = start_host()?;
+        send_command(
+            &mut host.harness,
+            // PSReadLine 2.0.0 Windows mode does not bind Ctrl+G to Abort.
+            // Exercise an explicitly configured abort key, plus the default
+            // Escape path below, without assuming the machine's edit mode.
+            "Set-PSReadLineKeyHandler -Chord Ctrl+g -Function Abort; [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output SEARCH_BURST_SEEDED",
+            "SEARCH_BURST_SEEDED",
+        )?;
+        // Search entry and its first query also arrive in one burst.
+        host.harness.send(b"\x1b[A\x12git st")?;
+        let started = host.harness.event("native_search", PTY_TIMEOUT)?;
+        ensure!(started["active"] == true, "native search did not start");
+        wait_until(
+            &mut host.harness,
+            "burst search query",
+            PTY_TIMEOUT,
+            |screen| screen.contains("git st_"),
+        )?;
+        host.harness.send(burst)?;
+        let ended = host.harness.event("native_search", PTY_TIMEOUT)?;
+        ensure!(ended["active"] == false, "native search did not finish");
+        wait_until(
+            &mut host.harness,
+            "completion after search exit burst",
+            PTY_TIMEOUT,
+            |screen| screen.contains("› "),
+        )?;
+        let expected = if burst[0] == 7 { "git s" } else { "git st" };
+        read_real_buffer(
+            &mut host.harness,
+            "post-search burst buffer",
+            expected,
+            None,
+        )?;
+        cancel_to_prompt(&mut host.harness)?;
+        host.harness.finish(PTY_TIMEOUT)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn terminal_history_keeps_workbench_shortcut_available() -> Result<()> {
+    let mut host = start_host()?;
+    let path = host.data_dir.path().join("Blueberry/commands.toml");
+    fs::create_dir_all(path.parent().context("commands directory")?)?;
+    fs::write(
+        &path,
+        "schema_version = 2\n[[favorites]]\nname = 'History Workbench'\ncommand = 'git status'\n",
+    )?;
+    send_command(
+        &mut host.harness,
+        "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output WORKBENCH_HISTORY_SEEDED",
+        "WORKBENCH_HISTORY_SEEDED",
+    )?;
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    host.harness.send(b"\x1b[112;7u")?;
+    wait_until(
+        &mut host.harness,
+        "workbench during history browsing",
+        PTY_TIMEOUT,
+        |screen| screen.contains("History Workbench"),
+    )?;
+    host.harness.send(b"\x1b[112;7u")?;
+    let until = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !host.harness.viewport_contents().contains("› "),
+        "workbench dismissal reopened completion"
+    );
+    cancel_to_prompt(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
+fn terminal_history_native_keys_wait_for_actual_deletion() -> Result<()> {
+    let mut host = start_host()?;
+    send_command(
+        &mut host.harness,
+        "[Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git sw'); [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory('git st'); Write-Output HISTORY_SEEDED",
+        "HISTORY_SEEDED",
+    )?;
+    for (key, expected) in [
+        (b"\x1b[A".as_slice(), "git st"),
+        (b"\x1b[A".as_slice(), "git sw"),
+        (b"\x1b[B".as_slice(), "git st"),
+    ] {
+        host.harness.send(key)?;
+        let deadline = Instant::now() + PTY_TIMEOUT;
+        loop {
+            let screen = host.harness.screen_snapshot();
+            let row = screen
+                .rows(0, screen.size().1)
+                .nth(screen.cursor_position().0 as usize)
+                .unwrap_or_default();
+            if row.contains(expected) {
+                break;
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "history did not reach {expected}"
+            );
+            let _ = host.harness.pump(Duration::from_millis(10));
+        }
+        let until = Instant::now() + Duration::from_millis(300);
+        while Instant::now() < until {
+            let _ = host.harness.pump(Duration::from_millis(10));
+        }
+        ensure!(
+            !host.harness.viewport_contents().contains("› "),
+            "history navigation reopened completion"
+        );
+    }
+    for key in [b"\x1b[D".as_slice(), b"\x1b[H", b"\x7f", b"\t", b"\x1b"] {
+        host.harness.send(key)?;
+        let until = Instant::now() + Duration::from_millis(300);
+        while Instant::now() < until {
+            let _ = host.harness.pump(Duration::from_millis(10));
+        }
+        ensure!(
+            !host.harness.viewport_contents().contains("› "),
+            "native key reopened completion: {key:?}"
+        );
+    }
+    host.harness.send(b"\x1b[A")?;
+    let until = Instant::now() + Duration::from_millis(300);
+    while Instant::now() < until {
+        let _ = host.harness.pump(Duration::from_millis(10));
+    }
+    host.harness.send(b"\x1b[F\x7f")?;
+    wait_until(
+        &mut host.harness,
+        "completion after actual deletion",
+        PTY_TIMEOUT,
+        |screen| screen.contains("› "),
+    )?;
+    cancel_to_prompt(&mut host.harness)?;
+    host.harness.finish(PTY_TIMEOUT)
+}
+
+#[test]
 fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<()> {
     let mut host = start_host()?;
     send_command(
@@ -949,11 +1352,25 @@ fn terminal_beta_paste_and_history_mode_preserve_psreadline_editing() -> Result<
         PTY_TIMEOUT,
         |screen| screen.contains("Write-Output SS_UP_HISTORY"),
     )?;
-    let history = request_buffer(&mut host.harness, "Write-Output SS_UP_HISTORY")?;
-    ensure!(
-        history["line"] == "Write-Output SS_UP_HISTORY",
-        "history mode did not reach PSReadLine history: {history}"
-    );
+    // Inspect the terminal without injecting a buffer-query key, which would
+    // break PSReadLine's consecutive history cursor and is intentionally native
+    // while history browsing is active.
+    let deadline = Instant::now() + PTY_TIMEOUT;
+    loop {
+        let screen = host.harness.screen_snapshot();
+        let row = screen
+            .rows(0, screen.size().1)
+            .nth(screen.cursor_position().0 as usize)
+            .unwrap_or_default();
+        if row.contains("Write-Output SS_UP_HISTORY") {
+            break;
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "native history cursor did not reach the recalled command"
+        );
+        let _ = host.harness.pump(Duration::from_millis(20));
+    }
     clear_line(&mut host.harness)?;
     let pasted = "Write-Output '粘贴😀 与空格'";
     host.harness

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "measurement_complete": false,
+  "status": "invalid; no formal collection started",
+  "profile": "ps51-2.0.0",
+  "error": "hot/git/0-cache_hit-inshellisense: retained failure",
+  "raw_report": "artifacts\\cb3-1013\\pilot-ps51-200\\comparison.json",
+  "raw_sha256": "3DF8AFC4AEF5D26D0BC1AF4AF79B5FD0594D3860DFA97DFFC843F9A1311AA6A8",
+  "failed_session": "artifacts\\cb3-1013\\pilot-ps51-200\\hot\\git\\0-cache_hit-inshellisense\\result.json",
+  "failed_session_sha256": "8C60232CF090003E5EC48210D6A04BAAA3D5FEA3A982348F344578CCAE33F7FE",
+  "failure_stage": "repeated input after warmup in inshellisense",
+  "input_echo_observed": false,
+  "valid_slow_sample": false,
+  "remaining_profiles": "not executed",
+  "followup_native_buffer_diagnostic": "one isolated repetition passed; root cause not yet established"
+}

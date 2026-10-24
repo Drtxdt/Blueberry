@@ -1,0 +1,3 @@
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"backup","succeeded":true,"files":1,"bytes":null,"elapsed_ms":175.44920000000002}
+BLUEBERRY_MAINTENANCE_METRIC {"phase":"journal","succeeded":true,"files":130,"bytes":30139,"elapsed_ms":2570.6248999999989}
+Transaction v2 write-ahead/recovery tests passed; evidence: E:\OpenSource\shellsense-rs\target\journal-tests-026f52257648403e8876310820da4549

@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "terminal_source_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+  "prototype_source_commit": "315349ea1670aba291ce558dfb1ec7b773c6154c",
+  "run_id": 38518393691,
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38518393691",
+  "ci_passed": true,
+  "native_buffer_tests": {
+    "total": 5,
+    "passed": 5
+  },
+  "actual_terminalcore_lifecycle_tests": {
+    "total": 2,
+    "passed": 2,
+    "actual_user_resize_restores_before_reflow": true,
+    "ordinary_output_preserves_new_writes_in_covered_rows": true,
+    "stale_generation_rejected": true
+  },
+  "raw_log": "artifacts\\ci-8ad-ca19-failures\\wt-lifecycle-315",
+  "raw_log_sha256": "5D3EC6FE985ADE1D9CD45386F0E57B2C001C8CE43DEA52CA41DF13C73A725340",
+  "artifacts": [
+    {
+      "id": 11872324270,
+      "name": "wt-native-overlay-315349ea1670aba291ce558dfb1ec7b773c6154c",
+      "size_in_bytes": 24915964,
+      "digest": "sha256:15abdff07a3c105e7d04e1421d5dd3bc47e79ff0fd492a9e58b79129c6241b77",
+      "expires_at": "2027-01-12T05:45:59Z"
+    }
+  ],
+  "experimental_vt_endpoint": "implemented separately; parser fragmentation, scrolling and Alt Screen tests pending",
+  "complete_history_interface_passed": false,
+  "release_blocked": true
+}

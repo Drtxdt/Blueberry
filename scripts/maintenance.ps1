@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateSet('Prepare','Worker','Status','Cancel','Check')][string]$Mode,
     [Parameter(Mandatory)][string]$InstallRoot,
@@ -144,6 +144,7 @@ try {
     $cancel = [Threading.EventWaitHandle]::new($false, 'ManualReset', ('Local\Blueberry.Maintenance.' + $state.id))
     try {
         $state.status = if ($recover) { 'recovering' } else { 'waiting' }; $state['worker_pid'] = $PID; Save-Operation $state
+        $sessionWait = [Diagnostics.Stopwatch]::StartNew()
         while ($true) {
             if (-not $recover -and [IO.File]::Exists($cancelPath)) { $state.status='cancelled'; $state.message='操作已取消，安装未修改'; Save-Operation $state; return }
             $processes = @()
@@ -168,6 +169,10 @@ try {
                 foreach ($process in $processes) { $process.Dispose() }
             }
         }
+        $sessionWait.Stop()
+        $state['session_wait_ms'] = $sessionWait.Elapsed.TotalMilliseconds
+        Save-Operation $state
+        Write-Host ('BLUEBERRY_MAINTENANCE_METRIC ' + (@{phase='session_wait'; elapsed_ms=$sessionWait.Elapsed.TotalMilliseconds; files=0; bytes=0; succeeded=$true} | ConvertTo-Json -Compress))
         $transaction = Join-Path $StateRoot ('transaction-' + $state.id)
         if ($recover -and $state.operation -ne 'Uninstall') {
             $outcome = & (Join-Path $PSScriptRoot 'manage-install.ps1') -Action Recover -InstallRoot $InstallRoot -TransactionDirectory $transaction -ExpectedManifestSha256 $state.expected_manifest_sha256

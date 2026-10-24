@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "status": "fixed_source_regressions_passed_new_ci_package_required",
+  "problem": "Uninstall retained settings directory; reinstall treated it as a complete immutable payload and failed on deleted files.",
+  "reproduction": {
+    "path": "artifacts\\sealed-package-validation-20261024\\installation-public052.log",
+    "sha256": "c850304194e1a40b45415f34986ed2246a7d0b6906951f03738e77b09d441e8d"
+  },
+  "source_fix": "Validate every surviving payload file before moving any missing staged file; retain settings; activate only after full verification.",
+  "tests": [
+    {
+      "path": "artifacts\\sealed-package-validation-20261024\\component-regression-ps7-user.log",
+      "sha256": "c7693c2c18a499d07e4d03be96ac58b749027ae9f4443357f22108a104c0c331"
+    },
+    {
+      "path": "artifacts\\sealed-package-validation-20261024\\component-regression-ps51-user.log",
+      "sha256": "cd8ca7d880d290a792426bccfdc382d45d31c2cf06d02ea3333f8e2c01d5efa8"
+    }
+  ],
+  "coverage": [
+    "install/upgrade/rollback/re-upgrade",
+    "locked active pointer",
+    "interrupted publication",
+    "corrupt state",
+    "blocked uninstall and retry",
+    "same-package reinstall with retained settings",
+    "partial payload recovery",
+    "changed survivor rejected before publishing or activating"
+  ],
+  "fixture": "PackageTwo changes ZIP comment only, keeping original manifest and payload; test-only, not deliverable.",
+  "other_attempts": [
+    {
+      "report": {
+        "path": "artifacts\\sealed-package-validation-20261024\\installation.log",
+        "sha256": "01f0d5795e48f51443d79551d5c7c11f47636eeb65967349b692f7c9e47d793e"
+      },
+      "result": "sandbox process access denied"
+    },
+    {
+      "report": {
+        "path": "artifacts\\sealed-package-validation-20261024\\installation-elevated.log",
+        "sha256": "7d81fc755fe51ba68d39daaa3c29513a79ec8bb8efd8d41f5dc7d1322c090a78"
+      },
+      "result": "fixture attempted rollback to identical contents; corrected to public 0.5.2"
+    },
+    {
+      "report": {
+        "path": "artifacts\\sealed-package-validation-20261024\\component-regression-ps7.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "result": "sandbox temporary-directory rename denied"
+    }
+  ],
+  "verified_original_packages": {
+    "path": "artifacts\\sealed-package-validation-20261024\\verified.json",
+    "sha256": "19f306c81917175df394e678181516db48bb79cf8495c9454c38370c85ba212c"
+  },
+  "final_candidate": false,
+  "user_installation_modified": false
+}

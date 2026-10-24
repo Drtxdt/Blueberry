@@ -1,0 +1,94 @@
+{
+  "created_at": "2026-10-14T22:13:06.9442116+08:00",
+  "retained": "original ZIPs, baseline EXEs, example probes, raw records, source, Git history",
+  "schema": 1,
+  "authorized_by": "user requested old version build cleanup",
+  "rows": [
+    {
+      "bytes": 450607,
+      "path": "target\\rust199\\debug\\.fingerprint",
+      "files": 1443,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 245107286,
+      "path": "target\\rust199\\debug\\build",
+      "files": 210,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 2534806275,
+      "path": "target\\rust199\\debug\\deps",
+      "files": 834,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 3172215018,
+      "path": "target\\rust199\\debug\\incremental",
+      "files": 8561,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 156946,
+      "path": "target\\rust199\\release\\.fingerprint",
+      "files": 655,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 175457876,
+      "path": "target\\rust199\\release\\build",
+      "files": 184,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 378889779,
+      "path": "target\\rust199\\release\\deps",
+      "files": 415,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 0,
+      "path": "target\\rust199\\release\\incremental",
+      "files": 0,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 117898,
+      "path": "target\\history-mode-build\\release\\.fingerprint",
+      "files": 534,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 172013030,
+      "path": "target\\history-mode-build\\release\\build",
+      "files": 166,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 263833346,
+      "path": "target\\history-mode-build\\release\\deps",
+      "files": 331,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    },
+    {
+      "bytes": 0,
+      "path": "target\\history-mode-build\\release\\incremental",
+      "files": 0,
+      "status": "deleted",
+      "kind": "rebuildable Cargo intermediates"
+    }
+  ],
+  "bytes_freed": 6943048061,
+  "originals_and_evidence_retained": true
+}

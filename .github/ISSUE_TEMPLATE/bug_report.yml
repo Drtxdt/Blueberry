@@ -1,0 +1,22 @@
+name: Bug report / 问题反馈
+description: Report a reproducible completion or terminal problem
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: 版本与环境
+      description: Blueberry 版本、Windows／终端版本、PowerShell／PSReadLine、direct 或 nested、OSC 或 pipe。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 最短复现步骤
+      description: 请包含输入内容、光标位置、按键顺序、窗口大小以及预期与实际结果。
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断与截图
+      description: 附 blueberry doctor --json、包 SHA-256、截图或日志；分享前检查本机路径等私人信息。

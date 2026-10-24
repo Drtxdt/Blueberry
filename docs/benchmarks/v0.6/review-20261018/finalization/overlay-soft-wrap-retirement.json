@@ -1,0 +1,70 @@
+{
+  "base_commit": "fff465ad63f79902753b46660dd2713362caeeb5",
+  "issue": "Clearing characters retains forced-wrap metadata. Narrow repaint inherits it, so widening joins adjacent menu rows and can join a prompt to a border. The old single-line ownership matcher cannot recognize these joins.",
+  "upstream_reference": "https://github.com/microsoft/terminal/blob/main/src/terminal/adapter/adaptDispatch.cpp",
+  "upstream_observed_date": "2026-10-20",
+  "implementation": "Explicit LF after retiring or painting owned rows resets their wrap metadata. Skip LF at the physical bottom to avoid scrolling. Same-size resize notifications bypass the unchanged-layout optimization.",
+  "before_fix_fixture": "target/overlay-resize-evidence/race-tCtvaE",
+  "before_snapshot_sha256": "e13e3f7e6d6af09a0bff94c17619bb0774a57d6a58379aaf6d095bccb316011e",
+  "after_fix_fixture": "target/overlay-resize-evidence/race-LpElMs",
+  "after_snapshot_sha256": "24b94ff9a3333c5745445edcc05d3fc82dc4be4a7f6b2bffca91066f8aac2328",
+  "isolated_regressions": "3 passed; preserve prompt, unrelated history and remove candidates plus all border fragments.",
+  "round_trip_repetitions": 30,
+  "repeat_test_binary_sha256": "B7920E99C42696166CB1CCCA00526BE0F3F63C58B3459D08619C729D0DA03E86",
+  "repeat_log": "artifacts/stability-soft-wrap-local-repeat30.log",
+  "repeat_log_sha256": "167fa3d16426cc3d75c8609503f422acf17480d61b7cbf01a81f7c0bfe9e82aa",
+  "interaction_and_history": {
+    "passed": 12,
+    "test_binary_sha256": "A65C4CA42C1BDF37364C2F36C0F8CC76623708446BA366763398909F0C75A358",
+    "fixtures": [
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-rOjreb",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-23KBvb",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-WzsbaT",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-RZ2uUb",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-EhSGOg",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-gZq67j",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-8u09rn",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-f2MYLJ",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-fspEoF",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-wiyHUk",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-040iWi",
+      "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-Ak9q7i"
+    ],
+    "log": "artifacts/stability-soft-wrap-interaction-history.log",
+    "log_sha256": "dae3f53a031bd9741c87ee0771f3ca03f6bf79b646a162bcca1f7d34a41e0cb9",
+    "native_ownership_audits": [
+      {
+        "fixture": "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-rOjreb",
+        "ownership_sha256": "8c820705fef9ead64c0f44b40d173db649ecdcaeb55fe926ca43327ed1eaee38",
+        "unmatched_candidate_rows": 0
+      },
+      {
+        "fixture": "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-WzsbaT",
+        "ownership_sha256": "6ca987b4265086fd6b76ef7811c156dfe9efa4e36401146c099b7d9e6ab3d1a1",
+        "unmatched_candidate_rows": 0
+      },
+      {
+        "fixture": "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-EhSGOg",
+        "ownership_sha256": "5d460dfb1cb763a5347a0413ecf6b68964d9c763524c3c19a718fcf6651e8739",
+        "unmatched_candidate_rows": 0
+      },
+      {
+        "fixture": "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-8u09rn",
+        "ownership_sha256": "78c86ecacd53aa341036a815214ac1f4d585d38949323ea37098470ddd5b2259",
+        "unmatched_candidate_rows": 0
+      },
+      {
+        "fixture": "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-fspEoF",
+        "ownership_sha256": "3f23da0245934dc3a20fed739eee86db7dde855c44338dff86e3787d0c426a8c",
+        "unmatched_candidate_rows": 0
+      },
+      {
+        "fixture": "E:/OpenSource/shellsense-rs/target/nested-terminal-evidence/host-040iWi",
+        "ownership_sha256": "c64b22eb0144ddde7a79feef4bd721b0bd7de0eebbc62cc084fd5aa184fd68a3",
+        "unmatched_candidate_rows": 0
+      }
+    ]
+  },
+  "checks": "Overlay unit tests and all-target Clippy passed.",
+  "limits": "Fresh CI with this exact source and repeated trace-off verification remain required. No performance or final package qualification."
+}

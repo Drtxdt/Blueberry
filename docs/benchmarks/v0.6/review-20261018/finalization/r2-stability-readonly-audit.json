@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-10-20T11:15:33.855664+00:00",
+  "status": "interrupted; not a complete AB/BA comparison",
+  "exit_time_and_cause": "unknown; absence established after conversation interruption",
+  "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r2-stability-20261020\\batch\\batch.json",
+  "receipt_sha256": "62a8e8230a8d651493068ee2f2801d6c735864f7c387c4694c973a6cb795036d",
+  "receipt_modified": false,
+  "processes": [
+    {
+      "recorded": {
+        "pid": 33136,
+        "created": 134369611330724415
+      },
+      "observed": null
+    },
+    {
+      "recorded": {
+        "pid": 36212,
+        "created": 134369611331699589
+      },
+      "observed": null
+    }
+  ],
+  "plan_sha256": "59CD9F35C4624C558515E0044975C8D29C4CA2E8C9CA91EBD98BBC389A065A2A",
+  "matrix": "C:\\Windows\\Temp\\bbr2-stability-20261020\\run1-before\\matrix.json",
+  "matrix_sha256": "cfb591ef7da586fb16297dfc14683e8a778189958d53bd1045f192aca756d43a",
+  "completed_groups": [
+    {
+      "report": "C:\\Windows\\Temp\\bbr2-stability-20261020\\run1-before\\ps51-200-startup.json",
+      "name": "ps51-200-startup",
+      "log": "C:\\Windows\\Temp\\bbr2-stability-20261020\\run1-before\\ps51-200-startup.log",
+      "exit_code": 0
+    }
+  ],
+  "active_group": {
+    "report": "C:\\Windows\\Temp\\bbr2-stability-20261020\\run1-before\\ps51-200-hot-descriptions-true.json",
+    "name": "ps51-200-hot-descriptions-true",
+    "log": "C:\\Windows\\Temp\\bbr2-stability-20261020\\run1-before\\ps51-200-hot-descriptions-true.log",
+    "started_at_utc": "2026-10-20T09:13:02.6346634Z"
+  },
+  "measured_for_version_selection": false,
+  "replacement": "New plan and directory required; verify detached coordinator before collection."
+}

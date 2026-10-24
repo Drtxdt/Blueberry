@@ -1,0 +1,83 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.84s
+Repeated test executable: E:\OpenSource\shellsense-rs\target\debug\deps\terminal_modes-685e00711987d92a.exe SHA256=AF43B6F06BB80C20A634C576FCC32C9C8F6D73B479FE814B9A31F9C35D0ECF2D
+Repetition 1 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-n4bxM8
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 6.77s
+
+Repetition 2 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-vHiPVT
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.14s
+
+Repetition 3 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-BISAEO
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.23s
+
+Repetition 4 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-BepHlX
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.50s
+
+Repetition 5 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-WDNTsQ
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.12s
+
+Repetition 6 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-wQS06w
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.17s
+
+Repetition 7 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-lsLcQC
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.19s
+
+Repetition 8 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-leNxLm
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.18s
+
+Repetition 9 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-56KYGp
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.19s
+
+Repetition 10 / 10
+
+running 1 test
+terminal modes evidence: E:\OpenSource\shellsense-rs\target/nested-terminal-evidence\modes-IQSuK8
+test repeated_resize_and_large_output_preserve_menu_and_real_buffer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.21s
+

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "kind": "completed workspace-descendant startup reference; not a neutral-context qualification",
+  "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+  "probe_source_commit": "b873a4dcb5542bac3894eae0add93ab9d1a3e7c4",
+  "measurement_complete": true,
+  "formal_matrix_complete": false,
+  "all_outliers_retained": true,
+  "screen_pixels": "not_measured",
+  "results": [
+    {
+      "profile": "ps51-200",
+      "pairs": 30,
+      "startup_extra_p50_ms": 38.37005000000002,
+      "first_key_p50_ms": 14.81895,
+      "first_static_p50_ms": 2011.9772999999998,
+      "first_complete_dynamic_p50_ms": 12.389299999999999,
+      "raw": "artifacts\\native-wrap-startup-baseline-20261016\\ps51-200\\raw.json",
+      "sha256": "A58806B1E620445C9E2FFAA3F9E029549F877751C3B6B1B7B883355366E183D1",
+      "snapshot_binding": "per_received_chunk"
+    },
+    {
+      "profile": "ps51-245",
+      "pairs": 30,
+      "startup_extra_p50_ms": 21.340049999999962,
+      "first_key_p50_ms": 18.06575,
+      "first_static_p50_ms": 2011.6768499999998,
+      "first_complete_dynamic_p50_ms": 10.90915,
+      "raw": "artifacts\\native-wrap-startup-baseline-20261016\\ps51-245\\raw.json",
+      "sha256": "9C5C688F1CA1C1D1451261266DC7BB205F518004D5347B00B9C379E1D67D9E1D",
+      "snapshot_binding": "per_received_chunk"
+    },
+    {
+      "profile": "ps7-245",
+      "pairs": 30,
+      "startup_extra_p50_ms": 10.452350000000024,
+      "first_key_p50_ms": 14.522749999999998,
+      "first_static_p50_ms": 1825.4376000000002,
+      "first_complete_dynamic_p50_ms": 11.83225,
+      "raw": "artifacts\\native-wrap-startup-baseline-20261016\\ps7-245\\raw.json",
+      "sha256": "7299AD777691AE7A445571BC3AB7EF8CD8036EEDE02A4753BD2F956BEE463862",
+      "snapshot_binding": "per_received_chunk"
+    }
+  ],
+  "probe_sha256": "B0F0207C140AB6769B7D2180FDEF32B341AB9CCDB47CE732E4BF1C768ACC247C",
+  "baseline_executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+  "observation": "production TerminalCore buffer, per-chunk snapshot/time binding; clock starts after observer setup and before child spawn",
+  "comparison_limit": "Do not calculate a speedup by comparing these native-observer numbers with the older legacy-observer baseline.",
+  "probe_product_environment": "Explicit editor discovery applies only to actual PowerShell children; Blueberry inherits the paired environment without probe-specific module-path replacement.",
+  "release_blocked": true,
+  "formal_eligible": false,
+  "fixture_scope": "scratch directories under the source workspace can see ancestor Git/Cargo project markers",
+  "qualification": "Retain every array and hash as a workspace reference. Collect neutral formal comparisons in an independently checked temporary root."
+}

@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "terminal_source_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+  "prototype_source_commit": "f1fa30cfea7356b8b967c0361be8ead6997adbc9",
+  "run_id": 38520012690,
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38520012690",
+  "ci_passed": true,
+  "native_buffer_tests": 5,
+  "native_terminalcore_tests": 4,
+  "total_passed": 9,
+  "failed": 0,
+  "checks": [
+    "Original native row and attribute round trip",
+    "Colored trailing blank attributes",
+    "Actual UserResize before native reflow",
+    "Foreign output in covered rows",
+    "Fragmented OSC packets with BEL and ST",
+    "Stale close and integer overflow ignored",
+    "Scrolling",
+    "Alternate screen"
+  ],
+  "raw_log": "artifacts\\ci-8ad-ca19-failures\\wt-vt-f1fa",
+  "raw_log_sha256": "85015514E78106B0BCD4A88A439D2E89401ABB5A66C327A65DF2041B6C6FA13E",
+  "artifacts": [
+    {
+      "id": 11873677009,
+      "name": "wt-native-overlay-f1fa30cfea7356b8b967c0361be8ead6997adbc9",
+      "size_in_bytes": 24920059,
+      "digest": "sha256:e4921534fc2dffa974e4d89b8ba15b6f3b596d7dc1947e20fb3b02b4cbff6b4d",
+      "expires_at": "2027-01-12T06:03:36Z"
+    }
+  ],
+  "complete_history_interface_passed": false,
+  "release_blocked": true,
+  "remaining": [
+    "Arbitrary menu payload and capability negotiation",
+    "Full images/special line rendition tests",
+    "Write-lock concurrency",
+    "Owner/bridge EOF lifecycle",
+    "Pixel-visible physical terminal test",
+    "Blueberry integration and final package acceptance"
+  ],
+  "installed_terminal_modified": false
+}

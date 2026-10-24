@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "source_commit": "789651e51c213f652ad2a585b2460731181435e6",
+  "ci_run_id": 39421329871,
+  "job_id": 118622732009,
+  "tests": 110,
+  "skipped": 9,
+  "passed": true,
+  "scope": "Formatting and Python evidence checks only; cannot qualify the full functional matrix or final package",
+  "log": {
+    "path": "artifacts/stability-job-118622732009.log",
+    "sha256": "cb340d73f02c207344a3e81c80cb8e89d1b97a44dd0ad95f809d28965df3ca43"
+  },
+  "metadata": {
+    "path": "artifacts/validator-789651e-metadata.json",
+    "sha256": "e96d25fe850ad7b7db3e61becb2868004d12804e8788d0b833bb743df6d5e9e7"
+  },
+  "jobs": [
+    {
+      "id": 118622732009,
+      "name": "format",
+      "conclusion": "success"
+    },
+    {
+      "id": 118622733226,
+      "name": "Native ConPTY mouse / windows-2025",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118622733526,
+      "name": "evidence-upload",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118622733595,
+      "name": "Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118622733608,
+      "name": "startup-cache",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118622733669,
+      "name": "Core / ${{ matrix.os }}",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118622734388,
+      "name": "PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118622778427,
+      "name": "stability",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118623006594,
+      "name": "package",
+      "conclusion": "skipped"
+    }
+  ]
+}

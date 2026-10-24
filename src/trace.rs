@@ -59,6 +59,26 @@ impl Trace {
             let _ = writer.flush();
         }
     }
+    /// Numeric Rust-only request counts; absent from default builds and logs.
+    pub fn allocations(
+        &self,
+        event: &'static str,
+        revision: Option<u64>,
+        before: crate::allocation_diagnostics::Snapshot,
+    ) {
+        #[cfg(feature = "allocation-diagnostics")]
+        if let Some(inner) = &self.0 {
+            let counts = crate::allocation_diagnostics::snapshot().since(before);
+            let data = json!({"event":event,"revision":revision,"diagnostic_only":true,
+                "rust_allocation_requests":counts.allocations,"rust_requested_bytes":counts.requested_bytes,
+                "rust_reallocation_requests":counts.reallocations});
+            if let Ok(mut writer) = inner.writer.lock() {
+                let _ = writeln!(writer, "{data}");
+            }
+        }
+        #[cfg(not(feature = "allocation-diagnostics"))]
+        let _ = (event, revision, before);
+    }
     /// A cross-process timestamp in the Windows QPC clock domain. Only
     /// numeric identities enter this API, never input or rendered contents.
     pub fn point(&self, event: &'static str, revision: Option<u64>, frame: Option<u64>, qpc: i64) {

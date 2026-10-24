@@ -81,6 +81,9 @@ fn signing_command_remains_exact_across_input_protocols() -> Result<()> {
     // The same fixture can inspect the frozen public beta without pretending
     // that its failures are current-product failures or modifying its files.
     let baseline = std::env::var_os("BLUEBERRY_INPUT_BASELINE_EXE").map(std::path::PathBuf::from);
+    let candidate = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
     let modes: &[&str] = if baseline.is_some() {
         &["plain", "beta6"]
     } else {
@@ -164,7 +167,7 @@ Set-PSReadLineKeyHandler -Key F4 -ScriptBlock {{
         } else if mode == "beta6" {
             baseline.as_deref().expect("baseline mode requires an EXE")
         } else {
-            Path::new(env!("CARGO_BIN_EXE_blueberry"))
+            candidate.as_path()
         };
         use sha2::{Digest, Sha256};
         fs::write(

@@ -1,0 +1,9 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.80s
+     Running tests\terminal_beta.rs (target\debug\deps\terminal_beta-f353bf963113fca4.exe)
+
+running 1 test
+test terminal_beta_real_buffer_acceptance_preserves_suffix_quotes_and_unicode ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 9.74s
+

@@ -173,11 +173,16 @@ struct Measurements {
     psreadline_versions: Vec<String>,
     editors: Vec<Value>,
     observations: Vec<Value>,
+    native_observers: Vec<Value>,
+    hot_preparation_wait: Vec<f64>,
+    hot_preparation_status: Vec<Value>,
     input_echo: Vec<f64>,
     first_menu: Vec<f64>,
     first_candidate_menu: Vec<f64>,
+    complete_candidate_menu: Vec<f64>,
     dynamic_complete_menu: Vec<f64>,
     eligible_first_candidate_menu: Vec<f64>,
+    eligible_complete_candidate_menu: Vec<f64>,
     eligible_dynamic_complete_menu: Vec<f64>,
     memory_prompt: Vec<u64>,
     memory_menu: Vec<u64>,
@@ -196,6 +201,7 @@ struct Observation {
     input_echo: f64,
     first_menu: f64,
     first_candidate_menu: f64,
+    complete_candidate_menu: f64,
     dynamic_complete_menu: Option<f64>,
     input_qpc: Option<i64>,
     menu_arrival_qpc: Option<i64>,
@@ -209,9 +215,13 @@ impl Measurements {
         self.first_menu.push(observation.first_menu);
         self.first_candidate_menu
             .push(observation.first_candidate_menu);
+        self.complete_candidate_menu
+            .push(observation.complete_candidate_menu);
         if transport_valid {
             self.eligible_first_candidate_menu
                 .push(observation.first_candidate_menu);
+            self.eligible_complete_candidate_menu
+                .push(observation.complete_candidate_menu);
         } else {
             self.transport_ineligible_hot_queries += 1;
         }
@@ -238,12 +248,18 @@ impl Measurements {
             "psreadline_versions": &self.psreadline_versions,
             "editors": &self.editors,
             "observations": &self.observations,
+            "native_observers": &self.native_observers,
+            "hot_preparation_wait": f64_stats(&self.hot_preparation_wait, "ms"),
+            "hot_preparation_status": &self.hot_preparation_status,
+            "hot_precondition": "direct command discovery complete before untimed first-query warmup; nested uses adapter readiness",
             "transport_ineligible_hot_queries": self.transport_ineligible_hot_queries,
             "input_echo": f64_stats(&self.input_echo, "ms"),
             "first_menu": f64_stats(&self.first_menu, "ms"),
             "first_candidate_menu": f64_stats(&self.first_candidate_menu, "ms"),
+            "complete_candidate_menu": f64_stats(&self.complete_candidate_menu, "ms"),
             "dynamic_complete_menu": f64_stats(&self.dynamic_complete_menu, "ms"),
             "transport_eligible_first_candidate_menu": f64_stats(&self.eligible_first_candidate_menu, "ms"),
+            "transport_eligible_complete_candidate_menu": f64_stats(&self.eligible_complete_candidate_menu, "ms"),
             "transport_eligible_dynamic_complete_menu": f64_stats(&self.eligible_dynamic_complete_menu, "ms"),
             "memory_prompt": u64_stats(&self.memory_prompt, "bytes"),
             "memory_menu": u64_stats(&self.memory_menu, "bytes"),
@@ -259,12 +275,8 @@ impl Measurements {
         })
     }
 
-    fn acceptance_values(&self, dynamic: bool) -> &[f64] {
-        if dynamic {
-            &self.eligible_dynamic_complete_menu
-        } else {
-            &self.eligible_first_candidate_menu
-        }
+    fn acceptance_values(&self, _dynamic: bool) -> &[f64] {
+        &self.eligible_complete_candidate_menu
     }
 
     fn acceptance_report(&self, expected_queries: usize, dynamic: bool) -> Value {
@@ -281,7 +293,7 @@ impl Measurements {
             "failed"
         };
         json!({
-            "metric": if dynamic { "dynamic_complete_menu" } else { "first_candidate_menu" },
+            "metric": "complete_candidate_menu",
             "statistics": statistics,
             "expected_samples": expected_queries,
             "observed_samples": values.len(),
@@ -344,6 +356,12 @@ pub fn run_traced(
     trace_directory: Option<&Path>,
 ) -> Result<Value> {
     let identity = metrics::build_identity(executable)?;
+    ensure!(
+        trace_directory.is_some()
+            || (!cfg!(feature = "allocation-diagnostics")
+                && identity["allocation_diagnostics"] != true),
+        "allocation diagnostics require a separate traced batch, not formal timing"
+    );
     #[cfg(windows)]
     let probe_runtime_prepare_ms = {
         let start = Instant::now();
@@ -560,7 +578,7 @@ pub fn run_traced(
             "observation": "只读取 Harness 的 viewport 行；输入回显和带候选图标的真实菜单行分别确认",
             "dynamic": "计时前确认无旧输入/菜单；动态结果须出现目标候选和完整可见的 F1 状态行且无加载标记。诊断替代或裁切状态行不算完成；静态场景不计作动态完成",
             "ordering": "每场景每种 cache 模式使用 0..9 循环的十个唯一夹具候选",
-            "initial_query": "每个 session 的首个查询单独等待完整动态结果；它不进入热态菜单统计。静态场景的首个查询只等待首个可用候选",
+            "initial_query": "每个 session 的首个查询单独等待目标候选和完整状态；它不进入热态菜单统计",
             "cache": "每个 session pair 先在全新空 data 目录测量 miss，再复用同一份已验证 complete=true 的 commands.json 测量 hit；hit 后检查文件时间未改变",
             "transport": "每个 host 读取新建 session 的 adapter.json；只有与请求 transport 相同的热态样本进入验收统计，降级样本只保留为诊断",
             "memory": "Windows 采样 Blueberry host working set；其他平台报告 unavailable",
@@ -578,6 +596,20 @@ pub fn run_traced(
             "paths": fixtures.paths,
             "throughput_bytes": OUTPUT_BYTES,
         },
+    });
+    report["diagnostic_only"] = json!(cfg!(debug_assertions) || trace_directory.is_some());
+    report["probe_build_profile"] = json!(env!("BLUEBERRY_BUILD_PROFILE"));
+    report["probe_source_commit"] = json!(env!("BLUEBERRY_BUILD_COMMIT"));
+    report["probe_source_dirty"] = json!(env!("BLUEBERRY_BUILD_DIRTY") == "true");
+    report["probe_executable_sha256"] =
+        json!(crate::metrics::executable_sha256(&std::env::current_exe()?)?);
+    report["candidate_stage_schema"] = json!(1);
+    report["observed_stages"] = json!({
+        "input_echo": "probe_model",
+        "first_candidate": "first_menu_in_probe_model",
+        "first_expected_candidate": "first_expected_candidate_in_probe_model",
+        "complete_candidates": "expected_candidate_and_complete_status_in_probe_model",
+        "screen_pixels": "not_measured"
     });
     report["private_editors"] = identity["private_editors"].clone();
     #[cfg(windows)]
@@ -747,6 +779,13 @@ fn measure_cache_modes(
 }
 
 fn append_measurements(target: &mut Measurements, mut source: Measurements) {
+    target
+        .hot_preparation_status
+        .append(&mut source.hot_preparation_status);
+    target
+        .hot_preparation_wait
+        .append(&mut source.hot_preparation_wait);
+    target.native_observers.append(&mut source.native_observers);
     target.observations.append(&mut source.observations);
     target.editors.append(&mut source.editors);
     target.first_query.append(&mut source.first_query);
@@ -771,6 +810,12 @@ fn append_measurements(target: &mut Measurements, mut source: Measurements) {
     target
         .eligible_first_candidate_menu
         .append(&mut source.eligible_first_candidate_menu);
+    target
+        .complete_candidate_menu
+        .append(&mut source.complete_candidate_menu);
+    target
+        .eligible_complete_candidate_menu
+        .append(&mut source.eligible_complete_candidate_menu);
     target
         .eligible_dynamic_complete_menu
         .append(&mut source.eligible_dynamic_complete_menu);
@@ -836,6 +881,19 @@ fn measure_session(
         && actual_host == host_mode
         && (host_mode != "direct" || automatic && editor["mode"] == "editor_hooks_v1");
     let mut measurements = Measurements::default();
+    let preparation = Instant::now();
+    let preparation_status = if host_mode == "direct" {
+        wait_for_direct_hot_readiness(&mut harness, data_dir, &previous_adapters)?
+    } else {
+        json!({"source":"nested_adapter_readiness"})
+    };
+    measurements.hot_preparation_status.push(preparation_status);
+    measurements
+        .hot_preparation_wait
+        .push(milliseconds(preparation.elapsed()));
+    measurements
+        .native_observers
+        .push(json!(harness.native_observer_identity()));
     let raw = data_dir.join(format!("observations-{mode}-{session_index}.jsonl"));
     measurements.actual_transport.push(actual_transport);
     measurements.actual_host_mode.push(actual_host);
@@ -860,9 +918,7 @@ fn measure_session(
         -2,
     )
     .with_context(|| format!("{} 场景首次查询未完成", kind.name()))?;
-    let initial_query = first_observation
-        .dynamic_complete_menu
-        .unwrap_or(first_observation.first_candidate_menu);
+    let initial_query = first_observation.complete_candidate_menu;
     measurements.first_query.push(initial_query);
     if kind.dynamic() {
         measurements.first_dynamic_query.push(initial_query);
@@ -944,7 +1000,7 @@ fn observe_query(
     expected: &str,
     dynamic: bool,
 ) -> Result<Observation> {
-    let before = harness.viewport_contents();
+    let before = harness.observed_viewport()?;
     if has_input_echo(&before, line) || has_menu_row(&before) {
         bail!("计时前仍有本次输入或旧菜单，拒绝使用陈旧画面作为样本；screen:\n{before}");
     }
@@ -964,7 +1020,7 @@ fn observe_query(
     let mut first_candidate_menu = None;
     let mut dynamic_complete_menu = None;
     loop {
-        let screen = harness.viewport_contents();
+        let screen = harness.observed_viewport()?;
         let observed = harness
             .last_output_arrival()
             .filter(|arrival| *arrival >= started)
@@ -976,10 +1032,7 @@ fn observe_query(
             if first_menu.is_none() && has_menu_row(&screen) {
                 first_menu = observed;
             }
-            if first_candidate_menu.is_none()
-                && has_expected_menu_row(&screen, expected)
-                && (dynamic || has_complete_status(&screen))
-            {
+            if first_candidate_menu.is_none() && has_expected_menu_row(&screen, expected) {
                 first_candidate_menu = observed;
             }
             if dynamic {
@@ -1002,6 +1055,8 @@ fn observe_query(
                 input_echo,
                 first_menu,
                 first_candidate_menu,
+                complete_candidate_menu: dynamic_complete_menu
+                    .context("complete candidate menu missing")?,
                 dynamic_complete_menu: if dynamic { dynamic_complete_menu } else { None },
                 input_qpc,
                 menu_arrival_qpc: harness.last_output_qpc(),
@@ -1017,7 +1072,7 @@ fn observe_query(
 pub(crate) fn wait_for_prompt(harness: &mut Harness, timeout: Duration) -> Result<()> {
     let deadline = Instant::now() + timeout;
     loop {
-        let screen = harness.viewport_contents();
+        let screen = harness.observed_viewport()?;
         if has_prompt(&screen) {
             return Ok(());
         }
@@ -1036,7 +1091,7 @@ fn reset_line(harness: &mut Harness, previous_line: &str) -> Result<()> {
     harness.send(b"\x01\x7f")?; // SelectAll + Backspace in one input write.
     let deadline = Instant::now() + CLEANUP_TIMEOUT;
     while Instant::now() < deadline {
-        let screen = harness.viewport_contents();
+        let screen = harness.observed_viewport()?;
         if !has_menu_row(&screen) && !has_input_echo(&screen, previous_line) {
             return Ok(());
         }
@@ -1144,7 +1199,7 @@ fn host_environment(fixtures: &Fixtures) -> Result<BTreeMap<String, String>> {
             "".into()
         }
     });
-    Ok(BTreeMap::from([
+    let mut environment = BTreeMap::from([
         ("PATH".to_owned(), path.to_string_lossy().into_owned()),
         ("PATHEXT".to_owned(), pathext.to_string_lossy().into_owned()),
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
@@ -1156,7 +1211,9 @@ fn host_environment(fixtures: &Fixtures) -> Result<BTreeMap<String, String>> {
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), String::new()),
         ("ISTERM".to_owned(), "1".to_owned()),
         ("TERM".to_owned(), "xterm-256color".to_owned()),
-    ]))
+    ]);
+    crate::probe::inherit_native_observer_environment(&mut environment);
+    Ok(environment)
 }
 
 fn create_fixtures(directory: &Path) -> Result<Fixtures> {
@@ -1401,7 +1458,7 @@ fn measure_pwsh_baseline(
         harness.send_text(&line)?;
         let deadline = started + WAIT_TIMEOUT;
         loop {
-            if has_input_echo(&harness.viewport_contents(), &line) {
+            if has_input_echo(&harness.observed_viewport()?, &line) {
                 input_echo.push(milliseconds(started.elapsed()));
                 break;
             }
@@ -1472,6 +1529,101 @@ fn adapter_paths(data_dir: &Path) -> BTreeSet<PathBuf> {
         .collect()
 }
 
+fn direct_hot_ready(value: &Value) -> Result<bool> {
+    ensure!(
+        value["session_commands"]["error"].is_null(),
+        "session command discovery failed: {}",
+        value["session_commands"]
+    );
+    ensure!(
+        value["system_commands"]["error"].is_null(),
+        "system command discovery failed: {}",
+        value["system_commands"]
+    );
+    Ok(value["session_commands"]["complete"] == true
+        && (value["system_commands"]["complete"] == true
+            || value["system_commands"]["count"]
+                .as_u64()
+                .is_some_and(|count| count > 0)))
+}
+
+fn legacy_unpublished_hot_ready(canonical: &Value, unpublished: &Value) -> Result<bool> {
+    // Frozen legacy hosts can leave a fully serialized status in adapter.tmp
+    // when Windows denies its rename. This is only an untimed setup signal;
+    // actual candidate observations still come from the terminal. Current
+    // hosts publish an explicit `complete` field and cannot take this path.
+    if canonical["system_commands"].get("complete").is_some() {
+        return Ok(false);
+    }
+    for field in [
+        "transport",
+        "host_mode",
+        "shell_version",
+        "psreadline_version",
+        "editor_mode",
+        "editor_dll_sha256",
+    ] {
+        if canonical[field].as_str().is_none_or(|text| text.is_empty())
+            || canonical[field] != unpublished[field]
+        {
+            return Ok(false);
+        }
+    }
+    if unpublished["session_commands"]["session"]
+        .as_u64()
+        .unwrap_or(0)
+        < canonical["session_commands"]["session"]
+            .as_u64()
+            .unwrap_or(0)
+    {
+        return Ok(false);
+    }
+    direct_hot_ready(unpublished)
+}
+
+fn setup_status_observation(path: &Path, source: &str, bytes: &[u8]) -> Value {
+    use sha2::{Digest, Sha256};
+    json!({"source":source,"path":path,"sha256":format!("{:x}", Sha256::digest(bytes)).to_ascii_uppercase(),
+        "json":String::from_utf8_lossy(bytes)})
+}
+
+fn wait_for_direct_hot_readiness(
+    harness: &mut Harness,
+    data_dir: &Path,
+    previous_adapters: &BTreeSet<PathBuf>,
+) -> Result<Value> {
+    let deadline = Instant::now() + WAIT_TIMEOUT;
+    loop {
+        for path in adapter_paths(data_dir).difference(previous_adapters) {
+            if let Ok(bytes) = fs::read(path)
+                && let Ok(value) = serde_json::from_slice::<Value>(&bytes)
+            {
+                if direct_hot_ready(&value)? {
+                    return Ok(setup_status_observation(path, "adapter_json", &bytes));
+                }
+                let temporary = path.with_extension("tmp");
+                if let Ok(pending_bytes) = fs::read(&temporary)
+                    && let Ok(pending) = serde_json::from_slice::<Value>(&pending_bytes)
+                    && legacy_unpublished_hot_ready(&value, &pending)?
+                {
+                    return Ok(
+                        json!({"source":"legacy_unpublished_status","legacy_schema":true,
+                        "canonical":setup_status_observation(path,"adapter_json",&bytes),
+                        "unpublished":setup_status_observation(&temporary,"legacy_unpublished_status",&pending_bytes)}),
+                    );
+                }
+            }
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "hot setup command discovery never completed"
+        );
+        // Continue servicing console replies; sleeping without pumping can
+        // itself hold the editor's initialization behind an unanswered query.
+        pump_brief(harness, deadline);
+    }
+}
+
 fn wait_for_transport(
     data_dir: &Path,
     requested: &str,
@@ -1523,7 +1675,7 @@ fn wait_for_transport(
                             .unwrap_or(value["capabilities"]["ready"] == true),
                         json!({"mode":value["editor_mode"],"patch":value["editor_patch"],
                             "dll_sha256":value["editor_dll_sha256"],"fallback_reason":value["editor_fallback_reason"],
-                            "conpty":value["conpty"]}),
+                              "conpty":value["conpty"],"terminal_restore":value["terminal_restore"]}),
                     ));
                 }
             }
@@ -1693,4 +1845,75 @@ fn verify_complete_cache(data_dir: &Path) -> Result<bool> {
         path.display()
     );
     Ok(true)
+}
+
+#[cfg(test)]
+mod stage_tests {
+    use super::*;
+    #[test]
+    fn unpublished_setup_requires_legacy_schema_and_same_editor_identity() {
+        let mut canonical = json!({"transport":"pipe","host_mode":"direct","shell_version":"5.1.0","psreadline_version":"2.4.5",
+            "editor_mode":"editor_hooks_v1","editor_dll_sha256":"fixture-hash","session_commands":{"complete":true,"session":1},
+            "system_commands":{"count":0,"error":null}});
+        let mut pending = canonical.clone();
+        pending["system_commands"]["count"] = json!(1713);
+        assert!(legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+        pending["editor_dll_sha256"] = json!("another-editor");
+        assert!(!legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+        pending["editor_dll_sha256"] = canonical["editor_dll_sha256"].clone();
+        pending["session_commands"]["session"] = json!(0);
+        assert!(!legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+        pending["session_commands"]["session"] = json!(1);
+        pending["system_commands"]["error"] = json!("helper failed");
+        assert!(legacy_unpublished_hot_ready(&canonical, &pending).is_err());
+        pending["system_commands"]["error"] = Value::Null;
+        canonical["system_commands"]["complete"] = json!(false);
+        assert!(!legacy_unpublished_hot_ready(&canonical, &pending).unwrap());
+    }
+    #[test]
+    fn hot_setup_rejects_partial_or_failed_discovery() {
+        let mut value = json!({"session_commands":{"complete":false,"error":null},"system_commands":{"count":0,"error":null}});
+        assert!(!direct_hot_ready(&value).unwrap());
+        value["session_commands"]["complete"] = json!(true);
+        assert!(!direct_hot_ready(&value).unwrap());
+        value["system_commands"]["count"] = json!(1439);
+        assert!(direct_hot_ready(&value).unwrap());
+        value["system_commands"]["count"] = json!(0);
+        value["system_commands"]["complete"] = json!(true);
+        assert!(direct_hot_ready(&value).unwrap());
+        value["system_commands"]["error"] = json!("metadata helper failed");
+        assert!(direct_hot_ready(&value).is_err());
+    }
+
+    #[test]
+    fn fast_partial_static_candidate_cannot_hide_slow_complete_menu() {
+        let mut values = Measurements::default();
+        values.record(
+            Observation {
+                input_echo: 1.0,
+                first_menu: 2.0,
+                first_candidate_menu: 3.0,
+                complete_candidate_menu: 25.0,
+                dynamic_complete_menu: None,
+                input_qpc: None,
+                menu_arrival_qpc: None,
+            },
+            false,
+            true,
+        );
+        assert_eq!(values.acceptance_report(1, false)["status"], "failed");
+        assert_eq!(
+            values.acceptance_report(1, false)["statistics"]["p95"],
+            25.0
+        );
+        let mut merged = Measurements::default();
+        append_measurements(&mut merged, values);
+        let report = merged.report(1, 1);
+        assert_eq!(report["first_candidate_menu"]["samples"], json!([3.0]));
+        assert_eq!(report["complete_candidate_menu"]["samples"], json!([25.0]));
+        assert_eq!(
+            merged.acceptance_report(1, false)["statistics"]["samples"],
+            json!([25.0])
+        );
+    }
 }

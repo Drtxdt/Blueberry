@@ -1,0 +1,35 @@
+{
+  "source_commit": "312f41897c92553019cfe7514cfbc4a6d361013b",
+  "targeted_stability_passed": true,
+  "single_run_id": 39393219193,
+  "repeat_run_id": 39394720887,
+  "repeated_successes": {
+    "on": 450,
+    "off": 450,
+    "nested": 180
+  },
+  "native_snapshots": 540,
+  "native_prompt_missing": 0,
+  "historical_candidate_residue": 0,
+  "ownership_diagnostics_during_repeats": false,
+  "archives": [
+    {
+      "id": 12252646588,
+      "sha256": "22560c68877df6eb2dcf8b61258ae3b9ed63b7dde9955e6406d90ca586bc7849",
+      "path": "artifacts/stability-312f418-repeat-12252646588.zip"
+    },
+    {
+      "id": 12252531974,
+      "sha256": "444eb8de33adb7c84b33f1910947dcd5b089963bd17d3c8cfb7634e48fadadc4",
+      "path": "artifacts/stability-312f418-repeat-12252531974.zip"
+    },
+    {
+      "id": 12251923414,
+      "sha256": "13bb2a83d12cd988e03f37a6f61a9d57d679a599e75ea20fbc79768e4b6f7aca",
+      "path": "artifacts/stability-312f418-repeat-12251923414.zip"
+    }
+  ],
+  "local_repeat_record": "stability-312f418-local-repeat30.json",
+  "local_raw_delivery_record": "raw-stability-delivery-20261020.json",
+  "limits": "Targeted gate only. Full CI, all performance rounds, version decision, final packages and GUI acceptance remain required."
+}

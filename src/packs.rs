@@ -86,6 +86,7 @@ impl PackOperation {
                     default: p.default.clone(),
                     values: p.values.clone(),
                     source: p.source.clone(),
+                    flag: String::new(),
                 })
                 .collect(),
             ..Default::default()

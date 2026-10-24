@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "source_under_test": "34ad6c8f6441d9e5665694f4ceffb482dae2b9e6",
+  "ci_results": {
+    "blueberry_push_run": 38714133379,
+    "blueberry_pr_run": 38714142567,
+    "terminal_run": 38714133376,
+    "native_buffer_proof": "passed",
+    "blueberry_ps51": "failed: current user's Documents/WindowsPowerShell/Modules missing",
+    "native_host_regressions": "failed: shared two-version module search root loaded a different PSReadLine version"
+  },
+  "corrections": [
+    "When PSModulePath is absent or empty, ignore a stale WinPSModulePath inherited from a different environment. Windows PowerShell defaults include the current user's redirected Documents folder and Program Files, obtained without executing another shell.",
+    "Apply probe-only editor discovery overrides only to PowerShell processes; launching the Blueberry executable must preserve the fixture's explicit empty PSModulePath.",
+    "Save each original CI editor under its own module root, matching local frozen measurement dependencies.",
+    "Assert actual host, native restoration backend, editor version and readiness before native terminal assertions."
+  ],
+  "local_module_path_regression": "passed all three combinations, including deliberately stale WinPSModulePath",
+  "script_tests": {"total": 79, "skipped": 1, "result": "passed using normal user token and workspace temporary directory"},
+  "raw_evidence": ["artifacts/ci-34ad6c8-failures", "artifacts/module-defaults-ps51-200-20261016.log", "artifacts/module-defaults-ps51-245-20261016.log", "artifacts/module-defaults-ps7-245-20261016.log", "artifacts/python-current-normal-20261016.log"],
+  "replacement_ci": "pending",
+  "release_blocked": true
+}

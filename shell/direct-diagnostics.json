@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "events": {
+    "trace_point": {
+      "stages": [
+        "editor_confirmed",
+        "editor_edit_applied",
+        "editor_refresh_enter",
+        "editor_menu_written",
+        "editor_resize_reflow",
+        "editor_resize_reflow_failed",
+        "editor_frame_received",
+        "direct_script_enter",
+        "direct_command_enter",
+        "direct_explicit_module_ready",
+        "direct_module_loaded",
+        "direct_bridge_jit_started",
+        "direct_bridge_jit_finished",
+        "direct_module_lookup",
+        "direct_module_imported",
+        "direct_background_jit_started",
+        "direct_background_jit_finished",
+        "direct_assembly_loaded",
+        "editor_loop_enter",
+        "editor_begin_complete",
+        "editor_key_received",
+        "editor_native_dispatch",
+        "editor_native_complete"
+      ],
+      "required_integer_fields": [
+        "qpc"
+      ],
+      "unknown_stage": "ignore",
+      "invalid_fields": "ignore"
+    },
+    "trace": {
+      "stages": [
+        "direct_binding_snapshot",
+        "direct_binding_registration",
+        "direct_bridge_initialization",
+        "direct_readline_begin",
+        "direct_session_command_batch",
+        "direct_session_command_send",
+        "direct_background_jit",
+        "direct_bridge_jit",
+        "direct_background_jit_failed",
+        "direct_binding_audit",
+        "direct_history_enter",
+        "direct_history_native_key",
+        "direct_response_wait",
+        "direct_ui_response",
+        "direct_ui_timeout",
+        "direct_original_edit",
+        "direct_confirmed_query_send",
+        "direct_console_menu_output",
+        "direct_frame_to_paint"
+      ],
+      "required_integer_fields": [],
+      "unknown_stage": "ignore",
+      "invalid_fields": "ignore"
+    }
+  }
+}

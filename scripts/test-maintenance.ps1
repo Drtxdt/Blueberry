@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([Parameter(Mandatory)][string]$Executable, [Parameter(Mandatory)][string]$Package)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -184,8 +184,14 @@ try {
         param($Manager,$Root,$Journal)
         . $Manager -Action Upgrade -FunctionsOnly -InstallRoot $Root
         $data=Read-JsonHashtable $Journal
-        $data.outcome='prepared'; $data.committed_manifest_sha256=$null
-        Write-Utf8JsonAtomic -Path $Journal -Value $data
+        if ($data.schema -eq 2) {
+            $wal = Join-Path (Split-Path $Journal) 'transaction.wal'
+            $lines = [IO.File]::ReadAllLines($wal)
+            [IO.File]::WriteAllText($wal, (($lines[0..($lines.Count-2)] -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
+        } else {
+            $data.outcome='prepared'; $data.committed_manifest_sha256=$null
+            Write-Utf8JsonAtomic -Path $Journal -Value $data
+        }
     } $manager $root $journal
     $state.status='running'
     [IO.File]::WriteAllText($statePath,($state|ConvertTo-Json -Depth 20),[Text.UTF8Encoding]::new($false))
@@ -211,25 +217,31 @@ try {
     $null=Wait-State @('failed')
     if((Get-FileHash (Join-Path $root 'install.json')).Hash -ne $before){throw 'Tampered package changed installation'}
 
-    # Deterministically model a worker killed after a file replacement but
-    # before metadata commit, then recover in a fresh PowerShell invocation.
-    & $maintenance -Mode Prepare -InstallRoot $root -StateRoot $stateRoot -Operation Upgrade -PackagePath $Package
-    $state=Read-State
-    $transaction=Join-Path $stateRoot ('transaction-'+$state.id)
-    $readme=Join-Path $root 'README.md'
-    $originalReadme=(Get-FileHash $readme).Hash
-    & {
-        param($Manager,$Root,$Directory)
-        . $Manager -Action Upgrade -FunctionsOnly -TransactionDirectory $Directory -InstallRoot $Root
-        $state=Read-InstallManifest -Root $Root -Required
-        $transaction=New-Transaction -Root $Root -State $state
-        Add-TransactionTouched $transaction 'README.md'
-        [IO.File]::WriteAllText((Join-Path $Root 'README.md'),'interrupted write')
-    } $manager $root $transaction
-    $state.status='running'
-    [IO.File]::WriteAllText($statePath,($state|ConvertTo-Json -Depth 20),[Text.UTF8Encoding]::new($false))
-    & $maintenance -Mode Worker -InstallRoot $root -StateRoot $stateRoot
-    if((Read-State).status -ne 'failed' -or (Get-FileHash $readme).Hash -ne $originalReadme){throw 'Interrupted transaction recovery failed'}
+    foreach ($schema in @(1,2)) {
+        # Deterministically model a worker killed after a file replacement but
+        # before metadata commit, then recover in a fresh PowerShell invocation.
+        & $maintenance -Mode Prepare -InstallRoot $root -StateRoot $stateRoot -Operation Upgrade -PackagePath $Package
+        $state=Read-State
+        $transaction=Join-Path $stateRoot ('transaction-'+$state.id)
+        $readme=Join-Path $root 'README.md'
+        $originalReadme=(Get-FileHash $readme).Hash
+        & {
+            param($Manager,$Root,$Directory,$Schema)
+            . $Manager -Action Upgrade -FunctionsOnly -TransactionDirectory $Directory -InstallRoot $Root
+            $state=Read-InstallManifest -Root $Root -Required
+            $transaction=New-Transaction -Root $Root -State $state
+            Add-TransactionTouched $transaction 'README.md'
+            if ($Schema -eq 1) {
+                $transaction.journal_schema=1
+                Save-TransactionJournal $transaction
+            }
+            [IO.File]::WriteAllText((Join-Path $Root 'README.md'),'interrupted write')
+        } $manager $root $transaction $schema
+        $state.status='running'
+        [IO.File]::WriteAllText($statePath,($state|ConvertTo-Json -Depth 20),[Text.UTF8Encoding]::new($false))
+        & $maintenance -Mode Worker -InstallRoot $root -StateRoot $stateRoot
+        if((Read-State).status -ne 'failed' -or (Get-FileHash $readme).Hash -ne $originalReadme){throw 'Interrupted transaction recovery failed'}
+    }
     [IO.File]::WriteAllText((Join-Path $root 'user-data.txt'),'keep')
     [IO.File]::WriteAllText($readme,'user edited documentation')
     $session=Start-QueuedSession 'uninstall'
