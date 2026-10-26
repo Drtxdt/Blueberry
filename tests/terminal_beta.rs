@@ -394,6 +394,7 @@ fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
         // Debug hosts mirror protocol frames to this probe token without
         // changing the private child-shell token used by the live adapter.
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
+        ("BLUEBERRY_TEST_INPUT_RECORDS".into(), "1".into()),
         (
             "BLUEBERRY_NATIVE_MARKER".to_owned(),
             native_marker.to_string_lossy().into_owned(),

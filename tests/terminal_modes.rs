@@ -345,6 +345,15 @@ fn start_host() -> Result<RunningHost> {
         // This keeps PSReadLine history and learning output inside data_dir.
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
+        ("BLUEBERRY_TEST_INPUT_RECORDS".into(), "1".into()),
+        (
+            "BLUEBERRY_TEST_INPUT_TRACE".into(),
+            data_dir
+                .path()
+                .join("input-trace.txt")
+                .to_string_lossy()
+                .into_owned(),
+        ),
         (
             "BLUEBERRY_PIPE_DIAGNOSTIC".into(),
             data_dir

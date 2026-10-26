@@ -58,6 +58,7 @@ pub struct Harness {
     diagnostic: bool,
     decoder: Decoder,
     messages: VecDeque<Value>,
+    interaction_events: VecDeque<Value>,
     screen: vt100::Parser,
     trace: Vec<u8>,
     protocol_seen: bool,
@@ -128,6 +129,10 @@ impl Harness {
         std::fs::write(
             directory.join("probe-pending-events.json"),
             serde_json::to_vec_pretty(&self.messages)?,
+        )?;
+        std::fs::write(
+            directory.join("probe-interaction-events.json"),
+            serde_json::to_vec_pretty(&self.interaction_events)?,
         )?;
         std::fs::write(
             directory.join("probe-capabilities.json"),
@@ -224,6 +229,7 @@ impl Harness {
             native_viewport: None,
             decoder: Decoder::new(token),
             messages: VecDeque::new(),
+            interaction_events: VecDeque::new(),
             screen: vt100::Parser::new(30, 120, 1024),
             trace: Vec::new(),
             protocol_seen: false,
@@ -293,6 +299,25 @@ impl Harness {
                 }
                 Part::Message(value) => {
                     self.protocol_seen = true;
+                    // Preserve consumed editor events for failed functional
+                    // probes. Timing runs neither clone nor retain them.
+                    if self.diagnostic
+                        && matches!(
+                            value["event"].as_str(),
+                            Some(
+                                "buffer"
+                                    | "navigation_presented"
+                                    | "prompt_end"
+                                    | "editing"
+                                    | "execute"
+                            )
+                        )
+                    {
+                        if self.interaction_events.len() == 256 {
+                            self.interaction_events.pop_front();
+                        }
+                        self.interaction_events.push_back(value.clone());
+                    }
                     if value["event"] == "capabilities" {
                         self.last_capabilities = Some(value.clone());
                     }
