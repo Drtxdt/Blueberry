@@ -1,0 +1,100 @@
+[CmdletBinding()]
+param([Parameter(Mandatory=$true)][string]$PackageOne,[Parameter(Mandatory=$true)][string]$PackageTwo)
+$ErrorActionPreference='Stop'
+Set-StrictMode -Version Latest
+$root=Join-Path ([IO.Path]::GetTempPath()) ('blueberry-component-test-'+[Guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($root) | Out-Null
+$manager=Join-Path $PSScriptRoot 'manage-terminal.ps1'
+function Run-Component([string]$action,[string]$package) {
+    $arguments=@{Operation=$action;InstallRoot=$root}
+    if ($package) { $arguments.PackagePath=$package }
+    & $manager @arguments | Out-Null
+}
+function State { Get-Content -LiteralPath (Join-Path $root 'components/terminal/component-state.json') -Raw | ConvertFrom-Json }
+function Check([bool]$condition,[string]$message) { if (-not $condition) { throw $message } }
+[IO.File]::WriteAllText((Join-Path $root 'core-user-file.txt'),'untouched')
+Run-Component Install $PackageOne
+$first=(State).current
+$settings=Join-Path $root "components/terminal/versions/$first/settings/settings.json"
+[IO.Directory]::CreateDirectory((Split-Path -Parent $settings)) | Out-Null
+[IO.File]::WriteAllText($settings,'{"font":"中文 Test font"}',[Text.UTF8Encoding]::new($false))
+# Deny replacement of the active pointer while allowing its normal read.
+# Upgrade may publish an immutable directory, but it must not activate it;
+# the next attempt must validate and reuse that interrupted publication.
+$statePath=Join-Path $root 'components/terminal/component-state.json'
+$beforeCommitHash=(Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash
+$stateLock=[IO.File]::Open($statePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+$failed=$false
+try { Run-Component Upgrade $PackageTwo } catch { $failed=$true } finally { $stateLock.Dispose() }
+Check $failed 'Blocked active pointer unexpectedly committed an upgrade'
+Check ((Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash -ceq $beforeCommitHash) 'Failed upgrade changed active state bytes'
+Check ((State).current -eq $first) 'Failed upgrade selected another runtime'
+$pendingId=(Get-FileHash -LiteralPath $PackageTwo -Algorithm SHA256).Hash.ToLowerInvariant()
+Check ([IO.File]::Exists((Join-Path $root "components/terminal/versions/$pendingId/component.json"))) 'Fixture did not reach the publication-before-commit boundary'
+Run-Component Upgrade $PackageTwo
+$second=(State).current
+Check ($second -ne $first) 'Upgrade did not select independent version'
+$secondSettings=Join-Path $root "components/terminal/versions/$second/settings/settings.json"
+Check ([IO.File]::ReadAllText($secondSettings) -ceq [IO.File]::ReadAllText($settings)) 'Settings lost during upgrade'
+[IO.File]::WriteAllText($secondSettings,'{"font":"Latest preference"}')
+Run-Component Rollback
+Check ((State).current -eq $first) 'Rollback did not select previous version'
+Check ([IO.File]::ReadAllText($settings) -ceq '{"font":"Latest preference"}') 'Rollback lost latest user settings'
+Run-Component Upgrade $PackageTwo
+Check ((State).current -eq $second) 'Re-upgrade failed'
+# Invalid input must not change the active component or its state bytes.
+$statePath=Join-Path $root 'components/terminal/component-state.json'
+$stateBytes=[IO.File]::ReadAllBytes($statePath)
+$stateHash=(Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash
+$oversized=Join-Path $root 'too-many-entries.zip'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive=[IO.Compression.ZipFile]::Open($oversized,[IO.Compression.ZipArchiveMode]::Create)
+try { foreach ($index in 0..4096) { [void]$archive.CreateEntry("entry-$index") } } finally { $archive.Dispose() }
+$failed=$false
+try { Run-Component Upgrade $oversized } catch { $failed=$_.Exception.Message -like '*too many entries*' }
+Check $failed 'Oversized entry count was not rejected before extraction'
+Check ((Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash -ceq $stateHash) 'Rejected package changed active state'
+[IO.File]::WriteAllText($statePath,'{"schema_version":1,"product":"Blueberry.Terminal","metadata_sha256":"damaged"}')
+$failed=$false
+try { Run-Component Status } catch { $failed=$true } finally { [IO.File]::WriteAllBytes($statePath,$stateBytes) }
+Check $failed 'Damaged component state was accepted'
+Check ((State).current -eq $second) 'State recovery selected another component'
+# Uninstall must commit the inactive pointer before deleting any runtime.
+$stateLock=[IO.File]::Open($statePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+$failed=$false
+try { Run-Component Uninstall } catch { $failed=$true } finally { $stateLock.Dispose() }
+Check $failed 'Blocked active pointer unexpectedly allowed uninstall'
+Check ((Get-FileHash -LiteralPath $statePath -Algorithm SHA256).Hash -ceq $stateHash) 'Failed uninstall changed active state bytes'
+Check ([IO.File]::Exists((Join-Path $root "components/terminal/versions/$second/WindowsTerminal.exe"))) 'Uninstall removed runtime before inactive state was durable'
+# A blocked deletion leaves a retryable inactive state and retains settings.
+$locked=Join-Path $root "components/terminal/versions/$second/WindowsTerminal.exe"
+$portable=Join-Path $root "components/terminal/versions/$second/.portable"
+$portableBytes=[IO.File]::ReadAllBytes($portable)
+$handle=[IO.File]::Open($locked,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+$failed=$false
+try { Run-Component Uninstall } catch { $failed=$true } finally { $handle.Dispose() }
+Check $failed 'Locked runtime unexpectedly uninstalled'
+Run-Component Uninstall
+Check (-not (State).installed) 'Uninstall remained active'
+Check ([IO.File]::Exists($settings) -and [IO.File]::Exists($secondSettings)) 'Uninstall deleted user settings'
+Check ([IO.File]::ReadAllText((Join-Path $root 'core-user-file.txt')) -ceq 'untouched') 'Component modified core user files'
+# A partial publication must be repairable, but a conflicting survivor must
+# be rejected before adding missing payload files or changing active state.
+[IO.File]::WriteAllBytes($portable,$portableBytes)
+[IO.File]::WriteAllText($locked,'damaged fixture')
+$inactiveHash=(Get-FileHash -LiteralPath $statePath).Hash
+$failed=$false
+try { Run-Component Install $PackageTwo } catch { $failed=$_.Exception.Message -like '*changed files*' }
+Check $failed 'Reinstall accepted a changed payload survivor'
+Check ((Get-FileHash -LiteralPath $statePath).Hash -ceq $inactiveHash) 'Rejected reinstall changed component state'
+Check (-not [IO.File]::Exists((Join-Path (Split-Path -Parent $locked) 'component.json'))) 'Rejected reinstall published missing files'
+Remove-Item -LiteralPath $locked -Force
+Run-Component Install $PackageTwo
+Check ((State).installed -and (State).current -eq $second) 'Reinstall did not restore the same component'
+Check ([IO.File]::ReadAllText($secondSettings) -ceq '{"font":"Latest preference"}') 'Reinstall changed retained settings'
+foreach ($record in (State).versions.$second.files) {
+    $restored=Join-Path $root "components/terminal/versions/$second/$($record.path)"
+    Check ((Get-FileHash -LiteralPath $restored).Hash -ieq $record.sha256) 'Reinstall did not restore a managed file'
+}
+Run-Component Uninstall
+Write-Output "Terminal component lifecycle passed; retained evidence: $root"

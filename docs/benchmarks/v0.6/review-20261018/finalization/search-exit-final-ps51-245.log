@@ -1,0 +1,9 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.11s
+     Running tests\terminal_beta.rs (target\debug\deps\terminal_beta-f353bf963113fca4.exe)
+
+running 1 test
+test terminal_history_search_exit_serializes_following_typing_and_delete ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 10.27s
+

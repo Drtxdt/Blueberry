@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "ci_run_id": 40090066092,
+  "head_commit": "f8fc564d6a16161d8d746e4c0c38918fd9961e70",
+  "measured_build_commit": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+  "artifacts": [
+    {
+      "artifact": {
+        "id": 12560085546,
+        "node_id": "MDg6QXJ0aWZhY3QxMjU2MDA4NTU0Ng==",
+        "name": "blueberry-terminal-component-windows-x64",
+        "size_in_bytes": 16131505,
+        "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12560085546",
+        "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12560085546/zip",
+        "expired": false,
+        "digest": "sha256:023218444b07b16531dc12da56f7cb8cb25019f168d225b6ea7c748fc6399189",
+        "created_at": "2026-10-24T12:10:19Z",
+        "updated_at": "2026-10-24T12:10:19Z",
+        "expires_at": "2027-01-22T11:28:53Z",
+        "workflow_run": {
+          "id": 40090066092,
+          "repository_id": 1368459002,
+          "head_repository_id": 1368459002,
+          "head_branch": "codex/v053-reliability-performance",
+          "head_sha": "f8fc564d6a16161d8d746e4c0c38918fd9961e70"
+        }
+      },
+      "local_archive": "artifacts\\ci-f8-packages-12560085546.zip",
+      "verified_archive_sha256": "023218444b07b16531dc12da56f7cb8cb25019f168d225b6ea7c748fc6399189"
+    },
+    {
+      "artifact": {
+        "id": 12559647273,
+        "node_id": "MDg6QXJ0aWZhY3QxMjU1OTY0NzI3Mw==",
+        "name": "blueberry-windows-x64",
+        "size_in_bytes": 4203282,
+        "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559647273",
+        "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559647273/zip",
+        "expired": false,
+        "digest": "sha256:968940fc8dff12485f1dbd25a52d478c16e43ad769e19cda20139f7301dc5c89",
+        "created_at": "2026-10-24T12:10:22Z",
+        "updated_at": "2026-10-24T12:10:22Z",
+        "expires_at": "2027-01-22T11:28:53Z",
+        "workflow_run": {
+          "id": 40090066092,
+          "repository_id": 1368459002,
+          "head_repository_id": 1368459002,
+          "head_branch": "codex/v053-reliability-performance",
+          "head_sha": "f8fc564d6a16161d8d746e4c0c38918fd9961e70"
+        }
+      },
+      "local_archive": "artifacts\\ci-f8-packages-12559647273.zip",
+      "verified_archive_sha256": "968940fc8dff12485f1dbd25a52d478c16e43ad769e19cda20139f7301dc5c89"
+    }
+  ],
+  "required_jobs": [
+    {
+      "id": 120860760168,
+      "name": "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760245,
+      "name": "PowerShell 7 / PSReadLine 2.4.5 / pipe",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760258,
+      "name": "Windows PowerShell 5.1 / PSReadLine 2.4.5",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760271,
+      "name": "Core / windows-2022",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760283,
+      "name": "Native ConPTY mouse / windows-2025",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760289,
+      "name": "Core / ubuntu-24.04",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760294,
+      "name": "format",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760299,
+      "name": "PowerShell 7 / PSReadLine 2.4.5 / osc",
+      "conclusion": "success"
+    },
+    {
+      "id": 120860760311,
+      "name": "Core / macos-15",
+      "conclusion": "success"
+    },
+    {
+      "id": 120861695633,
+      "name": "package",
+      "conclusion": "success"
+    }
+  ],
+  "final_qualified": false
+}

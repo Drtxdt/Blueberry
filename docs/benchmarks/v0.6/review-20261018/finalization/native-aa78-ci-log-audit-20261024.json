@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "source_head": "aa78a480e0e985dd66e3d9de01999a9946e793d9",
+  "run_id": 40103465822,
+  "run_conclusion": "success",
+  "jobs": [
+    {
+      "id": 120900300877,
+      "name": "native-buffer-proof",
+      "url": "https://github.com/Drtxdt/Blueberry/actions/runs/40103465822/job/120900300877",
+      "log": "artifacts\\stability-job-120900300877.log",
+      "sha256": "CBA6E8C26E45115A4850DE606E44F0ADF3BE400152A74AA0570783C9A570A913",
+      "rust_success_summaries": 0,
+      "rust_passed_instances": 0
+    },
+    {
+      "id": 120904331029,
+      "name": "native-host-regressions",
+      "url": "https://github.com/Drtxdt/Blueberry/actions/runs/40103465822/job/120904331029",
+      "log": "artifacts\\stability-job-120904331029.log",
+      "sha256": "20A11310362F92B579B153600886DF263F1A0539BC1B98D9D0BCFE9BA755CC27",
+      "rust_success_summaries": 17,
+      "rust_passed_instances": 26
+    }
+  ],
+  "metadata_sha256": "B9D66BBBCDC1514862F8F9C47D381ABEB6E66A140968CB223B09B37EF694A5CB",
+  "gui_acceptance": false,
+  "final_package_qualification": false
+}

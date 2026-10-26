@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "previous_package_sha256": "921E22454E89106E553479D58804ACFAB88D23238D9CD3956C920C625972267D",
+  "previous_installer_sha256": "314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C",
+  "candidate_package_sha256": "CF23D784013A79DC68356A638D2A58CB913A2E061249A78363C547691725BAFD",
+  "install_root": "E:\\OpenSource\\shellsense-rs\\target\\public-upgrade-14aed8a4b99842c5a057f65f027fc08b\\中文 install",
+  "passed": true
+}

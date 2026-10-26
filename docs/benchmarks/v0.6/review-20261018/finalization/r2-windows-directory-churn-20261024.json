@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "reason": "Unchanged commands; Windows root directory mtime invalidated the expected cache hit",
+  "commands_unchanged": 1765,
+  "changed_context": [
+    {
+      "index": 9,
+      "before": {
+        "path": "C:\\Windows",
+        "modified": 1792829864746989500,
+        "accessible": true
+      },
+      "after": {
+        "path": "C:\\Windows",
+        "modified": 1792844441170828200,
+        "accessible": true
+      }
+    }
+  ],
+  "raw_cache_files": [
+    {
+      "path": "C:\\Windows\\Temp\\bbr2-serial-20261024bb\\run1-before\\raw-ps51-200-hot-descriptions-true-attempt-1\\blueberry-beta-metrics-e9711397-6b74-4e25-a127-74b6b2f1cd23\\data\\path\\pair-29\\commands-before-hit.json",
+      "sha256": "192925BC01295CC06AA3C218C98BA2F15C6A1C3B53F95053D20AA783E7A541A2"
+    },
+    {
+      "path": "C:\\Windows\\Temp\\bbr2-serial-20261024bb\\run1-before\\raw-ps51-200-hot-descriptions-true-attempt-1\\blueberry-beta-metrics-e9711397-6b74-4e25-a127-74b6b2f1cd23\\data\\path\\pair-29\\commands-after-hit.json",
+      "sha256": "8A74130C1791D615674937A1D61CECF55F74069E5433E1A301D5143942EA0D1A"
+    }
+  ],
+  "receipts": [
+    {
+      "path": "artifacts/performance-serial-20261024b/batch/batch.json",
+      "sha256": "76E6C72937D4F5015A6994F2B6DF0100629047CAEC7AF535E06C44F64E65BF2C",
+      "status": "invalid"
+    },
+    {
+      "path": "artifacts/r1-resources-20261024/controller/batch.json",
+      "sha256": "A4CBE2D9011CA0D2436AC2E3385068749DC9D391F68C0266C37AFB8B799E2BB6",
+      "status": "invalid"
+    },
+    {
+      "path": "artifacts/package-continuation-20261024/controller/batch.json",
+      "sha256": "CDEB5BB58642D97EF1F9A7C97FE019D18270B7DD9812A740EBC1E9E276DF61DE",
+      "status": "invalid"
+    }
+  ],
+  "old_evidence_modified": false,
+  "replacement_formal_batch_started": false,
+  "snapshot_regressions_passed": 3,
+  "snapshot_manifest": "artifacts/perf-path-snapshot-20261024/path-snapshot.json"
+}

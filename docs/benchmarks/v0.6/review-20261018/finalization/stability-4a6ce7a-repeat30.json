@@ -1,0 +1,95 @@
+{
+  "source_commit": "4a6ce7acc57b1735d771aa0b215c58a8c86c8182",
+  "run_id": 39379818074,
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "job_id": 118486117593,
+      "conclusion": "failure",
+      "log": "artifacts/stability-4a6ce7a-repeat-118486117593.log",
+      "log_sha256": "574b207f6b7ac209ae4afb7f63771ebf80ac7eb7111b662a257ffab8dd74894e",
+      "observed_test_counts": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 50,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/FAILED": 1
+      }
+    },
+    {
+      "job_id": 118486117751,
+      "conclusion": "failure",
+      "log": "artifacts/stability-4a6ce7a-repeat-118486117751.log",
+      "log_sha256": "995d01b548ecf925d8697dafb326be9c44af9e9bdcc32ded8fb923ff4e613482",
+      "observed_test_counts": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 23,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/FAILED": 1
+      }
+    },
+    {
+      "job_id": 118486117864,
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118486117864.log",
+      "log_sha256": "d0b239510d511fa04463b7532d10dbc582e2873318789cfbcf3a9578ec71d7f2",
+      "observed_test_counts": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 30,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 30,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 30,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 30,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 30,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 60
+      }
+    }
+  ],
+  "failures": [
+    {
+      "editor": "ps51-200",
+      "trace": "off",
+      "test": "Direct bottom menu",
+      "repetition": 24,
+      "evidence": "stability-4a6ce7a-repeat-bottom-failure.json"
+    },
+    {
+      "editor": "ps7-245",
+      "transport": "osc",
+      "test": "Nested resize",
+      "repetition": 21,
+      "fixture": "host-CPgHMZ",
+      "archive_id": 12245543717,
+      "archive_sha256": "828D005CC63156D111C30BBB5FE3BA64904D192E0DDB19A7816843B2D47625AC",
+      "observation": "VT observer shows 100-column current menu but no prompt after widening. Buffer event confirms git, cursor 3, menu_row 12. No native final snapshot was captured, so exact final native screen is unconfirmed.",
+      "status": "Investigating; do not relax prompt-presence assertion."
+    }
+  ]
+}

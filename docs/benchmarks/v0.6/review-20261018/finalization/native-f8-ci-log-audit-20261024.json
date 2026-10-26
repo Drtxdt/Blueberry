@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "run_id": 40090066108,
+  "head_commit": "f8fc564d6a16161d8d746e4c0c38918fd9961e70",
+  "jobs_successful": true,
+  "logs": [
+    {
+      "job_id": 120860759959,
+      "name": "native-buffer-proof",
+      "path": "artifacts\\stability-job-120860759959.log",
+      "sha256": "1813019247cbc53bf9b554ae6743385c023dc5dc384c99939c0fac36de9e005c",
+      "rust_passed_counts": [],
+      "native_summaries": [
+        [
+          "8",
+          "8",
+          "0"
+        ],
+        [
+          "12",
+          "12",
+          "0"
+        ]
+      ]
+    },
+    {
+      "job_id": 120864758299,
+      "name": "native-host-regressions",
+      "path": "artifacts\\stability-job-120864758299.log",
+      "sha256": "c43a4f175da55abef7f4506df94bdaa17bcdbf59c2f833e07a167177ad156584",
+      "rust_passed_counts": [
+        1,
+        1,
+        3,
+        1,
+        2,
+        1,
+        1,
+        3,
+        1,
+        2,
+        1,
+        1,
+        3,
+        1,
+        2,
+        1,
+        1
+      ],
+      "native_summaries": []
+    }
+  ],
+  "final_source_qualification": false,
+  "gui_pixels_measured": false
+}

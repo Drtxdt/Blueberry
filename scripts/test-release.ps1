@@ -223,10 +223,18 @@ try {
     Assert-Test (Test-Path -LiteralPath $packageTwo -PathType Leaf) '第二版 ZIP 已生成'
     Assert-PerformanceArtifactsPackaged -PackagePath $packageTwo
 
+    $companionExpected = (Get-Content -LiteralPath (Join-Path $outputTwo "blueberry-v$currentVersion-release.json") -Raw | ConvertFrom-Json).PSObject.Properties['terminal_dependency']
+    $companionSettings = Join-Path $installRoot 'terminal/settings/settings.json'
+
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'Install'; PackagePath = $packageOne; InstallRoot = $installRoot }
     Assert-Test ((Get-Content -LiteralPath (Join-Path $installRoot 'VERSION.txt') -Raw) -match [regex]::Escape($firstVersion)) '安装版本正确'
     Assert-Test ([Linq.Enumerable]::SequenceEqual($configBytesBefore, [IO.File]::ReadAllBytes($configPath))) '安装未修改用户配置'
     Write-TestBytes -Path (Join-Path $installRoot 'user-data.txt') -Text 'keep this user file'
+    if ($companionExpected -and (Test-Path -LiteralPath (Join-Path $installRoot 'blueberry-terminal.cmd'))) {
+        # Terminal generates its own portable settings after first launch.
+        # They are user data, outside the immutable managed payload.
+        Write-TestBytes -Path $companionSettings -Text '{"profiles":{"defaults":{"font":{"face":"Test font"}}}}'
+    }
 
     $manifestBeforeFailure = [IO.File]::ReadAllBytes((Join-Path $installRoot 'install.json'))
     $exeBeforeFailure = Get-FileHashUpper (Join-Path $installRoot 'blueberry.exe')
@@ -244,6 +252,9 @@ try {
     Assert-Test (@($upgradedManifest.previous[0].files).Count -ge 1) '上一版快照包含整套受管文件'
     Assert-Test (-not [string]::IsNullOrWhiteSpace([string]$upgradedManifest.previous[0].snapshot_manifest)) '上一版快照包含元数据'
     Assert-ManifestFilesIntact -Root $installRoot
+    if (Test-Path -LiteralPath $companionSettings) {
+        Assert-Test ((Get-Content -LiteralPath $companionSettings -Raw) -match 'Test font') '升级保留配套 Terminal 用户设置'
+    }
 
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'Rollback'; InstallRoot = $installRoot }
     Assert-Test ((Get-Content -LiteralPath (Join-Path $installRoot 'VERSION.txt') -Raw) -match [regex]::Escape($firstVersion)) '回滚 VERSION 正确'
@@ -251,6 +262,9 @@ try {
     Assert-Test ([string]$rollbackManifest.current.version -eq $firstVersion) '回滚清单 current 元数据正确'
     Assert-Test ((Get-FileHashUpper (Join-Path $installRoot 'blueberry.exe')) -eq (Get-FileHashUpper $firstExe)) '回滚验证当前 exe'
     Assert-ManifestFilesIntact -Root $installRoot
+    if (Test-Path -LiteralPath $companionSettings) {
+        Assert-Test ((Get-Content -LiteralPath $companionSettings -Raw) -match 'Test font') '回滚保留配套 Terminal 用户设置'
+    }
 
     $metadataBefore = [IO.File]::ReadAllBytes((Join-Path $installRoot 'install.json'))
     $tamperedManifest = Get-Content -LiteralPath (Join-Path $installRoot 'install.json') -Raw | ConvertFrom-Json
@@ -356,6 +370,9 @@ try {
     [IO.File]::WriteAllBytes($readmePath, $readmeBytesBeforeChange)
     Invoke-TestScript -Path $manageScript -Parameters @{ Action = 'Uninstall'; InstallRoot = $installRoot }
     Assert-Test (Test-Path -LiteralPath (Join-Path $installRoot 'user-data.txt') -PathType Leaf) '卸载保留安装根用户文件'
+    if (Test-Path -LiteralPath $companionSettings) {
+        Assert-Test ((Get-Content -LiteralPath $companionSettings -Raw) -match 'Test font') '卸载保留配套 Terminal 用户设置'
+    }
     Assert-Test (-not (Test-Path -LiteralPath (Join-Path $installRoot 'install.json'))) '干净重试删除安装清单'
     Write-Host '变更文件保留与干净重试检查完成；自测临时安装根: ' $installRoot
     Assert-Test ([Linq.Enumerable]::SequenceEqual($configBytesBefore, [IO.File]::ReadAllBytes($configPath))) '卸载未修改用户配置'

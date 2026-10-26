@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "ci_run": 40107233449,
+  "ci_job": 120912550007,
+  "ci_log_sha256": "FC667C9FBC8EC763E8EFE090586B5D498B1285F7074A1C7E7FAF8EC00B50B53D",
+  "failure": "Maintenance fixture advertised ready file before closing its writer; ReadAllText failed with sharing violation",
+  "product_code_changed": false,
+  "fix": "Write a session-unique temporary file, close it, then atomically move it to ready path",
+  "controlled_regressions": [
+    {
+      "path": "artifacts\\maintenance-ready-control-20261024\\receipt.json",
+      "sha256": "959824CBA304A27B67879B313B1FF31590675D2ED188FA079A4A0306D907EA0B",
+      "receipt": {
+        "schema": 1,
+        "source_sha256": "BA0956EAF89DFE58EE4668200C95B09D770FCAF674F3677C6A8C522ADEE3E3DB",
+        "writer_delay_ms": 250,
+        "passed": false,
+        "error": "\u8c03\u7528\u201cReadAllText\u201d\u5e76\u4f20\u5165\u201c1\u201d\u4e2a\u53c2\u6570\u65f6\u53d1\u751f\u5f02\u5e38\uff1a\u201cThe process cannot access the file 'E:\\OpenSource\\shellsense-rs\\artifacts\\maintenance-ready-control-20261024\\ready.txt' because it is being used by another process.\u201d"
+      }
+    },
+    {
+      "path": "artifacts\\maintenance-ready-fixed-ps7b-20261024\\receipt.json",
+      "sha256": "2A4F391C3ECCB2B1563D50E0D07C87E2E3EE5541FE169DB471D35B416046D38A",
+      "receipt": {
+        "schema": 1,
+        "source_sha256": "F8D261A9AF5E7433720787829696AC840A56F1F7825E552A8F0BB14B6DFFC479",
+        "writer_delay_ms": 250,
+        "passed": true
+      }
+    },
+    {
+      "path": "artifacts\\maintenance-ready-fixed-ps51-20261024\\receipt.json",
+      "sha256": "CA78D578E5D42E9B5EAF9DFC6F979755F099D9C80C61F5B89BDE7CB8342A3A68",
+      "receipt": {
+        "schema": 1,
+        "source_sha256": "F8D261A9AF5E7433720787829696AC840A56F1F7825E552A8F0BB14B6DFFC479",
+        "writer_delay_ms": 250,
+        "passed": true
+      }
+    }
+  ],
+  "full_isolated_maintenance": {
+    "log": "artifacts\\maintenance-ready-full-20261024.log",
+    "sha256": "454C3A80A5D2CB547C990A33FC7407C12F6938814F436A12600D8618D7E4766F",
+    "passed": true,
+    "package_sha256": "734BF7F7853178445C5E52E928A6E14CC4EAF0E58F30BF18DEB875D4436D22EE",
+    "deadline_seconds": 300
+  },
+  "ci_retest": "pending"
+}

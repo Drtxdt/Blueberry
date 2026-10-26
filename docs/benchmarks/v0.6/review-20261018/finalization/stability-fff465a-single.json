@@ -1,0 +1,269 @@
+{
+  "source_commit": "fff465ad63f79902753b46660dd2713362caeeb5",
+  "run_id": 39383272284,
+  "conclusion": "success",
+  "nested_ownership_diagnostics": true,
+  "jobs": [
+    {
+      "job_id": 118497059168,
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118497059168.log",
+      "log_sha256": "ba9903fa8db32e6115edce7f350da0dc17eca1920b6cb77b0692f9c424397db4",
+      "observed_test_counts": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    },
+    {
+      "job_id": 118497059465,
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118497059465.log",
+      "log_sha256": "602056053ae95a068b289f766d732baf6706a06415229e0fd90bd2e08f70e634",
+      "observed_test_counts": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    },
+    {
+      "job_id": 118497059509,
+      "conclusion": "success",
+      "log": "artifacts/stability-job-118497059509.log",
+      "log_sha256": "e1ba885075471f7e7c0a2d8a38761b0f947a5e04d5711bb7c6d7fec874b00558",
+      "observed_test_counts": {
+        "contracts/diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields/ok": 1,
+        "contracts/active_menu_observation_excludes_history_but_keeps_current_candidates/ok": 1,
+        "contracts/erase_after_console_resize_before_resize_event_removes_owned_rows/ok": 1,
+        "contracts/queued_shell_prompt_is_not_erased_using_stale_menu_readback/ok": 1,
+        "contracts/compiled_bridge_codec_runs_in_selected_shell/ok": 1,
+        "contracts/unknown_diagnostic_events_do_not_disable_completion/ok": 1,
+        "on/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "on/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "on/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "on/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "on/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "off/direct_resize_after_menu_clear_reflows_input/ok": 1,
+        "off/direct_resize_reflows_input_when_menu_ownership_readback_failed/ok": 1,
+        "off/direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation/ok": 1,
+        "off/direct_and_original_editor_agree_on_vi_command_and_insert_transitions/ok": 1,
+        "off/builtin_workflows_fill_native_editor_without_executing/ok": 1,
+        "nested/host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out/ok": 2
+      }
+    }
+  ],
+  "archives": [
+    {
+      "id": 12247130446,
+      "sha256": "3201b8d4022749301d0066981d06cce75d451457d72523507c7da24499cc0952"
+    },
+    {
+      "id": 12246124243,
+      "sha256": "f0cb70ae2b589eadcdd1bb40375c3744b9f3da3932e6a21c34c2617f5ad588c0"
+    },
+    {
+      "id": 12245828944,
+      "sha256": "240a0c878fb89f02f4de2d431d13486f83ec0562eac5cd2b5a2c245615f56f1b"
+    }
+  ],
+  "native_resize_audit": {
+    "method": "Read native 24x80 snapshots; identify candidate-shaped lines above latest PS prompt. This is a diagnostic heuristic, not proof of absence of every visual artifact.",
+    "snapshots": 6,
+    "snapshots_with_candidate_residue": 0,
+    "records": [
+      {
+        "file": "artifacts/stability-fff465a-single-12247130446/Blueberry/Blueberry/target/nested-terminal-evidence/host-KKdLiu/resize-24-80.json",
+        "sha256": "f800483d1d990379f54f264dc4c02028e7af63c927bd6ab5a3fa52ff9fb1cef8",
+        "prompt_row": 11,
+        "transport": "pipe",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.0.0/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-fff465a-single-12247130446/Blueberry/Blueberry/target/nested-terminal-evidence/host-S8ryfO/resize-24-80.json",
+        "sha256": "e1afd6245d2cb317c6d7a99d631304f3d776fece91875a76e545860342c15216",
+        "prompt_row": 11,
+        "transport": "osc",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.0.0/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-fff465a-single-12246124243/Blueberry/Blueberry/target/nested-terminal-evidence/host-EWLx5t/resize-24-80.json",
+        "sha256": "7fbaba821d482b421d27472b7681be38622d00678126f0fb108bd77d348634ba",
+        "prompt_row": 11,
+        "transport": "osc",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-fff465a-single-12246124243/Blueberry/Blueberry/target/nested-terminal-evidence/host-T6GXRY/resize-24-80.json",
+        "sha256": "94bc384493da38c9f18cd9b0862baf6a754111f29c730f7c5499fc6a6109a0b3",
+        "prompt_row": 11,
+        "transport": "pipe",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-fff465a-single-12245828944/Blueberry/Blueberry/target/nested-terminal-evidence/host-jM6X6y/resize-24-80.json",
+        "sha256": "3f080b3e03efb8aaddf8fe51650f0f846a7dc5dbdc69e5d1e3946d6b0b43874a",
+        "prompt_row": 11,
+        "transport": "osc",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      },
+      {
+        "file": "artifacts/stability-fff465a-single-12245828944/Blueberry/Blueberry/target/nested-terminal-evidence/host-K2KQvg/resize-24-80.json",
+        "sha256": "8f094b98ab8b35a2e9b0f32669de8cd8e4ad282a515a069aa55de8ae2153d4d0",
+        "prompt_row": 11,
+        "transport": "pipe",
+        "editor": "D:\\a\\_temp\\blueberry-modules/PSReadLine/2.4.5/PSReadLine.psd1",
+        "residual_candidate_rows": []
+      }
+    ]
+  },
+  "ownership_audit": [
+    {
+      "file": "E:/OpenSource/shellsense-rs/artifacts/stability-fff465a-single-12245828944/Blueberry/Blueberry/target/nested-terminal-evidence/host-jM6X6y/overlay-ownership.jsonl",
+      "records": 947,
+      "unmatched_resized_candidate_rows": [
+        {
+          "record": 941,
+          "matched": false,
+          "row": 8,
+          "text": "│› ⌘ git               管理代码版本并协作开发                                 │ │  ⌘ gitk              本地程序"
+        },
+        {
+          "record": 941,
+          "matched": false,
+          "row": 10,
+          "text": "│  ⌘ git-gui           本地程序                                               │ │  ⌘ git-lfs           本地程序"
+        }
+      ],
+      "pending_visual_output_before_erase": []
+    },
+    {
+      "file": "E:/OpenSource/shellsense-rs/artifacts/stability-fff465a-single-12245828944/Blueberry/Blueberry/target/nested-terminal-evidence/host-K2KQvg/overlay-ownership.jsonl",
+      "records": 951,
+      "unmatched_resized_candidate_rows": [
+        {
+          "record": 945,
+          "matched": false,
+          "row": 8,
+          "text": "│› ⌘ git               管理代码版本并协作开发                                 │ │  ⌘ gitk              本地程序"
+        },
+        {
+          "record": 945,
+          "matched": false,
+          "row": 10,
+          "text": "│  ⌘ git-gui           本地程序                                               │ │  ⌘ git-lfs           本地程序"
+        }
+      ],
+      "pending_visual_output_before_erase": []
+    },
+    {
+      "file": "E:/OpenSource/shellsense-rs/artifacts/stability-fff465a-single-12246124243/Blueberry/Blueberry/target/nested-terminal-evidence/host-EWLx5t/overlay-ownership.jsonl",
+      "records": 960,
+      "unmatched_resized_candidate_rows": [
+        {
+          "record": 954,
+          "matched": false,
+          "row": 8,
+          "text": "│› ⌘ git               管理代码版本并协作开发                                 │ │  ⌘ gitk              本地程序"
+        },
+        {
+          "record": 954,
+          "matched": false,
+          "row": 10,
+          "text": "│  ⌘ git-gui           本地程序                                               │ │  ⌘ git-lfs           本地程序"
+        }
+      ],
+      "pending_visual_output_before_erase": []
+    },
+    {
+      "file": "E:/OpenSource/shellsense-rs/artifacts/stability-fff465a-single-12246124243/Blueberry/Blueberry/target/nested-terminal-evidence/host-T6GXRY/overlay-ownership.jsonl",
+      "records": 966,
+      "unmatched_resized_candidate_rows": [
+        {
+          "record": 960,
+          "matched": false,
+          "row": 8,
+          "text": "│› ⌘ git               管理代码版本并协作开发                                 │ │  ⌘ gitk              本地程序"
+        },
+        {
+          "record": 960,
+          "matched": false,
+          "row": 10,
+          "text": "│  ⌘ git-gui           本地程序                                               │ │  ⌘ git-lfs           本地程序"
+        }
+      ],
+      "pending_visual_output_before_erase": []
+    },
+    {
+      "file": "E:/OpenSource/shellsense-rs/artifacts/stability-fff465a-single-12247130446/Blueberry/Blueberry/target/nested-terminal-evidence/host-KKdLiu/overlay-ownership.jsonl",
+      "records": 964,
+      "unmatched_resized_candidate_rows": [
+        {
+          "record": 960,
+          "matched": false,
+          "row": 8,
+          "text": "│› ⌘ git               管理代码版本并协作开发                                 │ │  ⌘ gitk              本地程序"
+        },
+        {
+          "record": 960,
+          "matched": false,
+          "row": 10,
+          "text": "│  ⌘ git-gui           本地程序                                               │ │  ⌘ git-lfs           本地程序"
+        }
+      ],
+      "pending_visual_output_before_erase": []
+    },
+    {
+      "file": "E:/OpenSource/shellsense-rs/artifacts/stability-fff465a-single-12247130446/Blueberry/Blueberry/target/nested-terminal-evidence/host-S8ryfO/overlay-ownership.jsonl",
+      "records": 969,
+      "unmatched_resized_candidate_rows": [
+        {
+          "record": 963,
+          "matched": false,
+          "row": 8,
+          "text": "│› ⌘ git               管理代码版本并协作开发                                 │ │  ⌘ gitk              本地程序"
+        },
+        {
+          "record": 963,
+          "matched": false,
+          "row": 10,
+          "text": "│  ⌘ git-gui           本地程序                                               │ │  ⌘ git-lfs           本地程序"
+        }
+      ],
+      "pending_visual_output_before_erase": []
+    }
+  ],
+  "finding": "All six ownership logs show unmatched concatenated candidate rows after widening. Narrow snapshots happen to show no candidate residue. Single-pass success therefore does not qualify cleanup."
+}

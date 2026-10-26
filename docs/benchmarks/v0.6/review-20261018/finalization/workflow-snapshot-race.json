@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "run_id": 39219397975,
+  "job_id": 117950883499,
+  "artifact_id": 12170884426,
+  "archive_expected_sha256": "DF38B54DB66317DBED659EEE3F8BB03113DA9604CCCE8BB7B1543F3713074108",
+  "retrieval": "HTTP range; selected failed fixture only; ZIP member CRC verified; full archive SHA not locally verified",
+  "range_bytes": 392020,
+  "fixture": "direct-9Ybwl3",
+  "repetition": 29,
+  "files": {
+    "adapter.json": "565D7F26242497E56C5D506E4ADEF72622DD8929FC9DE3B7DC4981D0DAE719DB",
+    "argument-mode.txt": "60A33E6CF5151F2D52EDDAE9685CFA270426AA89D8DBC7DFB854606F1D1A40FE",
+    "commands.json": "76A37CA5FD154A4DA4A6404401C2B9279CA4FEA7574BBACA55BCEDF318A1B86D",
+    "data-sources.json": "B3F9BAF24DB0A4BACB342802002D4024F7918042EF064CE8371DE99453619C3C",
+    "probe-capabilities.json": "74234E98AFE7498FB5DAF1F36AC2D78ACC339464F950703B8C019892F982B90B",
+    "probe-cursor-replies.json": "AF3BA243D7324751FBFFEA1D1296E8FFDE5DD07BF251F95064AA8DA828534A01",
+    "probe-output-tail.bin": "0007E1B285CD93B90324B08DCE018ACFB016DAD0299E1451B160B784867FE001",
+    "probe-pending-events.json": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+    "probe-screen.txt": "A2AD2BD1D2EBC234A6395F24769DB0E98C17D6C33820A03E0763364E0629F515",
+    "setup.ps1": "6DEE2FEA163A853ACAFEC490275147A7207CC8588F3B803D905A15CCC70FB3CB",
+    "trace.jsonl": "7DD703D63AEC38150C583FBA961FFB2A91A2AF1225EF578BDACDF64150B40B89",
+    "workflow-buffer.txt": "ADEA1449965BACCDF5120870A85C0E13C9F8F27293D9E889353197E675AB2C84"
+  },
+  "observed_failure": "Test read an empty file after creation, before WriteAllText completed",
+  "retained_buffer": "git switch -c 'feature-中文'",
+  "fix": "Publish complete snapshot with temporary file and rename; compare one immutable read exactly"
+}

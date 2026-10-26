@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "kind": "inactive nested-integration component validation; not final acceptance",
+  "transport": "current-user-only local byte pipe, independent from editor JSON and keyboard input",
+  "interface_version": 4,
+  "bounds": {"handshake_ms": 500, "frame_ack_ms": 250, "close_ack_ms": 250, "ack_line_bytes_including_newline": 192, "frame_utf16_units": 65536},
+  "idle_wait": "overlapped read plus manual-reset cancellation event; no idle polling",
+  "unit_tests": "130 passed, 1 production-DLL test explicitly ignored in ordinary run",
+  "clippy": "all targets passed",
+  "production_dll_test": {
+    "entry": "native_overlay::tests::production_terminal_round_trip_resize_and_owner_eof",
+    "explicit_execution": "passed",
+    "dll_sha256": "CA9D5CE2BBD6399FECB3E957068F9AA4D6C44113F2EBF266249AC71B46659FA5",
+    "cases": ["owner-bound v4 handshake", "Unicode/RGB submission", "unsupported SGR rejection", "four native resizes", "authoritative absent/restored close fence", "owner EOF restoration"],
+    "observation": "native text/viewport comparison; full attribute coverage belongs to independent TerminalCore tests",
+    "gui_renderer": false,
+    "screen_pixels": "not_measured"
+  },
+  "nested_rendering_integration": "not enabled; host still uses existing overlay path",
+  "release_blocked": true
+}

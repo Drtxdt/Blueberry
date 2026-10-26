@@ -1,0 +1,20 @@
+   Compiling blueberry v0.5.3 (E:\OpenSource\shellsense-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.37s
+     Running tests\direct_terminal.rs (target\debug\deps\direct_terminal-16474eefb2441229.exe)
+
+running 1 test
+Error: workflow evidence: C:\Users\dell\AppData\Local\Temp\blueberry-direct-evidence\direct-0dQKys
+
+Caused by:
+    workflow field not painted: 切换 Git 分支/1: PS C:\Users\dell\AppData\Local\Temp\blueberry-direct-evidence\direct-0dQKys> . .\setup.ps1
+    PS C:\Users\dell\AppData\Local\Temp\blueberry-direct-evidence\direct-0dQKys>
+test queued_workflow_responses_survive_a_late_editor_wake ... FAILED
+
+failures:
+
+failures:
+    queued_workflow_responses_survive_a_late_editor_wake
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 42 filtered out; finished in 25.38s
+
+error: test failed, to rerun pass `--test direct_terminal`

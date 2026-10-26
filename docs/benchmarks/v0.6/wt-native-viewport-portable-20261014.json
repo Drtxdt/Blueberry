@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "prototype_source_commit": "284c9343d3584ea3f7659ca9c4021d18418e4038",
+  "terminal_source_commit": "7ff11ee107c984e236960ec948b450ccbc10187b",
+  "run_id": 38524593417,
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38524593417",
+  "ci_passed": false,
+  "native_buffer_tests_passed": 6,
+  "native_terminalcore_tests_passed": 6,
+  "native_tests_failed": 0,
+  "viewport_relative_scroll_coordinates_passed": true,
+  "portable_ui_build_passed": false,
+  "portable_failure": "Missing generated ITerminalHandoff.h: standalone GUI target omits solution-only Host.Proxy prerequisite",
+  "raw_log": "artifacts\\ci-8ad-ca19-failures\\wt-portable-284",
+  "raw_log_sha256": "8F594BAB81BA813E4D86E541B86BCBBD47CE454446E3E745224CE868D8E8B99F",
+  "artifacts": [
+    {
+      "id": 11875054366,
+      "name": "wt-native-overlay-284c9343d3584ea3f7659ca9c4021d18418e4038",
+      "size_in_bytes": 24937501,
+      "digest": "sha256:60b92e7f9752c4d18ab03507846055cc159cdd66c2a4bc913b6f7875e92c51fb",
+      "expires_at": "2027-01-12T06:50:29Z"
+    },
+    {
+      "id": 11874583960,
+      "name": "wt-independent-portable-284c9343d3584ea3f7659ca9c4021d18418e4038",
+      "size_in_bytes": 1142165,
+      "digest": "sha256:5be06e7adb83a18bb9f6f653132b8b6a432003115fbbf2e44beb10ffec4318e5",
+      "expires_at": "2027-01-12T06:50:29Z"
+    }
+  ],
+  "complete_history_interface_passed": false,
+  "release_blocked": true,
+  "installed_terminal_modified": false
+}

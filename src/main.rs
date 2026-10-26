@@ -55,6 +55,15 @@ enum Command {
         host_mode: host::HostMode,
         #[arg(long)]
         host_executable: Option<PathBuf>,
+        /// Launch a prepared isolated PowerShell profile entry instead of the EXE.
+        #[arg(long)]
+        profile_entry: bool,
+        /// Prepared profile identity outside PSHOME (for disposable CI accounts).
+        #[arg(long, requires = "profile_entry")]
+        profile_fixture: Option<PathBuf>,
+        /// Keep ambient caches, or isolate cold/warm LOCALAPPDATA for each pair.
+        #[arg(long, value_enum, default_value = "ambient")]
+        cache_state: blueberry::product_probe::CacheState,
         /// Diagnostic only: writes numeric candidate traces, invalid for acceptance.
         #[arg(long)]
         diagnostic_trace_directory: Option<PathBuf>,
@@ -121,7 +130,7 @@ enum Command {
         /// Transport for the selected host (direct requires pipe).
         #[arg(long, value_enum)]
         transport: Option<host::Transport>,
-        /// Direct is experimental until its correctness and latency gates pass.
+        /// Windows defaults to direct (pipe); nested provides ConPTY compatibility.
         #[arg(long, value_enum)]
         host_mode: Option<host::HostMode>,
         /// Select a session-private PSReadLine baseline (direct host only).
@@ -155,8 +164,26 @@ enum Command {
     },
     /// Print the current theme using sample candidates.
     Theme,
-    /// Print a Windows Terminal profile to add to settings.json.
-    TerminalProfile,
+    /// Manage the optional enhanced Windows Terminal component.
+    Terminal {
+        #[arg(value_enum)]
+        action: blueberry::terminal_component::Action,
+        #[arg(long)]
+        package: Option<PathBuf>,
+        #[arg(long)]
+        install_root: Option<PathBuf>,
+    },
+    /// Print or manage the dedicated Windows Terminal JSON fragment.
+    TerminalProfile {
+        #[arg(long)]
+        shell: Option<PathBuf>,
+        #[arg(long, conflicts_with_all = ["status", "remove"])]
+        install: bool,
+        #[arg(long, conflicts_with = "remove")]
+        status: bool,
+        #[arg(long)]
+        remove: bool,
+    },
     /// Print runtime and configuration diagnostics.
     Doctor {
         #[arg(long)]
@@ -778,6 +805,7 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         "commit":env!("BLUEBERRY_BUILD_COMMIT"),
         "time_unix":env!("BLUEBERRY_BUILD_TIME_UNIX").parse::<u64>().unwrap_or(0),
         "profile":env!("BLUEBERRY_BUILD_PROFILE"),"dirty":env!("BLUEBERRY_BUILD_DIRTY")=="true",
+        "allocation_diagnostics":cfg!(feature="allocation-diagnostics"),
         "default_host_mode": if cfg!(windows) { "direct" } else { "nested" }
     });
     #[cfg(windows)]
@@ -785,6 +813,8 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
         let mut build = build;
         build["private_editors"] = blueberry::editor::build_identity();
         build["conpty"] = blueberry::conpty::build_identity();
+        // Internal companion interface version, not a release-acceptance flag.
+        build["companion_overlay_interface"] = serde_json::json!(4);
         build
     };
     if json {
@@ -815,6 +845,13 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
             .and_then(|status| status["psreadline_version"].as_str())
             .map(|version| serde_json::json!({"version":version}))
             .unwrap_or(serde_json::Value::Null);
+        value["terminal_capabilities"] = serde_json::json!({
+            "compiled_interface":value["build"]["companion_overlay_interface"],
+            "component":std::env::current_exe().ok().and_then(|exe|exe.parent().map(blueberry::terminal_component::status)),
+            "connected":adapter.as_ref().map(|status|status["terminal_connected"].clone()),
+            "rendering":adapter.as_ref().map(|status|status["terminal_restore"].clone()),
+            "fallback_reason":adapter.as_ref().map(|status|status["terminal_fallback_reason"].clone())
+        });
         value["editor"] = adapter.as_ref().map(|status| serde_json::json!({
             "mode":status["editor_mode"], "patch":status["editor_patch"],
             "dll_sha256":status["editor_dll_sha256"], "fallback_reason":status["editor_fallback_reason"]
@@ -1035,10 +1072,13 @@ fn execute() -> Result<u32> {
             iterations,
             host_mode,
             host_executable,
+            profile_entry,
+            profile_fixture,
+            cache_state,
             diagnostic_trace_directory,
             output,
         } => {
-            let report = blueberry::product_probe::run_with_trace(
+            let report = blueberry::product_probe::run_with_options(
                 &host_executable.unwrap_or(std::env::current_exe()?),
                 &shell,
                 iterations,
@@ -1047,6 +1087,11 @@ fn execute() -> Result<u32> {
                     host::HostMode::Nested => "nested",
                 },
                 diagnostic_trace_directory.as_deref(),
+                blueberry::product_probe::EntryOptions {
+                    profile_entry,
+                    profile_fixture: profile_fixture.as_deref(),
+                    cache_state,
+                },
             )?;
             let text = serde_json::to_string_pretty(&report)?;
             if let Some(path) = output {
@@ -1173,16 +1218,27 @@ fn execute() -> Result<u32> {
             }
             Ok(0)
         }
-        Command::TerminalProfile => {
+        Command::Terminal {
+            action,
+            package,
+            install_root,
+        } => blueberry::terminal_component::run(action, package, install_root),
+        Command::TerminalProfile {
+            shell,
+            install,
+            status,
+            remove,
+        } => {
             let executable = std::env::current_exe()?;
-            let profile = serde_json::json!({
-                "name":"Blueberry PowerShell",
-                "commandline":format!("\"{}\" run",executable.display()),
-                "startingDirectory":"%USERPROFILE%",
-                "guid":"{cda29eb9-0b16-4c08-bc90-75d9275a8ae9}",
-                "hidden":false
-            });
-            println!("{}", serde_json::to_string_pretty(&profile)?);
+            let profile = blueberry::terminal_profile::profile(&executable, shell.as_deref())?;
+            let output = if install || status || remove {
+                let root =
+                    std::env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is unavailable")?;
+                blueberry::terminal_profile::manage(Path::new(&root), profile, install, remove)?
+            } else {
+                profile
+            };
+            println!("{}", serde_json::to_string_pretty(&output)?);
             Ok(0)
         }
         Command::Doctor { json } => run_doctor(cli.config.as_deref(), json),

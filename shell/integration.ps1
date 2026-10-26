@@ -52,8 +52,16 @@ $blueberryStateDefaults = [ordered]@{
     BLUEBERRY_PROMPT_WRAPPED      = $false
     BLUEBERRY_ORIGINAL_READLINE   = $null
     BLUEBERRY_READLINE_WRAPPED    = $false
+    BLUEBERRY_READLINE_ACTIVE     = $false
     BLUEBERRY_PSREADLINE_AVAILABLE = $false
     BLUEBERRY_KEY_HANDLERS        = [ordered]@{ buffer = $false; apply = $false; commands = $false; native = $false; paste = $false; enter = $false; shift_enter = $false }
+    BLUEBERRY_NATIVE_DELETES = $null
+    BLUEBERRY_NATIVE_HISTORY_UP = $false
+    BLUEBERRY_NATIVE_DELETE_ACTIONS = $null
+    BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
+    BLUEBERRY_NATIVE_SEARCHES = $null
+    BLUEBERRY_NATIVE_SEARCH_ACTIONS = $null
+    BLUEBERRY_NATIVE_SEARCH_CONTINUES = $null
     BLUEBERRY_CAPABILITIES_REFRESHED = $false
     BLUEBERRY_COMMAND_SNAPSHOT_ID = $null
     BLUEBERRY_COMMAND_SNAPSHOT = $null
@@ -636,6 +644,8 @@ function Get-BlueberryEnvironmentSnapshot {
         # A restricted host may deny environment enumeration. PATH and
         # PATHEXT are still sent by Get-BlueberryPromptEndData.
     }
+    $snapshot['BLUEBERRY_SHELL_VERSION'] = [string]$PSVersionTable.PSVersion
+    $snapshot['BLUEBERRY_NATIVE_ARGUMENT_MODE'] = if ($PSVersionTable.PSVersion -lt [version]'7.3') { 'Legacy' } else { [string]$PSNativeCommandArgumentPassing }
     return $snapshot
 }
 
@@ -1048,6 +1058,46 @@ function Get-BlueberryAstBufferContext {
     return $context
 }
 
+function Get-BlueberryReservedMenuRow {
+    param([string]$Line, [int]$Cursor)
+    if ($env:BLUEBERRY_RESERVED_MENU -ne '1') { return $null }
+    $width=[Math]::Max(1,[Console]::WindowWidth)
+    $height=[Console]::WindowHeight
+    $top=[Console]::WindowTop
+    $row=[Console]::CursorTop
+    $column=[Console]::CursorLeft
+    $first=$row
+    # Legacy editors expose no layout contract. Reserve conservatively for
+    # right-hand text, including wide Unicode and continuation lines.
+    $tail=$Line.Substring([Math]::Min($Cursor,$Line.Length))
+    $tailRows=0
+    foreach ($part in $tail.Split("`n")) { $tailRows += [int][Math]::Ceiling(($part.Length*2.0)/$width) }
+    $tailRows += [Math]::Max(0,$tail.Split("`n").Count-1)
+    $last=$row+$tailRows
+    $bounds=$null
+    $api=[Microsoft.PowerShell.PSConsoleReadLine]
+    if ($null -ne $api.GetMethod('GetEditorBufferBounds')) {
+        $bounds=$api::GetEditorBufferBounds()
+        $first=[Math]::Min($row,$bounds[0])
+        $last=[Math]::Max($row,$bounds[1])
+    }
+    $desired=[Math]::Min(12,[Math]::Max(0,$height-($last-$first+1)))
+    $missing=[Math]::Max(0,$desired-($top+$height-1-$last))
+    if ($missing -gt 0) {
+        [Console]::SetCursorPosition(0,$top+$height-1)
+        [Console]::Write(("`n"*$missing))
+        $shift=$missing-([Console]::CursorTop-($top+$height-1))
+        [Console]::SetCursorPosition($column,[Math]::Max(0,$row-$shift))
+        if ($null -ne $bounds -and $null -ne $api.GetMethod('RestoreEditorLayout')) {
+            $api::RestoreEditorLayout([Math]::Max(0,$bounds[2]-$shift),$bounds[3])
+        } else {
+            $api::InvokePrompt($null,[Math]::Max(0,$first-$shift))
+        }
+        $last-=$shift
+    }
+    return [Math]::Max(0,$last-[Console]::WindowTop+1)
+}
+
 function Send-BlueberryBuffer {
     [CmdletBinding()]
     param()
@@ -1060,6 +1110,8 @@ function Send-BlueberryBuffer {
             line   = [string]$line
             cursor = [int]$cursor
         }
+        $menuRow=Get-BlueberryReservedMenuRow -Line $line -Cursor $cursor
+        if ($null -ne $menuRow) { $data.menu_row=[int]$menuRow }
         if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
             # Shared Windows performance counter for the diagnostic path.
             # The report stores timings only; it never stores this line.
@@ -1455,7 +1507,7 @@ function Read-BlueberryRequest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('native', 'command_metadata', 'history', 'commands_reset', 'commands_next')]
+        [ValidateSet('native', 'command_metadata', 'history', 'commands_reset', 'commands_next', 'reserve_menu')]
         [string[]]$ExpectedKind
     )
 
@@ -1893,12 +1945,14 @@ function Send-BlueberryPasteResult {
         [string]$RequestId,
 
         [Parameter(Mandatory = $true)]
-        [bool]$Applied
+        [bool]$Applied,
+        [bool]$Changed = $false
     )
 
     Send-BlueberryEvent -Event 'paste_result' -Data ([ordered]@{
         request_id = $RequestId
         applied    = [bool]$Applied
+        changed    = [bool]$Changed
     })
 }
 
@@ -1982,8 +2036,11 @@ function Invoke-BlueberryPasteKeyHandler {
 
         $requestId = [string]$paste.id
         $applied = $false
+        $changed = $false
         $applyError = $null
         try {
+            $beforePaste = $null; $pasteCursor = 0
+            [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$beforePaste, [ref]$pasteCursor)
             $selectionStart = 0
             $selectionLength = 0
             [Microsoft.PowerShell.PSConsoleReadLine]::GetSelectionState(
@@ -1998,10 +2055,13 @@ function Invoke-BlueberryPasteKeyHandler {
                 [Microsoft.PowerShell.PSConsoleReadLine]::Insert([string]$paste.text)
             }
             $applied = $true
+            $afterPaste = $null
+            [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$afterPaste, [ref]$pasteCursor)
+            $changed = ($beforePaste -cne $afterPaste)
         } catch {
             $applyError = $_
         }
-        Send-BlueberryPasteResult -RequestId $requestId -Applied $applied
+        Send-BlueberryPasteResult -RequestId $requestId -Applied $applied -Changed $changed
         Send-BlueberryBuffer
         if ($null -ne $applyError) {
             Send-BlueberryPasteError -Code 'paste_failed' `
@@ -2662,9 +2722,12 @@ function Invoke-BlueberryDirectProbeKey {
 function Invoke-BlueberryNativeKeyHandler {
     [CmdletBinding()]
     param()
-    $request = Read-BlueberryRequest -ExpectedKind @('native', 'command_metadata', 'history')
+    $request = Read-BlueberryRequest -ExpectedKind @('native', 'command_metadata', 'history', 'reserve_menu')
     if ($null -ne $request) {
-        if ($request.kind -eq 'history') {
+        if ($request.kind -eq 'reserve_menu') {
+            $env:BLUEBERRY_RESERVED_MENU='1'
+            Send-BlueberryBuffer
+        } elseif ($request.kind -eq 'history') {
             $snapshot = Get-BlueberryHistorySnapshot -Limit ([int]$request.limit)
             Send-BlueberryEvent -Event 'history' -Data ([ordered]@{
                 request_id = [string]$request.id
@@ -2678,7 +2741,20 @@ function Invoke-BlueberryNativeKeyHandler {
             try { $page = Get-BlueberryCommandMetadata -Name $request.command } catch { }
             finally { $global:LASTEXITCODE = $savedLastExitCode }
             Send-BlueberryEvent -Event 'command_metadata' -Data @{ request_id = [string]$request.id; command = [string]$request.command; page = $page }
-        } else { Get-BlueberryNativeCompletion -RequestId ([string]$request.id) }
+        } else {
+            # Only actual native completion may execute a user expansion or
+            # external program. Read-only metadata/history keep native Ctrl+C.
+            $restoreMode = $false; $savedControlCMode = $false
+            if (Test-BlueberryInteractiveHost) {
+                try {
+                    $savedControlCMode = [Console]::TreatControlCAsInput
+                    [Console]::TreatControlCAsInput = $false
+                    $restoreMode = $true
+                } catch { }
+            }
+            try { Get-BlueberryNativeCompletion -RequestId ([string]$request.id) }
+            finally { if ($restoreMode) { [Console]::TreatControlCAsInput = $savedControlCMode } }
+        }
     }
 }
 
@@ -2703,6 +2779,127 @@ function Test-BlueberryInteractiveHost {
         return ($Host.Name -eq 'ConsoleHost')
     } catch {
         return $false
+    }
+}
+
+function Invoke-BlueberryObservedNativeDelete {
+    param($Key, $Arg)
+    $chord = ''
+    if (($Key.Modifiers -band [ConsoleModifiers]::Control) -ne 0) { $chord += 'Ctrl+' }
+    if (($Key.Modifiers -band [ConsoleModifiers]::Alt) -ne 0) { $chord += 'Alt+' }
+    if (($Key.Modifiers -band [ConsoleModifiers]::Shift) -ne 0) { $chord += 'Shift+' }
+    $chord += [string]$Key.Key
+    $before = $null; $cursor = 0
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$before, [ref]$cursor)
+    $script:BLUEBERRY_NATIVE_DELETE_ACTIONS[$chord].Invoke($Key, $Arg)
+    $after = $null
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$after, [ref]$cursor)
+    $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE++
+    Send-BlueberryEvent -Event 'native_edit' -Data ([ordered]@{
+        line = [string]$after; cursor = [int]$cursor; changed = ($before -cne $after); sequence = $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE
+    })
+}
+
+function Get-BlueberryNativeActions {
+    # Public descriptions can be supplied by a user ScriptBlock. Verify the
+    # original delegate, reading the dispatch table without changing it.
+    $actions = @{}
+    try {
+        $api = [Microsoft.PowerShell.PSConsoleReadLine]
+        $flags = [Reflection.BindingFlags]'NonPublic,Instance'
+        $singleton = $api.GetField('_singleton', [Reflection.BindingFlags]'NonPublic,Static').GetValue($null)
+        $table = $api.GetField('_dispatchTable', $flags).GetValue($singleton)
+        foreach ($entry in $table.GetEnumerator()) {
+            $handlerType = $entry.Value.GetType()
+            $action = $handlerType.GetField('Action').GetValue($entry.Value)
+            $scriptBlock = $handlerType.GetField('ScriptBlock').GetValue($entry.Value)
+            if ($null -eq $action -or $null -ne $scriptBlock -or $null -ne $action.Target -or
+                $action.Method.DeclaringType -ne $api) { continue }
+            $keyType = $entry.Key.GetType()
+            $keyFlags = [Reflection.BindingFlags]'Public,NonPublic,Instance'
+            $property = $keyType.GetProperty('KeyStr', $keyFlags)
+            $chord = if ($null -ne $property) { $property.GetValue($entry.Key, $null) }
+                else { $keyType.GetField('KeyStr', $keyFlags).GetValue($entry.Key) }
+            $actions[[string]$chord] = $action
+        }
+    } catch { return @{} }
+    return $actions
+}
+
+function Invoke-BlueberryObservedNativeSearch {
+    param($Key, $Arg)
+    $chord = 'Ctrl+' + [string]$Key.Key
+    $nativeAction = $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$chord]
+    # The inner search loop compares handler delegates to the built-in search
+    # functions. Keep those delegates installed during the native loop so a
+    # second Ctrl+R/Ctrl+S continues the same search rather than restarting it.
+    foreach ($searchChord in $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS.Keys) {
+        $action = $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$searchChord]
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($searchChord), $action,
+            $action.Method.Name, $action.Method.Name)
+    }
+    foreach ($deleteChord in $script:BLUEBERRY_NATIVE_DELETE_ACTIONS.Keys) {
+        $action = $script:BLUEBERRY_NATIVE_DELETE_ACTIONS[$deleteChord]
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($deleteChord), $action,
+            $action.Method.Name, $action.Method.Name)
+    }
+    Send-BlueberryEvent -Event 'native_search' -Data @{ active = $true }
+    try { $nativeAction.Invoke($Key, $Arg) }
+    finally {
+        foreach ($searchChord in $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS.Keys) {
+            $observer = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeSearch}
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($searchChord), $observer,
+                'BlueberryNativeSearch', 'Delegate native history search without completion queries')
+        }
+        foreach ($deleteChord in $script:BLUEBERRY_NATIVE_DELETE_ACTIONS.Keys) {
+            $observer = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeDelete}
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($deleteChord), $observer,
+                'BlueberryNativeDelete', 'Delegate the original native deletion and report its confirmed result')
+        }
+        Send-BlueberryEvent -Event 'native_search' -Data @{ active = $false }
+    }
+}
+
+function Register-BlueberryNativeDeleteObservers {
+    param($KeySnapshot)
+    $script:BLUEBERRY_NATIVE_DELETES = @{}
+    $script:BLUEBERRY_NATIVE_DELETE_ACTIONS = @{}
+    $script:BLUEBERRY_NATIVE_DELETE_SEQUENCE = [long]0
+    $script:BLUEBERRY_NATIVE_SEARCHES = @{}
+    $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS = @{}
+    $script:BLUEBERRY_NATIVE_SEARCH_CONTINUES = @{}
+    $nativeActions = Get-BlueberryNativeActions
+    foreach ($chord in $nativeActions.Keys) {
+        if ($nativeActions[$chord].Method.Name -in @('BackwardDeleteChar', 'ReverseSearchHistory', 'ForwardSearchHistory')) {
+            $script:BLUEBERRY_NATIVE_SEARCH_CONTINUES[$chord] = $true
+        }
+    }
+    $upAction = $nativeActions['UpArrow']
+    $script:BLUEBERRY_NATIVE_HISTORY_UP = ($null -ne $upAction -and
+        $upAction.Method.Name -in @('PreviousHistory', 'HistorySearchBackward'))
+    foreach ($chord in @('Backspace', 'Delete', 'Ctrl+Backspace', 'Ctrl+Delete', 'Ctrl+w', 'Ctrl+u', 'Ctrl+k')) {
+        $bindings = @(Get-BlueberryKeyBinding -Chord $chord -Snapshot $KeySnapshot)
+        if ($bindings.Count -ne 1) { continue }
+        $name = [string]$bindings[0].Function
+        if ($name -notmatch '^(BackwardDelete|Delete|BackwardKill|Kill)') { continue }
+        $nativeAction = $nativeActions[$chord]
+        if ($null -eq $nativeAction -or $nativeAction.Method.Name -ne $name) { continue }
+        $script:BLUEBERRY_NATIVE_DELETE_ACTIONS[$chord] = $nativeAction
+        # A native deletion cannot launch a program. Keep the editor's input
+        # mode, as for the buffer callback, so an immediate Ctrl+C stays native.
+        $observerAction = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeDelete}
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($chord), $observerAction,
+            'BlueberryNativeDelete', 'Delegate the original native deletion and report its confirmed result')
+        $script:BLUEBERRY_NATIVE_DELETES[$chord] = $true
+    }
+    foreach ($chord in @('Ctrl+r', 'Ctrl+s')) {
+        $nativeAction = $nativeActions[$chord]
+        if ($null -eq $nativeAction -or $nativeAction.Method.Name -notin @('ReverseSearchHistory', 'ForwardSearchHistory')) { continue }
+        $script:BLUEBERRY_NATIVE_SEARCH_ACTIONS[$chord] = $nativeAction
+        $observerAction = [Action[Nullable[ConsoleKeyInfo],object]]${function:Invoke-BlueberryObservedNativeSearch}
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetKeyHandler([string[]]@($chord), $observerAction,
+            'BlueberryNativeSearch', 'Delegate native history search without completion queries')
+        $script:BLUEBERRY_NATIVE_SEARCHES[$chord] = $true
     }
 }
 
@@ -3028,9 +3225,10 @@ function Register-BlueberryKeyHandler {
     }
 
     try {
-        if ($Name -eq 'buffer') {
-            # This callback only reads the editor and emits a protocol reply;
-            # it cannot run an external program. The ScriptBlock overload
+        if ($Name -in @('buffer', 'commands', 'apply', 'paste', 'native')) {
+            # Read-only and literal-edit callbacks keep the editor input mode.
+            # The native handler manages its external-expansion branch itself.
+            # The ScriptBlock overload
             # temporarily enables processed input, so Ctrl+C arriving after
             # that reply can interrupt the callback instead of CancelLine.
             # Keep the editor's native input mode until this handler returns.
@@ -3079,6 +3277,12 @@ function Send-BlueberryCapabilities {
         command_metadata  = [bool]$script:BLUEBERRY_KEY_HANDLERS.native
         history           = [bool]$script:BLUEBERRY_KEY_HANDLERS.native
     }
+    if ($null -ne $script:BLUEBERRY_NATIVE_DELETES) {
+        $capabilityMap.native_deletes = $script:BLUEBERRY_NATIVE_DELETES
+        $capabilityMap.native_history_up = [bool]$script:BLUEBERRY_NATIVE_HISTORY_UP
+        $capabilityMap.native_searches = $script:BLUEBERRY_NATIVE_SEARCHES
+        $capabilityMap.native_search_continues = $script:BLUEBERRY_NATIVE_SEARCH_CONTINUES
+    }
     # Keep the field absent when the host did not opt into public-key
     # arbitration, preserving the alpha protocol shape for existing launchers.
     if ($null -ne $script:BLUEBERRY_PUBLIC_KEY_STATUS) {
@@ -3104,7 +3308,7 @@ function Send-BlueberryCapabilities {
         # cannot mistake a silent fallback for a pipe run.
         transport    = if ($script:BLUEBERRY_PIPE_ENABLED) { 'pipe' } else { 'osc' }
         shell_version = [string]$PSVersionTable.PSVersion
-        psreadline_version = if ($null -ne (Get-Module PSReadLine)) { [string](Get-Module PSReadLine).Version } else { $null }
+        psreadline_version = if ($null -ne (Get-Module PSReadLine)) { [string](Get-Command Get-PSReadLineOption -CommandType Cmdlet -ErrorAction Stop).Module.Version } else { $null }
         capabilities = $capabilityMap
     })
 }
@@ -3197,6 +3401,8 @@ function Initialize-BlueberryReadLine {
         if (-not $script:BLUEBERRY_READLINE_WRAPPED) {
             function global:PSConsoleHostReadLine {
                 $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
+                $savedReadLineActive = $script:BLUEBERRY_READLINE_ACTIVE
+                $script:BLUEBERRY_READLINE_ACTIVE = $true
                 try {
                     $acceptedLine = & $script:BLUEBERRY_ORIGINAL_READLINE @args
                     $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
@@ -3208,6 +3414,7 @@ function Initialize-BlueberryReadLine {
                     Send-BlueberryEvent -Event 'execute'
                     return $acceptedLine
                 } finally {
+                    $script:BLUEBERRY_READLINE_ACTIVE = $savedReadLineActive
                     # PSReadLine's original function may intentionally update the
                     # native exit code; only adapter operations are restored.
                     $global:LASTEXITCODE = $savedLastExitCode
@@ -3281,6 +3488,9 @@ function Initialize-BlueberryReadLine {
     # Public host shortcuts are configured outside the protocol chord. Inspect
     # their current PSReadLine owners before the host starts intercepting them;
     # this also leaves an explicit diagnostic for a user ScriptBlock binding.
+    if ($env:BLUEBERRY_OBSERVE_NATIVE_EDITS -eq '1') {
+        Register-BlueberryNativeDeleteObservers -KeySnapshot $keySnapshot
+    }
     $publicKeyTimer = $null
     if ($script:BLUEBERRY_TRACE_ENABLED) {
         $publicKeyTimer = [Diagnostics.Stopwatch]::StartNew()
@@ -3466,10 +3676,17 @@ function Initialize-BlueberryPrompt {
             }
         }
 
-        Send-BlueberryEvent -Event 'prompt_start' -Data ([ordered]@{
-            cwd = Get-BlueberryWorkingDirectory
-        })
-        Send-BlueberryEvent -Event 'prompt_end' -Data (Get-BlueberryPromptEndData)
+        if ($script:BLUEBERRY_READLINE_ACTIVE) {
+            # PSReadLine invokes Prompt again during resize/InvokePrompt while
+            # the same editable line is alive. Do not reset the host's pending
+            # input or command snapshot as if a command had just finished.
+            Send-BlueberryEvent -Event 'prompt_redraw'
+        } else {
+            Send-BlueberryEvent -Event 'prompt_start' -Data ([ordered]@{
+                cwd = Get-BlueberryWorkingDirectory
+            })
+            Send-BlueberryEvent -Event 'prompt_end' -Data (Get-BlueberryPromptEndData)
+        }
 
         $global:LASTEXITCODE = $promptState.lastExitCode
         if ($null -ne $promptState.error) {

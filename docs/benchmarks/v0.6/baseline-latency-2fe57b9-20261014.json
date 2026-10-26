@@ -1,0 +1,681 @@
+{
+  "schema": 1,
+  "baseline_source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+  "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC",
+  "probe_sha256": "9E847A768DB1CB22A85134EB0605A39784BEC34070576F7C7B817C5F62EE71B2",
+  "measurement_complete": true,
+  "automated_performance_passed": false,
+  "startup_pairs": 90,
+  "hot_groups": 72,
+  "hot_samples": 21600,
+  "screen_pixels": "not measured",
+  "outliers_removed": false,
+  "rows": [
+    {
+      "name": "ps51-200-startup",
+      "report": "artifacts\\pl4-1013\\formal\\ps51-200-startup.json",
+      "sha256": "822D317A50CC6A063A48D0F33AC2E62B9B2F97D500A981BB3D9292C2F1B421BB",
+      "kind": "startup",
+      "statistics": {
+        "samples": 30,
+        "p50_ms": 320.39374999999984,
+        "p95_ms": 420.83919999999966
+      }
+    },
+    {
+      "name": "ps51-200-hot-descriptions-true",
+      "report": "artifacts\\pl4-1013\\formal\\ps51-200-hot-descriptions-true.json",
+      "sha256": "0D2B2EB16B1FC9F364C45597DEE88C4BD4C60627040619E3697BD299B29D038B",
+      "kind": "hot",
+      "groups": [
+        {
+          "scenario": "root",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 7.0684000000000005,
+          "p95_ms": 8.5515,
+          "gate_passed": true
+        },
+        {
+          "scenario": "root",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 7.132,
+          "p95_ms": 8.7734,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 7.80885,
+          "p95_ms": 10.058,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 7.84285,
+          "p95_ms": 10.1449,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 10.5886,
+          "p95_ms": 16.019599999999997,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 10.652899999999999,
+          "p95_ms": 16.259,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.13345,
+          "p95_ms": 10.7022,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 9.004349999999999,
+          "p95_ms": 10.9183,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 8.61605,
+          "p95_ms": 10.659500000000001,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 8.5259,
+          "p95_ms": 10.302999999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 5.196199999999999,
+          "p95_ms": 6.3369,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 5.1964500000000005,
+          "p95_ms": 6.232200000000001,
+          "gate_passed": true
+        }
+      ]
+    },
+    {
+      "name": "ps51-200-hot-descriptions-false",
+      "report": "artifacts\\pl4-1013\\formal\\ps51-200-hot-descriptions-false.json",
+      "sha256": "56AFB0F8F8A63BB07D68A04FB9860EA16F1D718A328EF2594C71BC720C55585B",
+      "kind": "hot",
+      "groups": [
+        {
+          "scenario": "root",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.973600000000001,
+          "p95_ms": 11.8023,
+          "gate_passed": true
+        },
+        {
+          "scenario": "root",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 10.081949999999999,
+          "p95_ms": 12.2226,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.948350000000001,
+          "p95_ms": 12.447,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 9.958450000000001,
+          "p95_ms": 12.7766,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 13.0276,
+          "p95_ms": 18.3953,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 13.65175,
+          "p95_ms": 19.834899999999998,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.27135,
+          "p95_ms": 11.8867,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 9.30115,
+          "p95_ms": 13.3882,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 7.3182,
+          "p95_ms": 9.635100000000001,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 7.17515,
+          "p95_ms": 8.8217,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 4.1232999999999995,
+          "p95_ms": 4.8886,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 4.1525,
+          "p95_ms": 4.9091,
+          "gate_passed": true
+        }
+      ]
+    },
+    {
+      "name": "ps51-245-startup",
+      "report": "artifacts\\pl4-1013\\formal\\ps51-245-startup.json",
+      "sha256": "9914507C19D9FE2B8EC3BFD6216DAB87903C5CA91959586FDFDB53784CB26996",
+      "kind": "startup",
+      "statistics": {
+        "samples": 30,
+        "p50_ms": 305.9734000000001,
+        "p95_ms": 392.0631000000001
+      }
+    },
+    {
+      "name": "ps51-245-hot-descriptions-true",
+      "report": "artifacts\\pl4-1013\\formal\\ps51-245-hot-descriptions-true.json",
+      "sha256": "CD39D2B1758B5CBC2F3780F99843134AAED899F78FE94E323E3A1DC0289BE39B",
+      "kind": "hot",
+      "groups": [
+        {
+          "scenario": "root",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 6.5945,
+          "p95_ms": 7.989700000000001,
+          "gate_passed": true
+        },
+        {
+          "scenario": "root",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 6.6305000000000005,
+          "p95_ms": 8.102599999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 7.8276,
+          "p95_ms": 10.768,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 7.867,
+          "p95_ms": 10.323799999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.1568,
+          "p95_ms": 16.0446,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 8.881300000000001,
+          "p95_ms": 19.0671,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 7.676550000000001,
+          "p95_ms": 11.1201,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 7.745950000000001,
+          "p95_ms": 10.113999999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 8.18575,
+          "p95_ms": 9.9184,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 8.00355,
+          "p95_ms": 9.741,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 5.320499999999999,
+          "p95_ms": 6.8913,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 5.326600000000001,
+          "p95_ms": 7.1444,
+          "gate_passed": true
+        }
+      ]
+    },
+    {
+      "name": "ps51-245-hot-descriptions-false",
+      "report": "artifacts\\pl4-1013\\formal\\ps51-245-hot-descriptions-false.json",
+      "sha256": "FEC01DB72CA9EDF6C4370A2590B4940046D52A05106CDC0750EC2CEE6F92DF20",
+      "kind": "hot",
+      "groups": [
+        {
+          "scenario": "root",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.361799999999999,
+          "p95_ms": 10.8047,
+          "gate_passed": true
+        },
+        {
+          "scenario": "root",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 9.36585,
+          "p95_ms": 11.2964,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.49925,
+          "p95_ms": 12.9633,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 9.187850000000001,
+          "p95_ms": 14.3938,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 12.1678,
+          "p95_ms": 16.692,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 12.0264,
+          "p95_ms": 16.6453,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 8.04935,
+          "p95_ms": 9.9493,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 8.0322,
+          "p95_ms": 10.2571,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 7.164,
+          "p95_ms": 8.8689,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 7.078150000000001,
+          "p95_ms": 8.523,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 4.8359,
+          "p95_ms": 6.353400000000001,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 4.97395,
+          "p95_ms": 6.9364,
+          "gate_passed": true
+        }
+      ]
+    },
+    {
+      "name": "ps7-245-startup",
+      "report": "artifacts\\pl4-1013\\formal\\ps7-245-startup.json",
+      "sha256": "E9C9CB660FC9ADEE274CBBD4CC9D06C6B47DBE6DB818C9B1F1F58D5712603102",
+      "kind": "startup",
+      "statistics": {
+        "samples": 30,
+        "p50_ms": 72.14485000000013,
+        "p95_ms": 211.6839
+      }
+    },
+    {
+      "name": "ps7-245-hot-descriptions-true",
+      "report": "artifacts\\pl4-1013\\formal\\ps7-245-hot-descriptions-true.json",
+      "sha256": "D07E05D470235F072176E78552D9A5BAA6C320C36D4A8F1A2A4422113991D062",
+      "kind": "hot",
+      "groups": [
+        {
+          "scenario": "root",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 9.782150000000001,
+          "p95_ms": 12.3886,
+          "gate_passed": true
+        },
+        {
+          "scenario": "root",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 9.8551,
+          "p95_ms": 12.3523,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 8.577950000000001,
+          "p95_ms": 14.280299999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 8.9104,
+          "p95_ms": 16.7541,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 6.1917,
+          "p95_ms": 9.4747,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 6.2556,
+          "p95_ms": 9.0755,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 5.054749999999999,
+          "p95_ms": 6.8717,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 4.956200000000001,
+          "p95_ms": 7.1366,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 4.73815,
+          "p95_ms": 9.6939,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 4.634250000000001,
+          "p95_ms": 9.6935,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 3.10855,
+          "p95_ms": 6.441599999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 3.0347,
+          "p95_ms": 6.3164,
+          "gate_passed": true
+        }
+      ]
+    },
+    {
+      "name": "ps7-245-hot-descriptions-false",
+      "report": "artifacts\\pl4-1013\\formal\\ps7-245-hot-descriptions-false.json",
+      "sha256": "C21F5E48EEB24251233973AEB47BC086182005134EA5656CB96D5CA56FF23080",
+      "kind": "hot",
+      "groups": [
+        {
+          "scenario": "root",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 5.118799999999999,
+          "p95_ms": 7.2101,
+          "gate_passed": true
+        },
+        {
+          "scenario": "root",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 5.086,
+          "p95_ms": 6.9385,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 5.10605,
+          "p95_ms": 7.118799999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "git",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 5.0558499999999995,
+          "p95_ms": 7.0872,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 5.88535,
+          "p95_ms": 8.217500000000001,
+          "gate_passed": true
+        },
+        {
+          "scenario": "cargo",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 5.91365,
+          "p95_ms": 8.1433,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 5.4857,
+          "p95_ms": 8.1196,
+          "gate_passed": true
+        },
+        {
+          "scenario": "js",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 5.2639,
+          "p95_ms": 8.594199999999999,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 4.0585,
+          "p95_ms": 9.3376,
+          "gate_passed": true
+        },
+        {
+          "scenario": "path",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 4.080449999999999,
+          "p95_ms": 9.3602,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_miss",
+          "samples": 300,
+          "p50_ms": 2.635,
+          "p95_ms": 5.9954,
+          "gate_passed": true
+        },
+        {
+          "scenario": "fuzzy",
+          "cache": "cache_hit",
+          "samples": 300,
+          "p50_ms": 2.6605,
+          "p95_ms": 6.2738000000000005,
+          "gate_passed": true
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "kind": "fixed_actions_artifact_and_ignored_local_raw_records",
+    "actions_artifact_status": "uploaded_and_download_verified",
+    "locator": "raw-baseline-artifact-20261014.json",
+    "run_id": 38517306894,
+    "artifact_id": 11872279995,
+    "retention_days": 90,
+    "release_evidence_status": "not_created"
+  }
+}

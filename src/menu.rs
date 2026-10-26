@@ -39,11 +39,6 @@ pub fn render_with_state(
     state: MenuState,
     available_rows: usize,
 ) -> MenuFrame {
-    let mut adjusted = Config {
-        ui: config.ui.clone(),
-        completion: config.completion.clone(),
-        ..Default::default()
-    };
     let footer_rows = usize::from(config.ui.status_bar)
         + usize::from(state.searching)
         + usize::from(state.argument_hint.is_some_and(|s| !s.is_empty()))
@@ -55,15 +50,25 @@ pub fn render_with_state(
             width: 0,
         };
     }
-    if available_rows < border_rows + 1 {
-        adjusted.ui.border = "none".into();
-    }
-    adjusted.ui.max_rows = adjusted.ui.max_rows.min(
+    let border = if available_rows < border_rows + 1 {
+        "none"
+    } else {
+        &config.ui.border
+    };
+    let max_rows = config.ui.max_rows.min(
         available_rows
             .saturating_sub(footer_rows + border_rows)
             .max(1),
     );
-    let mut frame = render(candidates, selected, query, available_width, &adjusted);
+    let mut frame = render_with_layout(
+        candidates,
+        selected,
+        query,
+        available_width,
+        config,
+        max_rows,
+        border,
+    );
     frame.lines.truncate(available_rows);
     let candidate = candidates.get(selected);
     if frame.width == 0 {
@@ -176,6 +181,26 @@ pub fn render(
     available_width: u16,
     config: &Config,
 ) -> MenuFrame {
+    render_with_layout(
+        candidates,
+        selected,
+        query,
+        available_width,
+        config,
+        config.ui.max_rows,
+        &config.ui.border,
+    )
+}
+
+fn render_with_layout(
+    candidates: &[Candidate],
+    selected: usize,
+    query: &str,
+    available_width: u16,
+    config: &Config,
+    max_rows: usize,
+    border: &str,
+) -> MenuFrame {
     let candidate_count = candidates.len().min(config.completion.max_results);
     if candidate_count == 0 || available_width == 0 {
         return MenuFrame {
@@ -200,7 +225,7 @@ pub fn render(
     }
 
     let selected = selected.min(candidate_count - 1);
-    let page_rows = config.ui.max_rows.min(candidate_count);
+    let page_rows = max_rows.min(candidate_count);
     if page_rows == 0 {
         return MenuFrame {
             lines: Vec::new(),
@@ -215,7 +240,7 @@ pub fn render(
 
     // A one-column terminal cannot contain a useful border. Falling back to
     // a borderless row keeps the candidate text available at that width.
-    let border = border_chars(&config.ui.border);
+    let border = border_chars(border);
     let bordered = border.is_some() && frame_width >= 2;
     let content_width = if bordered {
         frame_width.saturating_sub(2)

@@ -1,0 +1,740 @@
+{
+  "schema": 1,
+  "measurement_complete": true,
+  "scope": "Optimization resource ABBA only",
+  "independent_sessions": 60,
+  "seconds_per_session": 30,
+  "sources": [
+    {
+      "name": "r1-resource-run1-before-ps51-200",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run1-before-ps51-200\\resources.json",
+      "sha256": "3CD361E78B2DD5A3BC4CB15ECD089324F453D665ABBD86D882C27587479CDCD4",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC"
+    },
+    {
+      "name": "r1-resource-run1-before-ps51-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run1-before-ps51-245\\resources.json",
+      "sha256": "36764DF1354F3B4DCD06DD87D8EEF49B4F0D8A566688C4C9E48E4E7BF340AD8B",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC"
+    },
+    {
+      "name": "r1-resource-run1-before-ps7-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run1-before-ps7-245\\resources.json",
+      "sha256": "958EDA3B52DAD82768C3CA16D449723B0880D99AC0086AB9EE0E0EB86E7ECD15",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC"
+    },
+    {
+      "name": "r1-resource-run1-after-ps51-200",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run1-after-ps51-200\\resources.json",
+      "sha256": "C665A6E68E55CCF7105536F39DC469934C3E55FF6970E769AB4B6C1DE8172F26",
+      "source_commit": "ef67e6d0a65ceaa7bd902843ec40a2f44a2276d9",
+      "executable_sha256": "52265E95B84EA1D95517DFEB58689D97FDD8EC7F1D15ACFE450827DDB036F480"
+    },
+    {
+      "name": "r1-resource-run1-after-ps51-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run1-after-ps51-245\\resources.json",
+      "sha256": "A2FB16D08509776C4CA1420674C44C893C2992AC53A55EAD45B2B52D1C19C807",
+      "source_commit": "ef67e6d0a65ceaa7bd902843ec40a2f44a2276d9",
+      "executable_sha256": "52265E95B84EA1D95517DFEB58689D97FDD8EC7F1D15ACFE450827DDB036F480"
+    },
+    {
+      "name": "r1-resource-run1-after-ps7-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run1-after-ps7-245\\resources.json",
+      "sha256": "6B9DBB792269CEB333F8B0D916CA5231BC592EA5FBC9948641975C702471AF13",
+      "source_commit": "ef67e6d0a65ceaa7bd902843ec40a2f44a2276d9",
+      "executable_sha256": "52265E95B84EA1D95517DFEB58689D97FDD8EC7F1D15ACFE450827DDB036F480"
+    },
+    {
+      "name": "r1-resource-run2-after-ps51-200",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run2-after-ps51-200\\resources.json",
+      "sha256": "487D7702330E9C9D7279BB39F922AB2D3B5626A1003205A7C132A07AA91A826E",
+      "source_commit": "ef67e6d0a65ceaa7bd902843ec40a2f44a2276d9",
+      "executable_sha256": "52265E95B84EA1D95517DFEB58689D97FDD8EC7F1D15ACFE450827DDB036F480"
+    },
+    {
+      "name": "r1-resource-run2-after-ps51-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run2-after-ps51-245\\resources.json",
+      "sha256": "B4457844D75BA23949E7DFC810B2C5953E362DBD57002C78D0C2F2FED516C35F",
+      "source_commit": "ef67e6d0a65ceaa7bd902843ec40a2f44a2276d9",
+      "executable_sha256": "52265E95B84EA1D95517DFEB58689D97FDD8EC7F1D15ACFE450827DDB036F480"
+    },
+    {
+      "name": "r1-resource-run2-after-ps7-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run2-after-ps7-245\\resources.json",
+      "sha256": "DD82C2644FAE6B5F29BEA35726EF6EE20429E9953921067415C80226DAC8DC1B",
+      "source_commit": "ef67e6d0a65ceaa7bd902843ec40a2f44a2276d9",
+      "executable_sha256": "52265E95B84EA1D95517DFEB58689D97FDD8EC7F1D15ACFE450827DDB036F480"
+    },
+    {
+      "name": "r1-resource-run2-before-ps51-200",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run2-before-ps51-200\\resources.json",
+      "sha256": "AE450AAC72926A49B70A06CCC693C40C5EE2DDBF7B5DE8FED9E0D44741F1FBFF",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC"
+    },
+    {
+      "name": "r1-resource-run2-before-ps51-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run2-before-ps51-245\\resources.json",
+      "sha256": "9185E7B05E01F02160D36CFD950817CE2682AB25ACD94FC2C9F9097ECEF71AFD",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC"
+    },
+    {
+      "name": "r1-resource-run2-before-ps7-245",
+      "report": "C:\\Windows\\Temp\\bbr1-resources-20261024f\\run2-before-ps7-245\\resources.json",
+      "sha256": "1BD5C5708C20E5C3CC12F7C2F66CD06ADA88AD096D22263F9B251AE93CEF4D29",
+      "source_commit": "2fe57b9eada4a868f2d5cd9218b546342cd43c67",
+      "executable_sha256": "99E696A60DE1D96718A6B56C226B57375AD3C138B16FA04B20775902A516B8CC"
+    }
+  ],
+  "comparisons": [
+    {
+      "run": 1,
+      "profile": "ps51-200",
+      "metrics": {
+        "cpu_percent_one_core": {
+          "before_samples": [
+            0.25584114227632276,
+            0.3091244761271625,
+            0.4147418745115709,
+            0.15514425380568606,
+            0.1023842014041464
+          ],
+          "after_samples": [
+            0.257913217406825,
+            0.1028903760299837,
+            0.6166488297292775,
+            0.3074572531850333,
+            0.2558290288100359
+          ],
+          "before_median": 0.25584114227632276,
+          "after_median": 0.257913217406825,
+          "difference": 0.0020720751305022267,
+          "relative_percent": 0.8099069258627174
+        },
+        "working_set_median_bytes": {
+          "before_samples": [
+            121372672.0,
+            120131584.0,
+            120659968,
+            120590336.0,
+            120733696.0
+          ],
+          "after_samples": [
+            121147392,
+            120299520,
+            120033280,
+            121380864,
+            120307712.0
+          ],
+          "before_median": 120659968,
+          "after_median": 120307712.0,
+          "difference": -352256.0,
+          "relative_percent": -0.2919410686400978
+        },
+        "working_set_peak_bytes": {
+          "before_samples": [
+            121581568,
+            120332288,
+            120881152,
+            120803328,
+            120987648
+          ],
+          "after_samples": [
+            121319424,
+            120561664,
+            120320000,
+            121614336,
+            120512512
+          ],
+          "before_median": 120881152,
+          "after_median": 120561664,
+          "difference": -319488,
+          "relative_percent": -0.2642992680943345
+        },
+        "private_median_bytes": {
+          "before_samples": [
+            91873280.0,
+            90660864.0,
+            91119616,
+            91049984.0,
+            91357184.0
+          ],
+          "after_samples": [
+            91504640,
+            91029504,
+            90816512,
+            91881472,
+            90984448.0
+          ],
+          "before_median": 91119616,
+          "after_median": 91029504,
+          "difference": -90112,
+          "relative_percent": -0.09889418322395037
+        },
+        "private_peak_bytes": {
+          "before_samples": [
+            92250112,
+            91017216,
+            91557888,
+            91443200,
+            91836416
+          ],
+          "after_samples": [
+            91877376,
+            91488256,
+            91295744,
+            92315648,
+            91381760
+          ],
+          "before_median": 91557888,
+          "after_median": 91488256,
+          "difference": -69632,
+          "relative_percent": -0.07605243144096989
+        }
+      }
+    },
+    {
+      "run": 1,
+      "profile": "ps51-245",
+      "metrics": {
+        "cpu_percent_one_core": {
+          "before_samples": [
+            0.36421576435584035,
+            0.2579036313313262,
+            0.5107779074632443,
+            0.41017828740530404,
+            0.3091657901995144
+          ],
+          "after_samples": [
+            0.5116891430393645,
+            0.4662671399137497,
+            0.5107053583278103,
+            0.10399866202809338,
+            0.4085106000265133
+          ],
+          "before_median": 0.36421576435584035,
+          "after_median": 0.4662671399137497,
+          "difference": 0.10205137555790933,
+          "relative_percent": 28.019483379144653
+        },
+        "working_set_median_bytes": {
+          "before_samples": [
+            123424768,
+            123199488,
+            123117568.0,
+            122843136.0,
+            122253312
+          ],
+          "after_samples": [
+            123723776,
+            122535936,
+            122933248,
+            122589184.0,
+            123936768
+          ],
+          "before_median": 123117568.0,
+          "after_median": 122933248,
+          "difference": -184320.0,
+          "relative_percent": -0.14971055958480273
+        },
+        "working_set_peak_bytes": {
+          "before_samples": [
+            123678720,
+            123441152,
+            123346944,
+            123117568,
+            122540032
+          ],
+          "after_samples": [
+            123949056,
+            122761216,
+            123088896,
+            122847232,
+            124194816
+          ],
+          "before_median": 123346944,
+          "after_median": 123088896,
+          "difference": -258048,
+          "relative_percent": -0.20920502092050208
+        },
+        "private_median_bytes": {
+          "before_samples": [
+            93384704,
+            93118464,
+            93118464.0,
+            92880896.0,
+            92229632
+          ],
+          "after_samples": [
+            93605888,
+            92545024,
+            93052928,
+            92803072.0,
+            93765632
+          ],
+          "before_median": 93118464,
+          "after_median": 93052928,
+          "difference": -65536,
+          "relative_percent": -0.07037916776634116
+        },
+        "private_peak_bytes": {
+          "before_samples": [
+            93859840,
+            93593600,
+            93540352,
+            93380608,
+            92762112
+          ],
+          "after_samples": [
+            94048256,
+            92971008,
+            93360128,
+            93286400,
+            94224384
+          ],
+          "before_median": 93540352,
+          "after_median": 93360128,
+          "difference": -180224,
+          "relative_percent": -0.19266979025266015
+        }
+      }
+    },
+    {
+      "run": 1,
+      "profile": "ps7-245",
+      "metrics": {
+        "cpu_percent_one_core": {
+          "before_samples": [
+            1.2853481052869904,
+            0.616483176011375,
+            0.7696042333010534,
+            0.921174488203397,
+            1.0874779491785538
+          ],
+          "after_samples": [
+            1.0880715179585023,
+            0.6140749797537023,
+            0.6659017333934353,
+            0.5702718692957779,
+            0.9220171680809661
+          ],
+          "before_median": 0.921174488203397,
+          "after_median": 0.6659017333934353,
+          "difference": -0.2552727548099617,
+          "relative_percent": -27.711661371325018
+        },
+        "working_set_median_bytes": {
+          "before_samples": [
+            143597568,
+            148783104,
+            148598784.0,
+            147869696,
+            148017152.0
+          ],
+          "after_samples": [
+            148217856.0,
+            146714624.0,
+            147881984.0,
+            147927040,
+            147939328.0
+          ],
+          "before_median": 148017152.0,
+          "after_median": 147927040,
+          "difference": -90112.0,
+          "relative_percent": -0.06087943105404433
+        },
+        "working_set_peak_bytes": {
+          "before_samples": [
+            148676608,
+            148951040,
+            148774912,
+            148111360,
+            148230144
+          ],
+          "after_samples": [
+            148406272,
+            146812928,
+            148033536,
+            148094976,
+            148123648
+          ],
+          "before_median": 148676608,
+          "after_median": 148094976,
+          "difference": -581632,
+          "relative_percent": -0.3912061270593421
+        },
+        "private_median_bytes": {
+          "before_samples": [
+            64409600,
+            68706304,
+            68438016.0,
+            67842048,
+            67858432.0
+          ],
+          "after_samples": [
+            67864576.0,
+            66486272.0,
+            68397056.0,
+            67780608,
+            68007936.0
+          ],
+          "before_median": 67858432.0,
+          "after_median": 67864576.0,
+          "difference": 6144.0,
+          "relative_percent": 0.009054143779803223
+        },
+        "private_peak_bytes": {
+          "before_samples": [
+            68636672,
+            68964352,
+            68673536,
+            68136960,
+            68153344
+          ],
+          "after_samples": [
+            68132864,
+            66641920,
+            68616192,
+            67985408,
+            68255744
+          ],
+          "before_median": 68636672,
+          "after_median": 68132864,
+          "difference": -503808,
+          "relative_percent": -0.7340216029122157
+        }
+      }
+    },
+    {
+      "run": 2,
+      "profile": "ps51-200",
+      "metrics": {
+        "cpu_percent_one_core": {
+          "before_samples": [
+            0.5612752235779235,
+            0.4585487216160542,
+            0.7677261456717901,
+            0.3078366472761101,
+            0.3057943867703909
+          ],
+          "after_samples": [
+            0.1546797188212767,
+            0.10281805434233908,
+            0.3606243856052646,
+            0.6124147643172406,
+            0.254667637284217
+          ],
+          "before_median": 0.4585487216160542,
+          "after_median": 0.254667637284217,
+          "difference": -0.20388108433183721,
+          "relative_percent": -44.46225116783733
+        },
+        "working_set_median_bytes": {
+          "before_samples": [
+            121118720.0,
+            120938496.0,
+            120262656.0,
+            121032704.0,
+            121020416.0
+          ],
+          "after_samples": [
+            121876480,
+            121458688,
+            121012224,
+            120741888.0,
+            120922112.0
+          ],
+          "before_median": 121020416.0,
+          "after_median": 121012224,
+          "difference": -8192.0,
+          "relative_percent": -0.006769105801123672
+        },
+        "working_set_peak_bytes": {
+          "before_samples": [
+            121430016,
+            121176064,
+            120455168,
+            121233408,
+            121282560
+          ],
+          "after_samples": [
+            122093568,
+            121692160,
+            121266176,
+            121053184,
+            121143296
+          ],
+          "before_median": 121233408,
+          "after_median": 121266176,
+          "difference": 32768,
+          "relative_percent": 0.02702885330089871
+        },
+        "private_median_bytes": {
+          "before_samples": [
+            91611136.0,
+            91381760.0,
+            90816512.0,
+            91480064.0,
+            91738112.0
+          ],
+          "after_samples": [
+            92540928,
+            91869184,
+            91377664,
+            91193344.0,
+            91582464.0
+          ],
+          "before_median": 91480064.0,
+          "after_median": 91582464.0,
+          "difference": 102400.0,
+          "relative_percent": 0.11193695710575803
+        },
+        "private_peak_bytes": {
+          "before_samples": [
+            92135424,
+            91803648,
+            91144192,
+            91873280,
+            92200960
+          ],
+          "after_samples": [
+            92962816,
+            92233728,
+            91832320,
+            91611136,
+            92004352
+          ],
+          "before_median": 91873280,
+          "after_median": 92004352,
+          "difference": 131072,
+          "relative_percent": 0.14266607222469907
+        }
+      }
+    },
+    {
+      "run": 2,
+      "profile": "ps51-245",
+      "metrics": {
+        "cpu_percent_one_core": {
+          "before_samples": [
+            0.5578035177051672,
+            0.3572753097455258,
+            27.06294649804828,
+            0.36203108897581227,
+            0.2550493161888699
+          ],
+          "after_samples": [
+            0.2555190662881642,
+            0.052057047994565946,
+            0.6119477521163299,
+            0.3109388444684696,
+            0.5686841025405514
+          ],
+          "before_median": 0.36203108897581227,
+          "after_median": 0.3109388444684696,
+          "difference": -0.05109224450734268,
+          "relative_percent": -14.11266768604953
+        },
+        "working_set_median_bytes": {
+          "before_samples": [
+            124424192.0,
+            123052032.0,
+            354041856,
+            123744256.0,
+            122793984
+          ],
+          "after_samples": [
+            123363328,
+            122855424.0,
+            122503168.0,
+            122687488.0,
+            122691584.0
+          ],
+          "before_median": 123744256.0,
+          "after_median": 122691584.0,
+          "difference": -1052672.0,
+          "relative_percent": -0.8506835258680613
+        },
+        "working_set_peak_bytes": {
+          "before_samples": [
+            124567552,
+            123334656,
+            359354368,
+            123990016,
+            122970112
+          ],
+          "after_samples": [
+            123604992,
+            123154432,
+            122781696,
+            122880000,
+            122929152
+          ],
+          "before_median": 123990016,
+          "after_median": 122929152,
+          "difference": -1060864,
+          "relative_percent": -0.855604373823131
+        },
+        "private_median_bytes": {
+          "before_samples": [
+            94031872.0,
+            92831744.0,
+            205697024,
+            93462528.0,
+            92594176
+          ],
+          "after_samples": [
+            92971008,
+            92827648.0,
+            92475392.0,
+            92573696.0,
+            92528640.0
+          ],
+          "before_median": 93462528.0,
+          "after_median": 92573696.0,
+          "difference": -888832.0,
+          "relative_percent": -0.9510035936541327
+        },
+        "private_peak_bytes": {
+          "before_samples": [
+            94355456,
+            93327360,
+            210001920,
+            93925376,
+            92942336
+          ],
+          "after_samples": [
+            93437952,
+            93364224,
+            92909568,
+            92971008,
+            92946432
+          ],
+          "before_median": 93925376,
+          "after_median": 92971008,
+          "difference": -954368,
+          "relative_percent": -1.0160917535214338
+        }
+      }
+    },
+    {
+      "run": 2,
+      "profile": "ps7-245",
+      "metrics": {
+        "cpu_percent_one_core": {
+          "before_samples": [
+            0.9167435150346034,
+            1.0711734555118428,
+            0.9168147402608587,
+            0.9814038750780355,
+            1.7332668824639672
+          ],
+          "after_samples": [
+            0.9685673050626044,
+            0.9145992488032968,
+            0.9697826822766372,
+            0.968391237040336,
+            0.8232105248005622
+          ],
+          "before_median": 0.9814038750780355,
+          "after_median": 0.968391237040336,
+          "difference": -0.013012638037699475,
+          "relative_percent": -1.325920792463224
+        },
+        "working_set_median_bytes": {
+          "before_samples": [
+            148271104.0,
+            147628032.0,
+            148426752.0,
+            148910080,
+            149225472.0
+          ],
+          "after_samples": [
+            148731904.0,
+            147507200.0,
+            147673088.0,
+            147197952.0,
+            147746816.0
+          ],
+          "before_median": 148426752.0,
+          "after_median": 147673088.0,
+          "difference": -753664.0,
+          "relative_percent": -0.5077683031156001
+        },
+        "working_set_peak_bytes": {
+          "before_samples": [
+            148496384,
+            147873792,
+            148615168,
+            149114880,
+            149454848
+          ],
+          "after_samples": [
+            148938752,
+            147701760,
+            147812352,
+            147410944,
+            147943424
+          ],
+          "before_median": 148615168,
+          "after_median": 147812352,
+          "difference": -802816,
+          "relative_percent": -0.5401978888184549
+        },
+        "private_median_bytes": {
+          "before_samples": [
+            68691968.0,
+            67502080.0,
+            68136960.0,
+            68845568,
+            69095424.0
+          ],
+          "after_samples": [
+            68435968.0,
+            67522560.0,
+            67158016.0,
+            66822144.0,
+            67448832.0
+          ],
+          "before_median": 68691968.0,
+          "after_median": 67448832.0,
+          "difference": -1243136.0,
+          "relative_percent": -1.8097254106913927
+        },
+        "private_peak_bytes": {
+          "before_samples": [
+            69009408,
+            67862528,
+            68411392,
+            69148672,
+            69435392
+          ],
+          "after_samples": [
+            68751360,
+            67817472,
+            67371008,
+            67145728,
+            67735552
+          ],
+          "before_median": 69009408,
+          "after_median": 67735552,
+          "difference": -1273856,
+          "relative_percent": -1.8459164292497625
+        }
+      }
+    }
+  ],
+  "retention_decided": false,
+  "final_four_way_qualification": false,
+  "power_observation": {
+    "scheme_identity_matched": true,
+    "ac_battery_supply_recorded": false,
+    "battery_saver_recorded": false,
+    "limitation": "Historical collector recorded powercfg scheme hash only; do not infer identical AC/battery conditions."
+  },
+  "final_version_qualification": false
+}

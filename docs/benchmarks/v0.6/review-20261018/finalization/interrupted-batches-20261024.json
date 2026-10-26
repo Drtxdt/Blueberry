@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "observed_utc": "2026-10-24T11:18:18.442812+00:00",
+  "status": "interrupted_incomplete",
+  "exclusion_audit": [
+    {
+      "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r2-breakaway-20261020\\batch\\batch.json",
+      "sha256": "641fcbcfe38f17307d37e650e8bcfbb922143302f09d05bd17263ed7eac4ced2",
+      "stored_status": "running",
+      "processes": [
+        {
+          "recorded": {
+            "pid": 24076,
+            "created": 134369689084735248
+          },
+          "observed": null
+        },
+        {
+          "recorded": {
+            "pid": 30116,
+            "created": 134369689085858744
+          },
+          "observed": null
+        }
+      ],
+      "receipt_modified": false
+    },
+    {
+      "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r2-durable-20261019\\batch\\batch.json",
+      "sha256": "b661d6ef28304b13410106cbb30fcea0037c7c094765358420bf2381ec035d46",
+      "stored_status": "running",
+      "processes": [
+        {
+          "recorded": {
+            "pid": 17876,
+            "created": 134368687951742252
+          },
+          "observed": null
+        },
+        {
+          "recorded": {
+            "pid": 27736,
+            "created": 134368687953360697
+          },
+          "observed": null
+        }
+      ],
+      "receipt_modified": false
+    },
+    {
+      "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r2-stability-20261020\\batch\\batch.json",
+      "sha256": "62a8e8230a8d651493068ee2f2801d6c735864f7c387c4694c973a6cb795036d",
+      "stored_status": "running",
+      "processes": [
+        {
+          "recorded": {
+            "pid": 33136,
+            "created": 134369611330724415
+          },
+          "observed": null
+        },
+        {
+          "recorded": {
+            "pid": 36212,
+            "created": 134369611331699589
+          },
+          "observed": null
+        }
+      ],
+      "receipt_modified": false
+    }
+  ],
+  "continuation": {
+    "receipt": "E:\\OpenSource\\shellsense-rs\\artifacts\\r1-continuation-20261020\\coordinator\\batch.json",
+    "sha256": "f63f9cdf9446a1bcd2f694dda896d61c64aff7206dba1bbbc600b53592419c72",
+    "processes": [
+      {
+        "recorded": {
+          "pid": 22644,
+          "created": 134369743032359505
+        },
+        "observed": null
+      },
+      {
+        "recorded": {
+          "pid": 24600,
+          "created": 134369743033332305
+        },
+        "observed": null
+      }
+    ]
+  },
+  "original_receipts_modified": false,
+  "exit_time_and_cause": "unknown",
+  "eligible_for_round_or_version_decision": false
+}

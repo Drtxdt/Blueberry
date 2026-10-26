@@ -280,7 +280,7 @@ fn console_snapshot_helper() -> Result<()> {
     console_snapshot::write_attached()
 }
 
-fn snapshot_console(harness: &Harness, path: &Path) -> Result<()> {
+fn snapshot_console(harness: &mut Harness, path: &Path) -> Result<()> {
     console_snapshot::capture(harness, path)
 }
 
@@ -345,6 +345,15 @@ fn start_host() -> Result<RunningHost> {
         // This keeps PSReadLine history and learning output inside data_dir.
         ("BLUEBERRY_NO_HISTORY".to_owned(), "1".to_owned()),
         ("BLUEBERRY_PROBE_TOKEN".to_owned(), token.clone()),
+        ("BLUEBERRY_TEST_INPUT_RECORDS".into(), "1".into()),
+        (
+            "BLUEBERRY_TEST_INPUT_TRACE".into(),
+            data_dir
+                .path()
+                .join("input-trace.txt")
+                .to_string_lossy()
+                .into_owned(),
+        ),
         (
             "BLUEBERRY_PIPE_DIAGNOSTIC".into(),
             data_dir
@@ -527,7 +536,7 @@ fn select_native_candidate(host: &mut RunningHost, label: &str) -> Result<()> {
             ._data_dir
             .path()
             .join(format!("selection-{sample}.json"));
-        snapshot_console(&host.harness, &path)?;
+        snapshot_console(&mut host.harness, &path)?;
         let actual: Value = serde_json::from_slice(&fs::read(&path)?)?;
         let screen = actual["screen"].as_str().context("native screen")?;
         if selected_row_matches(screen, label) {
@@ -662,7 +671,7 @@ fn alternate_screen_for_external_pwsh_restores_main_screen_and_does_not_inject_f
     // repeated-resize test, before sending another navigation key.
     select_native_candidate(&mut host, "git")?;
     snapshot_console(
-        &host.harness,
+        &mut host.harness,
         &host._data_dir.path().join("alternate-before-tab.json"),
     )?;
     host.harness.send_text("\t")?;
@@ -752,7 +761,7 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
                     ._data_dir
                     .path()
                     .join(format!("resize-{rows}-{cols}.json"));
-                snapshot_console(&host.harness, &path)?;
+                snapshot_console(&mut host.harness, &path)?;
                 let actual: Value = serde_json::from_slice(&fs::read(&path)?)?;
                 if actual["width"] == cols && actual["height"] == rows {
                     break;
@@ -789,7 +798,7 @@ fn repeated_resize_and_large_output_preserve_menu_and_real_buffer() -> Result<()
             Path::new(env!("CARGO_MANIFEST_DIR")).join("target/nested-terminal-evidence");
         fs::create_dir_all(&evidence)?;
         let path = evidence.join(format!("resize-{}.json", uuid::Uuid::new_v4()));
-        snapshot_console(&host.harness, &path)?;
+        snapshot_console(&mut host.harness, &path)?;
         return Err(error.context(format!("native console snapshot: {}", path.display())));
     }
     let after_accept = request_real_buffer(&mut host.harness, "git")?;

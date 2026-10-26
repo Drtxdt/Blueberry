@@ -1,0 +1,45 @@
+{
+  "release_url": "https://github.com/Drtxdt/Blueberry/releases/tag/v0.5.3",
+  "published_at": "2026-10-26T06:34:52Z",
+  "tag_source": "8b97ebbc02d4b4908b060a939f418e1ac9d2507c",
+  "promotion_run": 40280616646,
+  "promotion_conclusion": "success",
+  "summary_text_encoding": "UTF-8 LF, generated on Linux",
+  "assets": [
+    {
+      "name": "blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip",
+      "sha256": "sha256:547abc51da22682dda50eb789105109e2b51ab53e190317c1b3e08d30a7c9d58",
+      "url": "https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip"
+    },
+    {
+      "name": "blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip.sha256",
+      "sha256": "sha256:0f3545ccb4d33dca35fb20c58e88e8e6eed7b503fc6c14454681f25df3f450fd",
+      "url": "https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip.sha256"
+    },
+    {
+      "name": "blueberry-v0.5.3-release.json",
+      "sha256": "sha256:f6feb6f50f13c3f58486569c61f66204bac00d7ac4b929beac1d2e1a95e3cefc",
+      "url": "https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/blueberry-v0.5.3-release.json"
+    },
+    {
+      "name": "blueberry-v0.5.3-validation-summary.json",
+      "sha256": "sha256:fde14638469503d412df476bcb56746b89d8ca2dcd0e3bd473b664f570d0fa62",
+      "url": "https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/blueberry-v0.5.3-validation-summary.json"
+    },
+    {
+      "name": "blueberry-v0.5.3-windows-x64.zip",
+      "sha256": "sha256:734bf7f7853178445c5e52e928a6e14cc4eaf0e58f30bf18deb875d4436d22ee",
+      "url": "https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/blueberry-v0.5.3-windows-x64.zip"
+    },
+    {
+      "name": "blueberry-v0.5.3-windows-x64.zip.sha256",
+      "sha256": "sha256:308b627e5d76d219369f68f8a84d8d30ca399cb34e18dc24f77bd32622d93495",
+      "url": "https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/blueberry-v0.5.3-windows-x64.zip.sha256"
+    },
+    {
+      "name": "install.ps1",
+      "sha256": "sha256:0dc22a9fc8cc445de40f95e115b0e88282574fd9be860b727ba12d71464c70b8",
+      "url": "https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/install.ps1"
+    }
+  ]
+}

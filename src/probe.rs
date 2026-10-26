@@ -6,6 +6,36 @@ use crate::{
 };
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::{Value, json};
+#[cfg(windows)]
+use std::sync::{Arc, Mutex};
+
+struct Observation {
+    bytes: Vec<u8>,
+    arrived: Instant,
+    qpc: Option<i64>,
+    native_viewport: Option<String>,
+}
+type ObservedChunk = std::result::Result<Observation, String>;
+
+/// Keep the explicit benchmark environment consistent with its actual child.
+/// A requested native path without a frozen model is rejected before spawn.
+pub fn inherit_native_observer_environment(environment: &mut BTreeMap<String, String>) {
+    for key in [
+        "BLUEBERRY_NATIVE_MODEL_DLL",
+        "BLUEBERRY_NATIVE_MODEL_SHA256",
+        "BLUEBERRY_NATIVE_OVERLAY",
+    ] {
+        if let Ok(value) = std::env::var(key) {
+            environment.insert(key.into(), value);
+        }
+    }
+    if environment
+        .get("BLUEBERRY_NATIVE_MODEL_DLL")
+        .is_some_and(|value| !value.is_empty())
+    {
+        environment.insert("TERM_PROGRAM".into(), "blueberry-native-model".into());
+    }
+}
 use std::{
     collections::{BTreeMap, VecDeque},
     io::{Read, Write},
@@ -17,31 +47,100 @@ use std::{
 
 pub struct Harness {
     session: pty::Session,
-    receive: mpsc::Receiver<(Vec<u8>, Instant, Option<i64>)>,
+    receive: mpsc::Receiver<ObservedChunk>,
+    native_viewport: Option<String>,
+    #[cfg(windows)]
+    native: Option<Arc<Mutex<crate::native_observer::NativeObserver>>>,
+    #[cfg(windows)]
+    started_at: Instant,
     last_output_arrival: Option<Instant>,
     last_output_qpc: Option<i64>,
     diagnostic: bool,
     decoder: Decoder,
     messages: VecDeque<Value>,
+    interaction_events: VecDeque<Value>,
     screen: vt100::Parser,
     trace: Vec<u8>,
     protocol_seen: bool,
     known_empty_buffer: bool,
     last_capabilities: Option<Value>,
+    cursor_replies: VecDeque<Value>,
+    completed_frames: Option<CompletedFrames>,
+}
+
+/// Opt-in functional-test observer. Normal timing probes do not scan or clone
+/// frames. The marker already terminates ordinary Direct renderer output.
+#[derive(Default)]
+struct CompletedFrames {
+    prefix: usize,
+    sequence: u64,
+    screen: Option<vt100::Screen>,
+}
+
+impl CompletedFrames {
+    fn process(&mut self, parser: &mut vt100::Parser, data: &[u8]) {
+        const END: &[u8] = b"\x1b]1337;BlueberryFrame\x07";
+        let mut start = 0;
+        for (index, byte) in data.iter().enumerate() {
+            if *byte == END[self.prefix] {
+                self.prefix += 1;
+            } else {
+                self.prefix = usize::from(*byte == END[0]);
+            }
+            if self.prefix == END.len() {
+                parser.process(&data[start..=index]);
+                start = index + 1;
+                self.screen = Some(parser.screen().clone());
+                self.sequence += 1;
+                self.prefix = 0;
+            }
+        }
+        parser.process(&data[start..]);
+    }
 }
 
 impl Harness {
+    pub fn observe_completed_frames(&mut self) {
+        self.completed_frames = Some(CompletedFrames::default());
+    }
+
+    pub fn completed_frame(&self) -> Option<(u64, String)> {
+        let frames = self.completed_frames.as_ref()?;
+        let screen = frames.screen.as_ref()?;
+        Some((
+            frames.sequence,
+            screen
+                .rows(0, screen.size().1)
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ))
+    }
+
     /// Preserve synthetic fixture state on success or failure, outside timing.
     pub fn save_evidence(&self, directory: &Path) -> Result<()> {
         std::fs::write(directory.join("probe-screen.txt"), self.viewport_contents())?;
+        if let Some((sequence, screen)) = self.completed_frame() {
+            std::fs::write(
+                directory.join("probe-completed-frame.json"),
+                serde_json::to_vec_pretty(&json!({"sequence":sequence,"screen":screen}))?,
+            )?;
+        }
         std::fs::write(directory.join("probe-output-tail.bin"), &self.trace)?;
         std::fs::write(
             directory.join("probe-pending-events.json"),
             serde_json::to_vec_pretty(&self.messages)?,
         )?;
         std::fs::write(
+            directory.join("probe-interaction-events.json"),
+            serde_json::to_vec_pretty(&self.interaction_events)?,
+        )?;
+        std::fs::write(
             directory.join("probe-capabilities.json"),
             serde_json::to_vec_pretty(&self.last_capabilities)?,
+        )?;
+        std::fs::write(
+            directory.join("probe-cursor-replies.json"),
+            serde_json::to_vec_pretty(&self.cursor_replies)?,
         )?;
         Ok(())
     }
@@ -58,15 +157,51 @@ impl Harness {
         env: &BTreeMap<String, String>,
         token: String,
     ) -> Result<Self> {
+        #[cfg(windows)]
+        let native = crate::native_observer::NativeObserver::configured(env)?;
+        #[cfg(windows)]
+        let started_at = Instant::now();
         let mut session = pty::spawn(program, args, cwd, env, 30, 120)?;
         let mut reader = std::mem::replace(&mut session.reader, Box::new(std::io::empty()));
         let (send, receive) = mpsc::channel();
         let diagnostic = args.iter().any(|arg| arg == "--trace")
             || env.get("BLUEBERRY_PROBE_QPC").is_some_and(|v| v == "1");
+        #[cfg(windows)]
+        let native_reader = native.clone();
         thread::spawn(move || {
             let mut buffer = [0u8; 16384];
             while let Ok(n) = reader.read(&mut buffer) {
                 let arrived = Instant::now();
+                if n == 0 {
+                    break;
+                }
+                #[cfg(windows)]
+                let native_viewport = if let Some(native) = &native_reader {
+                    let result = native
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("native observer poisoned"))
+                        .and_then(|mut native| {
+                            native.write(&buffer[..n])?;
+                            native.snapshot()
+                        });
+                    match result {
+                        Ok(viewport) => Some(viewport),
+                        Err(error) => {
+                            let _ = send.send(Err(format!("native observer: {error:#}")));
+                            break;
+                        }
+                    }
+                } else {
+                    None
+                };
+                #[cfg(windows)]
+                let arrived = if native_viewport.is_some() {
+                    Instant::now()
+                } else {
+                    arrived
+                };
+                #[cfg(not(windows))]
+                let native_viewport = None;
                 #[cfg(windows)]
                 let qpc = if diagnostic {
                     crate::latency_layers::qpc().ok()
@@ -75,7 +210,15 @@ impl Harness {
                 };
                 #[cfg(not(windows))]
                 let qpc = None;
-                if n == 0 || send.send((buffer[..n].to_vec(), arrived, qpc)).is_err() {
+                if send
+                    .send(Ok(Observation {
+                        bytes: buffer[..n].to_vec(),
+                        arrived,
+                        qpc,
+                        native_viewport,
+                    }))
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -83,16 +226,24 @@ impl Harness {
         Ok(Self {
             session,
             receive,
+            native_viewport: None,
             decoder: Decoder::new(token),
             messages: VecDeque::new(),
-            screen: vt100::Parser::new(30, 120, 0),
+            interaction_events: VecDeque::new(),
+            screen: vt100::Parser::new(30, 120, 1024),
             trace: Vec::new(),
             protocol_seen: false,
             known_empty_buffer: false,
             last_capabilities: None,
+            cursor_replies: VecDeque::new(),
+            completed_frames: None,
             last_output_arrival: None,
             last_output_qpc: None,
             diagnostic,
+            #[cfg(windows)]
+            native,
+            #[cfg(windows)]
+            started_at,
         })
     }
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {
@@ -114,13 +265,23 @@ impl Harness {
         }
     }
     pub fn pump(&mut self, timeout: Duration) -> Result<()> {
-        let (bytes, arrived, qpc) = self.receive.recv_timeout(timeout).with_context(|| {
-            format!(
-                "PTY timeout/closed. Screen: {}; raw tail: {:?}",
-                self.screen.screen().contents(),
-                String::from_utf8_lossy(&self.trace)
-            )
-        })?;
+        let Observation {
+            bytes,
+            arrived,
+            qpc,
+            native_viewport,
+        } = self
+            .receive
+            .recv_timeout(timeout)
+            .with_context(|| {
+                format!(
+                    "PTY timeout/closed. Screen: {}; raw tail: {:?}",
+                    self.screen.screen().contents(),
+                    String::from_utf8_lossy(&self.trace)
+                )
+            })?
+            .map_err(anyhow::Error::msg)?;
+        self.native_viewport = native_viewport;
         for part in self.decoder.feed(&bytes) {
             match part {
                 Part::Data(data) => {
@@ -130,10 +291,33 @@ impl Harness {
                     if self.trace.len() > 4096 {
                         self.trace.drain(..self.trace.len() - 4096);
                     }
-                    self.screen.process(&data);
+                    if let Some(frames) = &mut self.completed_frames {
+                        frames.process(&mut self.screen, &data);
+                    } else {
+                        self.screen.process(&data);
+                    }
                 }
                 Part::Message(value) => {
                     self.protocol_seen = true;
+                    // Preserve consumed editor events for failed functional
+                    // probes. Timing runs neither clone nor retain them.
+                    if self.diagnostic
+                        && matches!(
+                            value["event"].as_str(),
+                            Some(
+                                "buffer"
+                                    | "navigation_presented"
+                                    | "prompt_end"
+                                    | "editing"
+                                    | "execute"
+                            )
+                        )
+                    {
+                        if self.interaction_events.len() == 256 {
+                            self.interaction_events.pop_front();
+                        }
+                        self.interaction_events.push_back(value.clone());
+                    }
                     if value["event"] == "capabilities" {
                         self.last_capabilities = Some(value.clone());
                     }
@@ -146,7 +330,30 @@ impl Harness {
                     self.messages.push_back(value);
                 }
                 Part::CursorQuery(private) => {
+                    #[cfg(windows)]
+                    if self.native.is_some() {
+                        // The real parser already queued its response. Never
+                        // inject a second cursor response into the editor.
+                        continue;
+                    }
                     let (row, col) = self.screen.screen().cursor_position();
+                    if self.diagnostic {
+                        #[cfg(windows)]
+                        let reply_qpc = crate::latency_layers::qpc().ok();
+                        #[cfg(not(windows))]
+                        let reply_qpc: Option<i64> = None;
+                        if self.cursor_replies.len() == 256 {
+                            self.cursor_replies.pop_front();
+                        }
+                        self.cursor_replies.push_back(json!({
+                            "query_qpc": qpc,
+                            "reply_qpc": reply_qpc,
+                            "queue_delay_ms": arrived.elapsed().as_secs_f64() * 1000.0,
+                            "row": row + 1,
+                            "column": col + 1,
+                            "private": private,
+                        }));
+                    }
                     // A terminal cursor response is not an editor keystroke.
                     // Preserve the last confirmed empty-buffer state, especially
                     // when ConPTY asks for its position after prompt_end.
@@ -162,6 +369,17 @@ impl Harness {
                     self.session.writer.flush()?;
                 }
             }
+        }
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            let replies = native
+                .lock()
+                .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+                .replies()?;
+            for reply in replies {
+                self.session.writer.write_all(&reply)?;
+            }
+            self.session.writer.flush()?;
         }
         Ok(())
     }
@@ -196,6 +414,9 @@ impl Harness {
     pub fn contents(&self) -> String {
         self.screen.screen().contents()
     }
+    pub fn screen_snapshot(&self) -> vt100::Screen {
+        self.screen.screen().clone()
+    }
     /// Arrival of the bytes that most recently changed the VT observation.
     /// This excludes test-thread scheduling and is not a physical pixel time.
     pub fn last_output_arrival(&self) -> Option<Instant> {
@@ -212,13 +433,83 @@ impl Harness {
             .trim_end()
             .to_owned()
     }
+    /// Strict performance observation; a native parser failure is collection
+    /// failure, never a valid slow sample or a missing completion capability.
+    pub fn observed_viewport(&self) -> Result<String> {
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            native
+                .lock()
+                .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+                .check_error()?;
+            if self.native_viewport.is_none() {
+                return Ok(String::new());
+            }
+        }
+        Ok(self
+            .native_viewport
+            .clone()
+            .unwrap_or_else(|| self.viewport_contents()))
+    }
+    pub fn native_observer_identity(&self) -> Option<Value> {
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            return native.lock().ok().map(|native| native.identity());
+        }
+        None
+    }
+    #[cfg(windows)]
+    pub fn native_history(&self) -> Result<String> {
+        self.native
+            .as_ref()
+            .context("history validation requires the frozen native observer")?
+            .lock()
+            .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+            .history()
+    }
+    #[cfg(windows)]
+    pub fn native_cell_colors(&self, row: u32, column: u32) -> Result<[u32; 4]> {
+        self.native
+            .as_ref()
+            .context("history validation requires the frozen native observer")?
+            .lock()
+            .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+            .cell_colors(row, column)
+    }
+    pub fn observation_start(&self, external: Instant) -> Instant {
+        #[cfg(windows)]
+        if self.native.is_some() {
+            return self.started_at;
+        }
+        external
+    }
     pub fn process_id(&self) -> Option<u32> {
         self.session.child.process_id()
+    }
+    /// Read-only failure evidence; never interprets a missing trace as a hang.
+    pub fn process_status(&mut self) -> Value {
+        let pid = self.process_id();
+        match self.session.child.try_wait() {
+            Ok(Some(status)) => {
+                serde_json::json!({"pid":pid,"state":"exited","exit_code":status.exit_code()})
+            }
+            Ok(None) => serde_json::json!({"pid":pid,"state":"running"}),
+            Err(error) => {
+                serde_json::json!({"pid":pid,"state":"unknown","error":error.to_string()})
+            }
+        }
     }
     pub fn capabilities(&self) -> Option<&Value> {
         self.last_capabilities.as_ref()
     }
     pub fn resize(&mut self, rows: u16, cols: u16) -> Result<()> {
+        #[cfg(windows)]
+        if let Some(native) = &self.native {
+            native
+                .lock()
+                .map_err(|_| anyhow::anyhow!("native observer poisoned"))?
+                .resize(rows, cols)?;
+        }
         self.session.master.resize(portable_pty::PtySize {
             rows,
             cols,
@@ -271,6 +562,11 @@ impl Harness {
             }
         }
         self.send(b"exit\r")?;
+        self.wait_exit(deadline.saturating_duration_since(Instant::now()))
+    }
+    /// Wait for a standalone UI to exit without injecting a shell command.
+    pub fn wait_exit(&mut self, timeout: Duration) -> Result<()> {
+        let deadline = Instant::now() + timeout;
         loop {
             if let Some(status) = self.session.child.try_wait()? {
                 ensure!(
@@ -286,6 +582,77 @@ impl Harness {
                 self.viewport_contents()
             );
             let _ = self.pump(Duration::from_millis(50));
+        }
+    }
+}
+
+#[cfg(all(test, windows))]
+mod native_observation_tests {
+    use super::*;
+
+    struct OwnedFixture(Harness);
+    impl Drop for OwnedFixture {
+        fn drop(&mut self) {
+            let _ = self.0.session.child.kill();
+            let _ = self.0.session.child.wait();
+        }
+    }
+
+    fn wait_live(h: &mut Harness, marker: &str) -> Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let native = h.native.as_ref().context("native DLL not configured")?;
+            let (screen, replies) = {
+                let mut native = native.lock().unwrap();
+                (native.snapshot()?, native.replies()?)
+            };
+            // Deliberately service replies without consuming observation events.
+            for reply in replies {
+                h.session.writer.write_all(&reply)?;
+            }
+            h.session.writer.flush()?;
+            if screen.contains(marker) {
+                return Ok(());
+            }
+            ensure!(
+                Instant::now() < deadline,
+                "fixture did not print {marker}: {screen}"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    #[ignore = "requires the frozen CI native DLL and digest"]
+    fn native_snapshot_cannot_outrun_its_observation_timestamp() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let mut environment = BTreeMap::from([("BLUEBERRY_NATIVE_OVERLAY".into(), "4".into())]);
+        inherit_native_observer_environment(&mut environment);
+        let mut fixture = OwnedFixture(Harness::start(&pty::default_shell(), &[
+            "-NoLogo".into(), "-NoProfile".into(), "-Command".into(),
+            "[Console]::Write('BEFORE'); $null=[Console]::ReadLine(); [Console]::Write('AFTER'); $null=[Console]::ReadLine()".into()
+        ], directory.path(), &environment, String::new())?);
+        let h = &mut fixture.0;
+        wait_live(h, "BEFORE")?;
+        h.send_text("go")?;
+        h.send(b"\r")?;
+        wait_live(h, "AFTER")?;
+        ensure!(
+            h.observed_viewport()?.is_empty(),
+            "unconsumed future output became a measured viewport"
+        );
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            h.pump(Duration::from_millis(50))?;
+            let screen = h.observed_viewport()?;
+            if screen.contains("BEFORE") {
+                ensure!(
+                    !screen.contains("AFTER"),
+                    "later snapshot was paired with earlier timestamp"
+                );
+                return Ok(());
+            }
+            ensure!(Instant::now() < deadline, "BEFORE observation missing");
         }
     }
 }
@@ -530,4 +897,40 @@ pub fn run_with_adapter(
         "command_index_build_ms":index_ms,"command_count":index.len(),"root_lookup":stats(&lookups),
         "verified":["PSReadLine real buffer","validated replacement gi -> git","loaded shell commands","execute -> next prompt"]
     }))
+}
+
+#[cfg(test)]
+mod completed_frame_tests {
+    use super::CompletedFrames;
+
+    #[test]
+    fn split_output_never_publishes_a_partially_scrolled_menu() {
+        let first = b"\x1b[1;1Hselected old\x1b]1337;BlueberryFrame\x07";
+        let next = b"\x1b[1;1Hselected new\x1b]1337;BlueberryFrame\x07";
+        for split in 0..next.len() {
+            let mut parser = vt100::Parser::new(5, 40, 0);
+            let mut frames = CompletedFrames::default();
+            frames.process(&mut parser, first);
+            frames.process(&mut parser, &next[..split]);
+            assert_eq!(frames.sequence, 1);
+            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected old");
+            for byte in &next[split..] {
+                frames.process(&mut parser, &[*byte]);
+            }
+            assert_eq!(frames.sequence, 2);
+            assert_eq!(frames.screen.as_ref().unwrap().contents(), "selected new");
+        }
+    }
+
+    #[test]
+    fn later_partial_frame_in_same_read_does_not_replace_completed_frame() {
+        let mut parser = vt100::Parser::new(5, 40, 0);
+        let mut frames = CompletedFrames::default();
+        frames.process(
+            &mut parser,
+            b"\x1b[1;1Hcomplete\x1b]1337;BlueberryFrame\x07\x1b[1;1Hpartial!",
+        );
+        assert_eq!(frames.screen.as_ref().unwrap().contents(), "complete");
+        assert_eq!(parser.screen().contents(), "partial!");
+    }
 }

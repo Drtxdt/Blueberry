@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "measurement_complete": false,
+  "batch": "E:\\OpenSource\\shellsense-rs\\artifacts\\performance-serial-20261024f\\batch\\batch.json",
+  "batch_sha256": "0728F4D11533C14C3975C630C368C04B5D20D0465AE8CCD9FC9522603CF5BEB8",
+  "failed_task": "r2-run1-before",
+  "failure": "hot setup command discovery never completed",
+  "failed_session": "js/pair-8",
+  "observations": [
+    {
+      "path": "C:\\Windows\\Temp\\bbr2-serial-20261024f\\run1-before\\raw-ps51-200-hot-descriptions-true-attempt-1\\blueberry-beta-metrics-a0e84d8e-b6d1-4ff0-9525-5ce0bb8b9afd\\data\\js\\pair-8\\c890aec3-7350-44ea-aa73-11d4229117c5\\adapter.json",
+      "sha256": "1FB478645B055840313DD2D6E3E5E11EDB9DCE12CA4F7C24CDB1DECA2E13AD82",
+      "value": {
+        "automatic_menu": true,
+        "conpty": {
+          "mode": "not_loaded"
+        },
+        "disabled_reason": null,
+        "editor_dll_sha256": "c4bc1aab776e91dfce74782373d3b3688a5ed87dc520d510575740ac3d40f085",
+        "editor_fallback_reason": null,
+        "editor_mode": "editor_hooks_v1",
+        "editor_patch": "blueberry-editor-v1.2",
+        "host_mode": "direct",
+        "psreadline_version": "2.0.0",
+        "session_commands": {
+          "complete": false,
+          "count": 192,
+          "error": null,
+          "session": 1,
+          "source": "editor"
+        },
+        "shell_version": "5.1.26100.9711",
+        "system_commands": {
+          "count": 0,
+          "error": null,
+          "source": "system module export metadata"
+        },
+        "terminal_restore": "legacy_cells",
+        "transport": "pipe"
+      }
+    },
+    {
+      "path": "C:\\Windows\\Temp\\bbr2-serial-20261024f\\run1-before\\raw-ps51-200-hot-descriptions-true-attempt-1\\blueberry-beta-metrics-a0e84d8e-b6d1-4ff0-9525-5ce0bb8b9afd\\data\\js\\pair-8\\c890aec3-7350-44ea-aa73-11d4229117c5\\adapter.tmp",
+      "sha256": "DD71105DB1C8716C754758EDE4B717CA0978352104DEABE43D3FD09376A9F9EB",
+      "value": {
+        "automatic_menu": true,
+        "conpty": {
+          "mode": "not_loaded"
+        },
+        "disabled_reason": null,
+        "editor_dll_sha256": "c4bc1aab776e91dfce74782373d3b3688a5ed87dc520d510575740ac3d40f085",
+        "editor_fallback_reason": null,
+        "editor_mode": "editor_hooks_v1",
+        "editor_patch": "blueberry-editor-v1.2",
+        "host_mode": "direct",
+        "psreadline_version": "2.0.0",
+        "session_commands": {
+          "complete": true,
+          "count": 369,
+          "error": null,
+          "session": 1,
+          "source": "editor"
+        },
+        "shell_version": "5.1.26100.9711",
+        "system_commands": {
+          "count": 0,
+          "error": null,
+          "source": "system module export metadata"
+        },
+        "terminal_restore": "legacy_cells",
+        "transport": "pipe"
+      }
+    }
+  ],
+  "cause": "unresolved; system count remains zero, canonical status lags temporary status",
+  "short_diagnostics": {
+    "path": "C:\\Windows\\Temp\\bb-r2-readiness-diagnostic-20261024\\diagnostic.json",
+    "sha256": "BA6677A78A554BED19D2D9FCB4426DFB7FFB8E9070FE55B22549B391A7F95460",
+    "trials_passed": 3,
+    "formal_timing_eligible": false
+  },
+  "next_step": "One bounded trace reproduction with owned process polling",
+  "r3_controller": {
+    "recorded_status": "waiting_for_complete_r1_resources_and_r2",
+    "owner_alive": false,
+    "receipt_unchanged": true,
+    "exit_reason": "not established",
+    "r3_started": false
+  },
+  "partial_samples_reused": false
+}

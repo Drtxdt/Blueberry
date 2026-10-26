@@ -547,18 +547,17 @@ impl Editor {
             bail!("请先在 TOML 中修正文件：{e}");
         }
         self.settings.validate().context("请修正配置后再保存")?;
-        let disk = match fs::read(&self.path) {
-            Ok(bytes) => Some(bytes),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => None,
-            Err(e) => return Err(e.into()),
-        };
-        if disk != self.original {
-            bail!("文件已被其他程序修改，请选择“重新加载”后再编辑。");
-        }
-        let bytes = self.bytes();
-        if disk.as_ref() != Some(&bytes) {
-            write_document(&self.path, &bytes)?;
-        }
+        let bytes = crate::config_store::merge(
+            &self.path,
+            &self.baseline,
+            &self.bytes(),
+            self.original.is_some(),
+        )?;
+        self.bom = bytes.starts_with(&[0xef, 0xbb, 0xbf]);
+        self.doc = std::str::from_utf8(&bytes)?
+            .trim_start_matches('\u{feff}')
+            .parse()?;
+        self.refresh()?;
         self.original = Some(bytes);
         self.baseline = self.bytes();
         self.notice = "已保存；正在运行的 Blueberry 会通过配置热重载应用修改。".into();
@@ -1156,47 +1155,6 @@ fn line(
     }
     write!(out, "\x1b[0m")?;
     Ok(())
-}
-
-fn write_document(path: &Path, bytes: &[u8]) -> Result<()> {
-    let parent = path.parent().context("配置文件没有父目录")?;
-    fs::create_dir_all(parent)?;
-    let temporary = parent.join(format!(".blueberry-config-{}.tmp", uuid::Uuid::new_v4()));
-    let result = (|| -> Result<()> {
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temporary)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        drop(file);
-        #[cfg(windows)]
-        {
-            use std::os::windows::ffi::OsStrExt;
-            use windows_sys::Win32::Storage::FileSystem::{
-                MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
-            };
-            let from: Vec<u16> = temporary.as_os_str().encode_wide().chain(Some(0)).collect();
-            let to: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
-            if unsafe {
-                MoveFileExW(
-                    from.as_ptr(),
-                    to.as_ptr(),
-                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-                )
-            } == 0
-            {
-                return Err(io::Error::last_os_error().into());
-            }
-        }
-        #[cfg(not(windows))]
-        fs::rename(&temporary, path)?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result.with_context(|| format!("无法保存 {}", path.display()))
 }
 
 struct Screen {

@@ -39,7 +39,9 @@ fn standalone_template_form_cancel_and_query_shrink_leave_no_stale_rows() -> Res
     fs::create_dir_all(store.parent().context("store parent")?)?;
     let original = "schema_version = 2\n[[templates]]\nid = 'branch'\nname = '模板'\ntokens = ['git', 'switch', '-c', '{branch}']\n[[templates.parameters]]\nname = 'branch'\nlabel = '分支名称'\nkind = 'text'\nrequired = true\n";
     fs::write(&store, original)?;
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
+    let program = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_blueberry").into());
     let args = vec!["hub".into(), "--query".into(), "模板😀".into()];
     let env = BTreeMap::from([
         (

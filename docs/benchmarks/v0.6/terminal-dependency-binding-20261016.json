@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "asset_bindings_validated_through_manual_gate": true,
+  "final_acceptance": false,
+  "blocked_at": "ps51-2.0.0: manual history acceptance belongs to another Terminal package",
+  "manual_results_fabricated": false,
+  "original_terminal_sha256": "22F6C01A91C19506782ADE2E98FF2C2AA46835DCF7CD5AD8BA3C09249CA5EA48",
+  "native_model_dll_sha256": "CA9D5CE2BBD6399FECB3E957068F9AA4D6C44113F2EBF266249AC71B46659FA5",
+  "kind": "Original b1 companion asset-binding preflight; not final manual acceptance",
+  "ci_run": 38664398242,
+  "terminal_artifact": 11941135812,
+  "native_model_artifact": 11940606860,
+  "source_commit": "b1a2d3f0ebd0a8e6c4a89777d07de6424fa931a6",
+  "contract": {
+    "path": "artifacts\\terminal-dependency-contract-preflight-20261016\\contract.json",
+    "sha256": "B826618C42654309BA119E14C1398A5E409E2DEA8FB2D951B3D54A6D91C87F82"
+  },
+  "ci_record": {
+    "path": "artifacts\\terminal-dependency-contract-preflight-20261016\\ci.json",
+    "sha256": "08E6904A4833170C7C79BAAB55BD367247B019A78F039999010AF44A940BB805"
+  },
+  "validation": {
+    "python_tests": 89,
+    "python_skipped": 1,
+    "core_passed": 134,
+    "native_opt_in_ignored": 2,
+    "history_search_exact_repetitions": 12,
+    "clippy": "passed",
+    "format": "passed"
+  },
+  "release_blocked": true
+}

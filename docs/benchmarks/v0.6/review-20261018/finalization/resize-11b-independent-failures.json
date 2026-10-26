@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "source_commit": "11b68441372485a7fff8936131b5da286b8acccc",
+  "run_id": 39233990367,
+  "status": "failures_retained_fix_pending_ci",
+  "previous_green_run_id": 39228676557,
+  "failures": [
+    {
+      "job_id": 117998512043,
+      "fixture": "direct-multiline-2aokqT",
+      "artifact_id": 12179780331,
+      "artifact_sha256": "32D9B24D2E0E3EAC61247DCDDCE97AE95DEAE2F21441DB08DB169104ABD67CA3",
+      "verification": "Selected ZIP members downloaded by range and CRC verified; full archive SHA not locally verified",
+      "observation": "Native screen loses HEAD/RIGHT after resize; output has new menu but no prompt redraw",
+      "fix": "Retain painted geometry after pixel clearing until reflow or explicit dismissal; deterministic clear-before-resize regression"
+    },
+    {
+      "job_id": 117998512348,
+      "fixture": "host-nEyKbG",
+      "artifact_id": 12178675083,
+      "artifact_sha256": "356D5A7EAE64FCDC7061C4EB47A9542DF1A24FAC74B79FA2C0381CC77169F417",
+      "verification": "Full original archive SHA locally verified",
+      "observation": "Visible git line retains gi menu; prompt_start repeats during resize; no git buffer event",
+      "fix": "ReadLine-active prompt redraw event preserves input lifecycle and schedules buffer refresh without interrupting history"
+    }
+  ],
+  "local_execution": "Deferred while independent frozen formal R2 measurements are active",
+  "release_ready": false
+}

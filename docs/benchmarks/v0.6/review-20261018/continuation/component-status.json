@@ -1,0 +1,23 @@
+{
+  "dependency": {
+    "artifact_id": 11941135812,
+    "asset_name": "blueberry-terminal-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip",
+    "executable_member": "bin/x64/Release/WindowsTerminal/WindowsTerminal.exe",
+    "executable_sha256": "332818C5FA84C675DB21939974FB53E3D908408952D28CAD58035590FC0A32C8",
+    "interface_version": 4,
+    "licenses": {
+      "bin/x64/Release/WindowsTerminal/BLUEBERRY-PATCH-LICENSE.txt": "2FEB9979C41260E08EC02DFEC79AD2F0A4421E9C2531F6E6DAF461CB5E4B5DCE",
+      "bin/x64/Release/WindowsTerminal/TERMINAL-LICENSE.txt": "5D177F23ECFEB0EA8E050B6A5A16355E1AE9A0B286436CA8F83ED08B3795BE6B",
+      "bin/x64/Release/WindowsTerminal/TERMINAL-THIRD-PARTY-NOTICES.md": "E7FBAADEE6AB20C28B87730A510EE5F5815D8FB4BD88D1D54D282DC2A74C0726"
+    },
+    "package_sha256": "22F6C01A91C19506782ADE2E98FF2C2AA46835DCF7CD5AD8BA3C09249CA5EA48",
+    "run_id": 38664398242,
+    "source_commit": "b1a2d3f0ebd0a8e6c4a89777d07de6424fa931a6",
+    "upstream_commit": "7ff11ee107c984e236960ec948b450ccbc10187b"
+  },
+  "history": [],
+  "identity": "7d6a7dd221dc60205d0b5856087129e1c50c811926b09d19363c71b63ac8257a",
+  "installed": true,
+  "state": "active",
+  "version": "1.24.12741.0-native4-b1a2d3f"
+}

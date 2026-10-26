@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "run": 40097143597,
+  "source": "8b97ebbc02d4b4908b060a939f418e1ac9d2507c",
+  "packages": {
+    "terminal": "547ABC51DA22682DDA50EB789105109E2B51AB53E190317C1B3E08D30A7C9D58",
+    "core": "734BF7F7853178445C5E52E928A6E14CC4EAF0E58F30BF18DEB875D4436D22EE"
+  },
+  "executable_sha256": "B305766EDD2A3147AAABDC0F50BC642F6FEDA49CF2B41378E226BFA2907439F7",
+  "archives": [
+    {
+      "id": 12562029328,
+      "path": "E:\\OpenSource\\shellsense-rs\\artifacts\\ci-83963b1-12562029328.zip",
+      "sha256": "7a507bd2d934c8b58d561786014beb952cdc7f8f1eb88ea35195d0a0a61548c2"
+    },
+    {
+      "id": 12561886669,
+      "path": "E:\\OpenSource\\shellsense-rs\\artifacts\\ci-83963b1-12561886669.zip",
+      "sha256": "cc224107e9da5d704bc7df8b67c24e84984f0bfaf43707318aafe29c301d62e5"
+    },
+    {
+      "id": 12562741205,
+      "path": "E:\\OpenSource\\shellsense-rs\\artifacts\\ci-83963b1-12562741205.zip",
+      "sha256": "d30fb5df393b2c6e8c28e97e4cd90069ec0c48a90af50900f2444325ce02687e"
+    }
+  ],
+  "automatic_profile_pairs": 180,
+  "profiles": [
+    {
+      "combination": "ps51-200",
+      "cache": "cold",
+      "report": "ps51-200-cold/startup.json",
+      "sha256": "f42c001ba9539839211868ccc025102cecca6755f40a5644de1883226e229c31",
+      "startup_delta_p50_ms": 288.9949999999999,
+      "startup_delta_p95_ms": 314.74810000000025,
+      "restored": true
+    },
+    {
+      "combination": "ps51-200",
+      "cache": "warm",
+      "report": "ps51-200-warm/startup.json",
+      "sha256": "e09ff5e0df175d413d642a3823c9e00afb2e63e598c085a9dd625ef9c767e630",
+      "startup_delta_p50_ms": 291.0294500000002,
+      "startup_delta_p95_ms": 342.0828999999999,
+      "restored": true
+    },
+    {
+      "combination": "ps51-245",
+      "cache": "cold",
+      "report": "ps51-245-cold/startup.json",
+      "sha256": "6402e718407b5597633fc0fb0e0bde63cc23325dfcb7f0c671a8cf85307474f7",
+      "startup_delta_p50_ms": 294.39284999999984,
+      "startup_delta_p95_ms": 343.8341999999998,
+      "restored": true
+    },
+    {
+      "combination": "ps51-245",
+      "cache": "warm",
+      "report": "ps51-245-warm/startup.json",
+      "sha256": "dcdc341c59490f8e90c5f118b77734de72b3da2116df487bf1b535950fe12f9f",
+      "startup_delta_p50_ms": 304.6719999999999,
+      "startup_delta_p95_ms": 394.9300999999998,
+      "restored": true
+    },
+    {
+      "combination": "ps7-245",
+      "cache": "cold",
+      "report": "ps7-245-cold/startup.json",
+      "sha256": "90859408fc1b93e11fccf6ca233cd50e3d88f36e2f91ad6b60e51a1aaf0958ea",
+      "startup_delta_p50_ms": 410.8601,
+      "startup_delta_p95_ms": 437.3067000000001,
+      "restored": true
+    },
+    {
+      "combination": "ps7-245",
+      "cache": "warm",
+      "report": "ps7-245-warm/startup.json",
+      "sha256": "cd74b95491fce0d29f2da5e1ddb75ba07a13f8f6fd79e8eac5645e8d39c5cd60",
+      "startup_delta_p50_ms": 408.94989999999984,
+      "startup_delta_p95_ms": 442.5825000000002,
+      "restored": true
+    }
+  ],
+  "packaged_workflows": 36,
+  "interaction": {
+    "input_protocol": [
+      {
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "workflows": 12,
+        "executable_sha256": "B305766EDD2A3147AAABDC0F50BC642F6FEDA49CF2B41378E226BFA2907439F7",
+        "workflow_trace": "disabled",
+        "editor": "2.0.0",
+        "status": "passed"
+      },
+      {
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "workflows": 12,
+        "executable_sha256": "B305766EDD2A3147AAABDC0F50BC642F6FEDA49CF2B41378E226BFA2907439F7",
+        "workflow_trace": "disabled",
+        "editor": "2.4.5",
+        "status": "passed"
+      },
+      {
+        "shell": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "workflows": 12,
+        "executable_sha256": "B305766EDD2A3147AAABDC0F50BC642F6FEDA49CF2B41378E226BFA2907439F7",
+        "workflow_trace": "disabled",
+        "editor": "2.4.5",
+        "status": "passed"
+      }
+    ],
+    "package_sha256": "734BF7F7853178445C5E52E928A6E14CC4EAF0E58F30BF18DEB875D4436D22EE",
+    "standalone_ui": "passed",
+    "executable_sha256": "B305766EDD2A3147AAABDC0F50BC642F6FEDA49CF2B41378E226BFA2907439F7"
+  },
+  "installation": [
+    {
+      "kind": "history_0_1_5",
+      "member": "install-history-7fb31091e82b49488acfff53783a3ad4/results.json",
+      "sha256": "385cb72f73d2d98772740184a690cddd7f5bcb7c098a05418e03ae7ebd6d622e"
+    },
+    {
+      "kind": "public052_upgrade",
+      "member": "public-upgrade-c05ebfaf7fed4f50ad5e23338a34e54b/receipt.json",
+      "sha256": "2e404e17b7fc97c5640989a08fb582f8a2d1213d39338946bf08a151cce1f144"
+    },
+    {
+      "kind": "ntfs_disk_full_acl",
+      "member": "storage-failures-3bfda8d8b1594bf38ec44f4c4bf85cdd/results.json",
+      "sha256": "ad4169aecce6b8f29fc7e9e8450681b410f01c0a950832cafd46eec331459ffd"
+    },
+    {
+      "kind": "ntfs_disk_full_acl",
+      "member": "storage-failures-811ad0a3a63d4324888797b4a45917f4/results.json",
+      "sha256": "01000f4695db3e0b8eaaa74aa821e817df26ae30dc39a04e2234efc3ead1402f"
+    }
+  ],
+  "limits": "Cloud automatic-profile observations, not full transient process lifecycle or GUI pixels; not local performance qualification"
+}

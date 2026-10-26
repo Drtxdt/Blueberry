@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "source_commit": "6bb6cc2cd33b97fd77adec2df78c2925abaf9573",
+  "run_id": 39228676557,
+  "job_id": 117983005894,
+  "artifact_id": 12176649074,
+  "archive_sha256": "BC46F8EBE8D67EBEEC9A2AE11B3C928949C6341BDEC544CF2C13F9733A2F7EE3",
+  "archive_sha256_verified": true,
+  "report_member": "packaged-interaction.json",
+  "report_sha256": "09A77D2F034898122F346DCB5FAF28B1C504772B08EA85BBEB3E03F9DB0C6805",
+  "result": {
+    "executable_sha256": "8E7C3BCAB712CEAA94AC37E0806B33B4EB3A666B0B1943268C2261DED5363C9D",
+    "input_protocol": [
+      {
+        "executable_sha256": "8E7C3BCAB712CEAA94AC37E0806B33B4EB3A666B0B1943268C2261DED5363C9D",
+        "editor": "2.0.0",
+        "status": "passed",
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      },
+      {
+        "executable_sha256": "8E7C3BCAB712CEAA94AC37E0806B33B4EB3A666B0B1943268C2261DED5363C9D",
+        "editor": "2.4.5",
+        "status": "passed",
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      },
+      {
+        "executable_sha256": "8E7C3BCAB712CEAA94AC37E0806B33B4EB3A666B0B1943268C2261DED5363C9D",
+        "editor": "2.4.5",
+        "status": "passed",
+        "shell": "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+      }
+    ],
+    "standalone_ui": "passed",
+    "package_sha256": "4577AB16FF929BB3E1A46AB50F0693AB0DA1E92ABE23FF1D0887B87D1AE52278"
+  }
+}

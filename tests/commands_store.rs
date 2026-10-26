@@ -7,6 +7,153 @@ use std::{
     process::{Command, Stdio},
 };
 
+#[derive(Clone, Copy)]
+enum BlockedReplacement {
+    Release,
+    ExternalEdit,
+    KeepBlocked,
+}
+
+fn blocked_favorite_replacement(action: BlockedReplacement) -> Result<()> {
+    use std::{
+        io::{BufRead, BufReader},
+        os::windows::fs::OpenOptionsExt,
+        sync::mpsc,
+        thread,
+        time::{Duration, Instant},
+    };
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/store-evidence");
+    fs::create_dir_all(&evidence)?;
+    let mut directory = tempfile::Builder::new()
+        .prefix("blocked-")
+        .tempdir_in(evidence)?;
+    directory.disable_cleanup(true);
+    let root = directory.path();
+    let path = root.join("Blueberry/commands.toml");
+    fs::create_dir_all(path.parent().context("store parent")?)?;
+    let original = "# original\nschema_version = 2\n";
+    let external = "# external editor\nschema_version = 2\n";
+    fs::write(&path, original)?;
+    // Permit readers/writers, but deliberately prevent rename/delete until
+    // the real CLI has reached its final validation before atomic replace.
+    let mut blocker = Some(
+        fs::OpenOptions::new()
+            .read(true)
+            .share_mode(3)
+            .open(&path)?,
+    );
+    let mut child = blueberry(root)
+        .env("BLUEBERRY_TEST_STORE_TRACE", "1")
+        .args([
+            "hub",
+            "--add",
+            "blocked-favorite",
+            "--command",
+            "git status",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let stderr = child.stderr.take().context("writer stderr")?;
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let reader = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        for line in BufReader::new(stderr).split(b'\n') {
+            let line = line?;
+            if String::from_utf8_lossy(&line).contains("\"stage\":\"validate\"") {
+                let _ = ready_tx.send(());
+            }
+            bytes.extend_from_slice(&line);
+            bytes.push(b'\n');
+        }
+        Ok::<_, std::io::Error>(bytes)
+    });
+    let operation = (|| -> Result<()> {
+        ready_rx
+            .recv_timeout(Duration::from_secs(10))
+            .context("writer never validated store")?;
+        thread::sleep(Duration::from_millis(100));
+        match action {
+            BlockedReplacement::Release => {
+                blocker.take();
+            }
+            BlockedReplacement::ExternalEdit => {
+                fs::write(&path, external)?;
+                blocker.take();
+            }
+            BlockedReplacement::KeepBlocked => {}
+        }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while child.try_wait()?.is_none() {
+            ensure!(
+                Instant::now() < deadline,
+                "replacement retry did not terminate"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+        Ok(())
+    })();
+    if operation.is_err() {
+        let _ = child.kill();
+    }
+    let output = child.wait_with_output()?;
+    let errors = reader
+        .join()
+        .map_err(|_| anyhow::anyhow!("writer stderr reader panicked"))??;
+    fs::write(root.join("writer.stdout"), &output.stdout)?;
+    fs::write(root.join("writer.stderr"), &errors)?;
+    drop(blocker);
+    operation?;
+    match action {
+        BlockedReplacement::Release => {
+            ensure!(
+                output.status.success(),
+                "writer failed after handle release: {}",
+                String::from_utf8_lossy(&errors)
+            );
+            let document: toml::Value = toml::from_str(&fs::read_to_string(&path)?)?;
+            ensure!(
+                document["favorites"][0]["name"].as_str() == Some("blocked-favorite"),
+                "favorite missing"
+            );
+        }
+        BlockedReplacement::ExternalEdit => {
+            ensure!(!output.status.success(), "external edit was overwritten");
+            ensure!(
+                String::from_utf8_lossy(&errors).contains("被外部修改"),
+                "external edit was not detected"
+            );
+            ensure!(
+                fs::read_to_string(&path)? == external,
+                "external bytes changed"
+            );
+        }
+        BlockedReplacement::KeepBlocked => {
+            ensure!(!output.status.success(), "permanent denial was ignored");
+            ensure!(
+                fs::read_to_string(&path)? == original,
+                "blocked original changed"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn favorite_replace_survives_a_temporary_windows_handle() -> Result<()> {
+    blocked_favorite_replacement(BlockedReplacement::Release)
+}
+
+#[test]
+fn favorite_replace_rechecks_external_edits_during_retry() -> Result<()> {
+    blocked_favorite_replacement(BlockedReplacement::ExternalEdit)
+}
+
+#[test]
+fn favorite_replace_denial_is_bounded_and_preserves_original() -> Result<()> {
+    blocked_favorite_replacement(BlockedReplacement::KeepBlocked)
+}
+
 fn blueberry(appdata: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_blueberry"));
     command.env("APPDATA", appdata);

@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "artifact_name": "blueberry-raw-baseline-startup-20261014-b87237f",
+  "run_id": 38517306894,
+  "artifact_id": 11872279995,
+  "source_commit": "b87237f449b54edcb806a6c1d28abbadd9a9def0",
+  "run_url": "https://github.com/Drtxdt/Blueberry/actions/runs/38517306894",
+  "download_zip_sha256": "63D15E4786397414152D01E76C801FDA47ECD8DDE750A030117BE33E6CA80B26",
+  "manifest_sha256": "6E545BBE0AAC00FF0FA6942D207ECD80FF47A2E80411BAE73C69ED1C8CFE9E0D",
+  "files": 11613,
+  "uncompressed_bytes": 1058605791,
+  "retention_days": 90,
+  "expires_at": "2027-01-12T05:33:52Z",
+  "upload_verified": true,
+  "download_verified": true,
+  "exact_inventory_verified": true,
+  "runner_deregistered": true,
+  "layout": {
+    "latency": "raw/latency-pl4",
+    "startup_ab": "raw/startup-ab2",
+    "resources": "raw/resources-resources-formal-*"
+  },
+  "release_attachment_created": false,
+  "release_source_binding": "Archival branch run only; final release must bind final main commit."
+}

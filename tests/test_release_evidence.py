@@ -8,6 +8,7 @@ import subprocess
 import sys
 import textwrap
 import shutil
+import statistics as raw_statistics
 import unittest
 import uuid
 import zipfile
@@ -24,6 +25,16 @@ def statistics(value, count):
 
 
 class ReleaseEvidenceTests(unittest.TestCase):
+    def test_diagnostic_or_unfrozen_probe_cannot_qualify(self):
+        environment = dict(machine_id='machine', power_policy='balanced', profile_sha256='a', terminal_rows=30, terminal_columns=120)
+        report = dict(environment, source_commit='abc', source_dirty=False, trace='disabled', os_cache_cleared=False)
+        validator.check_frozen_report(report, 'abc', environment, 'fixture')
+        for fields in (dict(diagnostic_only=True), dict(probe_build_profile='debug', probe_source_dirty=False),
+                       dict(probe_build_profile='release', probe_source_dirty=True)):
+            with self.subTest(fields=fields), self.assertRaises(Exception):
+                validator.check_frozen_report(dict(report, **fields), 'abc', environment, 'fixture')
+        validator.check_frozen_report(dict(report, probe_build_profile='release', probe_source_dirty=False), 'abc', environment, 'fixture')
+
     def test_real_ci_artifact_layout_preserves_bytes_and_rejects_duplicates(self):
         workflow = (MODULE_PATH.parent.parent / '.github/workflows/release.yml').read_text(encoding='utf-8')
         section = workflow.split('name: Normalize the original CI artifact layout', 1)[1]
@@ -155,13 +166,24 @@ esac
             "comparison_reports": {},
             "nested_compatibility_reports": {},
             "environments": {},
+            "resource_reports": {},
             "ci": {"source_commit": self.commit, "status": "success", "branch": "main", "event": "push", "run_id": 123, "package_sha256": validator.sha256_file(self.package)},
             "manual_acceptance": {
                 "executable_sha256": self.exe_hash,
                 "source_commit": self.commit,
                 "source_dirty": False,
+                "package_sha256": validator.sha256_file(self.package),
                 "installation": {task: True for task in validator.INSTALL_TASKS},
                 "windows_terminal": {task: True for task in validator.TERMINAL_TASKS},
+                "windows_terminal_matrix": {
+                    profile: {"executable_sha256": self.exe_hash, "terminal_version": "1.24.test",
+                              "shell_version": shell_major + "1.0", "psreadline_version": editor,
+                              **{mode: {task: True for task in validator.CURRENT_TERMINAL_TASKS} for mode in ("direct", "nested")}}
+                    for profile, (_, shell_major, editor) in validator.PROFILES.items()
+                },
+                "vscode_ps7_direct": {"executable_sha256": self.exe_hash, "terminal_version": "1.test",
+                                      "shell_version": "7.6.0", "psreadline_version": "2.4.5",
+                                      "tasks": {task: True for task in validator.VSCODE_TASKS}},
                 "user_trials": [
                     {
                         "id": f"participant-{index}",
@@ -269,6 +291,8 @@ esac
                 scenarios = []
                 for name in validator.SCENARIOS:
                     measurement = {
+                        "input_echo": statistics(1.0, 300), "first_menu": statistics(3.0, 300), "first_candidate_menu": statistics(5.0, 300),
+                        "complete_candidate_menu": statistics(10.0, 300),
                         "shell_versions": [shell_version] * 30,
                         "psreadline_versions": [psreadline] * 30,
                         "actual_transport": [transport] * 30,
@@ -289,6 +313,7 @@ esac
                 hot = {
                     "probe_conpty": self.runtime, "product_conpty": self.conpty,
                     "schema": 2,
+                    "candidate_stage_schema": 1,
                     "source_commit": self.commit, **environment,
                     "source_dirty": False,
                     "host_mode": "direct", "os_cache_cleared": False,
@@ -325,6 +350,32 @@ esac
                 filename = f"nested-{profile}-{variant}.json"
                 (self.root / filename).write_text(json.dumps(nested), encoding="utf-8")
                 self.evidence["nested_compatibility_reports"][profile][variant] = filename
+            raw_name = f"resource-raw-{profile}.json"
+            raw = dict(schema=2, measurement_complete=True, collection_errors=[], qpc_frequency=1000,
+                       elapsed_seconds=30, root_pid=10, root_started_utc="created",
+                       samples=[dict(qpc=1000 + second*1000, processes=[dict(pid=10, started_utc="created",
+                            cpu_seconds=second/1000, working_set_bytes=1024, private_bytes=512)]) for second in range(31)],
+                       deltas=[dict(pid=10, cpu_percent_one_core=.1)])
+            (self.root / raw_name).write_text(json.dumps(raw), encoding="utf-8")
+            resource_sessions = []
+            for repeat in range(5):
+                for mode in validator.COMPARISON_MODES:
+                    raw_name = f"resource-raw-{profile}-{repeat}-{mode}.json"
+                    raw["root_started_utc"] = f"created-{repeat}-{mode}"
+                    for sample in raw["samples"]:
+                        sample["processes"][0]["started_utc"] = raw["root_started_utc"]
+                    (self.root / raw_name).write_text(json.dumps(raw), encoding="utf-8")
+                    resource_sessions.append(dict(mode=mode, repeat=repeat, status="completed", raw_report=raw_name,
+                        report=raw_name, raw_sha256=validator.sha256_file(self.root / raw_name),
+                        program_sha256={"candidate": self.exe_hash, "beta6": self.beta6_hash, "inshellisense": "B"*64}.get(mode),
+                        summary=validator._resources.summarize(raw)))
+            resource_name = f"resources-{profile}.json"
+            resource = dict(schema=2, formal=True, measurement_complete=True, profile=profile,
+                            source_commit=self.commit, source_dirty=False, executable_sha256=self.exe_hash,
+                            **environment, trace="disabled", os_cache_cleared=False, requested_seconds=30,
+                            sessions_per_mode=5, sessions=resource_sessions)
+            (self.root / resource_name).write_text(json.dumps(resource), encoding="utf-8")
+            self.evidence["resource_reports"][profile] = resource_name
         self.evidence_path = self.root / "evidence.json"
         self.save_evidence()
 
@@ -336,20 +387,166 @@ esac
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash
         )
 
+    def test_public_release_rejects_manual_candidate_ci(self):
+        self.evidence["ci"]["event"] = "workflow_dispatch"
+        self.save_evidence()
+        with self.assertRaisesRegex(ValueError, "CI package record"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_candidate_requires_explicit_branch_and_complete_successful_ci(self):
+        branch = "codex/v053-reliability-performance"
+        self.evidence["delivery_kind"] = "unpublished_candidate"
+        self.evidence["ci"]["branch"] = branch
+        names = ["format", "Core / ubuntu-24.04", "Core / macos-15", "Core / windows-2022",
+                 "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+                 "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
+                 "PowerShell 7 / PSReadLine 2.4.5 / pipe", "package"]
+        data = {"run": {"id": 123, "head_sha": self.commit, "head_branch": branch,
+                        "event": "push", "name": "Blueberry CI", "conclusion": "success"},
+                "jobs": [{"name": name, "conclusion": "success"} for name in names]}
+        path = self.root / "candidate-ci.json"
+        def save():
+            path.write_text(json.dumps(data), encoding="utf-8")
+            self.evidence["functional_ci"] = {"report": path.name, "sha256": validator.sha256_file(path)}
+            self.save_evidence()
+        def verify():
+            return validator.verify(self.evidence_path, self.package, self.commit,
+                                    self.beta6_package, candidate_branch=branch)
+        save()
+        self.assertEqual(verify(), self.exe_hash)
+        data["jobs"].extend({"name": name, "conclusion": "skipped"}
+                            for name in ("evidence-upload", "stability", "startup-cache"))
+        save()
+        self.assertEqual(verify(), self.exe_hash)
+        data["jobs"][-1]["conclusion"] = "failure"
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            verify()
+        data["jobs"][-1]["conclusion"] = "skipped"
+        save()
+        data["run"]["event"] = "workflow_dispatch"
+        self.evidence["ci"]["event"] = "workflow_dispatch"
+        save()
+        self.assertEqual(verify(), self.exe_hash)
+        for event in ("pull_request", "schedule"):
+            data["run"]["event"] = event
+            self.evidence["ci"]["event"] = event
+            save()
+            with self.assertRaisesRegex(ValueError, "CI package record"):
+                verify()
+        data["run"]["event"] = "push"
+        self.evidence["ci"]["event"] = "workflow_dispatch"
+        save()
+        with self.assertRaisesRegex(ValueError, "successful final"):
+            verify()
+        self.evidence["ci"]["event"] = "push"
+        data["jobs"] = data["jobs"][:-3]
+        complete_jobs = data["jobs"]
+        data["jobs"] = [{"name": "format", "conclusion": "success"}]
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            verify()
+        data["jobs"] = complete_jobs
+        save()
+        with self.assertRaisesRegex(ValueError, "cannot authorize a public release"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        with self.assertRaisesRegex(ValueError, "explicit codex branch"):
+            validator.verify(self.evidence_path, self.package, self.commit,
+                             self.beta6_package, candidate_branch="main")
+        data["jobs"][-1]["conclusion"] = "failure"
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            verify()
+        data["jobs"][-1]["conclusion"] = "success"
+        data["run"]["head_branch"] = "codex/other"
+        save()
+        with self.assertRaisesRegex(ValueError, "successful final"):
+            verify()
+        data["run"]["head_branch"] = branch
+        save()
+        self.evidence["manual_acceptance"]["windows_terminal"]["ime"] = False
+        self.save_evidence()
+        with self.assertRaises(ValueError):
+            verify()
+
+    def test_optimization_resource_side_cannot_replace_final_matrix(self):
+        path = self.root / next(iter(self.evidence['resource_reports'].values()))
+        report = json.loads(path.read_text(encoding='utf-8'))
+        report['mode_scope'] = 'candidate_only'
+        path.write_text(json.dumps(report), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'Optimization-only resources'):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_raw_artifact_logs_and_binary_records_preserve_bytes(self):
+        records = {"raw/session.log": b"all observations, including slow samples\n",
+                   "raw/diagnostic.zip": b"opaque original diagnostic bytes\x00\xff"}
+        files = {}
+        for name, content in records.items():
+            path = self.root / name
+            path.parent.mkdir(exist_ok=True)
+            path.write_bytes(content)
+            files[name] = validator.sha256_file(path)
+        self.evidence["raw_artifacts"] = [{"run_id": 1, "artifact_id": 2,
+                                           "sha256": "A"*64, "files": files}]
+        self.save_evidence()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        output = self.root / "raw-bundle.zip"
+        validator.bundle(self.evidence_path, output)
+        with zipfile.ZipFile(output) as archive:
+            for name, content in records.items():
+                self.assertEqual(archive.read(name), content)
+        (self.root / "raw/session.log").write_text("changed")
+        with self.assertRaisesRegex(ValueError, "raw artifact member hash"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
     def test_measured_private_dll_identity_mismatch_blocks_release(self):
         self.evidence['build_identity']['private_editors']['files'][0]['sha256'] = 'E'*64
         self.save_evidence()
         with self.assertRaisesRegex(ValueError, 'private dependency identity'):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
+    def test_native_package_cannot_release_without_its_terminal_dependency(self):
+        manifest = json.loads(self.external_manifest.read_text(encoding='utf-8'))
+        manifest['build']['companion_overlay_interface'] = 4
+        raw = json.dumps(manifest)
+        with zipfile.ZipFile(self.package, 'w') as archive:
+            archive.writestr('blueberry.exe', self.exe)
+            archive.writestr('release.json', raw)
+        self.external_manifest.write_text(raw, encoding='utf-8')
+        self.evidence['build_identity'] = manifest['build']
+        self.evidence['package_sha256'] = validator.sha256_file(self.package)
+        self.evidence['ci']['package_sha256'] = self.evidence['package_sha256']
+        self.evidence['manual_acceptance']['package_sha256'] = self.evidence['package_sha256']
+        self.save_evidence()
+        with self.assertRaisesRegex(ValueError, 'fixed Terminal dependency'):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_core_native_support_does_not_require_bundled_terminal(self):
+        manifest = json.loads(self.external_manifest.read_text(encoding='utf-8'))
+        manifest['build']['companion_overlay_interface'] = 4
+        manifest['package_kind'] = 'core'
+        raw = json.dumps(manifest)
+        with zipfile.ZipFile(self.package, 'w') as archive:
+            archive.writestr('blueberry.exe', self.exe)
+            archive.writestr('release.json', raw)
+        self.external_manifest.write_text(raw, encoding='utf-8')
+        self.evidence['build_identity'] = manifest['build']
+        self.evidence['package_sha256'] = validator.sha256_file(self.package)
+        self.evidence['ci']['package_sha256'] = self.evidence['package_sha256']
+        self.evidence['manual_acceptance']['package_sha256'] = self.evidence['package_sha256']
+        self.save_evidence()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+
     def test_wrong_frozen_build_and_missing_private_editor_matrix_block_release(self):
         original = json.loads(self.external_manifest.read_text(encoding='utf-8'))
-        for mutation, error in [('commit', 'frozen release source'), ('editors', 'DLL matrix')]:
+        for mutation, error in [('commit', 'frozen release source'), ('editors', 'DLL matrix'), ('allocation', 'diagnostic executable')]:
             manifest = json.loads(json.dumps(original))
             if mutation == 'commit':
                 manifest['build']['commit'] = 'b'*40
-            else:
+            elif mutation == 'editors':
                 manifest['build']['private_editors']['files'].pop()
+            else:
+                manifest['build']['allocation_diagnostics'] = True
             self.evidence['build_identity'] = manifest['build']
             raw = json.dumps(manifest)
             with zipfile.ZipFile(self.package, 'w') as archive:
@@ -362,14 +559,37 @@ esac
             with self.assertRaisesRegex(ValueError, error):
                 validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
+    @unittest.skipUnless(validator.VERSION in validator.PERFORMANCE_WAIVERS, "This release has no performance fallback")
     def test_performance_deferral_preserves_functional_and_identity_gates(self):
         self.evidence["performance_waiver"] = {
             "version": validator.VERSION, "status": "deferred_by_user", "passed": False,
-            "authorization": "如果没有bug先直接发版吧，性能以后再优化",
+            "authorization": validator.PERFORMANCE_AUTHORIZATION.get(validator.VERSION, "如果没有bug先直接发版吧，性能以后再优化"),
             "limitations": "Startup target missed; full performance matrix deferred.",
         }
-        for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
-            self.evidence[field] = {}
+        if validator.VERSION == "0.5.3":
+            waiver = self.evidence["performance_waiver"]
+            waiver["measurement_complete"] = True
+            waiver["optimization_rounds"] = []
+            for number in range(1, 4):
+                comparisons = []
+                for repeat in range(2):
+                    path = self.root / f"round-{number}-ab-{repeat}.json"
+                    path.write_text(json.dumps({"measurement_complete": True, "same_conditions": True}), encoding="utf-8")
+                    comparisons.append({"report": path.name, "sha256": validator.sha256_file(path)})
+                path = self.root / f"round-{number}.json"
+                path.write_text(json.dumps({"round": number, "measurement_complete": True, "diagnostic_only": True,
+                                            "independent_ab_reports": comparisons}), encoding="utf-8")
+                waiver["optimization_rounds"].append({"round": number, "status": "completed", "report": path.name,
+                                                     "sha256": validator.sha256_file(path)})
+            path = self.root / self.evidence["startup_reports"]["ps51-2.0.0"]
+            report = validator.read_json(path)
+            for metric in ("candidate_first_input", "paired_first_input_delta"):
+                values = [value + 200 for value in report[metric]["samples"]]
+                report[metric] = {"samples": values, "median": raw_statistics.median(values), "p95": sorted(values)[-2]}
+            path.write_text(json.dumps(report), encoding="utf-8")
+        else:
+            for field in ("startup_reports", "hot_reports", "comparison_reports", "nested_compatibility_reports"):
+                self.evidence[field] = {}
         names = ["format", "Core / ubuntu-24.04", "Core / macos-15", "Core / windows-2022",
                  "Native ConPTY mouse / windows-2025", "Windows PowerShell 5.1 / PSReadLine 2.0.0",
                  "Windows PowerShell 5.1 / PSReadLine 2.4.5", "PowerShell 7 / PSReadLine 2.4.5 / osc",
@@ -383,7 +603,23 @@ esac
             self.evidence["functional_ci"] = {"report": path.name, "sha256": validator.sha256_file(path)}
             self.save_evidence()
         save()
+        if validator.VERSION == "0.5.3":
+            self.evidence["performance_waiver"]["measurement_complete"] = False
+            save()
+            with self.assertRaisesRegex(ValueError, "complete valid formal"):
+                validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+            self.evidence["performance_waiver"]["measurement_complete"] = True
+            save()
         self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        data["jobs"].append({"name": "evidence-upload", "conclusion": "skipped"})
+        save()
+        self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
+        data["jobs"][-1]["conclusion"] = "failure"
+        save()
+        with self.assertRaisesRegex(ValueError, "CI matrix"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+        data["jobs"].pop()
+        save()
         validator.bundle(self.evidence_path, self.root / "evidence.zip")
         with zipfile.ZipFile(self.root / "evidence.zip") as archive:
             self.assertIn(path.name, archive.namelist())
@@ -409,13 +645,22 @@ esac
             "authorization": "本次也免除人工检查，按自动回归结果发布",
         }
         save()
+        if validator.VERSION not in validator.TERMINAL_WAIVERS:
+            with self.assertRaisesRegex(ValueError, "manual terminal waiver"):
+                validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+            del manual["windows_terminal_waiver"]
+            manual["windows_terminal"] = {task: True for task in validator.TERMINAL_TASKS}
+            save()
         self.assertEqual(validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package), self.exe_hash)
         manual["installation"]["rollback"] = False
         save()
         with self.assertRaisesRegex(ValueError, "installation"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
         manual["installation"]["rollback"] = True
-        manual["windows_terminal_waiver"]["executed"] = True
+        manual["windows_terminal_waiver"] = {
+            "version": validator.VERSION, "status": "waived_by_user", "executed": True, "passed": False,
+            "authorization": "本次也免除人工检查，按自动回归结果发布",
+        }
         save()
         with self.assertRaisesRegex(ValueError, "non-execution"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
@@ -545,6 +790,14 @@ esac
         with self.assertRaisesRegex(ValueError, "expected 30 samples"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
+    def test_profile_entry_cannot_replace_direct_entry_samples(self):
+        path = self.root / self.evidence["startup_reports"]["ps7-2.4.5"]
+        report = json.loads(path.read_text(encoding="utf-8"))
+        report["actual_entry"] = "isolated_automatic_profile"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "cannot substitute for direct startup"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
     def test_startup_requires_alternation_and_enabled_menu(self):
         path = self.root / self.evidence["startup_reports"]["ps7-2.4.5"]
         report = json.loads(path.read_text(encoding="utf-8"))
@@ -579,6 +832,47 @@ esac
         self.evidence["manual_acceptance"]["user_trials"][0]["tasks"]["exit_restore"] = False
         self.save_evidence()
         with self.assertRaisesRegex(ValueError, "incomplete tasks"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    @unittest.skipUnless(validator.VERSION in validator.CURRENT_RELEASES, "Historical terminal policy")
+    def test_resize_and_each_host_require_final_package_manual_results(self):
+        matrix = self.evidence["manual_acceptance"]["windows_terminal_matrix"]
+        for profile in validator.PROFILES:
+            for mode in ("direct", "nested"):
+                matrix[profile][mode]["live_resize"] = False
+                self.save_evidence()
+                with self.assertRaisesRegex(ValueError, "incomplete manual resize"):
+                    validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+                matrix[profile][mode]["live_resize"] = True
+        self.evidence["manual_acceptance"]["package_sha256"] = "F" * 64
+        self.save_evidence()
+        with self.assertRaisesRegex(ValueError, "another package"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    @unittest.skipUnless(validator.VERSION in validator.CURRENT_RELEASES, "Historical terminal policy")
+    def test_rgb_pass_cannot_replace_all_history_attribute_restoration(self):
+        matrix = self.evidence["manual_acceptance"]["windows_terminal_matrix"]
+        for profile in validator.PROFILES:
+            for mode in ("direct", "nested"):
+                tasks = matrix[profile][mode]
+                self.assertTrue(tasks["history_rgb"])
+                self.assertTrue(tasks["live_resize"])
+                for result in (None, False, "not_executed"):
+                    with self.subTest(profile=profile, mode=mode, result=result):
+                        if result is None:
+                            tasks.pop("history_attributes")
+                        else:
+                            tasks["history_attributes"] = result
+                        self.save_evidence()
+                        with self.assertRaisesRegex(ValueError, "incomplete manual resize"):
+                            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+                        tasks["history_attributes"] = True
+
+    @unittest.skipUnless(validator.VERSION in validator.CURRENT_RELEASES, "Historical terminal policy")
+    def test_vscode_compatibility_is_independent_of_terminal_acceptance(self):
+        self.evidence["manual_acceptance"]["vscode_ps7_direct"]["tasks"]["ctrl_c"] = False
+        self.save_evidence()
+        with self.assertRaisesRegex(ValueError, "VS Code PS7 direct acceptance"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
     def test_manual_acceptance_from_another_exe_blocks_release(self):

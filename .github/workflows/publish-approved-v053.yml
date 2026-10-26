@@ -1,0 +1,39 @@
+name: Publish user-approved frozen 0.5.3
+on:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: approved-release-v0.5.3
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: blueberry-windows-x64
+          run-id: 40097143597
+          github-token: ${{ github.token }}
+          path: original-core
+      - uses: actions/download-artifact@v4
+        with:
+          name: blueberry-terminal-component-windows-x64
+          run-id: 40097143597
+          github-token: ${{ github.token }}
+          path: original-terminal
+      - name: Verify frozen bytes and publish the approved draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/publish-approved-v053.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v0.5.3-publication-receipt
+          path: publication-receipt.json
+          if-no-files-found: warn

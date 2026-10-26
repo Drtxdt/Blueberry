@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "gui_renderer": false,
+  "pixel_visibility_measured": false,
+  "dll_sha256": "9317061184c85fc631d457233b5c6a8939d80842b09d58380e84b68f9571402d",
+  "tests": [
+    "overlay/native-reflow round trips across three resizes",
+    "off-viewport Unicode and original RGB across three native resizes",
+    "split UTF-8 scalars and combining text",
+    "malformed UTF-8 and oversized writes rejected",
+    "owned response callback"
+  ],
+  "passed": true,
+  "abi_version": 1,
+  "interface_version": 4
+}

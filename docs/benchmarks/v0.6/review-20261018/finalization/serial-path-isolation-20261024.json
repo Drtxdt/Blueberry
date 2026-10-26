@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "owner": {
+    "pid": 14664,
+    "created": 134373195057763800
+  },
+  "input_plan_sha256": "A701724AB503475F4850DB387BBFD168F73C0AE05D61A64FE7881EBD64C4ECC4",
+  "frozen_plan_sha256": "328B157CF27A46E055C4782880F1C2A50FB1EDFF1EBD87FCD4D894A227831DD0",
+  "tasks": 49,
+  "dependencies": 142,
+  "started_at_utc": "2026-10-24T12:45:05.888160+00:00",
+  "sequence": [
+    "6 single-pair startup preflights",
+    "2 short full-editor latency preflights",
+    "audit 72 actual cache contexts for frozen Windows paths",
+    "12 R1 startup ABBA tasks of 30 pairs",
+    "12 R1 resource ABBA tasks",
+    "4 R2 full latency matrices and 12 R2 resource ABBA tasks"
+  ],
+  "status_observed": "running",
+  "measurement_complete": false,
+  "prior_failed_evidence_untouched": true,
+  "path_snapshot": "artifacts/perf-path-snapshot-20261024/path-snapshot.json",
+  "path_snapshot_sha256": "fc6c3e572da2e4df4c97f2f71a486c5e21ae163c1b7844cc0ef5a5a32ac68890"
+}

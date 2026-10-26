@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "kind": "CI-discovered module discovery regression",
+  "failed_run": 38871667438,
+  "failed_job": 116883858581,
+  "source_commit": "950360d669f2a484320a7c0e1bc8b0125f06997d",
+  "native_buffer_proof": "passed",
+  "native_client_and_observation_ordering": "passed",
+  "first_native_editor_combination": "PS5.1/PSReadLine2.0.0 direct/nested tests passed",
+  "failure": "GUI module path comparison lost C:/Program Files/Microsoft SQL Server/130/Tools/PowerShell/Modules",
+  "root_cause": "The legacy-shell filter removed every directory ending in PowerShell/Modules, which also matches legitimate SQL Server and custom module roots.",
+  "fix": "Compare against actual current-user and Program Files Core roots, and retain existing detection of a pwsh installation directory. Keep SQL Server, WindowsPowerShell and unrelated custom PowerShell/Modules directories.",
+  "regression": "pty::tests::legacy_module_filter_keeps_sql_and_custom_powershell_directories",
+  "unit_and_clippy": "passed",
+  "raw_log": "artifacts/ci-950360d-native-failure/116883858581.log",
+  "replacement_ci": "pending",
+  "release_blocked": true,
+  "real_autoload_regression": {
+    "test": "direct_autoloads_a_module_under_a_sql_style_powershell_directory",
+    "before_fixed_b873a4d_package": "failed: CommandNotFoundException",
+    "after_source_fix": "passed",
+    "before_log": "artifacts/sql-module-autoload-before-20261016.log",
+    "after_log": "artifacts/sql-module-autoload-after-20261016.log"
+  },
+  "native_three_editor_regression": "passed all three combinations; three direct/nested tests plus empty module path test per combination"
+}

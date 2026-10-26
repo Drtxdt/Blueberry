@@ -1,0 +1,19 @@
+{
+  "base_commit": "14a6467e46ddbb4181b65421ad433e234f3fd849",
+  "change": "Only bottom-menu test waits for complete input and selected candidate in one completed frame.",
+  "single_pass": 6,
+  "repeat_pass": 180,
+  "editors": [
+    "ps51-200",
+    "ps51-245",
+    "ps7-245"
+  ],
+  "trace_modes": [
+    "on",
+    "off"
+  ],
+  "test_binary_sha256": "E61ACCC158D70435C9EC6839386E730D5FFC94C732F674DC3429DA8D779AFC16",
+  "log": "artifacts/stability-bottom-complete-frame-repeat30.log",
+  "log_sha256": "BA38F35EA69A9675B704A109D2C9E843CCC98F0BD9FAEF35B4E2771B0596B019",
+  "scope": "Local functional observation regression; no performance or final package qualification."
+}

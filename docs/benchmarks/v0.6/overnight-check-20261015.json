@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "source_commit": "033f6d3b35b34b26d5c6d68eaf4549dd2bae4043",
+  "ci": [
+    {
+      "run_id": 38579534638,
+      "url": "https://github.com/Drtxdt/Blueberry/actions/runs/38579534638",
+      "jobs": [
+        {
+          "id": 115905438049,
+          "name": "Native ConPTY mouse / windows-2025",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905438442,
+          "name": "Core / ubuntu-24.04",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905438444,
+          "name": "Core / macos-15",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905438514,
+          "name": "Core / windows-2022",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905438630,
+          "name": "Windows PowerShell 5.1 / PSReadLine 2.4.5",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905438741,
+          "name": "format",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905438820,
+          "name": "PowerShell 7 / PSReadLine 2.4.5 / osc",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905438984,
+          "name": "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905439489,
+          "name": "PowerShell 7 / PSReadLine 2.4.5 / pipe",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905442606,
+          "name": "evidence-upload",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 115924719472,
+          "name": "package",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run_id": 38579522496,
+      "url": "https://github.com/Drtxdt/Blueberry/actions/runs/38579522496",
+      "jobs": [
+        {
+          "id": 115905398026,
+          "name": "format",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905398420,
+          "name": "PowerShell 7 / PSReadLine 2.4.5 / osc",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905398456,
+          "name": "Core / macos-15",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905398477,
+          "name": "PowerShell 7 / PSReadLine 2.4.5 / pipe",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905398540,
+          "name": "Native ConPTY mouse / windows-2025",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905398606,
+          "name": "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905398695,
+          "name": "Core / ubuntu-24.04",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905399054,
+          "name": "Windows PowerShell 5.1 / PSReadLine 2.4.5",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905399356,
+          "name": "Core / windows-2022",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 115905401129,
+          "name": "evidence-upload",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 115923138981,
+          "name": "package",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run_id": 38579522467,
+      "url": "https://github.com/Drtxdt/Blueberry/actions/runs/38579522467",
+      "jobs": [
+        {
+          "id": 115905397801,
+          "name": "native-buffer-proof",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "native_test_log_summaries": [
+    "Total=6, Passed=6, Failed=0, Blocked=0, Not Run=0, Skipped=0",
+    "Total=9, Passed=9, Failed=0, Blocked=0, Not Run=0, Skipped=0"
+  ],
+  "comparison": {
+    "batch": "artifacts/cb4-1014/formal-batch/batch.json",
+    "status": "interrupted",
+    "measurement_complete": false,
+    "last_progress_local": "2026-10-14T23:18:28+08:00",
+    "last_logged_pair": "root 21/30",
+    "owner_alive": false,
+    "worker_alive": false,
+    "cause": "Unknown: coordinator vanished without final receipt; not a recorded six-hour timeout.",
+    "version_gate_eligible": false,
+    "raw_data_preserved": true
+  },
+  "final_release_acceptance": false
+}

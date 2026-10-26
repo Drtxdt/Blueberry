@@ -3,13 +3,15 @@
 [![CI](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml/badge.svg)](https://github.com/Drtxdt/Blueberry/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Drtxdt/Blueberry?include_prereleases)](https://github.com/Drtxdt/Blueberry/releases)
 
-Blueberry 是一个使用rust主要构建的高性能终端IDE风格补全工具，可以为 PowerShell 提供带中文说明的命令补全菜单。输入命令后，可以查看参数、浏览路径、阅读帮助，或按用途查找命令。
+Blueberry 是一个使用 Rust 构建的终端 IDE 风格补全工具，可以为 PowerShell 提供带中文说明的命令补全菜单。输入命令后，可以查看参数、浏览路径、阅读帮助，或按用途查找命令。
 
-使用 Rust 编写，目前交互运行环境为 **Windows x64、Windows PowerShell 5.1 / PowerShell 7、PSReadLine 2.0 及以上**。未来计划支持更多类型的终端。
+使用 Rust 编写，目前交互运行环境为 **Windows x64、Windows PowerShell 5.1 / PowerShell 7、经验证的 PSReadLine 组合：PS5.1／2.0.0、PS5.1／2.4.5、PS7／2.4.5**。未来计划支持更多类型的终端。
 
 本项目的灵感来源来自：[microsoft/inshellisense: IDE style command line auto complete](https://github.com/microsoft/inshellisense)
 
-`0.5.1` 正在准备未公开的发布草稿，修复 direct 的 PowerShell 命令补全。Windows 默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。本轮功能与安装回归仍为门槛；性能验收延期、人工检查按用户要求豁免，均不记为通过。流程见 [发布说明](docs/releasing.md)。
+当前公开版本为 [v0.5.2](https://github.com/Drtxdt/Blueberry/releases/tag/v0.5.2)，`0.5.3` 正在候选验收。Windows 默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。
+
+启动增量 P50 ≤50 ms、热态完整菜单 P95 ≤20 ms 是验收目标，尚未由当前候选正式证明。按[三轮优化与发布规则](docs/performance-next.md)，完整达标且无明显回退发布 0.6.0；三轮结束、数据完整有效但仍未全部达标时发布 0.5.3。两版均须通过最终包功能、安装与本机人工验收，外部试用未执行。见 [本版验收](docs/v0.5.3-validation.md)、[安装与故障诊断](docs/installation.md) 和 [发布流程](docs/releasing.md)。
 
 ## 安装
 
@@ -22,6 +24,17 @@ Blueberry 是一个使用rust主要构建的高性能终端IDE风格补全工具
 安装脚本下载 GitHub Release，校验文件后安装到当前用户目录，并询问是否随 PowerShell 启动。默认选择最新稳定版；只有 Beta 版本时安装最新公开 Beta。
 
 也可以从 [Releases](https://github.com/Drtxdt/Blueberry/releases) 下载 Windows x64 ZIP，解压后运行 `blueberry.exe`。指定版本、升级、回滚和卸载步骤见 [安装指南](docs/installation.md)。
+
+开发中的下一版默认安装核心包，不下载 Terminal。推荐使用 `blueberry terminal-profile --install --shell pwsh.exe` 在官方 Windows Terminal 注册专用入口。修改版 Terminal 作为可选增强包，通过 `blueberry terminal install --package <增强包.zip>` 安装，再由 `blueberry-terminal` 启动；组件独立升级、回滚和卸载，核心升级保留组件设置。当前公开的 0.5.2 尚无这些管理入口。
+
+| 运行环境 | 菜单与编辑行为 |
+| --- | --- |
+| 官方 Windows Terminal、VS Code 等普通终端 | 输入行下方预留菜单区域，必要时滚动，只清理菜单自己的内容 |
+| 已连接增强接口的修改版 Terminal | 原位置覆层，由终端保存并恢复完整历史属性 |
+| 增强组件已安装但当前连接不可用 | 使用普通终端模式，`doctor --json` 报告实际连接和降级原因 |
+| 未匹配的 PSReadLine | 手动打开补全、用途搜索和工作台，保留原生编辑、历史和用户键位 |
+
+组件安装和编译支持不代表当前会话已连接增强接口。最终包的实际能力与人工验收状态见[候选验收记录](docs/v0.5.3-validation.md)。
 
 ## 快速开始
 
@@ -132,6 +145,7 @@ blueberry hub
 `blueberry config edit` 打开中文设置页，可调整外观、补全、快捷键、资源和学习开关。方向键或 Tab 选择，Enter 修改，`/` 搜索，Ctrl+M 只看修改项，Ctrl+1／2／3 应用默认、精简或手动触发预设，Ctrl+D 查看差异，Ctrl+S 保存。修改外观时可以预览效果。
 
 `blueberry tools` 打开可搜索的工具管理页，可查看入口、规则、动态能力和帮助学习状态，并按工具调整帮助及动态候选。`blueberry setup` 使用分步页面选择图标、补全方式和自动启动。
+工具页中的普通字符只用于搜索；F2 学习帮助、F3 查询版本、F4 切换帮助、F5 切换动态候选、Ctrl+Delete 清除学习缓存。保存失败时显示错误并保留原开关状态。
 引导第一页可实际按下补全、用途搜索和工作台快捷键；页面只标记终端送达的组合键，未点亮时可在设置中改键。
 
 `blueberry hub` 汇总收藏、模板、当前 PowerShell 会话历史、准确的 PSReadLine 历史文件和项目操作。会话中按 Ctrl+Alt+P 后直接输入关键词，Enter 将命令填回但不会执行，Tab 或 F1 查看预览，Esc 保留原编辑行。独立运行时，确认后的命令复制到剪贴板。详细格式见 [命令工作台](docs/workbench.md)。
@@ -144,6 +158,10 @@ blueberry hub --remove "启动开发服务"
 ```
 
 设置页保留 TOML 注释和高级配置。需要编辑自定义颜色、规格目录或命令说明时，选择“打开 TOML”。独立配置使用 `blueberry --config .\my-config.toml config edit`。Nerd Font 图标需要终端已配置相应字体。
+
+工具页、设置页和 setup 共用配置写入锁及原子替换。设置页保存字段差异，合并其他会话对不同字段的修改；同一字段冲突时报告错误并保留待编辑内容。表单中可按 Shift+Tab 返回上一字段，修改前置参数后会重新请求相关候选。
+
+可用 `blueberry terminal-profile --install --shell pwsh.exe` 注册官方 Windows Terminal 的专用启动入口；`--status` 查看，`--remove` 移除。无参数仍打印配置。入口使用微软的 [JSON fragment 扩展](https://learn.microsoft.com/en-us/windows/terminal/json-fragment-extensions)，不修改 Terminal 的 `settings.json`、默认终端或 PowerShell profile。
 
 普通命令行编辑期间，右键粘贴和文字选择沿用 Windows Terminal 的设置。多行右键粘贴会作为一次 PSReadLine 编辑插入，管道首行、空行、中文和光标右侧内容都会保留；外部程序请求鼠标输入时，Blueberry 将鼠标操作转交给该程序。
 

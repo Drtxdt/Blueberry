@@ -1,0 +1,272 @@
+{
+  "schema": 1,
+  "ci_run": 40090066092,
+  "artifact": {
+    "id": 12559547601,
+    "node_id": "MDg6QXJ0aWZhY3QxMjU1OTU0NzYwMQ==",
+    "name": "blueberry-installation-evidence",
+    "size_in_bytes": 207057,
+    "url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559547601",
+    "archive_download_url": "https://api.github.com/repos/Drtxdt/Blueberry/actions/artifacts/12559547601/zip",
+    "expired": false,
+    "digest": "sha256:3e15286eca268a86b007fb30f0ac08830763a8e6cb2c8f110629ab04eca0b607",
+    "created_at": "2026-10-24T12:10:20Z",
+    "updated_at": "2026-10-24T12:10:20Z",
+    "expires_at": "2027-01-22T11:28:53Z",
+    "workflow_run": {
+      "id": 40090066092,
+      "repository_id": 1368459002,
+      "head_repository_id": 1368459002,
+      "head_branch": "codex/v053-reliability-performance",
+      "head_sha": "f8fc564d6a16161d8d746e4c0c38918fd9961e70"
+    }
+  },
+  "archive": "artifacts\\ci-f8-installation-12559547601.zip",
+  "sha256": "3e15286eca268a86b007fb30f0ac08830763a8e6cb2c8f110629ab04eca0b607",
+  "reports": [
+    {
+      "member": "install-history-42ec29347afb490a892014ae709e7d3e/results.json",
+      "sha256": "978d1920c97b1c504dcb9e91c8f21a5bd9150f43f5f194c924ccd124ab47e5aa",
+      "report": [
+        {
+          "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\install-history-42ec29347afb490a892014ae709e7d3e\\history-0",
+          "status": "passed",
+          "initial_history": 0,
+          "package_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38",
+          "elapsed_ms": 7328.3949
+        },
+        {
+          "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\install-history-42ec29347afb490a892014ae709e7d3e\\history-1",
+          "status": "passed",
+          "initial_history": 1,
+          "package_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38",
+          "elapsed_ms": 11135.9269
+        },
+        {
+          "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\install-history-42ec29347afb490a892014ae709e7d3e\\history-5",
+          "status": "passed",
+          "initial_history": 5,
+          "package_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38",
+          "elapsed_ms": 34783.3427
+        }
+      ]
+    },
+    {
+      "member": "public-upgrade-8ad705c90776424e943209b4877ef2e6/receipt.json",
+      "sha256": "d978811a9449ccc879a8b2ef6702a6527dd968f87d7d013c9d0416a3da4b5f1a",
+      "report": {
+        "schema": 1,
+        "previous_package_sha256": "921E22454E89106E553479D58804ACFAB88D23238D9CD3956C920C625972267D",
+        "previous_installer_sha256": "314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C",
+        "candidate_package_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38",
+        "install_root": "D:\\a\\Blueberry\\Blueberry\\target\\public-upgrade-8ad705c90776424e943209b4877ef2e6\\\u4e2d\u6587 install",
+        "passed": true
+      }
+    },
+    {
+      "member": "storage-failures-a86b11d4cbce4f2b8b8544357025cd44/results.json",
+      "sha256": "87a6dacea308fb3f7a242359ea38780a08d128699b6634ea697317101a074b72",
+      "report": [
+        {
+          "failed": false,
+          "name": "core-install",
+          "elapsed_ms": 1491.0315,
+          "expected_failure": false
+        },
+        {
+          "failed": false,
+          "name": "terminal-install",
+          "elapsed_ms": 2005.1613,
+          "expected_failure": false
+        },
+        {
+          "reserved_bytes": 2049028096,
+          "name": "volume-filled",
+          "disk_full_win32_code": 112
+        },
+        {
+          "failed": true,
+          "name": "core-disk-full",
+          "elapsed_ms": 1155.3087,
+          "expected_failure": true
+        },
+        {
+          "failed": true,
+          "name": "terminal-disk-full",
+          "elapsed_ms": 676.0654,
+          "expected_failure": true
+        },
+        {
+          "failed": false,
+          "name": "core-recover-space",
+          "elapsed_ms": 443.9665,
+          "expected_failure": false
+        },
+        {
+          "failed": false,
+          "name": "core-retry-space",
+          "elapsed_ms": 1662.9018,
+          "expected_failure": false
+        },
+        {
+          "failed": false,
+          "name": "terminal-retry-space",
+          "elapsed_ms": 1865.4985,
+          "expected_failure": false
+        },
+        {
+          "failed": true,
+          "name": "core-permission-denied",
+          "elapsed_ms": 1439.9486,
+          "expected_failure": true
+        },
+        {
+          "failed": false,
+          "name": "core-recover-permission",
+          "elapsed_ms": 976.9971,
+          "expected_failure": false
+        },
+        {
+          "failed": false,
+          "name": "core-retry-permission",
+          "elapsed_ms": 2298.7555,
+          "expected_failure": false
+        },
+        {
+          "failed": true,
+          "name": "terminal-permission-denied",
+          "elapsed_ms": 1386.7464,
+          "expected_failure": true
+        },
+        {
+          "failed": false,
+          "name": "terminal-retry-permission",
+          "elapsed_ms": 1357.8517,
+          "expected_failure": false
+        },
+        {
+          "status": "passed",
+          "name": "final",
+          "core_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38",
+          "terminal_sha256": "4EB1850AF73D6B2E9B7598F4C9513A7C9F4D90BB72918C0E0854850AF87BC5F6"
+        }
+      ]
+    },
+    {
+      "member": "storage-failures-e36351e2210b4c0ba750583fbd0c234a/results.json",
+      "sha256": "331d1f10b160cf24ac3b2e110e303cb95688cf6855d89041f6b849103d4aa793",
+      "report": [
+        {
+          "name": "core-install",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 2580.842
+        },
+        {
+          "name": "terminal-install",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 2338.3337
+        },
+        {
+          "name": "volume-filled",
+          "reserved_bytes": 2048983040,
+          "disk_full_win32_code": 112
+        },
+        {
+          "name": "core-disk-full",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 2179.1089
+        },
+        {
+          "name": "terminal-disk-full",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 374.2326
+        },
+        {
+          "name": "core-recover-space",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 712.1278
+        },
+        {
+          "name": "core-retry-space",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 3524.8486000000003
+        },
+        {
+          "name": "terminal-retry-space",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 2788.8867
+        },
+        {
+          "name": "core-permission-denied",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 3216.3
+        },
+        {
+          "name": "core-recover-permission",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 1489.6938
+        },
+        {
+          "name": "core-retry-permission",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 4733.8060000000005
+        },
+        {
+          "name": "terminal-permission-denied",
+          "expected_failure": true,
+          "failed": true,
+          "elapsed_ms": 1724.9087000000002
+        },
+        {
+          "name": "terminal-retry-permission",
+          "expected_failure": false,
+          "failed": false,
+          "elapsed_ms": 1710.7852
+        },
+        {
+          "terminal_sha256": "4EB1850AF73D6B2E9B7598F4C9513A7C9F4D90BB72918C0E0854850AF87BC5F6",
+          "status": "passed",
+          "name": "final",
+          "core_sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38"
+        }
+      ]
+    }
+  ],
+  "packaged_files": {
+    "schema": 1,
+    "ci_run": 40090066092,
+    "source": "ca0c6e3ecb3147fe5fe84e77a1b68c8d1b7f4e54",
+    "packages": [
+      {
+        "kind": "terminal",
+        "package": "E:\\OpenSource\\shellsense-rs\\artifacts\\sealed-package-validation-f8-20261024\\blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip",
+        "sha256": "4EB1850AF73D6B2E9B7598F4C9513A7C9F4D90BB72918C0E0854850AF87BC5F6",
+        "files_verified": 84,
+        "source_artifact": 12560085546
+      },
+      {
+        "kind": "core",
+        "package": "E:\\OpenSource\\shellsense-rs\\artifacts\\sealed-package-validation-f8-20261024\\blueberry-v0.5.3-windows-x64.zip",
+        "sha256": "ECF668BBA9FD955FFF4A2CA73D9F854C14E6F7BA4D4D950F04917EEF9BBE1F38",
+        "files_verified": 28,
+        "source_artifact": 12559647273
+      }
+    ],
+    "runtime_validated": false
+  },
+  "package_job_log": "artifacts\\stability-job-120861695633.log",
+  "package_job_log_sha256": "ed23f373ed6670f345692badb86004ea25ea911185373a8d62dd130074dcbc2f",
+  "component_lifecycle_passes": 2,
+  "bundled_migration_passed": true,
+  "final_local_acceptance": false
+}

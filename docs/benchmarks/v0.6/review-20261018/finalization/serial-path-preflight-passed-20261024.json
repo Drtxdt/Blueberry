@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "audit": "artifacts\\performance-serial-20261024c\\preflight-path-audit.json",
+  "sha256": "fc21dab3e7c981b73dde09abf1643aacee62c6a8c84e27ff8aa77721311f3e53",
+  "validated_cache_pairs": 72,
+  "formal_samples_included": 0,
+  "formal_start_utc": "2026-10-24T12:59:58.109851+00:00",
+  "current_formal_stage": "R1 startup ABBA; subsequent resources and R2 remain pending"
+}

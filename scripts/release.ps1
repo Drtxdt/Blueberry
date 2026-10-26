@@ -14,6 +14,10 @@ param(
 
     [string]$PreviousExePath,
 
+    [string]$TerminalPackagePath = $env:BLUEBERRY_TERMINAL_PACKAGE,
+
+    [ValidateSet('core', 'bundled')][string]$PackageKind = 'core',
+
     [switch]$Force
 )
 
@@ -465,6 +469,17 @@ try {
     Write-Utf8NoBom -Path (Join-Path $stagePayload 'VERSION.txt') -Content $versionText
     Invoke-VersionCheck -Path (Join-Path $stagePayload 'blueberry.exe') -ExpectedVersion $Version
 
+    $buildIdentity = (& (Join-Path $stagePayload 'blueberry.exe') doctor --json | ConvertFrom-Json).build
+    if ($LASTEXITCODE -ne 0 -or -not $buildIdentity.private_editors) { throw 'Executable has no private editor build identity' }
+    Copy-ToStage -Source (Join-Path $PSScriptRoot 'blueberry-terminal.cmd') -Stage $stagePayload -RelativePath 'blueberry-terminal.cmd'
+    $terminalDependency = $null
+    if ($PackageKind -eq 'bundled') {
+        if (-not $TerminalPackagePath) { throw 'Native interface 4 packages require -TerminalPackagePath (or BLUEBERRY_TERMINAL_PACKAGE)' }
+        $terminalArchive = Resolve-ReleaseFile -Path $TerminalPackagePath -Label 'Companion Terminal original artifact'
+        $terminalDependency = & (Join-Path $PSScriptRoot 'stage-terminal-payload.ps1') -PackagePath $terminalArchive -Destination (Join-Path $stagePayload 'terminal')
+        Copy-ToStage -Source (Join-Path $PSScriptRoot 'terminal-dependency.json') -Stage $stagePayload -RelativePath 'terminal-dependency.json'
+    }
+
     foreach ($required in $requiredPayload) {
         $requiredPath = Join-Path $stagePayload ($required.Replace('/', '\'))
         $requiredItem = Get-RegularFile -Path $requiredPath -Label "必要资产 $required"
@@ -476,12 +491,12 @@ try {
         if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint -or $file.Length -le 0) { throw "发布资产必须是非空普通文件: $relative" }
         $manifestFiles.Add([ordered]@{ path = $relative; sha256 = Get-Sha256 $file.FullName; bytes = $file.Length })
     }
-    $buildIdentity = (& (Join-Path $stagePayload 'blueberry.exe') doctor --json | ConvertFrom-Json).build
-    if ($LASTEXITCODE -ne 0 -or -not $buildIdentity.private_editors) { throw 'Executable has no private editor build identity' }
+    if ($buildIdentity.allocation_diagnostics) { throw 'Allocation diagnostic executable cannot be an install package' }
     $conpty = Get-Content -LiteralPath (Join-Path $repoRoot 'vendor/conpty/upstream.json') -Raw | ConvertFrom-Json
     if (-not $buildIdentity.conpty -or $buildIdentity.conpty.sha256 -ne $conpty.sha256) { throw 'Executable has no matching pinned ConPTY identity' }
     $manifest = [ordered]@{
         schema_version = 1; product = 'Blueberry'; name = 'Blueberry'; version = $Version
+        package_kind = $PackageKind
         platform = 'windows-x64'; architecture = 'x64'; executable = 'blueberry.exe'
         signed = $false; signature_status = 'unsigned'; release_notes = 'RELEASE-NOTES.md'
         license_notices = 'THIRD-PARTY-NOTICES.txt'; license_source = 'provided'
@@ -489,6 +504,7 @@ try {
         files = @($manifestFiles.ToArray())
         build = $buildIdentity
     }
+    if ($terminalDependency) { $manifest['terminal_dependency'] = $terminalDependency }
     $manifestJson = $manifest | ConvertTo-Json -Depth 20
     Write-Utf8NoBom -Path (Join-Path $stagePayload 'release.json') -Content ($manifestJson + "`n")
     $stageZip = Join-Path $stageOutput $zipName

@@ -4,21 +4,26 @@ use crate::{
     spec_catalog::Catalog,
     terminal_ui::{ScreenGuard, fit},
 };
-use anyhow::{Context, Result};
+use anyhow::Result;
 use crossterm::{
     cursor::MoveTo,
     event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind},
     execute,
+    terminal::{Clear, ClearType},
 };
 use serde::Serialize;
 use std::{
     collections::BTreeSet,
-    env, fs,
+    env,
     io::{self, IsTerminal, Write},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    sync::atomic::AtomicBool,
+    time::Duration,
 };
-use toml_edit::{DocumentMut, value};
+use toml_edit::value;
+
+#[path = "tools_tasks.rs"]
+mod tasks;
 
 #[derive(Clone, Serialize)]
 struct ToolInfo {
@@ -134,7 +139,7 @@ fn collect(settings: &config::Config, config_path: Option<&Path>) -> Result<Vec<
 }
 
 pub fn run(config_path: Option<&Path>, json: bool) -> Result<u32> {
-    let settings = config::load(config_path)?;
+    let mut settings = config::load(config_path)?;
     let mut tools = collect(&settings, config_path)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&tools)?);
@@ -148,45 +153,109 @@ pub fn run(config_path: Option<&Path>, json: bool) -> Result<u32> {
     let mut query = String::new();
     let mut selected = 0usize;
     let mut notice = String::new();
+    let mut tasks = tasks::Worker::new();
+    let mut dirty = true;
     loop {
+        if let Some(completed) = tasks.poll() {
+            dirty = true;
+            let command = completed.tool.command;
+            match completed.output {
+                Ok(tasks::Output::Version(version)) => {
+                    if let Some(tool) = tools
+                        .iter_mut()
+                        .find(|tool| tool.command == command && tool.paths == completed.tool.paths)
+                    {
+                        tool.version = Some(version.clone());
+                    }
+                    notice = format!("{command}：{version}");
+                }
+                Ok(tasks::Output::Learned(record)) => {
+                    let published = knowledge::publish(&record, &knowledge::cache_dir());
+                    let saved = published.is_ok();
+                    notice = match published {
+                        Ok(()) => record
+                            .error
+                            .as_ref()
+                            .map(|e| format!("{command}：学习失败：{e}"))
+                            .unwrap_or_else(|| format!("{command}：帮助学习完成")),
+                        Err(error) => format!("{command}：缓存保存失败：{error}"),
+                    };
+                    if saved
+                        && let Some(tool) = tools.iter_mut().find(|tool| {
+                            tool.command == command && tool.paths == completed.tool.paths
+                        })
+                    {
+                        tool.help = if record.error.is_none() {
+                            "已学习"
+                        } else {
+                            "失败"
+                        }
+                        .into();
+                        tool.error.clone_from(&record.error);
+                    }
+                }
+                Err(error) => notice = format!("{command}：{error}"),
+            }
+        }
         let visible = filtered(&tools, &query);
         selected = selected.min(visible.len().saturating_sub(1));
-        draw(&tools, &visible, selected, &query, &notice, &settings)?;
+        if dirty {
+            draw(&tools, &visible, selected, &query, &notice, &settings)?;
+            dirty = false;
+        }
+        if !event::poll(Duration::from_millis(50))? {
+            continue;
+        }
+        dirty = true;
         match event::read()? {
             Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
                 KeyCode::Esc => break,
                 KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
-                KeyCode::Char('l' | 'L') if key.modifiers.is_empty() => {
-                    if let Some(index) = visible.get(selected).copied() {
-                        notice = learn(&tools[index])?;
-                        tools = collect(&config::load(config_path)?, config_path)?
+                KeyCode::F(2) if key.modifiers.is_empty() => {
+                    if let Some(index) = visible.get(selected).copied()
+                        && tasks.submit(&tools[index], tasks::Kind::Learn)
+                    {
+                        notice = format!("{}：正在学习…", tools[index].command);
                     }
                 }
-                KeyCode::Delete => {
+                KeyCode::Delete if key.modifiers == KeyModifiers::CONTROL => {
+                    tasks.cancel();
                     if let Some(index) = visible.get(selected).copied() {
                         let count =
-                            knowledge::forget(&knowledge::cache_dir(), &tools[index].command)?;
+                            match knowledge::forget(&knowledge::cache_dir(), &tools[index].command)
+                            {
+                                Ok(count) => count,
+                                Err(error) => {
+                                    notice = format!("清除失败：{error:#}");
+                                    continue;
+                                }
+                            };
                         notice = format!("已清除 {count} 条帮助缓存");
-                        tools = collect(&config::load(config_path)?, config_path)?
+                        tools[index].help = "未学习".into();
+                        tools[index].error = None;
                     }
                 }
-                KeyCode::Char('v' | 'V') if key.modifiers.is_empty() => {
-                    if let Some(index) = visible.get(selected).copied() {
-                        tools[index].version = query_version(&tools[index]);
-                        notice = tools[index]
-                            .version
-                            .clone()
-                            .unwrap_or_else(|| "无法读取版本".into())
+                KeyCode::F(3) if key.modifiers.is_empty() => {
+                    if let Some(index) = visible.get(selected).copied()
+                        && tasks.submit(&tools[index], tasks::Kind::Version)
+                    {
+                        notice = format!("{}：正在读取版本…", tools[index].command);
                     }
                 }
-                KeyCode::Char('h' | 'H') if key.modifiers.is_empty() => {
+                KeyCode::F(4) if key.modifiers.is_empty() => {
                     if let Some(index) = visible.get(selected).copied() {
                         let current = settings
                             .tools
                             .get(&tools[index].command)
                             .and_then(|t| t.help)
                             .unwrap_or(settings.help.enabled);
-                        set_override(config_path, &tools[index].command, "help", !current)?;
+                        match set_override(config_path, &tools[index].command, "help", !current) {
+                            Ok(updated) => settings = updated,
+                            Err(error) => {
+                                notice = format!("保存失败：{error:#}");
+                                continue;
+                            }
+                        }
                         notice = format!(
                             "{}：帮助学习 {}",
                             tools[index].command,
@@ -194,14 +263,21 @@ pub fn run(config_path: Option<&Path>, json: bool) -> Result<u32> {
                         )
                     }
                 }
-                KeyCode::Char('d' | 'D') if key.modifiers.is_empty() => {
+                KeyCode::F(5) if key.modifiers.is_empty() => {
                     if let Some(index) = visible.get(selected).copied() {
                         let current = settings
                             .tools
                             .get(&tools[index].command)
                             .and_then(|t| t.dynamic)
                             .unwrap_or(settings.completion.dynamic);
-                        set_override(config_path, &tools[index].command, "dynamic", !current)?;
+                        match set_override(config_path, &tools[index].command, "dynamic", !current)
+                        {
+                            Ok(updated) => settings = updated,
+                            Err(error) => {
+                                notice = format!("保存失败：{error:#}");
+                                continue;
+                            }
+                        }
                         notice = format!(
                             "{}：动态候选 {}",
                             tools[index].command,
@@ -310,18 +386,27 @@ fn draw(
     let (cols, rows) = crossterm::terminal::size().unwrap_or((100, 30));
     let mut out = io::stdout();
     write!(out, "\x1b[?2026h")?;
-    execute!(out, MoveTo(0, 0))?;
-    writeln!(out, "Blueberry 工具管理")?;
-    writeln!(
+    execute!(out, MoveTo(0, 0), Clear(ClearType::All))?;
+    write!(
+        out,
+        "{}",
+        fit("Blueberry 工具管理", cols.saturating_sub(1) as usize)
+    )?;
+    execute!(out, MoveTo(0, 1))?;
+    write!(
         out,
         "搜索：{}",
-        if query.is_empty() {
-            "输入工具、路径或状态"
-        } else {
-            query
-        }
+        fit(
+            if query.is_empty() {
+                "输入工具、路径或状态"
+            } else {
+                query
+            },
+            cols.saturating_sub(7) as usize
+        )
     )?;
-    writeln!(out, "{}", "─".repeat(cols as usize))?;
+    execute!(out, MoveTo(0, 2))?;
+    write!(out, "{}", "─".repeat(cols.saturating_sub(1) as usize))?;
     let width = if cols >= 100 {
         cols as usize / 2
     } else {
@@ -343,62 +428,53 @@ fn draw(
             tool.contexts,
             tool.help
         );
-        writeln!(out, "{}", fit(&line, width))?
+        execute!(out, MoveTo(0, 3 + row as u16))?;
+        write!(out, "{}", fit(&line, width.saturating_sub(1)))?
     }
-    if let Some(index) = visible.get(selected) {
+    if let Some(index) = visible.get(selected).filter(|_| cols >= 100) {
         let tool = &tools[*index];
-        if cols >= 100 {
-            execute!(out, MoveTo(cols / 2, 3))?;
-            write!(out, "详情 · {}", tool.command)?;
-            execute!(out, MoveTo(cols / 2, 4))?;
-            write!(
-                out,
-                "版本：{}",
-                tool.version.as_deref().unwrap_or("按 V 读取")
-            )?;
-            execute!(out, MoveTo(cols / 2, 5))?;
-            write!(
-                out,
+        let override_ = settings
+            .tools
+            .get(&tool.command)
+            .cloned()
+            .unwrap_or_default();
+        let mut details = vec![
+            format!("详情 · {}", tool.command),
+            format!("版本：{}", tool.version.as_deref().unwrap_or("按 F3 读取")),
+            format!(
                 "动态能力：{} · 资源：{}",
                 if tool.dynamic { "有" } else { "无" },
                 tool.resources
-            )?;
-            execute!(out, MoveTo(cols / 2, 6))?;
-            write!(
-                out,
+            ),
+            format!(
                 "入口：{}",
-                fit(
-                    &tool
-                        .paths
-                        .first()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_else(|| "未发现".into()),
-                    cols as usize / 2
-                )
-            )?;
-            let override_ = settings
-                .tools
-                .get(&tool.command)
-                .cloned()
-                .unwrap_or_default();
-            execute!(out, MoveTo(cols / 2, 7))?;
-            write!(
-                out,
+                tool.paths
+                    .first()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "未发现".into())
+            ),
+            format!(
                 "帮助：{} · 动态：{} · 适配器：{}",
                 flag(override_.help),
                 flag(override_.dynamic),
                 tool.help_adapter
-            )?;
-            execute!(out, MoveTo(cols / 2, 8))?;
+            ),
+            format!("数据源：{}", tool.providers.join(", ")),
+        ];
+        if let Some(error) = &tool.error {
+            details.push(format!("最近错误：{error}"));
+        }
+        for (offset, detail) in details.iter().enumerate() {
+            let row = 3 + offset as u16;
+            if row >= rows.saturating_sub(2) {
+                break;
+            }
+            execute!(out, MoveTo(cols / 2, row))?;
             write!(
                 out,
-                "数据源：{}",
-                fit(&tool.providers.join(", "), cols as usize / 2)
+                "{}",
+                fit(detail, (cols - cols / 2).saturating_sub(1) as usize)
             )?;
-            if let Some(error) = &tool.error {
-                execute!(out, MoveTo(cols / 2, 9))?;
-                write!(out, "最近错误：{}", fit(error, cols as usize / 2))?
-            }
         }
     }
     execute!(out, MoveTo(0, rows.saturating_sub(2)))?;
@@ -406,7 +482,11 @@ fn draw(
     execute!(out, MoveTo(0, rows.saturating_sub(1)))?;
     write!(
         out,
-        "↑↓ 选择 · L 学习 · Del 清缓存 · V 版本 · H/D 切换 · Esc 返回"
+        "{}",
+        fit(
+            "↑↓ 选择 · F2 学习 · F3 版本 · F4 帮助 · F5 动态 · Ctrl+Del 清缓存 · Esc 返回",
+            cols.saturating_sub(1) as usize
+        )
     )?;
     write!(out, "\x1b[?2026l")?;
     out.flush()?;
@@ -419,65 +499,45 @@ fn flag(value: Option<bool>) -> &'static str {
         None => "跟随全局",
     }
 }
-fn learn(tool: &ToolInfo) -> Result<String> {
-    let Some(path) = tool.paths.first() else {
-        return Ok("找不到可学习的程序入口".into());
-    };
-    let cwd = env::current_dir()?;
-    let Some(entry) = knowledge::entry(&tool.command, path, &cwd) else {
-        return Ok("此入口不符合已知学习规则".into());
-    };
-    let record = knowledge::learn(
-        entry,
-        Vec::new(),
-        &knowledge::cache_dir(),
-        &std::sync::atomic::AtomicBool::new(false),
-    )
-    .map_err(anyhow::Error::msg)?;
-    Ok(record
-        .error
-        .map(|e| format!("学习失败：{e}"))
-        .unwrap_or_else(|| "帮助学习完成".into()))
+fn learn(tool: &ToolInfo, cancelled: &AtomicBool) -> Result<knowledge::Record, String> {
+    let path = tool.paths.first().ok_or("找不到可学习的程序入口")?;
+    let cwd = env::current_dir().map_err(|e| e.to_string())?;
+    let entry = knowledge::entry(&tool.command, path, &cwd).ok_or("此入口不符合已知学习规则")?;
+    knowledge::learn_uncached(entry, Vec::new(), &knowledge::cache_dir(), cancelled)
 }
-fn query_version(tool: &ToolInfo) -> Option<String> {
-    let path = tool.paths.first()?;
-    let output = Command::new(path)
-        .arg("--version")
-        .stdin(Stdio::null())
-        .output()
-        .ok()?;
-    String::from_utf8_lossy(if output.stdout.is_empty() {
-        &output.stderr
-    } else {
-        &output.stdout
-    })
-    .lines()
-    .find(|line| !line.trim().is_empty())
-    .map(|line| line.trim().to_owned())
+fn query_version(tool: &ToolInfo, cancelled: &AtomicBool) -> Result<String, String> {
+    let path = tool.paths.first().ok_or("找不到程序入口")?;
+    let cwd = env::current_dir().map_err(|e| e.to_string())?;
+    let output = crate::bounded_process::capture(path, &["--version".into()], &cwd, cancelled)?;
+    let first_line = |bytes: &[u8]| {
+        knowledge::clean(&String::from_utf8_lossy(bytes))
+            .lines()
+            .find(|line| !line.trim().is_empty())
+            .map(|line| line.trim().to_owned())
+    };
+    first_line(&output.stdout)
+        .or_else(|| first_line(&output.stderr))
+        .ok_or("无法读取版本：输出为空".into())
 }
-fn set_override(config_path: Option<&Path>, command: &str, key: &str, enabled: bool) -> Result<()> {
+
+fn set_override(
+    config_path: Option<&Path>,
+    command: &str,
+    key: &str,
+    enabled: bool,
+) -> Result<config::Config> {
     let path = config_path
         .map(Path::to_path_buf)
         .unwrap_or_else(config::default_path);
-    let text = fs::read_to_string(&path).unwrap_or_else(|_| config::example().to_owned());
-    let mut doc = text.parse::<DocumentMut>().context("配置 TOML 无法解析")?;
-    doc["tools"][command][key] = value(enabled);
-    let temp = path.with_extension("toml.tmp");
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?
-    }
-    fs::write(&temp, doc.to_string())?;
-    if path.exists() {
-        let backup = path.with_extension("toml.bak");
-        let _ = fs::remove_file(&backup);
-        fs::rename(&path, &backup)?;
-        if let Err(error) = fs::rename(&temp, &path) {
-            let _ = fs::rename(&backup, &path);
-            return Err(error.into());
-        }
-        let _ = fs::remove_file(backup);
-    } else {
-        fs::rename(temp, path)?;
-    }
-    Ok(())
+    let bytes = crate::config_store::edit(&path, |doc| {
+        crate::config_store::set_value(&mut doc["tools"][command][key], value(enabled));
+        let updated: config::Config = toml::from_str(&doc.to_string())?;
+        updated.validate()?;
+        Ok(())
+    })?;
+    let text = std::str::from_utf8(&bytes)?.trim_start_matches('\u{feff}');
+    let mut updated: config::Config = toml::from_str(text)?;
+    let raw: toml::Value = toml::from_str(text)?;
+    updated.apply_theme(raw.get("ui").and_then(toml::Value::as_table));
+    Ok(updated)
 }

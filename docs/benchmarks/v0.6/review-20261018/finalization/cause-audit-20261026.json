@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-26",
+  "conclusion": "PATH directory identity changed; the cache was correctly invalidated, so this was not a valid hit sample. No configuration corruption demonstrated.",
+  "changed_directories": [
+    {
+      "before": {
+        "path": "C:\\Users\\dell\\AppData\\Local\\Microsoft\\WindowsApps",
+        "modified": 1792850015923119700,
+        "accessible": true
+      },
+      "after": {
+        "path": "C:\\Users\\dell\\AppData\\Local\\Microsoft\\WindowsApps",
+        "modified": 1792858529824594300,
+        "accessible": true
+      }
+    }
+  ],
+  "all_other_cache_fields_equal": true,
+  "before": {
+    "path": "C:\\Windows\\Temp\\bbr2-20261025\\preflight-run1-after\\raw-ps7-245-hot-descriptions-true-attempt-1\\blueberry-beta-metrics-8f2c099e-5fbd-4e35-a37f-9067f5243fff\\data\\fuzzy\\pair-0\\commands-before-hit.json",
+    "sha256": "27aaa6f657b21ce7723240465b9ee846baf1bdce8dca0bcf18550d7bc2ed7295"
+  },
+  "after": {
+    "path": "C:\\Windows\\Temp\\bbr2-20261025\\preflight-run1-after\\raw-ps7-245-hot-descriptions-true-attempt-1\\blueberry-beta-metrics-8f2c099e-5fbd-4e35-a37f-9067f5243fff\\data\\fuzzy\\pair-0\\commands-after-hit.json",
+    "sha256": "9282bf14a261b9d607e1762703e15d2f5427c44dc274ba21eab5c37128d9498e"
+  },
+  "cleanup": {
+    "deleted_path": "E:/OpenSource/shellsense-rs/target/debug/incremental",
+    "logical_bytes_before": 19319441223,
+    "files_before": 50840,
+    "absent_after": false,
+    "preserved": "candidate packages, raw evidence, installed software and source"
+  },
+  "prior_interaction_failures": "still under investigation; fast cursor replies rule out assuming queue delay as the cause",
+  "local_functional_reproductions": {
+    "ps7_245_osc_resize": {
+      "passed": 11,
+      "failed": 0
+    },
+    "ps51_245_pipe_navigation": {
+      "passed": 11,
+      "failed": 0
+    },
+    "interpretation": "Failure not reproduced locally. These passes do not invalidate the historical CI failures or establish their root cause.",
+    "logs": [
+      "artifacts/diagnostic-resize-20261026*.log",
+      "artifacts/diagnostic-navigation-20261026*.log"
+    ],
+    "performance_sampling": false
+  },
+  "diagnostic_recording_validation": {
+    "passed": true,
+    "path": "target/nested-terminal-evidence/modes-ZjhInS",
+    "completed_frame_tests_passed": 2
+  }
+}

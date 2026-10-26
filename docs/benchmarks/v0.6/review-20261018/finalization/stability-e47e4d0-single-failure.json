@@ -1,0 +1,111 @@
+{
+  "source_commit": "e47e4d0fec2feea58bf660c5513644cd7ebd5ed9",
+  "run_id": 39376854064,
+  "result": "failure",
+  "jobs": [
+    {
+      "job_id": 118476822669,
+      "editor": "ps51-245",
+      "conclusion": "success",
+      "log": "artifacts\\stability-e47e4d0-118476822669.log",
+      "sha256": "0159847d449bdd029222f690423e29dc605ce6a14bc9d4831534d4e865e131d1"
+    },
+    {
+      "job_id": 118476822889,
+      "editor": "ps7-245",
+      "conclusion": "success",
+      "log": "artifacts\\stability-e47e4d0-118476822889.log",
+      "sha256": "f0000bd102d07bc90b936644af32c34b7479ed58691beda9cfc3719d8166d44c"
+    },
+    {
+      "job_id": 118476822918,
+      "editor": "ps51-200",
+      "conclusion": "failure",
+      "log": "artifacts\\stability-e47e4d0-118476822918.log",
+      "sha256": "499d2a9ca10e9e4ab4d1ff6d8c2bef4ccc4083efb06b590fdceb404765270dcb"
+    }
+  ],
+  "direct": "All three editors passed both trace-on and trace-off targeted interactions.",
+  "nested": "PS5.1/2.0.0 OSC failed global absence assertion for gi; other five combinations passed.",
+  "verified_archive_sha256": "EB3E2292BFA9A9B53B29655199AFD2D59FFCAB71D203A8D792621626F7600B08",
+  "artifact_id": 12243627817,
+  "actual_buffer_events": [
+    {
+      "event": "prompt_redraw"
+    },
+    {
+      "cursor": 2,
+      "event": "buffer",
+      "line": "gi",
+      "menu_row": 18
+    },
+    {
+      "cursor": 2,
+      "event": "buffer",
+      "line": "gi",
+      "menu_row": 18
+    },
+    {
+      "event": "prompt_redraw"
+    },
+    {
+      "cursor": 2,
+      "event": "buffer",
+      "line": "gi",
+      "menu_row": 12
+    },
+    {
+      "cursor": 2,
+      "event": "buffer",
+      "line": "gi",
+      "menu_row": 12
+    },
+    {
+      "cursor": 2,
+      "event": "buffer",
+      "line": "gi",
+      "menu_row": 12
+    },
+    {
+      "cursor": 3,
+      "event": "buffer",
+      "line": "git",
+      "menu_row": 12
+    }
+  ],
+  "observations": [
+    "Final buffer event confirms line git, cursor 3, menu_row 12.",
+    "Final screen contains current git menu below latest prompt; old gi menu fragments remain above it.",
+    "Native 24x80 snapshot independently confirms the old fragments.",
+    "Test correction scopes active-menu assertions below the current prompt and retains exact input and border checks."
+  ],
+  "unresolved": [
+    "Historical menu fragments are retained as a separate rendering/cleanup finding; active-menu test success does not close it."
+  ],
+  "local_revalidation": {
+    "ps51_200_osc_repetitions": 30,
+    "passed": 30,
+    "test_executable_sha256": "9ED17B91227B6153D930CE140CB9F09528AFFE064E6217487DE98FC428B4974B",
+    "first_fixture": "target/nested-terminal-evidence/host-QtLYwj",
+    "last_fixture": "target/nested-terminal-evidence/host-BFJWE6",
+    "final_six_combinations": {
+      "result": "6 passed",
+      "fixtures": [
+        "host-QZze8a",
+        "host-Eeomam",
+        "host-ovBZCK",
+        "host-d0JN1G",
+        "host-T65pJw",
+        "host-SkkNTJ"
+      ],
+      "test_executable_sha256": "0f5408325b880d1843bdee42dae4e5ff5771cdc013d11f2005783bc084176b6c"
+    },
+    "prediction_observation": {
+      "fixture": "host-365X3W",
+      "screen": "git log --oneline with PSReadLine inline prediction",
+      "actual_buffer": "git",
+      "cursor": 3,
+      "correction": "Assert actual buffer event, not prompt text including prediction."
+    }
+  }
+}

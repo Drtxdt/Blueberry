@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "source_sha": "ad34ce30b4b1695fb8de5bd6452ca18225eb86dd",
+  "run_id": 39252218595,
+  "kind": "single-pass targeted stability",
+  "jobs": [
+    {
+      "combination": "ps51-200",
+      "job_id": 118058567814,
+      "log_sha256": "37f7482ae2470f0ef94252638b770c938cb3b1bb7629c429124aaf8508d9443e",
+      "passed_tests": [
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields",
+        "compiled_bridge_codec_runs_in_selected_shell",
+        "unknown_diagnostic_events_do_not_disable_completion",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out"
+      ],
+      "test_binary_hashes": [
+        "D961D74313C0D53D3795D5FCAAC5F7617085ABDBD42BBA4B52D4EB4371D341D4",
+        "0295AB7B6C3228F66B93342BB3954EB6FC9024040975EBE141FC3BA772EB2817",
+        "69605227A26D95C204330A7E72B8B5B50F4371685C58C06B344C66FAFA9FB8E6",
+        "DBEB7B2E7AAF633BB0F41F2E821642B12F75C4E6EA84B7F89FBF7D3AAE963A7D",
+        "3A2674E50E95755DA9ABFF3BDF319057EA49E444287F0E0AC85ADD081EFE64EE",
+        "66F5B115D5100EE108F6D6FDB612F68A1BA1224CEA053E9EEE22A731D7391FFA",
+        "368038BB5064394087A324E57682B9C6002678B84A896E1D3AEDC8CBCA07E860"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "combination": "ps51-245",
+      "job_id": 118058568105,
+      "log_sha256": "a44e8ee84accdf3aa943a9703be6ebebfa65f7828d252a0d0407685d8a04ad16",
+      "passed_tests": [
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields",
+        "compiled_bridge_codec_runs_in_selected_shell",
+        "unknown_diagnostic_events_do_not_disable_completion",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out"
+      ],
+      "test_binary_hashes": [
+        "54F4C8E39016100C9FFACD3CE31D78DD118BB58FCB9FB9C8532E1380EEDFCF97",
+        "70FF91D5A984393D2B7D56B754184289992AB0094859BBD67926A5A703EDE6F1",
+        "B3717A048E7F84FCA777E4C9D3503CA69F9165C78FEC86710883C251DC9F65E9",
+        "246C62459BA34F5F14410867ACFFB7E8DACA28F9EF7512440FA656E798D13817",
+        "92CD54F184B692C84BE965D299E72F15A9DB894C0D97F0356112DE8D02B74734",
+        "AC6034FB6BBB19865E636514DC53CEB1DCA9834F7A20353E1EB3A124545BD059",
+        "C9B2D29A376B063F66F7B461647A1E6C057F64ACB1215C98658E55A24E53BA88"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "combination": "ps7-245",
+      "job_id": 118058568300,
+      "log_sha256": "d88ee98d2b1af629009a10bee310329fcca6ea6d230245c385beaddac493226a",
+      "passed_tests": [
+        "diagnostic_contract_accepts_declared_stages_and_rejects_invalid_fields",
+        "compiled_bridge_codec_runs_in_selected_shell",
+        "unknown_diagnostic_events_do_not_disable_completion",
+        "direct_resize_after_menu_clear_reflows_input",
+        "direct_resize_reflows_input_when_menu_ownership_readback_failed",
+        "direct_bottom_menu_reserves_space_and_survives_small_viewport_navigation",
+        "direct_and_original_editor_agree_on_vi_command_and_insert_transitions",
+        "builtin_workflows_fill_native_editor_without_executing",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out",
+        "host_conpty_menu_accepts_options_restores_screen_and_keeps_control_keys_out"
+      ],
+      "test_binary_hashes": [
+        "3347F972EAD739DF493BF5A0030B60C8A623D0CC2A482EB8A564857BEB8729AE",
+        "31E06E4352E9E2040FE061A7456A1DE4411D6C18266E7E063F37ABBD9ACE54E4",
+        "99BF6858AABD963A97F3D14DF1233DB37C9A9236E091941BAEEF3D3DB3D77126",
+        "FE9BBA351E84EAB3A42AF169D915E3BC2B50D94B1237397BAD2BCFBCD0E41DB6",
+        "30B2CECD40833E0A60916B66E14DCAA5DFC697665067969DB5D41ED907444D07",
+        "FF2F154720EDC9234D30C5987139F86371EABC74F0250B68B6B0662A91F6361A",
+        "0AFFABEFF87332295F03C21A684DEE2153B23A7EDEE0FD9B787C0EA66FE54044"
+      ],
+      "conclusion": "success"
+    }
+  ],
+  "repeat_run_id": 39253381002,
+  "repeat_status": "running",
+  "release_ready": false,
+  "limitations": [
+    "Each test group uses its separately built binary; within-group repetitions bind its SHA. No final release binary is claimed.",
+    "Tracing on/off covers malformed diagnostic injection; full trace-off interaction coverage remains pending.",
+    "Native history terminal test is outside this targeted run."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "decision_date": "2026-10-14",
+  "timezone": "Asia/Shanghai",
+  "authorization_source": "direct human reply in this chat",
+  "user_answer": "接受便携修改版作为正式依赖",
+  "portable_modified_terminal_as_release_dependency_authorized": true,
+  "replace_existing_installation_or_user_profile": false,
+  "gate_waived": false,
+  "requirements": [
+    "preserve original menu position and all historical properties across resizing",
+    "bind both programs to fixed source, original CI artifacts, SHA-256 and licenses",
+    "pass functional, performance, installation and final package manual acceptance"
+  ],
+  "final_package_manual_acceptance": "not_executed",
+  "release_ready": false
+}
