@@ -4,6 +4,10 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
+      approved_v053:
+        description: Apply the maintainer-approved 2026-10-26 frozen v0.5.3 release exception
+        type: boolean
+        default: false
       release_tag:
         description: Existing annotated release tag pointing to the measured source commit
         required: true
@@ -22,7 +26,14 @@ concurrency:
   group: release-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 jobs:
+  approved-v053:
+    if: github.event_name == 'workflow_dispatch' && inputs.approved_v053 && inputs.release_tag == 'v0.5.3'
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/publish-approved-v053.yml
   draft:
+    if: '!inputs.approved_v053'
     runs-on: ubuntu-24.04
     permissions:
       actions: read

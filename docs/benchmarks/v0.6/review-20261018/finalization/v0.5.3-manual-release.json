@@ -1,0 +1,26 @@
+{
+  "version": "0.5.3",
+  "source_commit": "8b97ebbc02d4b4908b060a939f418e1ac9d2507c",
+  "ci_run_id": 40097143597,
+  "ci_event": "pull_request",
+  "manual_release_exception": {
+    "authorization": "我测试没有问题。直接发版吧",
+    "date": "2026-10-26",
+    "user_reported_test": "no problems reported; detailed GUI matrix not independently recorded",
+    "performance": "deferred, not passed",
+    "later_ci_intermittent_failures": "PS7/OSC resize and PS5.1/2.4.5 navigation remain unresolved",
+    "main_merge": "not performed"
+  },
+  "packages": [
+    {
+      "name": "blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip",
+      "sha256": "547ABC51DA22682DDA50EB789105109E2B51AB53E190317C1B3E08D30A7C9D58",
+      "verified_manifest_files": 84
+    },
+    {
+      "name": "blueberry-v0.5.3-windows-x64.zip",
+      "sha256": "734BF7F7853178445C5E52E928A6E14CC4EAF0E58F30BF18DEB875D4436D22EE",
+      "verified_manifest_files": 28
+    }
+  ]
+}
