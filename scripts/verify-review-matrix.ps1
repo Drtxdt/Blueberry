@@ -35,8 +35,10 @@ try {
                 & cargo test --locked --test host --test terminal_modes --test terminal_beta --quiet -- --test-threads=1 *> $log
             }
             $code=$LASTEXITCODE
+            $build=(& ./target/debug/blueberry.exe --config config.example.toml doctor --json | ConvertFrom-Json).build
+            if($LASTEXITCODE) { throw 'Cannot read tested product build identity' }
             $results+=@{ case=$case.name; lane=$lane; exit_code=$code; passed=($code -eq 0); log=$log;
-                source_commit=(& git rev-parse HEAD); product_sha256=(Get-FileHash target/debug/blueberry.exe).Hash;
+                source_commit=$build.commit; source_dirty=$build.dirty; working_tree_head=(& git rev-parse HEAD); product_sha256=(Get-FileHash target/debug/blueberry.exe).Hash;
                 shell_sha256=(Get-FileHash $case.shell).Hash; module_sha256=(Get-FileHash $env:BLUEBERRY_TEST_PSREADLINE_MODULE).Hash }
             ConvertTo-Json -InputObject @($results) -Depth 5 | Set-Content -LiteralPath (Join-Path $root 'results.json') -Encoding utf8
             if($code -ne 0 -and -not $ContinueOnFailure) { throw "Matrix failure: $($case.name)/$lane; evidence: $log" }
