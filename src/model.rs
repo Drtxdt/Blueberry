@@ -75,6 +75,11 @@ pub struct InputContext {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Completion {
+    /// Actual outstanding work, distinct from an incomplete failed snapshot.
+    #[serde(default)]
+    pub pending: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
     /// UTF-8 byte offsets into the original command line; do not use display columns.
     pub replace_start: usize,
     pub replace_end: usize,

@@ -518,6 +518,8 @@ pub fn form_completion(
     };
     let (position, count) = form.position();
     crate::model::Completion {
+        pending: false,
+        error: None,
         replace_start: 0,
         replace_end: original_len,
         candidates: vec![Candidate {

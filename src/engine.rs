@@ -411,6 +411,14 @@ impl CommandIndex {
 
     /// Save an index as a complete file and atomically publish it.
     pub fn save(&self, path: &Path) -> Result<()> {
+        self.save_with_publish(path, replace_file)
+    }
+
+    pub(crate) fn save_with_publish(
+        &self,
+        path: &Path,
+        publish: impl FnOnce(&Path, &Path) -> io::Result<()>,
+    ) -> Result<()> {
         if !self.is_complete() {
             bail!("cannot persist an incomplete command discovery");
         }
@@ -457,7 +465,7 @@ impl CommandIndex {
             file.flush()?;
             file.sync_all()?;
             drop(file);
-            replace_file(&temporary, path)
+            publish(&temporary, path)
         })();
 
         if let Err(error) = write_result {
@@ -629,6 +637,8 @@ impl CommandIndex {
             candidates: Vec::new(),
             incomplete: !self.complete,
             argument_hint: String::new(),
+            pending: false,
+            error: None,
         };
         let effective_limit = limit.min(MAX_RESULTS);
         if effective_limit == 0 || context.suppressed {

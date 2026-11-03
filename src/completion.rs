@@ -103,8 +103,17 @@ pub fn merge(
     for (index, part) in parts.into_iter().enumerate() {
         if let Some(part) = part {
             base.incomplete |= part.incomplete;
+            base.pending |= part.scan_pending;
+            if part.incomplete && !part.scan_pending {
+                base.error = base.error.or_else(|| part.diagnostics.first().cloned());
+            }
             base.candidates.extend(part.candidates.clone());
         } else {
+            base.pending |= if index == 0 {
+                request.project
+            } else {
+                request.paths
+            };
             base.incomplete |= if index == 0 {
                 request.project
             } else {
