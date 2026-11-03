@@ -68,6 +68,7 @@ fn command_batch_matches(
 /// Keep a query and its visible frame separate: asynchronous results must not
 /// change which candidate an acceptance request identifies.
 struct Session {
+    presented_frame: Option<u64>,
     manual: bool,
     revision: u64,
     line: String,
@@ -95,6 +96,7 @@ use crate::workbench::Workbench;
 impl Session {
     fn new() -> Self {
         Self {
+            presented_frame: None,
             manual: false,
             revision: 0,
             line: String::new(),
@@ -212,8 +214,11 @@ impl Session {
                     .and_then(|ui| ui.error.as_deref())
                     .or(completion.error.as_deref())
                     .or_else(|| {
-                        (self.manual && !completion.pending && completion.candidates.is_empty())
-                            .then_some("没有匹配的候选")
+                        (self.manual
+                            && !completion.pending
+                            && completion.candidates.is_empty()
+                            && completion.argument_hint.is_empty())
+                        .then_some("没有匹配的候选")
                     }),
                 argument_hint: Some(&completion.argument_hint),
                 ..Default::default()
@@ -225,8 +230,15 @@ impl Session {
         if let Some(candidate) = candidate.cloned() {
             self.visible
                 .push_back((self.frame, id.clone(), candidate, completion.clone()));
-            while self.visible.len() > 32 {
-                self.visible.pop_front();
+            // Preserve the editor's acknowledged frame while discovery can
+            // publish many newer frames. Bound unacknowledged traffic too.
+            while self.visible.len() > 4096 {
+                let discard = usize::from(
+                    self.visible
+                        .front()
+                        .is_some_and(|f| Some(f.0) == self.presented_frame),
+                );
+                self.visible.remove(discard);
             }
         }
         self.selected_id = (!id.is_empty()).then_some(id.clone());
@@ -236,6 +248,20 @@ impl Session {
             "lines":menu.lines, "width":menu.width, "tail_rows":tail_rows, "incomplete":completion.incomplete,
             "columns":self.width,"available_rows":self.available_rows,
             "interaction":if self.ui.as_ref().is_some_and(|ui|ui.form.is_some()) {"form"} else if self.ui.is_some() {"hub"} else {"completion"}})
+    }
+    fn presented(&mut self, value: &Value) {
+        if value["revision"].as_u64() != Some(self.revision) {
+            return;
+        }
+        if let Some(id) = value["frame_id"].as_u64()
+            && self.visible.iter().any(|(frame, identity, _, _)| {
+                *frame == id && value["candidate_id"].as_str() == Some(identity)
+            })
+            && self.presented_frame.is_none_or(|previous| id >= previous)
+        {
+            self.presented_frame = Some(id);
+            self.visible.retain(|(frame, _, _, _)| *frame >= id);
+        }
     }
     fn accept(&self, value: &Value, token: &str) -> Option<Value> {
         let requested_frame = value["frame_id"].as_u64()?;
@@ -707,6 +733,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         }
                     }
                     match value["event"].as_str() {
+                        Some("presented") if ready => session.presented(&value),
                         Some("trace_point") if ready && trace.enabled() => {
                             let Some(stage) = diagnostic_stage(&value) else {
                                 continue;
@@ -1521,6 +1548,43 @@ mod tests {
 #[cfg(test)]
 mod status_frame_tests {
     use super::*;
+    #[test]
+    fn acknowledged_frame_survives_discovery_burst_and_old_ack_is_ignored() {
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":1,"line":"gi","cursor":2}))
+            .unwrap();
+        let config = Config::default();
+        let completion = Completion {
+            replace_end: 2,
+            candidates: vec![Candidate {
+                id: "git".into(),
+                label: "git".into(),
+                insert_text: "git".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let first = session.render(completion.clone(), &config, "test");
+        let ack = json!({"revision":1,"frame_id":first["frame_id"],"candidate_id":"git"});
+        // Acknowledgement itself can queue behind an initial scan burst.
+        for _ in 0..64 {
+            session.render(completion.clone(), &config, "test");
+        }
+        session.presented(&ack);
+        for _ in 0..4100 {
+            session.render(completion.clone(), &config, "test");
+        }
+        assert!(session.visible.len() <= 4096);
+        let accept = json!({"revision":1,"frame_id":first["frame_id"],"candidate_id":"git","line":"gi","cursor":2});
+        assert!(session.accept(&accept, "test").is_some());
+        let newest = session.render(completion, &config, "test");
+        session
+            .presented(&json!({"revision":1,"frame_id":newest["frame_id"],"candidate_id":"git"}));
+        session.presented(&ack);
+        assert_eq!(session.presented_frame, newest["frame_id"].as_u64());
+        assert_eq!(session.visible.len(), 1);
+    }
     #[test]
     fn status_frames_have_no_edit_identity_and_manual_empty_is_visible() {
         let mut session = Session::new();

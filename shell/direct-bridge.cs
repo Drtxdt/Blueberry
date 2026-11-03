@@ -797,6 +797,7 @@ namespace Blueberry.Direct {
             if(diagnostic && frameReceived!=0) TraceStage("direct_frame_to_paint",Stopwatch.GetTimestamp()-frameReceived,1);
             expectedUiEditRevision=-1;
             interaction=Json.String(frame,"interaction") ?? "completion"; displayed = frame;
+            Send(new Dictionary<string,object> { {"event","presented"},{"revision",revision},{"frame_id",Json.Long(frame,"frame_id")},{"candidate_id",Json.String(frame,"candidate_id")} });
             navigationPending=false;
             if (navigationKeys.Count>0) Navigate(navigationKeys.Dequeue());
             return true;

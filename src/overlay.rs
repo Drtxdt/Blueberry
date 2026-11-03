@@ -198,7 +198,10 @@ impl Overlay {
         state: menu::MenuState,
     ) -> io::Result<()> {
         let status_only = candidates.is_empty();
-        if (status_only && !state.incomplete && state.diagnostic.is_none())
+        if (status_only
+            && !state.incomplete
+            && state.diagnostic.is_none()
+            && state.argument_hint.is_none_or(str::is_empty))
             || screen.alternate_screen()
         {
             return self.erase(screen, output);

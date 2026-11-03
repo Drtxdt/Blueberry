@@ -74,6 +74,7 @@ fn render_overlay(
         let status = state.completion.error.as_deref().or_else(|| {
             (state.manual_completion
                 && !state.completion.pending
+                && state.completion.argument_hint.is_empty()
                 && state.completion.candidates.is_empty())
             .then_some("没有匹配的候选")
         });
@@ -96,8 +97,7 @@ fn render_overlay(
                 incomplete: state.completion.pending,
                 details: state.details,
                 detail_page: state.detail_page,
-                argument_hint: (!state.completion.candidates.is_empty())
-                    .then_some(state.completion.argument_hint.as_str()),
+                argument_hint: Some(state.completion.argument_hint.as_str()),
                 searching: state.searching && state.workbench.query().is_none(),
                 diagnostic: state.notification.as_deref().or(status).or_else(|| {
                     (state.completion.candidates.is_empty()

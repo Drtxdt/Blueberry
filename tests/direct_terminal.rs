@@ -2441,6 +2441,13 @@ fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
     h.send(b"\r")?;
     h.wait_line("MANUAL-EDIT-OK", TIMEOUT)
         .context("post acceptance edit")?;
+    h.send_text("zzz-manual-empty")?;
+    h.send(b"\x1b[17~")?;
+    h.wait_text("没有匹配的候选", TIMEOUT)?;
+    // A status row yields text editing back to the original editor binding.
+    h.send_text("X")?;
+    h.wait_text("zzz-manual-emptyX", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
     h.send(b"\x1b[18~")?;
     h.wait_text("工作台", TIMEOUT)
         .context("open manual workbench")?;
@@ -2751,6 +2758,26 @@ fn direct_path_changes_are_visible_without_manual_refresh() -> Result<()> {
     h.send_text("bb-env-custo")?;
     h.wait_text("bb-env-custom", TIMEOUT)?;
     h.send(b"\x01\x7f")?;
+    for (extension, present) in [(".EXE", false), (".CMD", true)] {
+        h.send_text(&format!(
+            "$env:PATHEXT='{extension}'; Write-Output 'EXT-{extension}'\r"
+        ))?;
+        wait_output_line(&mut h, &format!("EXT-{extension}"))?;
+        h.send_text("bb-env-custo")?;
+        if present {
+            wait_selected_path(&mut h, "bb-env-custom")?;
+        } else {
+            let deadline = std::time::Instant::now() + Duration::from_secs(2);
+            while std::time::Instant::now() < deadline {
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            ensure!(
+                !selected_path(&h, "bb-env-custom"),
+                "PATHEXT removal left command selectable"
+            );
+        }
+        h.send(b"\x01\x7f")?;
+    }
     h.send_text(&format!("$env:PATH=($env:PATH -split ';' | Where-Object {{ $_ -ne '{}' }}) -join ';'; Write-Output 'ENV-REMOVED'\r", quoted))?;
     wait_output_line(&mut h, "ENV-REMOVED")?;
     h.send_text("bb-env-custo")?;

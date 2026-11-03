@@ -42,7 +42,8 @@ pub fn render_with_state(
     if candidates.is_empty() {
         let text = state
             .diagnostic
-            .or_else(|| state.incomplete.then_some("正在加载…"));
+            .or_else(|| state.incomplete.then_some("正在加载…"))
+            .or(state.argument_hint.filter(|hint| !hint.is_empty()));
         let Some(text) = text.filter(|_| available_rows > 0 && available_width > 0) else {
             return MenuFrame {
                 lines: Vec::new(),
