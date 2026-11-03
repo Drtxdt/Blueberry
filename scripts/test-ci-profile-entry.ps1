@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)][string]$Shell,
     [Parameter(Mandatory)][string]$Executable,
+    [string]$ProbeExecutable,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [ValidateRange(1, 1000)][int]$Pairs = 2,
     [ValidateSet('ambient', 'cold', 'warm')][string]$CacheState = 'ambient',
@@ -18,6 +19,7 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
 }
 $Shell=if (Test-Path -LiteralPath $Shell -PathType Leaf) { (Resolve-Path -LiteralPath $Shell).Path } else { (Get-Command $Shell -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
 $Executable=(Resolve-Path -LiteralPath $Executable).Path
+$ProbeExecutable=if ($ProbeExecutable) { (Resolve-Path -LiteralPath $ProbeExecutable).Path } else { $Executable }
 $root=[IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $root) { throw 'Evidence directory must be new.' }
 $null=New-Item -ItemType Directory -Path $root
@@ -57,7 +59,7 @@ try {
     [IO.File]::WriteAllBytes($profilePath,[IO.File]::ReadAllBytes($prepared))
     $installed=$true
     $reportPath=Join-Path $root $(if ($Formal) { 'startup.json' } else { 'diagnostic.json' })
-    & $Executable product-probe --shell $Shell --profile-entry --profile-fixture $fixture --iterations $Pairs --cache-state $CacheState --output $reportPath
+    & $ProbeExecutable product-probe --host-executable $Executable --shell $Shell --profile-entry --profile-fixture $fixture --iterations $Pairs --cache-state $CacheState --output $reportPath
     if ($LASTEXITCODE -ne 0) { throw 'Automatic profile entry probe failed.' }
     if ($Formal) {
         $report=Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json

@@ -1,0 +1,79 @@
+name: Review hardening full profile AB
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  stability:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Repeat historical regressions with and without tracing
+        shell: pwsh
+        run: ./scripts/verify-review-stability.ps1 -OutputDirectory artifacts/review-hardening/stability
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: review-stability-${{ github.sha }}
+          retention-days: 90
+          path: |
+            artifacts/review-hardening/stability
+            target/nested-terminal-evidence
+            ${{ runner.temp }}/blueberry-direct-evidence
+          if-no-files-found: warn
+  profile:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ps51-200
+            shell: powershell.exe
+            editor: '2.0.0'
+          - name: ps51-245
+            shell: powershell.exe
+            editor: '2.4.5'
+          - name: ps7-245
+            shell: pwsh.exe
+            editor: '2.4.5'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: blueberry-windows-x64
+          path: artifacts/candidate
+      - name: Prepare verified baseline and editor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python scripts/prepare-original-editor.py --version '${{ matrix.editor }}' --root "$env:RUNNER_TEMP/original-editor"
+          if($LASTEXITCODE) { throw 'Editor preparation failed' }
+          "BLUEBERRY_TEST_PSREADLINE_MODULE=$env:RUNNER_TEMP/original-editor/PSReadLine/${{ matrix.editor }}/PSReadLine.psd1" >> $env:GITHUB_ENV
+          'BLUEBERRY_NO_HISTORY=1' >> $env:GITHUB_ENV
+          $receipt=Get-Content docs/benchmarks/v0.6/review-20261018/finalization/v0.5.3-publication-receipt.json -Raw | ConvertFrom-Json
+          $asset=@($receipt.assets | Where-Object name -eq 'blueberry-v0.5.3-windows-x64.zip')
+          if($asset.Count -ne 1) { throw 'Expected one frozen baseline' }
+          $baselineZip="$env:RUNNER_TEMP/baseline.zip"
+          Invoke-WebRequest $asset[0].url -OutFile $baselineZip
+          if((Get-FileHash $baselineZip).Hash.ToLowerInvariant() -ne $asset[0].sha256.Replace('sha256:','')) { throw 'Baseline identity mismatch' }
+          Expand-Archive $baselineZip "$env:RUNNER_TEMP/baseline"
+          $candidate=@(Get-ChildItem artifacts/candidate -Recurse -Filter 'blueberry-v*-windows-x64.zip')
+          if($candidate.Count -ne 1) { throw 'Expected one successful CI core package' }
+          Expand-Archive $candidate[0].FullName "$env:RUNNER_TEMP/candidate"
+      - name: Two batches of real profile cold and warm AB BA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $shell=(Get-Command '${{ matrix.shell }}').Source
+          ./scripts/verify-review-profile-ab.ps1 -Shell $shell -Baseline "$env:RUNNER_TEMP/baseline/blueberry.exe" -Candidate "$env:RUNNER_TEMP/candidate/blueberry.exe" -OutputDirectory "$env:RUNNER_TEMP/review-profile" -Pairs 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: review-profile-${{ matrix.name }}-${{ github.sha }}
+          retention-days: 90
+          path: ${{ runner.temp }}/review-profile
+          if-no-files-found: warn

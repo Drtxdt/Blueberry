@@ -134,6 +134,7 @@ fn adapter(directory: &Path) -> Result<Value> {
     bail!("actual product did not publish adapter status")
 }
 struct Sample {
+    first_prompt: f64,
     first_input: f64,
     first_key: f64,
     first_static: Option<f64>,
@@ -245,6 +246,7 @@ fn measure(
     )?;
     let start = harness.observation_start(start);
     beta_metrics::wait_for_prompt(&mut harness, TIMEOUT)?;
+    let first_prompt = elapsed(&harness, start)?;
     let before = harness.observed_viewport()?;
     let prompt = before.lines().last().unwrap_or("").trim_end().to_owned();
     let key_start = Instant::now();
@@ -379,6 +381,7 @@ fn measure(
     };
     status["native_observer"] = json!(harness.native_observer_identity());
     Ok(Sample {
+        first_prompt,
         first_input,
         first_key,
         first_static,
@@ -543,6 +546,8 @@ pub fn run_with_options(
     let mut candidate = Vec::new();
     let mut delta = Vec::new();
     let mut keys = Vec::new();
+    let mut plain_prompts = Vec::new();
+    let mut candidate_prompts = Vec::new();
     let mut static_menus = Vec::new();
     let mut dynamic_menus = Vec::new();
     let mut visible_static_menus = Vec::new();
@@ -644,6 +649,8 @@ pub fn run_with_options(
             "paired PSReadLine versions differ"
         );
         delta.push(product.first_input - baseline.first_input);
+        plain_prompts.push(baseline.first_prompt);
+        candidate_prompts.push(product.first_prompt);
         plain.push(baseline.first_input);
         candidate.push(product.first_input);
         keys.push(product.first_key);
@@ -688,6 +695,11 @@ pub fn run_with_options(
         .unwrap()
         .extend(frozen.as_object().unwrap().clone());
     report["plain_editors"] = json!(plain_editors);
+    report["plain_first_prompt"] = stats(&plain_prompts);
+    report["candidate_first_prompt"] = stats(&candidate_prompts);
+    report["prompt_readiness_confirmation"] = json!(
+        "The observed prompt is followed by a verified PSReadLine first-key echo in the same sample"
+    );
     report["actual_entry"] = json!(if profile_entry {
         "isolated_automatic_profile"
     } else {
