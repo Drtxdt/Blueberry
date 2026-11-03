@@ -214,6 +214,22 @@ mod tests {
     }
 
     #[test]
+    fn immediate_drop_drains_complete_cache_and_releases_the_file() {
+        let root = tempdir().unwrap();
+        let tools = root.path().join("tools");
+        fs::create_dir(&tools).unwrap();
+        let (index, path) = completed_index(&tools, "shutdown-command");
+        let cache = root.path().join("commands.json");
+        let writer = CacheWriter::new(cache.clone(), Trace::default());
+        writer.submit(index);
+        let started = Instant::now();
+        drop(writer);
+        assert!(started.elapsed() < Duration::from_secs(2));
+        CommandIndex::load_with_env(&cache, &path, OsString::from(".EXE").as_os_str()).unwrap();
+        fs::rename(&cache, root.path().join("retired-cache.json")).unwrap();
+    }
+
+    #[test]
     fn cancelled_publication_preserves_existing_cache_and_removes_staging_file() {
         let root = tempdir().unwrap();
         let tools = root.path().join("tools");

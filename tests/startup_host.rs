@@ -9,6 +9,39 @@ use std::{
 };
 
 #[test]
+fn repeated_direct_start_accepts_immediate_exit_and_releases_data_files() -> Result<()> {
+    for _ in 0..3 {
+        let root = tempfile::tempdir()?;
+        let data = root.path().join("data");
+        let shell = pty::default_shell();
+        let args = vec![
+            "run".into(),
+            "--host-mode".into(),
+            "direct".into(),
+            "--no-profile".into(),
+            "--shell".into(),
+            shell.to_string_lossy().into_owned(),
+            "--data-dir".into(),
+            data.to_string_lossy().into_owned(),
+        ];
+        let mut terminal = Harness::start(
+            std::path::Path::new(env!("CARGO_BIN_EXE_blueberry")),
+            &args,
+            root.path(),
+            &BTreeMap::from([("BLUEBERRY_NO_HISTORY".into(), "1".into())]),
+            String::new(),
+        )?;
+        terminal.send_text("exit\r")?;
+        terminal.wait_exit(Duration::from_secs(20))?;
+        // A stopped host must leave no handle preventing data-directory moves.
+        if data.exists() {
+            std::fs::rename(&data, root.path().join("retired-data"))?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()> {
     let evidence =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/startup-terminal-evidence");
