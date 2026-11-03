@@ -668,3 +668,22 @@ fn scan_failures_keep_diagnostic_details_and_end_pending_work() {
     assert!(scan.diagnostics()[0].contains("not-a-directory"));
     assert!(!scan.snapshot().is_complete());
 }
+#[test]
+fn explicit_empty_pathext_is_preserved_in_discovery_and_cache() {
+    let root = tempdir().unwrap();
+    fs::write(root.path().join("empty-ext-tool.exe"), b"").unwrap();
+    let path = root.path().as_os_str();
+    let empty = std::ffi::OsStr::new("");
+    let index = CommandIndex::discover_with_env(path, empty);
+    assert!(index.is_complete());
+    assert_eq!(index.len(), 0);
+    let cache = root.path().join("commands.json");
+    index.save(&cache).unwrap();
+    assert!(CommandIndex::load_with_env(&cache, path, empty).is_ok());
+    let old = CommandIndex::discover_with_env(path, std::ffi::OsStr::new(".EXE"));
+    old.save(&cache).unwrap();
+    let mut record: Value = serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
+    record["context"]["pathext"] = Value::from("");
+    fs::write(&cache, serde_json::to_vec(&record).unwrap()).unwrap();
+    assert!(CommandIndex::load_with_env(&cache, path, empty).is_err());
+}

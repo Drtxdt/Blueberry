@@ -454,6 +454,17 @@ impl Worker {
                                 });
                             }
                         }
+                        if thread_shared
+                            .0
+                            .lock()
+                            .unwrap()
+                            .environment
+                            .as_ref()
+                            .is_some_and(|next| Some(next) != environment.as_ref())
+                        {
+                            continue;
+                        }
+                        result.pending |= discovery.is_some() && context.command_position;
                         let _ =
                             output.send(HostEvent::Completion(q.revision, result, Instant::now()));
                         continue;
@@ -679,6 +690,7 @@ mod environment_tests {
             (1, &a, ".EXE", "custom-old", "custom-new"),
             (2, &b, ".CMD", "custom-new", "custom-old"),
             (3, &a, ".CMD", "", "custom-old"),
+            (4, &a, "", "", "custom-old"),
         ] {
             worker.update(|w| {
                 w.started = true;

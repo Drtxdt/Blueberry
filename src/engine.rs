@@ -420,6 +420,12 @@ impl CommandIndex {
         if cache.context != context {
             bail!("command cache PATH/PATHEXT context is stale");
         }
+        // Older writers expanded explicit empty PATHEXT to the defaults.
+        if parse_pathext(OsStr::new(&cache.context.pathext)).is_empty()
+            && !cache.commands.is_empty()
+        {
+            bail!("command cache contains executables for an empty PATHEXT");
+        }
 
         let mut index = Self {
             entries: Vec::new(),
@@ -1320,11 +1326,7 @@ fn parse_pathext(value: &OsStr) -> Vec<String> {
             result.push(extension);
         }
     }
-    if result.is_empty() {
-        parse_pathext(OsStr::new(DEFAULT_PATHEXT))
-    } else {
-        result
-    }
+    result
 }
 
 fn executable_stem(name: &str, extensions: &[String]) -> Option<(String, usize)> {
