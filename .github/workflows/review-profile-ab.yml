@@ -1,6 +1,13 @@
 name: Review hardening full profile AB
 on:
   workflow_call:
+    inputs:
+      stability_only:
+        type: boolean
+        default: false
+      source_ref:
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -9,8 +16,36 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.425'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            target/private-editor/nuget
+            target/psreadline-upstream
+          key: private-editor-dependencies-${{ runner.os }}-${{ hashFiles('vendor/psreadline/upstream.json') }}
+      - name: Prepare pinned Windows runtime and editors
+        shell: pwsh
+        run: |
+          python scripts/prepare-editor.py
+          if ($LASTEXITCODE) { throw 'Private editor preparation failed' }
+          python scripts/prepare-conpty.py
+          if ($LASTEXITCODE) { throw 'ConPTY preparation failed' }
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Record frozen source and workflow identities
+        shell: pwsh
+        run: |
+          $null=New-Item -ItemType Directory -Path artifacts/review-hardening/stability -Force
+          @{source_commit=(git rev-parse HEAD); workflow_commit='${{ github.sha }}'; workflow_run='${{ github.run_id }}'; rustc=(rustc --version)} |
+            ConvertTo-Json | Set-Content artifacts/review-hardening/stability/identity.json -Encoding utf8
       - name: Repeat historical regressions with and without tracing
         shell: pwsh
         run: ./scripts/verify-review-stability.ps1 -OutputDirectory artifacts/review-hardening/stability
@@ -25,6 +60,7 @@ jobs:
             ${{ runner.temp }}/blueberry-direct-evidence
           if-no-files-found: warn
   profile:
+    if: ${{ !inputs.stability_only }}
     runs-on: windows-2022
     timeout-minutes: 180
     env:

@@ -9,6 +9,14 @@ on:
         description: Run two formal cold/warm profile AB BA batches after all checks pass
         type: boolean
         default: false
+      review_stability_only:
+        description: Run the 60 review-hardening stability repetitions with dependency preparation
+        type: boolean
+        default: false
+      review_source_ref:
+        description: Frozen source ref for the isolated review stability run; empty uses workflow SHA
+        type: string
+        default: ''
       evidence_validation_only:
         description: Run only formatting and Python evidence-validator checks
         type: boolean
@@ -87,8 +95,14 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.review_profile_ab }}
     needs: [format, core, powershell-51, powershell-7, native-mouse, package]
     uses: ./.github/workflows/review-profile-ab.yml
+  review-stability:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.review_stability_only }}
+    uses: ./.github/workflows/review-profile-ab.yml
+    with:
+      stability_only: true
+      source_ref: ${{ inputs.review_source_ref }}
   quick:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +114,7 @@ jobs:
       - run: cargo test --locked --lib --test engine --test providers --quiet
       - run: python3 scripts/check-release-docs.py
   format:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +131,7 @@ jobs:
         run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
     needs: [quick]
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Core / ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -193,7 +207,7 @@ jobs:
           if-no-files-found: ignore
   powershell-51:
     needs: [quick]
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
     strategy:
@@ -327,7 +341,7 @@ jobs:
           if-no-files-found: ignore
   powershell-7:
     needs: [quick]
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
     strategy:
@@ -428,7 +442,7 @@ jobs:
           if-no-files-found: ignore
   native-mouse:
     needs: [quick]
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
     env:
@@ -487,7 +501,7 @@ jobs:
           path: target/input-protocol-evidence
           if-no-files-found: ignore
   package:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     # Exercise packaging faults while long interaction repetitions run.
     # Final evidence still requires every functional job and this job to pass.
     needs: [format, core]
