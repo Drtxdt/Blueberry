@@ -91,6 +91,7 @@ impl Worker {
             let mut last_source_status = Value::Null;
             let mut index: Option<CommandIndex> = None;
             let mut discovery: Option<Discovery> = None;
+            let mut index_diagnostics = Vec::new();
             let mut environment: Option<(String, String)> = None;
             let mut shell_commands = Vec::new();
             let mut system_commands = Vec::new();
@@ -243,6 +244,7 @@ impl Worker {
                 }
                 let mut changed = commands_changed;
                 if (index.is_none() && discovery.is_none()) || refresh {
+                    index_diagnostics.clear();
                     let (path, pathext) = environment.clone().unwrap_or_else(|| {
                         (
                             std::env::var("PATH").unwrap_or_default(),
@@ -278,6 +280,9 @@ impl Worker {
                 if let Some(scan) = discovery.as_mut() {
                     let started = Instant::now();
                     finished = scan.step();
+                    if finished {
+                        index_diagnostics = scan.diagnostics().to_vec();
+                    }
                     index = Some(scan.snapshot());
                     trace.event(
                         "index_batch",
@@ -539,6 +544,7 @@ impl Worker {
                     // Report the most recently returned provider snapshots.
                     // Unchanged hot queries do not cause another disk write.
                     let provider_state = json!({
+                        "command_index": { "complete":index.is_complete(), "pending":discovery.is_some(), "diagnostics":index_diagnostics },
                         "provider": request.as_ref().and_then(|r| r.provider.as_deref()),
                         "lanes": parts.iter().enumerate().map(|(slot, part)| {
                             part.as_ref().map(|p| json!({

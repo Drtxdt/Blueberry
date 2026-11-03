@@ -655,3 +655,16 @@ fn inline_choice_replaces_the_whole_option_and_preserves_context_override() {
     assert_eq!(replaced, "git status --ignored=matching");
     assert_eq!(selected.description, "显示匹配忽略规则的项目");
 }
+#[test]
+fn scan_failures_keep_diagnostic_details_and_end_pending_work() {
+    let root = tempfile::tempdir().unwrap();
+    let invalid = root.path().join("not-a-directory");
+    std::fs::write(&invalid, b"file").unwrap();
+    let mut scan =
+        blueberry::engine::Discovery::new(invalid.as_os_str(), std::ffi::OsStr::new(".EXE"));
+    while !scan.step() {}
+    assert!(!scan.is_complete());
+    assert!(!scan.diagnostics().is_empty());
+    assert!(scan.diagnostics()[0].contains("not-a-directory"));
+    assert!(!scan.snapshot().is_complete());
+}

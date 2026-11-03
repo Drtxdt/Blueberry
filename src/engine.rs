@@ -122,6 +122,7 @@ pub struct Discovery {
     directory_index: usize,
     current: Option<DirectoryScan>,
     access_error: bool,
+    diagnostics: Vec<String>,
     done: bool,
 }
 
@@ -185,6 +186,7 @@ impl Discovery {
             directory_index: 0,
             current: None,
             access_error: false,
+            diagnostics: Vec::new(),
             done: false,
         }
     }
@@ -230,7 +232,15 @@ impl Discovery {
                     match inspect_executable(&entry, &self.extensions) {
                         EntryInspection::Candidate(candidate) => scan.found.push(candidate),
                         EntryInspection::Ignore => {}
-                        EntryInspection::AccessError => self.access_error = true,
+                        EntryInspection::AccessError => {
+                            self.access_error = true;
+                            if self.diagnostics.len() < 32 {
+                                self.diagnostics.push(format!(
+                                    "{}: executable metadata access failed",
+                                    entry.path().display()
+                                ));
+                            }
+                        }
                     }
                 }
                 Some(Err(error)) => {
@@ -239,8 +249,13 @@ impl Discovery {
                     // iterator error means the directory could not be fully
                     // enumerated and therefore must make the snapshot
                     // incomplete.
-                    let _ = error;
                     self.access_error = true;
+                    if self.diagnostics.len() < 32 {
+                        self.diagnostics.push(format!(
+                            "{}: {error}",
+                            self.directories[self.directory_index - 1].display()
+                        ));
+                    }
                 }
                 None => {
                     // EOF is the boundary at which the directory's sorted
@@ -277,6 +292,11 @@ impl Discovery {
         self.done && !self.access_error
     }
 
+    /// Bounded failure details for the existing diagnostic status file.
+    pub fn diagnostics(&self) -> &[String] {
+        &self.diagnostics
+    }
+
     fn begin_next_directory(&mut self) -> DirectoryStart {
         let Some(directory) = self.directories.get(self.directory_index).cloned() else {
             self.done = true;
@@ -292,6 +312,12 @@ impl Discovery {
             LinkStatus::Remote => return DirectoryStart::Skipped,
             LinkStatus::Inaccessible => {
                 self.access_error = true;
+                if self.diagnostics.len() < 32 {
+                    self.diagnostics.push(format!(
+                        "{}: PATH target access failed",
+                        directory.display()
+                    ));
+                }
                 return DirectoryStart::Skipped;
             }
             LinkStatus::Local | LinkStatus::Dangling => {}
@@ -312,6 +338,10 @@ impl Discovery {
                 // scan and cached.
                 if is_scan_access_error(&error) {
                     self.access_error = true;
+                    if self.diagnostics.len() < 32 {
+                        self.diagnostics
+                            .push(format!("{}: {error}", directory.display()));
+                    }
                 }
                 DirectoryStart::Skipped
             }
