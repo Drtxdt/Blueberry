@@ -25,7 +25,10 @@ fn main() -> anyhow::Result<()> {
             break;
         }
     }
+    #[cfg(windows)]
     let mut inventory_us = Vec::new();
+    #[cfg(not(windows))]
+    let inventory_us = Vec::<u128>::new();
     #[cfg(windows)]
     for _ in 0..5 {
         let started = Instant::now();
@@ -35,8 +38,6 @@ fn main() -> anyhow::Result<()> {
         )?);
         inventory_us.push(started.elapsed().as_micros());
     }
-    #[cfg(not(windows))]
-    inventory_us.push(0u128);
     println!(
         "{}",
         serde_json::json!({"diagnostic_only":true,"batches":batches,"module_inventory_us":inventory_us})

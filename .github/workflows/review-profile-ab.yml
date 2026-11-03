@@ -27,6 +27,8 @@ jobs:
   profile:
     runs-on: windows-2022
     timeout-minutes: 180
+    env:
+      POWERSHELL_UPDATECHECK: 'Off'
     strategy:
       fail-fast: false
       matrix:
