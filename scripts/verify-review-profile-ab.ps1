@@ -32,7 +32,7 @@ foreach($batch in 1..2) {
             $attempt++
             if($attempt -gt $Pairs*2) { throw 'Too many invalid pairs; raw evidence retained.' }
             # Reverse the order both between adjacent pairs and between batches.
-            $order=if(($attempt+$batch)%2 -eq 0) { @('baseline','candidate') } else { @('candidate','baseline') }
+            $order=if(($valid.Count+$batch)%2 -eq 1) { @('baseline','candidate') } else { @('candidate','baseline') }
             $reports=@{}
             $pairRoot=Join-Path $root "batch-$batch-$cache-attempt-$attempt"
             $null=New-Item -ItemType Directory -Path $pairRoot
@@ -56,6 +56,7 @@ foreach($batch in 1..2) {
                 foreach($field in @('shell_versions','psreadline_versions','actual_transports','actual_host_modes')) {
                     if(($reports.baseline.$field | ConvertTo-Json -Compress) -ne ($reports.candidate.$field | ConvertTo-Json -Compress)) { throw "Paired identity differs: $field" }
                 }
+                if($reports.baseline.plain_editors[0].dll_sha256 -ne $reports.candidate.plain_editors[0].dll_sha256) { throw 'Paired plain editor binary differs' }
             } catch {
                 $failure=$_.Exception.Message
             }
