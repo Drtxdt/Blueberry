@@ -2441,6 +2441,10 @@ fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
     h.send(b"\r")?;
     h.wait_line("MANUAL-EDIT-OK", TIMEOUT)
         .context("post acceptance edit")?;
+    // The inherited PATH may contain unreadable directories. Use one known
+    // readable directory so this asserts completed-empty rather than failure.
+    h.send_text("$env:PATH=(Get-Location).Path; Write-Output 'EMPTY-PATH-READY'\r")?;
+    wait_output_line(&mut h, "EMPTY-PATH-READY")?;
     h.send_text("zzz-manual-empty")?;
     h.send(b"\x1b[17~")?;
     h.wait_text("没有匹配的候选", TIMEOUT)?;
