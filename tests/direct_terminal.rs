@@ -986,6 +986,12 @@ fn direct_runtime_builtin_rebinding_takes_priority_over_menu_accept() -> Result<
 #[test]
 fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<()> {
     let dir = direct_fixture()?;
+    let tools = dir.path().join("profile tools");
+    std::fs::create_dir_all(&tools)?;
+    std::fs::write(
+        tools.join("bb-profile-executable.cmd"),
+        "@echo PROFILE-TOOL\r\n",
+    )?;
     let user = dir.path().join("user profile");
     for edition in ["PowerShell", "WindowsPowerShell"] {
         let documents = user.join("Documents").join(edition);
@@ -994,6 +1000,7 @@ fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<(
             documents.join("Microsoft.PowerShell_profile.ps1"),
             r#"
 $global:BlueberryProfileCount++
+$env:PATH = $env:BLUEBERRY_PROFILE_TOOL_PATH + ";" + $env:PATH
 function global:bb-profile-function { 'PROFILE-FUNCTION' }
 Set-Alias -Name bb-profile-alias -Value bb-profile-function -Scope Global
 Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('PROFILE_BINDING') }
@@ -1026,6 +1033,10 @@ $global:LASTEXITCODE = 37
             ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
             ("USERPROFILE".into(), user.to_string_lossy().into_owned()),
             (
+                "BLUEBERRY_PROFILE_TOOL_PATH".into(),
+                tools.to_string_lossy().into_owned(),
+            ),
+            (
                 "APPDATA".into(),
                 dir.path().join("roaming").to_string_lossy().into_owned(),
             ),
@@ -1034,6 +1045,9 @@ $global:LASTEXITCODE = 37
         String::new(),
     )?;
     wait_editor_begin(&mut h, &data, 1)?;
+    h.send_text("bb-profile-executabl")?;
+    h.wait_text("bb-profile-executable", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
     h.send_text("bb-profile-functio")?;
     h.wait_text("bb-profile-function", TIMEOUT)?;
     h.send(b"\x01\x7fbb-profile-alia")?;
@@ -2718,5 +2732,38 @@ fn exercise_builtin_workflow_cases_untraced(
     }
     h.send_text("Write-Output 'UNTRACED-WORKFLOWS-OK'\r")?;
     wait_output_line(h, "UNTRACED-WORKFLOWS-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_path_changes_are_visible_without_manual_refresh() -> Result<()> {
+    let dir = direct_fixture()?;
+    let tools = dir.path().join("custom tools");
+    std::fs::create_dir_all(&tools)?;
+    std::fs::write(tools.join("bb-env-custom.cmd"), "@echo ENV-CUSTOM\r\n")?;
+    let mut h = start(dir.path())?;
+    let quoted = tools.display().to_string().replace('\'', "''");
+    h.send_text(&format!(
+        "$env:PATH='{};' + $env:PATH; Write-Output 'ENV-ADDED'\r",
+        quoted
+    ))?;
+    wait_output_line(&mut h, "ENV-ADDED")?;
+    h.send_text("bb-env-custo")?;
+    h.wait_text("bb-env-custom", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
+    h.send_text(&format!("$env:PATH=($env:PATH -split ';' | Where-Object {{ $_ -ne '{}' }}) -join ';'; Write-Output 'ENV-REMOVED'\r", quoted))?;
+    wait_output_line(&mut h, "ENV-REMOVED")?;
+    h.send_text("bb-env-custo")?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while std::time::Instant::now() < deadline {
+        let _ = h.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !h.viewport_contents()
+            .lines()
+            .any(|line| line.contains('›') && line.contains("bb-env-custom")),
+        "removed PATH command remained selectable"
+    );
+    h.send(b"\x01\x7f")?;
     h.finish(TIMEOUT)
 }

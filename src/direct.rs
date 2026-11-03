@@ -68,6 +68,7 @@ fn command_batch_matches(
 /// Keep a query and its visible frame separate: asynchronous results must not
 /// change which candidate an acceptance request identifies.
 struct Session {
+    manual: bool,
     revision: u64,
     line: String,
     cursor: usize,
@@ -94,6 +95,7 @@ use crate::workbench::Workbench;
 impl Session {
     fn new() -> Self {
         Self {
+            manual: false,
             revision: 0,
             line: String::new(),
             cursor: 0,
@@ -125,6 +127,7 @@ impl Session {
             .context("missing confirmed cursor")?;
         let cursor =
             protocol::utf16_to_byte(line, cursor16 as usize).context("invalid UTF-16 cursor")?;
+        self.manual = value["manual"] == true;
         self.revision = revision;
         self.line = line.into();
         self.cursor = cursor;
@@ -200,10 +203,18 @@ impl Session {
             self.width.saturating_sub(1),
             settings,
             crate::menu::MenuState {
-                incomplete: completion.incomplete,
+                incomplete: completion.pending,
                 details: self.details,
                 searching: false,
-                diagnostic: self.ui.as_ref().and_then(|ui| ui.error.as_deref()),
+                diagnostic: self
+                    .ui
+                    .as_ref()
+                    .and_then(|ui| ui.error.as_deref())
+                    .or(completion.error.as_deref())
+                    .or_else(|| {
+                        (self.manual && !completion.pending && completion.candidates.is_empty())
+                            .then_some("没有匹配的候选")
+                    }),
                 argument_hint: Some(&completion.argument_hint),
                 ..Default::default()
             },
@@ -510,16 +521,37 @@ pub fn run(options: RunOptions) -> Result<u32> {
         "direct host requires pipe transport; OSC is only supported by the nested host"
     );
     let _interrupts = ConsoleInterruptGuard::install()?;
-    let settings = config::load(options.config_path.as_deref())?;
     let trace = Trace::open(options.trace_path.as_deref())?;
     if trace.enabled() {
         trace.point("direct_start", None, None, crate::latency_layers::qpc()?);
     }
+    let configuration_started = Instant::now();
+    let settings = config::load(options.config_path.as_deref())?;
+    trace.event(
+        "direct_config_load",
+        None,
+        Some(configuration_started.elapsed()),
+        None,
+    );
     let token = uuid::Uuid::new_v4().to_string();
     let directory = options.data_dir.join(&token);
     std::fs::create_dir_all(&directory)?;
+    let resources_started = Instant::now();
     let bootstrap = ensure_bootstrap(&std::env::temp_dir().join("blueberry-runtime"))?;
+    trace.event(
+        "direct_bootstrap_prepare",
+        None,
+        Some(resources_started.elapsed()),
+        None,
+    );
+    let editor_started = Instant::now();
     let editor = crate::editor::select(&options.shell, options.psreadline_version)?;
+    trace.event(
+        "direct_editor_prepare",
+        None,
+        Some(editor_started.elapsed()),
+        None,
+    );
     if trace.enabled() {
         trace.point(
             "direct_resources_ready",
@@ -625,7 +657,6 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let mut command_complete = false;
     let mut system_generation = 1u64;
     let mut system_discovery = None;
-    worker.update(|w| w.started = true);
     let served = (|| -> Result<u32> {
         loop {
             if let Some(status) = child.try_wait()? {
@@ -854,13 +885,16 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                         value["environment"].clone(),
                                     )
                                 {
-                                    if let (Some(path), Some(pathext)) =
-                                        (snapshot.get("PATH"), snapshot.get("PATHEXT"))
-                                    {
-                                        worker.update(|w| {
-                                            w.environment = Some((path.clone(), pathext.clone()))
-                                        });
-                                    }
+                                    worker.update(|w| {
+                                        w.environment = Some((
+                                            snapshot.get("PATH").cloned().unwrap_or_default(),
+                                            snapshot
+                                                .get("PATHEXT")
+                                                .cloned()
+                                                .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into()),
+                                        ));
+                                        w.started = true;
+                                    });
                                     environment = Arc::new(snapshot);
                                 }
                             } else if let Some(line) = value["line"]
@@ -1481,5 +1515,43 @@ mod tests {
             );
         }
         assert_eq!(session.revision, 5);
+    }
+}
+
+#[cfg(test)]
+mod status_frame_tests {
+    use super::*;
+    #[test]
+    fn status_frames_have_no_edit_identity_and_manual_empty_is_visible() {
+        let mut session = Session::new();
+        session.line = "unknown".into();
+        session.cursor = 7;
+        session.revision = 1;
+        let settings = Config::default();
+        let loading = session.render(
+            Completion {
+                pending: true,
+                incomplete: true,
+                ..Default::default()
+            },
+            &settings,
+            "test",
+        );
+        assert!(!loading["lines"].as_array().unwrap().is_empty());
+        assert_eq!(loading["candidate_id"], "");
+        assert!(session.visible.is_empty());
+        let accept = json!({"revision":1,"frame_id":loading["frame_id"],"candidate_id":"","line":"unknown","cursor":7});
+        assert!(session.accept(&accept, "test").is_none());
+        let empty = session.render(Completion::default(), &settings, "test");
+        assert!(empty["lines"].as_array().unwrap().is_empty());
+        session.manual = true;
+        let empty = session.render(Completion::default(), &settings, "test");
+        assert_eq!(empty["lines"].as_array().unwrap().len(), 1);
+        assert!(session.visible.is_empty());
+        let old: Completion = serde_json::from_str(
+            r#"{"replace_start":0,"replace_end":0,"candidates":[],"incomplete":true}"#,
+        )
+        .unwrap();
+        assert!(!old.pending && old.error.is_none());
     }
 }

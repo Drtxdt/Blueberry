@@ -430,7 +430,9 @@ fn start_host_with_unpainted_reply(inject_reply: bool) -> Result<RunningHost> {
             .to_string_lossy()
             .into_owned(),
     ];
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
+    let program = std::env::var_os("BLUEBERRY_TEST_PRODUCT_EXE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_BIN_EXE_blueberry")));
     let mut harness = Harness::start(&program, &args, cwd.path(), &env, token)
         .with_context(|| format!("start {}", program.display()))?;
     harness

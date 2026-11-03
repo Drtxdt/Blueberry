@@ -77,53 +77,6 @@ fn render_overlay(
                 && state.completion.candidates.is_empty())
             .then_some("没有匹配的候选")
         });
-        let notice = state
-            .notification
-            .as_ref()
-            .map(|message| Candidate {
-                label: "Blueberry".into(),
-                description: message.clone(),
-                ..Default::default()
-            })
-            .or_else(|| {
-                if !state.completion.argument_hint.is_empty() {
-                    Some(Candidate {
-                        label: state.completion.argument_hint.clone(),
-                        description: "请输入参数值".into(),
-                        ..Default::default()
-                    })
-                } else {
-                    None
-                }
-            })
-            .or_else(|| {
-                status.map(|message| Candidate {
-                    label: message.into(),
-                    ..Default::default()
-                })
-            })
-            .or_else(|| {
-                state.completion.pending.then(|| Candidate {
-                    label: "环境刷新中…".into(),
-                    ..Default::default()
-                })
-            })
-            .or_else(|| {
-                state
-                    .workbench
-                    .query()
-                    .filter(|query| !query.is_empty())
-                    .map(|_| Candidate {
-                        label: "无匹配命令".into(),
-                        description: "修改关键词后重试".into(),
-                        ..Default::default()
-                    })
-            });
-        let displayed = if state.completion.candidates.is_empty() {
-            notice.as_slice()
-        } else {
-            &state.completion.candidates
-        };
         let query = state.workbench.query().unwrap_or_else(|| {
             state
                 .line
@@ -135,7 +88,7 @@ fn render_overlay(
             state.parser.screen(),
             frame,
             output,
-            displayed,
+            &state.completion.candidates,
             state.selected,
             query,
             &state.config,
@@ -146,21 +99,11 @@ fn render_overlay(
                 argument_hint: (!state.completion.candidates.is_empty())
                     .then_some(state.completion.argument_hint.as_str()),
                 searching: state.searching && state.workbench.query().is_none(),
-                diagnostic: state
-                    .notification
-                    .as_deref()
-                    .or(state.completion.error.as_deref())
-                    .or_else(|| {
-                        state.completion.candidates.is_empty().then_some(
-                            if state.completion.incomplete {
-                                "环境刷新中"
-                            } else if state.workbench.query().is_some_and(|q| !q.is_empty()) {
-                                "无匹配命令"
-                            } else {
-                                "提示 · 请继续输入"
-                            },
-                        )
-                    }),
+                diagnostic: state.notification.as_deref().or(status).or_else(|| {
+                    (state.completion.candidates.is_empty()
+                        && state.workbench.query().is_some_and(|q| !q.is_empty()))
+                    .then_some("无匹配命令")
+                }),
             },
         )?;
         state.presented_candidate = state
