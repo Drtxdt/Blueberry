@@ -1,6 +1,7 @@
 """Pair the managed Profile and dedicated executable entry, each with a native Shell control."""
 import argparse
 import json
+import math
 from pathlib import Path
 import statistics
 import subprocess
@@ -23,14 +24,30 @@ def attribute(report, trace):
     for event in events:
         if event.get("qpc") is not None:
             points.setdefault(event["event"], event["qpc"])
+    required = {"launch", "prompt", "key_sent", "echo", "visible_static", "complete_static",
+                "blueberry_process_entry", "run_maintenance_begin", "run_maintenance_end", "run_options_ready",
+                "direct_start", "direct_resources_ready", "direct_spawn_begin", "direct_spawn_return",
+                "direct_script_enter", "direct_module_loaded", "direct_hello", "child_environment_published",
+                "direct_environment_received", "worker_index_started", "worker_index_finished"}
+    if report["actual_entry"] == "isolated_automatic_profile":
+        required.add("profile_hook_entry")
+    missing = sorted(k for k in required if not isinstance(points.get(k), int))
+    if missing or not math.isfinite(frequency) or frequency <= 0:
+        raise ValueError(f"incomplete startup trace {trace.name}: missing={missing}, frequency={frequency}")
+    if not (points["launch"] <= points.get("profile_hook_entry", points["blueberry_process_entry"])
+            <= points["blueberry_process_entry"] <= points["direct_start"] <= points["complete_static"]
+            and points["launch"] <= points["prompt"] <= points["key_sent"] <= points["echo"]
+            and points["key_sent"] <= points["visible_static"] <= points["complete_static"]):
+        raise ValueError(f"host trace does not match this observer's sample: {trace.name}")
     spans = {}
     for start, end in [
         ("launch", "profile_hook_entry"), ("profile_hook_entry", "blueberry_process_entry"),
         ("launch", "blueberry_process_entry"), ("blueberry_process_entry", "run_maintenance_begin"),
         ("run_maintenance_begin", "run_maintenance_end"), ("run_maintenance_end", "run_options_ready"),
         ("run_options_ready", "direct_start"), ("direct_start", "direct_resources_ready"),
-        ("direct_spawn_begin", "direct_spawn_return"), ("direct_spawn_return", "direct_command_enter"),
-        ("direct_command_enter", "direct_module_loaded"), ("direct_module_loaded", "direct_hello"),
+        ("direct_spawn_begin", "direct_spawn_return"), ("direct_spawn_return", "direct_script_enter"),
+        ("direct_script_enter", "direct_module_lookup"), ("direct_module_lookup", "direct_module_imported"),
+        ("direct_script_enter", "direct_module_loaded"), ("direct_module_loaded", "direct_hello"),
         ("launch", "prompt"), ("key_sent", "echo"), ("child_environment_published", "direct_environment_received"),
         ("direct_environment_received", "worker_index_started"), ("worker_index_started", "worker_index_finished"),
         ("visible_static", "worker_index_finished"), ("worker_index_finished", "complete_static"),
