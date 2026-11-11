@@ -37,7 +37,7 @@ NESTED_VARIANTS = {"osc_with_descriptions": "osc", "osc_without_descriptions": "
 SCENARIOS = {"root", "git", "cargo", "js", "path", "fuzzy"}
 COMPARISON_MODES = ("plain", "beta6", "candidate", "inshellisense")
 TERMINAL_TASKS = {"ime", "font_zoom", "selection", "paste", "nested_program"}
-CURRENT_RELEASES = {"0.5.3", "0.6.0"}
+CURRENT_RELEASES = {"0.5.3", "0.5.4", "0.6.0"}
 CURRENT_TERMINAL_TASKS = TERMINAL_TASKS | {
     "unicode", "right_text", "line_wrap", "multiline_paste", "small_window",
     "live_resize", "history_rgb", "history_attributes", "alt_screen", "ctrl_c_pip", "ctrl_c_npm",
