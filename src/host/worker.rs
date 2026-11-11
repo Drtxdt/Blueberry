@@ -91,6 +91,7 @@ impl Worker {
             let mut last_source_status = Value::Null;
             let mut index: Option<CommandIndex> = None;
             let mut discovery: Option<Discovery> = None;
+            let mut last_batch_end: Option<Instant> = None;
             let mut index_diagnostics = Vec::new();
             let mut environment: Option<(String, String)> = None;
             let mut shell_commands = Vec::new();
@@ -244,6 +245,13 @@ impl Worker {
                 }
                 let mut changed = commands_changed;
                 if (index.is_none() && discovery.is_none()) || refresh {
+                    last_batch_end = None;
+                    trace.event(
+                        "index_begin",
+                        None,
+                        None,
+                        Some(usize::from(environment.is_some())),
+                    );
                     index_diagnostics.clear();
                     let (path, pathext) = environment.clone().unwrap_or_else(|| {
                         (
@@ -260,7 +268,9 @@ impl Worker {
                             .ok()
                     };
                     trace.event(
-                        if cached.is_some() {
+                        if refresh {
+                            "cache_bypassed_refresh"
+                        } else if cached.is_some() {
                             "cache_hit"
                         } else {
                             "cache_miss"
@@ -270,20 +280,53 @@ impl Worker {
                         None,
                     );
                     if let Some(cached) = cached {
+                        trace.event("index_complete", None, None, Some(cached.len()));
                         index = Some(cached);
                     } else {
+                        let preparing = trace.enabled().then(Instant::now);
                         discovery = Some(Discovery::new(OsStr::new(&path), OsStr::new(&pathext)));
+                        if let Some(start) = preparing {
+                            trace.event("index_prepare", None, Some(start.elapsed()), None);
+                        }
                     }
                     changed = true;
                 }
                 let mut finished = false;
                 if let Some(scan) = discovery.as_mut() {
                     let started = Instant::now();
+                    if let Some(end) = last_batch_end {
+                        trace.event("index_between_batches", None, Some(started - end), None);
+                    }
                     finished = scan.step();
+                    let scanned = trace.enabled().then(Instant::now);
                     if finished {
                         index_diagnostics = scan.diagnostics().to_vec();
                     }
-                    index = Some(scan.snapshot());
+                    let snapshot = scan.snapshot();
+                    if let Some(scanned) = scanned {
+                        let end = Instant::now();
+                        trace.event("index_scan", None, Some(scanned - started), None);
+                        trace.event(
+                            "index_snapshot",
+                            None,
+                            Some(end - scanned),
+                            Some(snapshot.len()),
+                        );
+                        last_batch_end = Some(end);
+                        if finished {
+                            trace.event(
+                                if snapshot.is_complete() {
+                                    "index_complete"
+                                } else {
+                                    "index_exhausted_with_errors"
+                                },
+                                None,
+                                None,
+                                Some(snapshot.len()),
+                            );
+                        }
+                    }
+                    index = Some(snapshot);
                     trace.event(
                         "index_batch",
                         None,

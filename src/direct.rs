@@ -912,6 +912,41 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                         value["environment"].clone(),
                                     )
                                 {
+                                    if trace.enabled() {
+                                        if let Some(qpc) = value["snapshot_qpc"].as_i64() {
+                                            trace.point(
+                                                "child_environment_published",
+                                                Some(revision),
+                                                None,
+                                                qpc,
+                                            );
+                                        }
+                                        trace.point(
+                                            "direct_environment_received",
+                                            Some(revision),
+                                            None,
+                                            crate::latency_layers::qpc()?,
+                                        );
+                                        // Compare exact effective inputs without logging PATH or its entries.
+                                        let differs = |name: &str, fallback: &str| {
+                                            let parent = std::env::var(name)
+                                                .unwrap_or_else(|_| fallback.to_owned());
+                                            snapshot.get(name).map_or(fallback, String::as_str)
+                                                != parent
+                                        };
+                                        trace.event(
+                                            "index_environment_difference",
+                                            Some(revision),
+                                            None,
+                                            Some(
+                                                usize::from(differs("PATH", ""))
+                                                    | (usize::from(differs(
+                                                        "PATHEXT",
+                                                        ".COM;.EXE;.BAT;.CMD",
+                                                    )) << 1),
+                                            ),
+                                        );
+                                    }
                                     worker.update(|w| {
                                         w.environment = Some((
                                             snapshot.get("PATH").cloned().unwrap_or_default(),

@@ -566,7 +566,9 @@ namespace Blueberry.Direct {
             environment["BLUEBERRY_SHELL_VERSION"] = shellVersionText;
             var argumentMode = api.GetProperty("EditorNativeArgumentPassing", BindingFlags.Public | BindingFlags.Static);
             if (EditorHooks && argumentMode != null) environment["BLUEBERRY_NATIVE_ARGUMENT_MODE"] = (string)argumentMode.GetValue(null, null);
-            Send(new Dictionary<string, object> { {"event", "begin"}, {"revision", revision}, {"cwd",cwd}, {"history_path",historyPath}, {"terminal_connected",nativeOverlay!=null && nativeOverlay.IsConnected}, {"terminal_fallback_reason",terminalFallbackReason}, {"environment",environment}, {"automatic_menu", AutomaticMenu}, {"disabled_reason", DisabledReason} });
+            var begin = new Dictionary<string, object> { {"event", "begin"}, {"revision", revision}, {"cwd",cwd}, {"history_path",historyPath}, {"terminal_connected",nativeOverlay!=null && nativeOverlay.IsConnected}, {"terminal_fallback_reason",terminalFallbackReason}, {"environment",environment}, {"automatic_menu", AutomaticMenu}, {"disabled_reason", DisabledReason} };
+            if(diagnostic) begin["snapshot_qpc"]=Stopwatch.GetTimestamp();
+            Send(begin);
             if (EditorHooks) StartCommands();
             if(diagnostic) TraceStage("direct_readline_begin",Stopwatch.GetTimestamp()-beginning,1);
         }
