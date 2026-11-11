@@ -102,6 +102,11 @@ jobs:
           $candidate=@(Get-ChildItem artifacts/candidate -Recurse -Filter 'blueberry-v*-windows-x64.zip')
           if($candidate.Count -ne 1) { throw 'Expected one successful CI core package' }
           Expand-Archive $candidate[0].FullName "$env:RUNNER_TEMP/candidate"
+      - name: Profile and dedicated entry attribution (separate from formal samples)
+        shell: pwsh
+        run: |
+          $shell=(Get-Command '${{ matrix.shell }}').Source
+          ./scripts/test-ci-profile-entry.ps1 -Shell $shell -Executable "$env:RUNNER_TEMP/candidate/blueberry.exe" -OutputDirectory "$env:RUNNER_TEMP/review-entries" -Pairs 2 -CacheState warm -CompareEntries
       - name: Two batches of real profile cold and warm AB BA
         shell: pwsh
         run: |
@@ -114,4 +119,11 @@ jobs:
           name: review-profile-${{ matrix.name }}-${{ github.sha }}
           retention-days: 90
           path: ${{ runner.temp }}/review-profile
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: review-entry-diagnostics-${{ matrix.name }}-${{ github.sha }}
+          retention-days: 90
+          path: ${{ runner.temp }}/review-entries
           if-no-files-found: warn

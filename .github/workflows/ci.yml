@@ -92,9 +92,27 @@ jobs:
         shell: pwsh
         run: python scripts/verify-evidence-upload.py
   review-profile-ab:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.review_profile_ab }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.review_profile_ab) || (github.event_name == 'pull_request' && github.head_ref == 'codex/review-hardening') }}
     needs: [format, core, powershell-51, powershell-7, native-mouse, package]
     uses: ./.github/workflows/review-profile-ab.yml
+  pr-gate:
+    name: PR acceptance
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: [quick, format, core, powershell-51, powershell-7, native-mouse, package, review-profile-ab]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require successful functional, package and applicable review checks
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          REVIEW_MATRIX: ${{ github.head_ref == 'codex/review-hardening' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          for job, check in json.loads(os.environ["RESULTS"]).items():
+              expected = "skipped" if job == "review-profile-ab" and os.environ["REVIEW_MATRIX"] == "false" else "success"
+              if check["result"] != expected:
+                  raise SystemExit(f"{job}: {check['result']}, expected {expected}")
+          PY
   review-stability:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.review_stability_only }}
     uses: ./.github/workflows/review-profile-ab.yml
