@@ -15,7 +15,9 @@ fn startup_probe_distinguishes_isolated_cold_and_warm_metadata() -> Result<()> {
     fixture.disable_cleanup(true);
     for (mode, expected) in [("cold", "rebuild"), ("warm", "hit")] {
         let report = fixture.path().join(format!("{mode}.json"));
-        let output = Command::new(env!("CARGO_BIN_EXE_blueberry"))
+        let mut probe = Command::new(env!("CARGO_BIN_EXE_blueberry"));
+        let traces = fixture.path().join("traces");
+        probe
             .args([
                 "product-probe",
                 "--cache-state",
@@ -27,8 +29,11 @@ fn startup_probe_distinguishes_isolated_cold_and_warm_metadata() -> Result<()> {
             .arg(blueberry::pty::default_shell())
             .arg("--output")
             .arg(&report)
-            .env("POWERSHELL_UPDATECHECK", "Off")
-            .output()?;
+            .env("POWERSHELL_UPDATECHECK", "Off");
+        if mode == "cold" {
+            probe.arg("--diagnostic-trace-directory").arg(&traces);
+        }
+        let output = probe.output()?;
         fs::write(
             fixture.path().join(format!("{mode}.stdout")),
             &output.stdout,
@@ -43,6 +48,65 @@ fn startup_probe_distinguishes_isolated_cold_and_warm_metadata() -> Result<()> {
             fixture.path().display()
         );
         let value: Value = serde_json::from_slice(&fs::read(report)?)?;
+        if mode == "cold" {
+            ensure!(value["diagnostic_only"] == true);
+            for (index, pair) in value["startup_qpc"]
+                .as_array()
+                .context("paired QPC observations")?
+                .iter()
+                .enumerate()
+            {
+                let events: Vec<Value> =
+                    fs::read_to_string(traces.join(format!("direct-product-{index}.jsonl")))?
+                        .lines()
+                        .map(serde_json::from_str)
+                        .collect::<Result<_, _>>()?;
+                let tick = |name| {
+                    events
+                        .iter()
+                        .find(|e| e["event"] == name)
+                        .and_then(|e| e["qpc"].as_i64())
+                        .with_context(|| format!("missing {name}"))
+                };
+                let ordered = [
+                    "blueberry_process_entry",
+                    "run_maintenance_begin",
+                    "run_maintenance_end",
+                    "run_options_ready",
+                    "direct_start",
+                    "direct_spawn_begin",
+                    "child_environment_published",
+                    "direct_environment_received",
+                    "worker_index_started",
+                    "worker_index_finished",
+                ]
+                .map(tick)
+                .into_iter()
+                .collect::<Result<Vec<_>>>()?;
+                ensure!(
+                    ordered.windows(2).all(|w| w[0] <= w[1]),
+                    "unordered startup trace"
+                );
+                for side in ["plain", "candidate"] {
+                    let points = &pair[side];
+                    let observed = ["launch", "prompt", "key_sent", "echo"]
+                        .map(|key| points[key].as_i64().context("missing VT/launch timestamp"))
+                        .into_iter()
+                        .collect::<Result<Vec<_>>>()?;
+                    ensure!(observed.windows(2).all(|w| w[0] <= w[1]));
+                }
+                ensure!(
+                    pair["candidate"]["complete_static"]
+                        .as_i64()
+                        .context("complete")?
+                        >= pair["candidate"]["visible_static"]
+                            .as_i64()
+                            .context("visible")?
+                );
+            }
+        } else {
+            ensure!(value.get("startup_qpc").is_none());
+        }
         ensure!(value["local_cache_state"] == mode && value["local_appdata_isolated"] == true);
         let samples = value["system_metadata_observations"]
             .as_array()

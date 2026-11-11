@@ -25,6 +25,7 @@ $encodedExe = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Executab
 $block = @'
 # >>> Blueberry startup >>>
 # Managed by blueberry startup enable / disable.
+if ($env:BLUEBERRY_PROFILE_TRACE) { $blueberryAutoHookQpc = [Diagnostics.Stopwatch]::GetTimestamp() }
 $blueberryAutoExe = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__EXECUTABLE__'))
 $blueberryAutoArgs = [Environment]::GetCommandLineArgs()
 $blueberryAutoScript = @($blueberryAutoArgs | Where-Object {
@@ -39,7 +40,15 @@ if ($Host.Name -eq 'ConsoleHost' -and -not $blueberryAutoScript -and
     -not [Console]::IsOutputRedirected -and [IO.File]::Exists($blueberryAutoExe)) {
     try {
         $blueberryAutoShell = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
-        & $blueberryAutoExe run --shell $blueberryAutoShell
+        if ($env:BLUEBERRY_PROFILE_TRACE) {
+            $blueberryPreviousHookQpc = $env:BLUEBERRY_PROFILE_HOOK_QPC
+            try {
+                $env:BLUEBERRY_PROFILE_HOOK_QPC = [string]$blueberryAutoHookQpc
+                & $blueberryAutoExe run --shell $blueberryAutoShell --trace $env:BLUEBERRY_PROFILE_TRACE
+            } finally { $env:BLUEBERRY_PROFILE_HOOK_QPC = $blueberryPreviousHookQpc }
+        } else {
+            & $blueberryAutoExe run --shell $blueberryAutoShell
+        }
     } catch { Write-Warning ('Blueberry: ' + $_.Exception.Message) }
 }
 # <<< Blueberry startup <<<

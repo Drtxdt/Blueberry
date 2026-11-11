@@ -156,7 +156,7 @@ pub struct RunOptions {
     pub no_profile: bool,
     pub config_path: Option<PathBuf>,
     pub data_dir: PathBuf,
-    pub trace_path: Option<PathBuf>,
+    pub trace: Trace,
     pub transport: Transport,
     pub psreadline_version: PsReadLineVersion,
 }
@@ -2278,7 +2278,7 @@ fn selection_after_refresh(
 }
 
 pub fn run(options: RunOptions) -> Result<u32> {
-    let trace = Trace::open(options.trace_path.as_deref())?;
+    let trace = options.trace;
     trace.event("host_start", None, None, None);
     crate::hub::warm_commands_cache();
     let mut config = config::load(options.config_path.as_deref())?;

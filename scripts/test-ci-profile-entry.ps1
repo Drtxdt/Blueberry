@@ -6,12 +6,14 @@ param(
     [Parameter(Mandatory)][string]$OutputDirectory,
     [ValidateRange(1, 1000)][int]$Pairs = 2,
     [ValidateSet('ambient', 'cold', 'warm')][string]$CacheState = 'ambient',
-    [switch]$Formal
+    [switch]$Formal,
+    [switch]$CompareEntries
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 if ($Formal -and $Pairs -lt 30) { throw 'Formal profile measurement requires at least 30 pairs.' }
 if ($Formal -and $CacheState -eq 'ambient') { throw 'Formal profile measurement must identify an isolated cold or warm cache.' }
+if ($CompareEntries -and ($Formal -or $CacheState -eq 'ambient' -or $Pairs % 2)) { throw 'Entry attribution requires an even number of diagnostic pairs and an isolated cache.' }
 # PS5.1 resolves its system PSHOME even when its EXE is copied. Only a
 # disposable GitHub-hosted account may use its actual per-user profile here.
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
@@ -59,7 +61,11 @@ try {
     [IO.File]::WriteAllBytes($profilePath,[IO.File]::ReadAllBytes($prepared))
     $installed=$true
     $reportPath=Join-Path $root $(if ($Formal) { 'startup.json' } else { 'diagnostic.json' })
-    & $ProbeExecutable product-probe --host-executable $Executable --shell $Shell --profile-entry --profile-fixture $fixture --iterations $Pairs --cache-state $CacheState --output $reportPath
+    if ($CompareEntries) {
+        & python (Join-Path $PSScriptRoot 'measure-startup-entries.py') --shell $Shell --executable $Executable --probe $ProbeExecutable --fixture $fixture --output (Join-Path $root 'entries') --pairs $Pairs --cache $CacheState --trace
+    } else {
+        & $ProbeExecutable product-probe --host-executable $Executable --shell $Shell --profile-entry --profile-fixture $fixture --iterations $Pairs --cache-state $CacheState --output $reportPath
+    }
     if ($LASTEXITCODE -ne 0) { throw 'Automatic profile entry probe failed.' }
     if ($Formal) {
         $report=Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json

@@ -1046,6 +1046,7 @@ fn run_doctor(config_path: Option<&Path>, json: bool) -> Result<u32> {
 }
 
 fn execute() -> Result<u32> {
+    let process_entry = blueberry::trace::qpc_now();
     let cli = Cli::parse();
     match cli.command.unwrap_or(Command::Run {
         shell: blueberry::pty::default_shell(),
@@ -1109,7 +1110,22 @@ fn execute() -> Result<u32> {
             host_mode,
             psreadline_version,
         } => {
+            let trace = blueberry::trace::Trace::open(trace.as_deref())?;
+            if trace.enabled()
+                && let Some(entry) = process_entry
+            {
+                if let Some(hook) = std::env::var("BLUEBERRY_PROFILE_HOOK_QPC")
+                    .ok()
+                    .and_then(|value| value.parse::<i64>().ok())
+                    .filter(|qpc| (1..=entry).contains(qpc))
+                {
+                    trace.point("profile_hook_entry", None, None, hook);
+                }
+                trace.point("blueberry_process_entry", None, None, entry);
+            }
+            trace.mark("run_maintenance_begin");
             blueberry::maintenance::resume_before_run()?;
+            trace.mark("run_maintenance_end");
             if !no_profile && blueberry::setup::take_first_hint() {
                 println!(
                     "Blueberry 提示：首次使用可运行 `blueberry setup`，两分钟了解补全、图标和自动启动设置。"
@@ -1125,10 +1141,11 @@ fn execute() -> Result<u32> {
                 no_profile,
                 config_path: cli.config,
                 data_dir: data_dir.unwrap_or_else(config::cache_dir),
-                trace_path: trace,
+                trace,
                 transport,
                 psreadline_version: psreadline_version.unwrap_or_default(),
             };
+            options.trace.mark("run_options_ready");
             match mode {
                 host::HostMode::Nested => host::run(options),
                 #[cfg(windows)]

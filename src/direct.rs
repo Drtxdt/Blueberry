@@ -547,7 +547,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         "direct host requires pipe transport; OSC is only supported by the nested host"
     );
     let _interrupts = ConsoleInterruptGuard::install()?;
-    let trace = Trace::open(options.trace_path.as_deref())?;
+    let trace = options.trace;
     if trace.enabled() {
         trace.point("direct_start", None, None, crate::latency_layers::qpc()?);
     }
@@ -613,6 +613,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
             editor.as_ref().map(|e| e.manifest.as_path()),
         ))
         .env("BLUEBERRY_ACTIVE", "1")
+        .env_remove("BLUEBERRY_PROFILE_TRACE")
+        .env_remove("BLUEBERRY_PROFILE_HOOK_QPC")
         .env("BLUEBERRY_HOST_MODE", "direct")
         .env("BLUEBERRY_PIPE_NAME", pipe.name())
         .env("BLUEBERRY_TOKEN", &token)

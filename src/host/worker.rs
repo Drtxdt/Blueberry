@@ -246,6 +246,7 @@ impl Worker {
                 let mut changed = commands_changed;
                 if (index.is_none() && discovery.is_none()) || refresh {
                     last_batch_end = None;
+                    trace.mark("worker_index_started");
                     trace.event(
                         "index_begin",
                         None,
@@ -280,6 +281,7 @@ impl Worker {
                         None,
                     );
                     if let Some(cached) = cached {
+                        trace.mark("worker_index_finished");
                         trace.event("index_complete", None, None, Some(cached.len()));
                         index = Some(cached);
                     } else {
@@ -314,6 +316,7 @@ impl Worker {
                         );
                         last_batch_end = Some(end);
                         if finished {
+                            trace.mark("worker_index_finished");
                             trace.event(
                                 if snapshot.is_complete() {
                                     "index_complete"

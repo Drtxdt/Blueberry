@@ -15,6 +15,19 @@ struct Inner {
     start: Instant,
     writer: Mutex<BufWriter<File>>,
 }
+
+/// Same clock used by .NET Stopwatch and the Windows terminal observer.
+pub fn qpc_now() -> Option<i64> {
+    #[cfg(windows)]
+    {
+        crate::latency_layers::qpc().ok()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
 impl Trace {
     pub fn open(path: Option<&Path>) -> Result<Self> {
         let Some(path) = path else {
@@ -35,6 +48,15 @@ impl Trace {
     }
     pub fn enabled(&self) -> bool {
         self.0.is_some()
+    }
+    pub fn mark(&self, stage: &'static str) {
+        if self.enabled() {
+            if let Some(qpc) = qpc_now() {
+                self.point(stage, None, None, qpc);
+            } else {
+                self.event(stage, None, None, None);
+            }
+        }
     }
     pub fn event(
         &self,
