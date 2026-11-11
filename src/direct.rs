@@ -703,6 +703,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
             let mut completion_event = None;
             match event {
                 Some(HostEvent::DirectMessage(value, arrived)) => {
+                    let queue_time = arrived.elapsed();
                     ensure!(
                         value["token"].as_str() == Some(&token),
                         "invalid direct session token"
@@ -717,7 +718,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     trace.event(
                         "direct_pipe_queue",
                         value["revision"].as_u64(),
-                        Some(arrived.elapsed()),
+                        Some(queue_time),
                         None,
                     );
                     if trace.enabled()
@@ -735,7 +736,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         }
                     }
                     match value["event"].as_str() {
-                        Some("presented") if ready => session.presented(&value),
+                        Some("presented") if ready => {
+                            if trace.enabled()
+                                && let Some(frame) = value["frame_id"].as_u64()
+                            {
+                                trace.frame_event(
+                                    "direct_presented_queue",
+                                    value["revision"].as_u64(),
+                                    Some(frame),
+                                    Some(queue_time),
+                                    Some(session.frame.saturating_sub(frame) as usize),
+                                );
+                            }
+                            session.presented(&value);
+                        }
                         Some("trace_point") if ready && trace.enabled() => {
                             let Some(stage) = diagnostic_stage(&value) else {
                                 continue;
@@ -751,9 +765,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             let Some(stage) = diagnostic_stage(&value) else {
                                 continue;
                             };
-                            trace.event(
+                            trace.frame_event(
                                 stage,
                                 value["revision"].as_u64(),
+                                value["frame_id"].as_u64(),
                                 value["duration_us"].as_u64().map(Duration::from_micros),
                                 value["count"].as_u64().map(|count| count as usize),
                             );

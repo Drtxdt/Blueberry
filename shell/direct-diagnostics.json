@@ -53,7 +53,8 @@
         "direct_original_edit",
         "direct_confirmed_query_send",
         "direct_console_menu_output",
-        "direct_frame_to_paint"
+        "direct_frame_to_paint",
+        "direct_presented_send"
       ],
       "required_integer_fields": [],
       "unknown_stage": "ignore",

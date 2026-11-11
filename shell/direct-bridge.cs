@@ -799,7 +799,9 @@ namespace Blueberry.Direct {
             if(diagnostic && frameReceived!=0) TraceStage("direct_frame_to_paint",Stopwatch.GetTimestamp()-frameReceived,1);
             expectedUiEditRevision=-1;
             interaction=Json.String(frame,"interaction") ?? "completion"; displayed = frame;
+            long ackStart=diagnostic ? Stopwatch.GetTimestamp() : 0;
             Send(new Dictionary<string,object> { {"event","presented"},{"revision",revision},{"frame_id",Json.Long(frame,"frame_id")},{"candidate_id",Json.String(frame,"candidate_id")} });
+            if(diagnostic) TraceStage("direct_presented_send",Stopwatch.GetTimestamp()-ackStart,1,Json.Long(frame,"frame_id"));
             navigationPending=false;
             if (navigationKeys.Count>0) Navigate(navigationKeys.Dequeue());
             return true;
@@ -845,8 +847,11 @@ namespace Blueberry.Direct {
             try { lock (writeLock) { pipe.Write(bytes, 0, bytes.Length); pipe.Flush(); } }
             catch { connected = false; }
         }
-        static void TraceStage(string stage,long ticks,int count) {
-            if(diagnostic && negotiated) Send(new Dictionary<string,object>{{"event","trace"},{"revision",revision},{"stage",stage},{"duration_us",ticks*1000000/Stopwatch.Frequency},{"count",count}});
+        static void TraceStage(string stage,long ticks,int count,long frame=-1) {
+            if(!diagnostic || !negotiated) return;
+            var message=new Dictionary<string,object>{{"event","trace"},{"revision",revision},{"stage",stage},{"duration_us",ticks*1000000/Stopwatch.Frequency},{"count",count}};
+            if(frame>=0) message["frame_id"]=frame;
+            Send(message);
         }
         static void TracePoint(string stage,long rev,long frame,long qpc) {
             if(diagnostic && negotiated) Send(new Dictionary<string,object>{{"event","trace_point"},{"revision",rev},{"frame_id",frame},{"stage",stage},{"qpc",qpc}});

@@ -65,11 +65,24 @@ impl Trace {
         duration: Option<Duration>,
         count: Option<usize>,
     ) {
+        self.frame_event(event, revision, None, duration, count);
+    }
+    pub fn frame_event(
+        &self,
+        event: &'static str,
+        revision: Option<u64>,
+        frame: Option<u64>,
+        duration: Option<Duration>,
+        count: Option<usize>,
+    ) {
         let Some(inner) = &self.0 else {
             return;
         };
-        let data = json!({"event":event,"elapsed_ms":inner.start.elapsed().as_secs_f64()*1000.0,
+        let mut data = json!({"event":event,"elapsed_ms":inner.start.elapsed().as_secs_f64()*1000.0,
             "revision":revision,"duration_ms":duration.map(|d|d.as_secs_f64()*1000.0),"count":count});
+        if let Some(frame) = frame {
+            data["frame_id"] = frame.into();
+        }
         if let Ok(mut writer) = inner.writer.lock() {
             let _ = writeln!(writer, "{data}");
         }

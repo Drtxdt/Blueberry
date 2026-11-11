@@ -1759,9 +1759,36 @@ fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result
             let steps = if delay == 0 { 10 } else { 3 };
             let mut burst = b"\x1b[B".repeat(steps);
             burst.push(b'\t');
+            let begin = blueberry::trace::qpc_now().context("missing burst clock")?;
             h.send(&burst)?;
-            h.wait_text(&format!("Get-ChildItem .\\nav-{steps:02}.txt"), TIMEOUT)?;
+            let accepted = h.wait_text(&format!("Get-ChildItem .\\nav-{steps:02}.txt"), TIMEOUT);
+            let end = blueberry::trace::qpc_now().context("missing burst clock")?;
+            std::fs::write(
+                dir.path().join("burst-window.json"),
+                serde_json::to_vec(&serde_json::json!(
+                    {"begin_qpc":begin, "end_qpc":end, "down_keys":steps, "tab":true, "frame_delay_ms":delay}
+                ))?,
+            )?;
+            accepted?;
             let trace = std::fs::read_to_string(dir.path().join("trace.jsonl"))?;
+            // Join the editor's synchronous write and host queue delay by the
+            // exact acknowledged frame. No hardware-dependent time threshold.
+            let events = trace
+                .lines()
+                .map(serde_json::from_str)
+                .collect::<Result<Vec<serde_json::Value>, _>>()?;
+            ensure!(
+                events
+                    .iter()
+                    .any(|send| send["event"] == "direct_presented_send"
+                        && send["duration_ms"].is_number()
+                        && events.iter().any(|received| received["event"]
+                            == "direct_presented_queue"
+                            && received["revision"] == send["revision"]
+                            && received["frame_id"] == send["frame_id"]
+                            && received["count"].is_u64())),
+                "no correlated presented acknowledgement in navigation burst"
+            );
             ensure!(
                 trace
                     .lines()
@@ -1774,11 +1801,17 @@ fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result
         })();
         if let Err(error) = result {
             let _ = h.save_evidence(dir.path());
+            let _ =
+                console_snapshot::capture(&mut h, &dir.path().join("burst-failure-screen.json"));
             let _ = h.stop();
             return Err(error).with_context(|| {
                 format!("path navigation delay {delay}: {}", dir.keep().display())
             });
         }
+        println!(
+            "navigation burst delay {delay}: {}",
+            dir.path().join("trace.jsonl").display()
+        );
     }
     Ok(())
 }
