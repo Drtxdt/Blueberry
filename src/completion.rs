@@ -104,9 +104,7 @@ pub fn merge(
         if let Some(part) = part {
             base.incomplete |= part.incomplete;
             base.pending |= part.scan_pending;
-            if part.incomplete && !part.scan_pending {
-                base.error = base.error.or_else(|| part.diagnostics.first().cloned());
-            }
+            base.error = base.error.or_else(|| part.menu_diagnostic.clone());
             base.candidates.extend(part.candidates.clone());
         } else {
             base.pending |= if index == 0 {
@@ -248,6 +246,76 @@ impl PublishedCompletion {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unavailable_path_renders_a_final_status_without_retaining_an_old_edit() {
+        let root = tempfile::tempdir().unwrap();
+        let subdir = root.path().join("folder");
+        std::fs::create_dir(&subdir).unwrap();
+        std::fs::create_dir(subdir.join("target")).unwrap();
+        let line = "cd ./folder/t";
+        let (base, mut request) = plan(
+            &CommandIndex::default(),
+            Catalog::builtin(),
+            line,
+            line.len(),
+            root.path(),
+            None,
+            1,
+            Arc::new(BTreeMap::new()),
+            true,
+            false,
+            &BTreeMap::new(),
+        );
+        let collect = |req: &SourceRequest| {
+            let [project, paths] = crate::sources::collect_once(req);
+            merge(
+                base.clone(),
+                req,
+                [Some(&project), Some(&paths)],
+                None,
+                20,
+                &BTreeMap::new(),
+            )
+        };
+        let mut published = PublishedCompletion::default();
+        let first = published.update(&request, collect(&request));
+        assert!(first.candidates.iter().any(|c| c.label == "target"));
+        // A regular file in place of a directory fails even when run as admin.
+        std::fs::remove_dir(subdir.join("target")).unwrap();
+        std::fs::remove_dir(&subdir).unwrap();
+        std::fs::write(&subdir, "").unwrap();
+        for (cwd, expected) in [
+            (root.path(), "无法读取目录"),
+            (Path::new("//server/share"), "原生补全"),
+        ] {
+            request.cwd = cwd.to_owned();
+            let result = published.update(&request, collect(&request));
+            assert!(!result.pending);
+            assert!(
+                result.candidates.is_empty(),
+                "a status must not offer an edit"
+            );
+            let frame = crate::menu::render_with_state(
+                &result.candidates,
+                0,
+                line,
+                80,
+                &Config::default(),
+                crate::menu::MenuState {
+                    incomplete: result.pending,
+                    diagnostic: result.error.as_deref(),
+                    ..Default::default()
+                },
+                1,
+            );
+            assert!(
+                frame.lines.iter().any(|row| row.contains(expected)),
+                "{expected}: {frame:?}"
+            );
+        }
+    }
+
     #[test]
     fn refresh_keeps_visible_candidate_but_final_empty_and_new_revision_do_not() {
         let index = CommandIndex::default();

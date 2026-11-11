@@ -2452,6 +2452,16 @@ fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
     h.send_text("X")?;
     h.wait_text("zzz-manual-emptyX", TIMEOUT)?;
     h.send(b"\x01\x7f")?;
+    // Register a real native completer. Tab on a path-error status must reach
+    // PSReadLine, even though Blueberry has just painted a visible row.
+    h.send_text("function Test-BerryPath($Path) {}; Register-ArgumentCompleter -CommandName Test-BerryPath -ParameterName Path -ScriptBlock { 'NATIVE_PATH_OK' }; Write-Output 'COMPLETER-READY'\r")?;
+    wait_output_line(&mut h, "COMPLETER-READY")?;
+    h.send_text("Test-BerryPath ./missing-dir/value")?;
+    h.send(b"\x1b[17~")?;
+    h.wait_text("无法读取目录", TIMEOUT)?;
+    h.send(b"\t")?;
+    h.wait_text("Test-BerryPath NATIVE_PATH_OK", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
     h.send(b"\x1b[18~")?;
     h.wait_text("工作台", TIMEOUT)
         .context("open manual workbench")?;

@@ -45,6 +45,8 @@ pub struct SourceUpdate {
     pub incomplete: bool,
     pub scan_pending: bool,
     pub diagnostics: Vec<String>,
+    /// Actionable message for the menu; other diagnostics remain in source status.
+    pub menu_diagnostic: Option<String>,
     pub project_root: Option<PathBuf>,
     pub elapsed: std::time::Duration,
     pub generation: u64,
@@ -60,6 +62,7 @@ impl SourceUpdate {
             incomplete: false,
             scan_pending: false,
             diagnostics: Vec::new(),
+            menu_diagnostic: None,
             project_root: None,
             elapsed: std::time::Duration::ZERO,
             generation: 0,
@@ -464,6 +467,9 @@ fn collect_lane(
         }
         update.incomplete = result.incomplete;
         update.diagnostics = result.diagnostics;
+        if update.incomplete {
+            update.menu_diagnostic = update.diagnostics.first().cloned();
+        }
         update.project_root = result.project_root;
         update.watch_paths = result.watch_paths;
         update.recursive_watch_paths = result.recursive_watch_paths;
@@ -481,7 +487,10 @@ fn collect_lane(
         update.candidates = result.candidates;
         update.incomplete = result.incomplete;
         update.scan_pending = result.scan_pending;
-        update.diagnostics.extend(result.diagnostic);
+        update.menu_diagnostic = result.diagnostic;
+        update
+            .diagnostics
+            .extend(update.menu_diagnostic.iter().cloned());
     }
     update.elapsed = started.elapsed();
     update
