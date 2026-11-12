@@ -86,14 +86,13 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
     std::fs::write(
         &setup,
         format!(
-            "\u{feff}$e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145m{expected}${{e}}[0m`r`n\"); 1..40 | ForEach-Object {{ 'HISTORY-SENTINEL' }}\r\n"
+            "\u{feff}$d='p'*48; $null=New-PSDrive -Name $d -PSProvider FileSystem -Root $PWD.Path; Set-Location ($d+':'); $e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145m{expected}${{e}}[0m`r`n\"); 1..40 | ForEach-Object {{ 'HISTORY-SENTINEL' }}\r\n"
         ),
     )?;
     let mut host = start_host(cwd.path())?;
-    host.harness.send_text(&format!(
-        ". '{}'\r",
-        setup.display().to_string().replace('\'', "''")
-    ))?;
+    host.harness.send_text(". .\\history.ps1")?;
+    wait_for_editor_line(&mut host.harness, ". .\\history.ps1")?;
+    host.harness.send_text("\r")?;
     // The fixture deliberately scrolls the previous prompt out of the viewport.
     // Visible prompt counts cannot be used as a monotonically increasing clock.
     host.harness.event("prompt_end", PTY_TIMEOUT)?;
@@ -120,13 +119,33 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
     for (rows, columns) in [(12, 40), (28, 95), (18, 60)] {
         host.harness.resize(rows, columns)?;
         wait_until(&mut host.harness, "resized native menu", |screen| {
-            has_border_width(screen, columns as usize - 1)
+            has_current_menu(screen, "⌘ git ", columns as usize - 1)
         })?;
+        let prompt = format!("PS {}:\\> gi", "p".repeat(48));
+        wait_native_screen(
+            &mut host,
+            &format!("resize-{rows}-{columns}.json"),
+            (rows.into(), columns.into()),
+            |screen| {
+                let editor: String = screen
+                    .lines()
+                    .take_while(|s| !s.contains('╭'))
+                    .map(str::trim_end)
+                    .collect();
+                editor.ends_with(&prompt)
+                    && editor.matches(&prompt).count() == 1
+                    && has_current_menu(screen, "⌘ git ", columns as usize - 1)
+            },
+        )?;
     }
     host.harness.send_text("\x1b")?;
     wait_until(&mut host.harness, "dismissed native menu", |screen| {
         !screen.contains("⌘ git ")
     })?;
+    console_snapshot::capture(
+        &mut host.harness,
+        &host._data_dir.path().join("dismissed.json"),
+    )?;
     let after = host.harness.native_history()?;
     std::fs::write(host._data_dir.path().join("history-after.txt"), &after)?;
     let row = after
@@ -152,6 +171,7 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
         "native history Unicode or soft wrapping changed"
     );
     clear_line_and_send(&mut host.harness, b"git st", "completion after resize")?;
+    wait_for_editor_line(&mut host.harness, "git st")?;
     host.harness.wait_text("status", PTY_TIMEOUT)?;
     host.harness.stop()?;
     Ok(())
