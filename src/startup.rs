@@ -12,6 +12,7 @@ pub fn run(action: &str, profile: Option<&Path>, owned_only: bool) -> Result<u32
         directory.join("profile-module.ps1"),
         include_bytes!("../scripts/profile-module.ps1"),
     )?;
+    #[cfg(windows)]
     if action == "enable" {
         crate::editor::export_startup_editors(&directory.join("editors"))?;
     }
