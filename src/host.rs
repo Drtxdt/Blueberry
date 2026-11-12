@@ -551,6 +551,7 @@ struct State {
     commands_pending: bool,
     commands_inflight: bool,
     commands_allowed: bool,
+    awaiting_editor_idle: bool,
     trace: Trace,
     query_started: Option<Instant>,
     request_path: PathBuf,
@@ -870,6 +871,7 @@ impl State {
                 // a literal c. The first edit or explicit refresh enables
                 // snapshot requests; PATH indexing can already run below.
                 self.commands_allowed = false;
+                self.awaiting_editor_idle = true;
                 self.metadata_seen.clear();
                 // ReadLine disposed the previous enumerator when execution
                 // began. Refresh the session snapshot after every new prompt.
@@ -911,6 +913,10 @@ impl State {
                     self.commands_pending = true;
                     self.indexed = true;
                 }
+            }
+            "editor_idle_ready" if self.awaiting_editor_idle && self.prompt => {
+                self.awaiting_editor_idle = false;
+                self.commands_allowed = true;
             }
             "execute" => {
                 self.native_search_active = false;
@@ -1953,6 +1959,7 @@ impl State {
             return Ok(());
         }
         if matches!(event, Event::Key(_) | Event::Paste(_)) {
+            self.awaiting_editor_idle = false;
             self.notification = None;
             self.commands_allowed = query_after && !self.nested_edit;
         }
@@ -2406,6 +2413,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
     };
     // The screen model owns a fresh viewport. CSI 2J preserves scrollback.
+    env.insert("BLUEBERRY_NESTED_IDLE_READY".into(), "1".into());
     #[cfg(windows)]
     env.insert(
         "BLUEBERRY_RESERVED_MENU".into(),
@@ -2589,6 +2597,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         commands_pending: false,
         commands_inflight: false,
         commands_allowed: false,
+        awaiting_editor_idle: false,
         trace: trace.clone(),
         query_started: None,
         request_path,

@@ -57,6 +57,7 @@ $blueberryStateDefaults = [ordered]@{
     BLUEBERRY_ORIGINAL_READLINE   = $null
     BLUEBERRY_READLINE_WRAPPED    = $false
     BLUEBERRY_READLINE_ACTIVE     = $false
+    BLUEBERRY_IDLE_READY_PENDING = $false
     BLUEBERRY_PSREADLINE_AVAILABLE = $false
     BLUEBERRY_KEY_HANDLERS        = [ordered]@{ buffer = $false; apply = $false; commands = $false; native = $false; paste = $false; enter = $false; shift_enter = $false }
     BLUEBERRY_NATIVE_DELETES = $null
@@ -528,6 +529,11 @@ function ConvertTo-BlueberryFrame {
     $escape = [char]27
     $bell = [char]7
     return [string]::Concat($escape, ']7776;', $Token, ';', $json, $bell)
+}
+
+function Send-BlueberryIdleReady {
+    $script:BLUEBERRY_IDLE_READY_PENDING = $false
+    if ($script:BLUEBERRY_READLINE_ACTIVE) { Send-BlueberryEvent -Event 'editor_idle_ready' }
 }
 
 function Send-BlueberryEvent {
@@ -3471,6 +3477,14 @@ function Initialize-BlueberryReadLine {
                 $savedReadLineActive = $script:BLUEBERRY_READLINE_ACTIVE
                 $script:BLUEBERRY_READLINE_ACTIVE = $true
                 try {
+                    # ConsoleHost may still be processing a cursor request in
+                    # prompt_end. PSReadLine raises OnIdle from its key wait.
+                    if ($env:BLUEBERRY_NESTED_IDLE_READY -eq '1' -and -not $script:BLUEBERRY_IDLE_READY_PENDING) {
+                        $script:BLUEBERRY_IDLE_READY_PENDING = $true
+                        try {
+                            $null = Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -SupportEvent -MaxTriggerCount 1 -Action { Send-BlueberryIdleReady }
+                        } catch { $script:BLUEBERRY_IDLE_READY_PENDING = $false }
+                    }
                     $acceptedLine = & $script:BLUEBERRY_ORIGINAL_READLINE @args
                     $savedLastExitCode = $ExecutionContext.SessionState.PSVariable.GetValue('global:LASTEXITCODE')
                     # ReadLine returned only after PSReadLine accepted the command.
