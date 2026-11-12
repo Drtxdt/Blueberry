@@ -286,6 +286,17 @@ esac
             startup_name = f"startup-{profile}.json"
             (self.root / startup_name).write_text(json.dumps(startup), encoding="utf-8")
             self.evidence["startup_reports"][profile] = startup_name
+            cells = self.evidence.setdefault("startup_entry_reports", {}).setdefault(profile, {})
+            for entry in ("direct_executable", "isolated_automatic_profile"):
+                for cache in ("cold", "warm"):
+                    batches = cells[f"{entry}/{cache}"] = []
+                    for batch in range(2):
+                        name = f"{profile}-{entry}-{cache}-{batch}.json"
+                        batches.append(name)
+                        report = dict(startup, actual_entry=entry, editor_eligible=True, local_cache_state=cache,
+                                      local_appdata_isolated=True, scratch_directory=name,
+                                      system_metadata_observations=[{"cache": "hit" if cache == "warm" else "rebuild"}] * 30)
+                        (self.root / name).write_text(json.dumps(report), encoding="utf-8")
             self.evidence["hot_reports"][profile] = {}
             for variant, (transport, descriptions) in validator.VARIANTS.items():
                 scenarios = []
@@ -684,6 +695,21 @@ esac
         path.write_text(json.dumps(report), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "probe ConPTY identity mismatch"):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
+    def test_automatic_entry_can_block_an_otherwise_passing_package(self):
+        profile = "ps7-2.4.5"
+        batches = self.evidence["startup_entry_reports"][profile]["isolated_automatic_profile/warm"]
+        path = self.root / batches[1]
+        original = json.loads(path.read_text())
+        for changes, error in [
+            ({"candidate_first_input": statistics(419.39, 30),
+              "paired_first_input_delta": statistics(319.39, 30)}, "exceeds 50"),
+            ({"actual_automatic_menu": [False] * 30}, "automatic direct menu"),
+            ({"system_metadata_observations": []}, "observed cache differs"),
+        ]:
+            path.write_text(json.dumps(dict(original, **changes)))
+            with self.subTest(error=error), self.assertRaisesRegex(ValueError, error):
+                validator.check_entry_batches(self.evidence, self.root, profile, self.commit, self.exe_hash, self.conpty)
 
     def test_ci_record_must_match_the_downloaded_run(self):
         run_id=self.evidence["ci"]["run_id"]

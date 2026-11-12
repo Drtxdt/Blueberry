@@ -1,0 +1,72 @@
+name: Qualify frozen main startup
+on:
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful Blueberry CI main push run for this exact commit
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: read
+jobs:
+  startup:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {profile: ps51-2.0.0, shell: powershell.exe, editor: 2.0.0}
+          - {profile: ps51-2.4.5, shell: powershell.exe, editor: 2.4.5}
+          - {profile: ps7-2.4.5, shell: pwsh.exe, editor: 2.4.5}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify frozen main push
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN: ${{ inputs.ci_run_id }}
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main' -or $env:CI_RUN -notmatch '^[0-9]+$') { throw 'Expected main and a numeric CI run ID' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:CI_RUN" | ConvertFrom-Json
+          if ($run.path -ne '.github/workflows/ci.yml' -or $run.head_sha -ne $env:GITHUB_SHA -or $run.head_branch -ne 'main' -or $run.event -ne 'push' -or $run.conclusion -ne 'success') { throw 'Unqualified source CI' }
+      - uses: actions/download-artifact@v4
+        with:
+          name: blueberry-windows-x64
+          path: original
+          run-id: ${{ inputs.ci_run_id }}
+          github-token: ${{ github.token }}
+      - name: Measure both entries
+        env:
+          PROFILE_ID: ${{ matrix.profile }}
+          EDITOR: ${{ matrix.editor }}
+          SHELL_EXE: ${{ matrix.shell }}
+          POWERSHELL_UPDATECHECK: 'Off'
+          BLUEBERRY_NO_HISTORY: '1'
+        run: |
+          $zip = @(Get-ChildItem original -Recurse -Filter 'blueberry-v0.5.4-windows-x64.zip')
+          if ($zip.Count -ne 1) { throw 'Expected one core package' }
+          Expand-Archive $zip[0].FullName "$env:RUNNER_TEMP/core"
+          $exe = "$env:RUNNER_TEMP/core/blueberry.exe"
+          python scripts/prepare-original-editor.py --version $env:EDITOR --root "$env:RUNNER_TEMP/editor"
+          if ($LASTEXITCODE) { throw 'Editor setup failed' }
+          $env:BLUEBERRY_TEST_PSREADLINE_MODULE = "$env:RUNNER_TEMP/editor/PSReadLine/$env:EDITOR/PSReadLine.psd1"
+          $failed = @()
+          foreach ($batch in 1,2) {
+            $entries = if ($batch -eq 1) { 'direct_executable','isolated_automatic_profile' } else { 'isolated_automatic_profile','direct_executable' }
+            foreach ($entry in $entries) {
+              foreach ($cache in 'cold','warm') {
+                $directory = "$env:RUNNER_TEMP/qualification/$env:PROFILE_ID/$entry/$cache/$batch"
+                ./scripts/test-ci-profile-entry.ps1 -Dedicated:($entry -eq 'direct_executable') -Formal -Pairs 30 -CacheState $cache -Executable $exe -Shell $env:SHELL_EXE -OutputDirectory $directory
+                $report = Get-Content "$directory/startup.json" -Raw | ConvertFrom-Json
+                if ($report.source_commit -ne $env:GITHUB_SHA -or $report.source_dirty -ne $false -or $report.editor_eligible -ne $true -or $report.actual_automatic_menu -contains $false -or $report.paired_first_input_delta.median -gt 50) { $failed += "$entry/$cache/$batch" }
+              }
+            }
+          }
+          if ($failed) { throw "Startup qualification failed: $failed" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frozen-startup-${{ matrix.profile }}-${{ github.sha }}
+          path: ${{ runner.temp }}/qualification
+          if-no-files-found: error

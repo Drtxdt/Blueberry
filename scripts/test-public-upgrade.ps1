@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory=$true)][string]$PreviousInstaller,
     [Parameter(Mandatory=$true)][string]$PreviousPackage,
-    [Parameter(Mandatory=$true)][string]$PackagePath
+    [Parameter(Mandatory=$true)][string]$PackagePath,
+    [Parameter(Mandatory=$true)][string]$PreviousComponent
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -26,13 +27,25 @@ try {
     & $installer -PackagePath $previous -InstallRoot $root -ConfigRoot $configRoot -NoPrompt -NoPath
     if (-not $?) { throw 'Released bootstrap failed' }
     $oldState=Get-Content -LiteralPath (Join-Path $root 'install.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($oldState.current.version -ne '0.5.2') { throw 'Expected real public 0.5.2 installation' }
+    if ($oldState.current.version -ne '0.5.3') { throw 'Expected real public 0.5.3 installation' }
     Copy-Item -LiteralPath (Join-Path $root 'install.json') -Destination (Join-Path $evidence 'original-install.json')
     $oldHash=(Get-FileHash -LiteralPath (Join-Path $root 'blueberry.exe')).Hash
     $config=Join-Path $configRoot 'config.toml'
     [IO.File]::AppendAllText($config,"`n# 中文 user setting retained`n",[Text.UTF8Encoding]::new($false))
     $configHash=(Get-FileHash -LiteralPath $config).Hash
     $registrationHash=(Get-FileHash -LiteralPath (Join-Path $root 'registration.json')).Hash
+    $fixtureProfile = Join-Path $evidence 'profile.ps1'
+    $profileText = "# user settings retained`r`nSet-PSReadLineKeyHandler -Chord F8 -Function HistorySearchBackward`r`n"
+    [IO.File]::WriteAllText($fixtureProfile,$profileText,[Text.UTF8Encoding]::new($true))
+    $profileOriginal = (Get-FileHash $fixtureProfile).Hash
+    $exe = Join-Path $root 'blueberry.exe'
+    & $exe startup enable --profile $fixtureProfile
+    if ($LASTEXITCODE) { throw 'Public startup hook installation failed' }
+    $profileInstalled = (Get-FileHash $fixtureProfile).Hash
+    & $exe terminal install --install-root $root --package $PreviousComponent
+    if ($LASTEXITCODE) { throw 'Public optional component installation failed' }
+    $componentState = Join-Path $root 'components/terminal/component-state.json'
+    $componentHash = (Get-FileHash $componentState).Hash
     foreach ($operation in @('Upgrade','Rollback','Upgrade')) {
         $arguments=@{Action=$operation;InstallRoot=$root}
         if ($operation -eq 'Upgrade') { $arguments.PackagePath=$candidate }
@@ -42,13 +55,20 @@ try {
         foreach ($property in $state.managed_hashes.PSObject.Properties) {
             if ((Get-FileHash -LiteralPath (Join-Path $root $property.Name)).Hash -ine $property.Value) { throw "Managed digest mismatch: $($property.Name)" }
         }
+        if ((Get-FileHash $fixtureProfile).Hash -ne $profileInstalled -or (Get-FileHash $componentState).Hash -ne $componentHash) { throw 'Upgrade changed startup bindings or optional component state' }
         if ($operation -eq 'Rollback' -and (Get-FileHash -LiteralPath (Join-Path $root 'blueberry.exe')).Hash -ine $oldHash) { throw 'Rollback did not restore public executable' }
         if ((Get-FileHash -LiteralPath $config).Hash -ine $configHash) { throw 'Maintenance changed user configuration' }
         if ((Get-FileHash -LiteralPath (Join-Path $root 'registration.json')).Hash -ine $registrationHash) { throw 'Maintenance changed entry ownership' }
         if ([Environment]::GetEnvironmentVariable('PATH','User') -cne $oldPath) { throw 'Isolated validation changed user PATH' }
     }
+    & $exe startup disable --profile $fixtureProfile
+    if ($LASTEXITCODE -or (Get-FileHash $fixtureProfile).Hash -ne $profileOriginal) { throw 'Startup removal did not restore user profile bytes' }
+    & $exe terminal uninstall --install-root $root
+    if ($LASTEXITCODE) { throw 'Optional component uninstall failed' }
+    & $manager -Action Uninstall -InstallRoot $root
+    if ((Test-Path $exe) -or (Get-FileHash $config).Hash -ne $configHash) { throw 'Core uninstall did not preserve user settings' }
     $receipt['passed']=$true
-    Write-Host "Public 0.5.2 upgrade/rollback/re-upgrade passed: $evidence"
+    Write-Host "Public 0.5.3 upgrade/rollback/re-upgrade passed: $evidence"
 } catch {
     $receipt['error']=$_.Exception.Message
     throw

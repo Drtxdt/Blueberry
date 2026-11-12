@@ -19,7 +19,8 @@ $profilePath=Join-Path $destinationPath 'Microsoft.PowerShell_profile.ps1'
 # Only the new copy is changed. The generated guards and invocation run during
 # PowerShell's own automatic profile loading, with no -Command/-File bypass.
 [IO.File]::WriteAllText($profilePath,'',[Text.UTF8Encoding]::new($true))
-& (Join-Path $PSScriptRoot 'startup.ps1') -Action enable -Executable $Executable -ProfilePath $profilePath
+& $Executable startup enable --profile $profilePath
+if ($LASTEXITCODE -ne 0) { throw 'Measured executable could not generate its startup profile.' }
 $text=[IO.File]::ReadAllText($profilePath)
 $text=$text.Replace('& $blueberryAutoExe run --shell $blueberryAutoShell', '& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
 # The outer fixture exits after its child, while the child skips this branch

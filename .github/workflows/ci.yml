@@ -92,7 +92,7 @@ jobs:
         shell: pwsh
         run: python scripts/verify-evidence-upload.py
   review-profile-ab:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.review_profile_ab) || (github.event_name == 'pull_request' && github.head_ref == 'codex/review-hardening') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.review_profile_ab) || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
     needs: [format, core, powershell-51, powershell-7, native-mouse, package]
     uses: ./.github/workflows/review-profile-ab.yml
   pr-gate:
@@ -104,7 +104,7 @@ jobs:
       - name: Require successful functional, package and applicable review checks
         env:
           RESULTS: ${{ toJSON(needs) }}
-          REVIEW_MATRIX: ${{ github.head_ref == 'codex/review-hardening' }}
+          REVIEW_MATRIX: ${{ github.base_ref == 'main' }}
         run: |
           python3 - <<'PY'
           import json, os
@@ -719,22 +719,25 @@ jobs:
           ./scripts/test-storage-failures.ps1 -CorePackage $core -NextCorePackage $nextCore -TerminalPackage $terminal -NextTerminalPackage $nextTerminal
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./scripts/test-storage-failures.ps1 -CorePackage $core -NextCorePackage $nextCore -TerminalPackage $terminal -NextTerminalPackage $nextTerminal
           if ($LASTEXITCODE -ne 0) { throw '5.1 physical storage failure tests failed' }
-      - name: Upgrade the original public 0.5.2 installation
+      - name: Upgrade the original public 0.5.3 installation
         shell: pwsh
         env:
           BLUEBERRY_PUBLIC_BASELINE_DIRECTORY: ${{ runner.temp }}/blueberry-public-baseline-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           New-Item -ItemType Directory $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY | Out-Null
-          $base = 'https://github.com/Drtxdt/Blueberry/releases/download/v0.5.2/'
-          foreach ($name in @('install.ps1','blueberry-v0.5.2-windows-x64.zip','blueberry-v0.5.2-windows-x64.zip.sha256')) {
+          $base = 'https://github.com/Drtxdt/Blueberry/releases/download/v0.5.3/'
+          foreach ($name in @('install.ps1','blueberry-v0.5.3-windows-x64.zip','blueberry-v0.5.3-windows-x64.zip.sha256')) {
             Invoke-WebRequest ($base + $name) -OutFile (Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY $name)
           }
-          $previous = Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY 'blueberry-v0.5.2-windows-x64.zip'
+          $previous = Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY 'blueberry-v0.5.3-windows-x64.zip'
           $previousInstaller = Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY 'install.ps1'
-          if ((Get-FileHash $previous).Hash -ine '921E22454E89106E553479D58804ACFAB88D23238D9CD3956C920C625972267D') { throw 'Public baseline identity changed' }
-          if ((Get-FileHash $previousInstaller).Hash -ine '314B6F13350951D41372BFE53D8D6DB75AB69108346281FAD087EA70FB81965C') { throw 'Public installer identity changed' }
+          if ((Get-FileHash $previous).Hash -ine '734bf7f7853178445c5e52e928a6e14cc4eaf0e58f30bf18deb875d4436d22ee') { throw 'Public baseline identity changed' }
+          if ((Get-FileHash $previousInstaller).Hash -ine '0dc22a9fc8cc445de40f95e115b0e88282574fd9be860b727ba12d71464c70b8') { throw 'Public installer identity changed' }
           $core = (Get-ChildItem ./dist/ci/*.zip).FullName
-          ./scripts/test-public-upgrade.ps1 -PreviousInstaller $previousInstaller -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
+          $component = Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY 'blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip'
+          Invoke-WebRequest ($base + (Split-Path -Leaf $component)) -OutFile $component
+          if ((Get-FileHash $component).Hash -ine '547abc51da22682dda50eb789105109e2b51ab53e190317c1b3e08d30a7c9d58') { throw 'Public component identity changed' }
+          ./scripts/test-public-upgrade.ps1 -PreviousComponent $component -PreviousInstaller $previousInstaller -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
           if (!$?) { Get-Content ./target/public-upgrade.log; throw 'Public baseline upgrade failed' }
       - name: Preserve optional Terminal component
         uses: actions/upload-artifact@v4

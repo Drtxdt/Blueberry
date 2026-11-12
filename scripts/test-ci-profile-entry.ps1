@@ -7,6 +7,7 @@ param(
     [ValidateRange(1, 1000)][int]$Pairs = 2,
     [ValidateSet('ambient', 'cold', 'warm')][string]$CacheState = 'ambient',
     [switch]$Formal,
+    [switch]$Dedicated,
     [switch]$CompareEntries
 )
 $ErrorActionPreference='Stop'
@@ -37,7 +38,8 @@ if ($existed) { $original=@([IO.File]::ReadAllBytes($profilePath)) }
 if ($existed) { [IO.File]::WriteAllBytes((Join-Path $root 'original-profile.bin'),$original) }
 $prepared=Join-Path $root 'managed-profile.ps1'
 [IO.File]::WriteAllText($prepared,'',[Text.UTF8Encoding]::new($true))
-& (Join-Path $PSScriptRoot 'startup.ps1') -Action enable -Executable $Executable -ProfilePath $prepared
+& $Executable startup enable --profile $prepared
+if ($LASTEXITCODE -ne 0) { throw 'Measured executable could not generate its startup profile.' }
 $text=[IO.File]::ReadAllText($prepared).Replace('& $blueberryAutoExe run --shell $blueberryAutoShell','& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
 $text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n"
 [IO.File]::WriteAllText($prepared,$text,[Text.UTF8Encoding]::new($true))
@@ -64,14 +66,15 @@ try {
     if ($CompareEntries) {
         & python (Join-Path $PSScriptRoot 'measure-startup-entries.py') --shell $Shell --executable $Executable --probe $ProbeExecutable --fixture $fixture --output (Join-Path $root 'entries') --pairs $Pairs --cache $CacheState --trace
     } else {
-        & $ProbeExecutable product-probe --host-executable $Executable --shell $Shell --profile-entry --profile-fixture $fixture --iterations $Pairs --cache-state $CacheState --output $reportPath
+        $entryArguments = if ($Dedicated) { @() } else { @('--profile-entry','--profile-fixture',$fixture) }
+        & $ProbeExecutable product-probe --host-executable $Executable --shell $Shell @entryArguments --iterations $Pairs --cache-state $CacheState --output $reportPath
     }
     if ($LASTEXITCODE -ne 0) { throw 'Automatic profile entry probe failed.' }
     if ($Formal) {
         $report=Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
         if ($report.diagnostic_only -ne $false -or $report.build -ne 'release' -or
             $report.trace -ne 'disabled' -or $report.iterations -ne $Pairs -or
-            $report.actual_entry -ne 'isolated_automatic_profile' -or
+            $report.actual_entry -ne $(if ($Dedicated) { 'direct_executable' } else { 'isolated_automatic_profile' }) -or
             $report.local_cache_state -ne $CacheState -or $report.local_appdata_isolated -ne $true -or
             @($report.paired_first_input_delta.samples).Count -ne $Pairs) {
             throw 'Profile report is incomplete or not eligible for formal timing.'
