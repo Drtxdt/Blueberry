@@ -138,12 +138,28 @@ fn wait(harness: &mut Harness, description: &str, predicate: impl Fn(&str) -> bo
     }
 }
 fn adapter(directory: &Path) -> Result<Value> {
-    for entry in std::fs::read_dir(directory)?.flatten() {
-        if let Ok(bytes) = std::fs::read(entry.path().join("adapter.json")) {
-            return Ok(serde_json::from_slice(&bytes)?);
+    // StatusWriter publishes asynchronously. The visible menu timestamps have
+    // already been captured; wait for its atomic rename outside timed stages.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        for entry in std::fs::read_dir(directory)? {
+            let path = entry?.path();
+            if !path.is_dir() {
+                continue;
+            }
+            match std::fs::read(path.join("adapter.json")) {
+                Ok(bytes) => return Ok(serde_json::from_slice(&bytes)?),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
         }
+        ensure!(
+            Instant::now() < deadline,
+            "actual product did not publish adapter status in {}",
+            directory.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
     }
-    bail!("actual product did not publish adapter status")
 }
 struct Sample {
     first_prompt: f64,
@@ -823,6 +839,21 @@ pub fn run_with_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reads_status_published_after_the_first_menu() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let session = dir.path().join("session");
+        std::fs::create_dir(&session)?;
+        let writer = std::thread::spawn(move || -> std::io::Result<()> {
+            std::fs::write(session.join("adapter.tmp"), br#"{"automatic_menu":true}"#)?;
+            std::thread::sleep(Duration::from_millis(40));
+            std::fs::rename(session.join("adapter.tmp"), session.join("adapter.json"))
+        });
+        let status = adapter(dir.path())?;
+        writer.join().unwrap()?;
+        assert_eq!(status["automatic_menu"], true);
+        Ok(())
+    }
     #[test]
     fn first_echo_can_wrap_but_must_immediately_follow_the_actual_prompt() {
         let prompt = "PS fixture-pair-10>";
