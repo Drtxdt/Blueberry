@@ -51,39 +51,16 @@ if ($Host.Name -eq 'ConsoleHost' -and -not $blueberryAutoScript -and
     $env:BLUEBERRY_ACTIVE -ne '1' -and $env:BLUEBERRY_PROFILE_PID -ne [string]$PID -and -not [Console]::IsInputRedirected -and
     -not [Console]::IsOutputRedirected -and [IO.File]::Exists($blueberryAutoExe)) {
     try {
-        $blueberryAutoShell = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
         $blueberryEditor = Get-Module PSReadLine | Select-Object -First 1
         if (-not $blueberryEditor) { Import-Module PSReadLine -ErrorAction Stop; $blueberryEditor = Get-Module PSReadLine | Select-Object -First 1 }
         if (-not [Microsoft.PowerShell.PSConsoleReadLine].GetProperty('EditorIntegrationVersion')) { throw 'Expected the managed PSReadLine module. Check Get-Module PSReadLine and run blueberry startup enable.' }
-        $blueberryInfo = [Diagnostics.ProcessStartInfo]::new()
-        $blueberryInfo.FileName = $blueberryAutoExe
-        $blueberryInfo.UseShellExecute = $false
-        $blueberryInfo.CreateNoWindow = $true
-        $blueberryInfo.RedirectStandardOutput = $true
-        $blueberryInfo.Arguments = ('profile-service {0} "{1}" {2}' -f $PID,$blueberryAutoShell,$blueberryEditor.Version)
-        if ($env:BLUEBERRY_PROFILE_TRACE) { $blueberryInfo.EnvironmentVariables['BLUEBERRY_PROFILE_HOOK_QPC'] = [string]$blueberryAutoHookQpc }
-        $blueberryProcess = [Diagnostics.Process]::Start($blueberryInfo)
-        try {
-            $blueberryRead = $blueberryProcess.StandardOutput.ReadLineAsync()
-            if (-not $blueberryRead.Wait(10000)) { throw 'Timed out waiting for the Blueberry service' }
-            $blueberryHello = $blueberryRead.Result | ConvertFrom-Json -ErrorAction Stop
-            if (-not $blueberryHello.token -or -not $blueberryHello.bootstrap) { throw 'Incomplete startup handshake' }
-            $env:BLUEBERRY_PIPE_NAME = $blueberryHello.pipe
-            $env:BLUEBERRY_TOKEN = $blueberryHello.token
-            $env:BLUEBERRY_SESSION_DIR = $blueberryHello.session
-            $env:BLUEBERRY_EDITOR_DLL_SHA256 = $blueberryHello.editor_sha256
-            foreach ($blueberryKey in $blueberryHello.keys.PSObject.Properties) {
-                [Environment]::SetEnvironmentVariable($blueberryKey.Name,[string]$blueberryKey.Value,'Process')
-            }
-            . $blueberryHello.bootstrap -EditorManifest $blueberryEditor.Path
-            if (-not [Blueberry.Direct.Bridge]::AutomaticMenu) { throw 'Automatic menu unavailable' }
-            # Older managed blocks later in the profile chain use this guard.
-            $env:BLUEBERRY_ACTIVE = '1'
-            $env:BLUEBERRY_PROFILE_PID = [string]$PID
-        } catch {
-            if (-not $blueberryProcess.HasExited) { $blueberryProcess.Kill() }
-            throw
-        } finally { $blueberryProcess.Dispose(); Remove-Variable blueberryHello,blueberryRead -ErrorAction SilentlyContinue }
+        if ($env:BLUEBERRY_NO_HISTORY -eq '1') { Set-PSReadLineOption -HistorySaveStyle SaveNothing }
+        if ($env:BLUEBERRY_PROFILE_TRACE) {
+            $env:BLUEBERRY_PROFILE_HOOK_QPC = [string]$blueberryAutoHookQpc
+            $env:BLUEBERRY_DIRECT_TRACE = '1'
+        }
+        $null = [Reflection.Assembly]::LoadFrom([IO.Path]::Combine($blueberryEditor.ModuleBase,'blueberry-profile-bridge.dll'))
+        [Blueberry.Direct.Bridge]::AttachProfile($blueberryAutoExe,[Microsoft.PowerShell.PSConsoleReadLine],$PSVersionTable.PSVersion.ToString(),$blueberryEditor.Version.ToString())
     } catch { Write-Warning ('Blueberry: ' + $_.Exception.Message) }
 }
 # <<< Blueberry startup <<<

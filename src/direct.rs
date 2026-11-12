@@ -576,7 +576,13 @@ fn run_for_editor(options: RunOptions, attached: Option<u32>) -> Result<u32> {
     let directory = options.data_dir.join(&token);
     std::fs::create_dir_all(&directory)?;
     let resources_started = Instant::now();
-    let bootstrap = ensure_bootstrap(&std::env::temp_dir().join("blueberry-runtime"))?;
+    let bootstrap = if attached.is_none() {
+        Some(ensure_bootstrap(
+            &std::env::temp_dir().join("blueberry-runtime"),
+        )?)
+    } else {
+        None
+    };
     trace.event(
         "direct_bootstrap_prepare",
         None,
@@ -615,7 +621,7 @@ fn run_for_editor(options: RunOptions, attached: Option<u32>) -> Result<u32> {
             .env("BLUEBERRY_EDITOR_MODULE_ROOT", &editor.module_root)
             .env("BLUEBERRY_EDITOR_DLL_SHA256", &editor.dll_sha256);
     }
-    if trace.enabled() {
+    if attached.is_none() && trace.enabled() {
         trace.point(
             "direct_spawn_begin",
             None,
@@ -627,7 +633,7 @@ fn run_for_editor(options: RunOptions, attached: Option<u32>) -> Result<u32> {
         Some(
             command
                 .args(pty::direct_shell_args(
-                    &bootstrap,
+                    bootstrap.as_deref().context("missing child bootstrap")?,
                     options.no_profile,
                     editor.as_ref().map(|e| e.manifest.as_path()),
                 ))
@@ -652,7 +658,7 @@ fn run_for_editor(options: RunOptions, attached: Option<u32>) -> Result<u32> {
     } else {
         None
     };
-    if trace.enabled() {
+    if attached.is_none() && trace.enabled() {
         trace.point(
             "direct_spawn_return",
             None,
@@ -670,7 +676,7 @@ fn run_for_editor(options: RunOptions, attached: Option<u32>) -> Result<u32> {
         // Only the launching PowerShell reads this anonymous stdout pipe.
         println!(
             "{}",
-            json!({"bootstrap":bootstrap,"keys":pty::key_environment(&settings.keys),
+            json!({"keys":pty::key_environment(&settings.keys),
             "editor_sha256":hash,"pipe":pipe.name(),"token":token,"session":directory})
         );
         std::io::stdout().flush()?;

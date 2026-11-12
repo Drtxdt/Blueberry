@@ -1173,13 +1173,27 @@ fn execute() -> Result<u32> {
             let trace_path = env::var_os("BLUEBERRY_PROFILE_TRACE")
                 .filter(|p| !p.is_empty())
                 .map(PathBuf::from);
+            let trace = blueberry::trace::Trace::open(trace_path.as_deref())?;
+            if trace.enabled()
+                && let Some(entry) = process_entry
+            {
+                if let Some(qpc) = env::var("BLUEBERRY_PROFILE_HOOK_QPC")
+                    .ok()
+                    .and_then(|value| value.parse::<i64>().ok())
+                    .filter(|qpc| (1..=entry).contains(qpc))
+                {
+                    trace.point("profile_hook_entry", None, None, qpc);
+                }
+                trace.point("blueberry_process_entry", None, None, entry);
+                trace.point("attached_service_entry", None, None, entry);
+            }
             host::direct::attach(
                 host::RunOptions {
                     shell,
                     no_profile: false,
                     config_path: cli.config,
                     data_dir,
-                    trace: blueberry::trace::Trace::open(trace_path.as_deref())?,
+                    trace,
                     transport: host::Transport::Pipe,
                     psreadline_version: editor,
                 },

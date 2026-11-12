@@ -10,6 +10,12 @@ pub fn export_startup_editors(root: &Path) -> Result<()> {
     for (version, path, bytes, _) in EDITOR_FILES {
         install_asset(&root.join(version).join(path), bytes)?;
     }
+    for version in ["2.0.0", "2.4.5"] {
+        install_asset(
+            &root.join(version).join("blueberry-profile-bridge.dll"),
+            include_bytes!(concat!(env!("OUT_DIR"), "/direct-bridge.dll")),
+        )?;
+    }
     Ok(())
 }
 

@@ -69,7 +69,11 @@ function Update-BlueberryProfileEditor {
         if (-not [IO.Directory]::Exists($active) -or (Get-EditorTreeDigest $active) -cne $owner.digest) {
             throw "Managed module changed or enable was interrupted. Run startup disable to recover: $active"
         }
-        return
+        $installedVersion = Join-Path $active $owner.version
+        if ($Version -eq $owner.version -and (Get-EditorTreeDigest $installedVersion) -ceq (Get-EditorTreeDigest $source)) { return }
+        # A newer executable may carry a different bridge for the same editor
+        # version. Recover the original before publishing the new payload.
+        Update-BlueberryProfileEditor disable $ProfileFile $Executable $Payload $Version -OwnedOnly
     }
     if ([IO.Directory]::Exists($original)) { throw "Unclaimed original module at $original" }
     [IO.Directory]::CreateDirectory($modules) | Out-Null

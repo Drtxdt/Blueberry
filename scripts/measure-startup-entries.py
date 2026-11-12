@@ -31,6 +31,10 @@ def attribute(report, trace):
                 "direct_environment_received", "worker_index_started", "worker_index_finished"}
     if report["actual_entry"] == "isolated_automatic_profile":
         required.add("profile_hook_entry")
+        if report.get("entry_fixture", {}).get("managed_editor_root"):
+            required.difference_update({"run_maintenance_begin", "run_maintenance_end", "run_options_ready",
+                                        "direct_spawn_begin", "direct_spawn_return", "direct_script_enter", "direct_module_loaded"})
+            required.add("attached_service_entry")
     missing = sorted(k for k in required if not isinstance(points.get(k), int))
     if missing or not math.isfinite(frequency) or frequency <= 0:
         raise ValueError(f"incomplete startup trace {trace.name}: missing={missing}, frequency={frequency}")
@@ -48,7 +52,7 @@ def attribute(report, trace):
         ("direct_spawn_begin", "direct_spawn_return"), ("direct_spawn_return", "direct_script_enter"),
         ("direct_script_enter", "direct_module_lookup"), ("direct_module_lookup", "direct_module_imported"),
         ("direct_script_enter", "direct_module_loaded"), ("direct_module_loaded", "direct_hello"),
-        ("launch", "prompt"), ("key_sent", "echo"), ("child_environment_published", "direct_environment_received"),
+        ("attached_service_entry", "direct_hello"), ("launch", "prompt"), ("key_sent", "echo"), ("child_environment_published", "direct_environment_received"),
         ("direct_environment_received", "worker_index_started"), ("worker_index_started", "worker_index_finished"),
         ("visible_static", "worker_index_finished"), ("worker_index_finished", "complete_static"),
         ("visible_static", "complete_static"),

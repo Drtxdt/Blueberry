@@ -41,7 +41,7 @@ $prepared=Join-Path $root 'managed-profile.ps1'
 & $Executable startup enable --profile $prepared
 if ($LASTEXITCODE -ne 0) { throw 'Measured executable could not generate its startup profile.' }
 $text=[IO.File]::ReadAllText($prepared).Replace('& $blueberryAutoExe run --shell $blueberryAutoShell','& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
-$attached = $text.Contains('profile-service ')
+$attached = ($text.Contains('::AttachProfile(') -or $text.Contains('profile-service '))
 if (-not $attached) { $text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n" }
 [IO.File]::WriteAllText($prepared,$text,[Text.UTF8Encoding]::new($true))
 $expectedHash=(Get-FileHash -LiteralPath $prepared).Hash

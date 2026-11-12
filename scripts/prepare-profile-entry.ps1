@@ -25,7 +25,7 @@ $text=[IO.File]::ReadAllText($profilePath)
 $text=$text.Replace('& $blueberryAutoExe run --shell $blueberryAutoShell', '& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
 # The outer fixture exits after its child, while the child skips this branch
 # through the product's ordinary recursion guard. No installed profile changes.
-$attached = $text.Contains('profile-service ')
+$attached = ($text.Contains('::AttachProfile(') -or $text.Contains('profile-service '))
 if (-not $attached) { $text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n" }
 [IO.File]::WriteAllText($profilePath,$text,[Text.UTF8Encoding]::new($true))
 $copiedShell=Join-Path $destinationPath (Split-Path -Leaf $Shell)
