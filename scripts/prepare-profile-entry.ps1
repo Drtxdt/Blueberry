@@ -25,12 +25,14 @@ $text=[IO.File]::ReadAllText($profilePath)
 $text=$text.Replace('& $blueberryAutoExe run --shell $blueberryAutoShell', '& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
 # The outer fixture exits after its child, while the child skips this branch
 # through the product's ordinary recursion guard. No installed profile changes.
-$text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n"
+$attached = $text.Contains('profile-service ')
+if (-not $attached) { $text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n" }
 [IO.File]::WriteAllText($profilePath,$text,[Text.UTF8Encoding]::new($true))
 $copiedShell=Join-Path $destinationPath (Split-Path -Leaf $Shell)
 $resolvedHome=& $copiedShell -NoProfile -NonInteractive -Command '$PSHOME'
 if ($LASTEXITCODE -ne 0 -or [IO.Path]::GetFullPath([string]$resolvedHome) -ine $destinationPath) { throw 'Shell did not resolve isolated PSHOME.' }
 [ordered]@{
+    managed_editor_root=if ($attached) { Join-Path $destinationPath 'Modules' } else { $null }
     schema=1
     source_shell=$Shell
     shell=$copiedShell

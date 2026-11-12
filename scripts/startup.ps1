@@ -3,12 +3,14 @@ param(
     [Parameter(Mandatory = $true)][ValidateSet('enable','disable','status')][string]$Action,
     [Parameter(Mandatory = $true)][string]$Executable,
     [string[]]$ProfilePath,
+    [string]$EditorPayload,
     [switch]$OwnedOnly
 )
 $ErrorActionPreference = 'Stop'
 $beginMarker = '# >>> Blueberry startup >>>'
 $endMarker = '# <<< Blueberry startup <<<'
 $Executable = [IO.Path]::GetFullPath($Executable)
+$index = if ($EditorPayload) { Join-Path $env:LOCALAPPDATA 'Blueberry/startup-profiles' }
 if (-not $ProfilePath) {
     $shells = @()
     $seven = Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -20,7 +22,15 @@ if (-not $ProfilePath) {
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$path)) { throw 'Cannot resolve PowerShell profile.' }
         ([string]$path).Trim()
     } | Select-Object -Unique)
+    if ($index -and $Action -eq 'disable' -and [IO.Directory]::Exists($index)) {
+        foreach ($record in Get-ChildItem -LiteralPath $index -Filter '*.json' -File) {
+            $entry = [IO.File]::ReadAllText($record.FullName) | ConvertFrom-Json
+            if ($entry.exe -ieq $Executable) { $ProfilePath += @($entry.profile) }
+        }
+        $ProfilePath = @($ProfilePath | Select-Object -Unique)
+    }
 }
+if ($EditorPayload) { . (Join-Path $PSScriptRoot 'profile-module.ps1') }
 $encodedExe = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Executable))
 $block = @'
 # >>> Blueberry startup >>>
@@ -28,27 +38,52 @@ $block = @'
 if ($env:BLUEBERRY_PROFILE_TRACE) { $blueberryAutoHookQpc = [Diagnostics.Stopwatch]::GetTimestamp() }
 $blueberryAutoExe = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__EXECUTABLE__'))
 $blueberryAutoArgs = [Environment]::GetCommandLineArgs()
-$blueberryAutoScript = @($blueberryAutoArgs | Where-Object {
-    $argument = [string]$_
-    if ($argument.StartsWith('-') -and $argument.Length -gt 1) {
-        $argument = $argument.Substring(1)
-        @('NonInteractive','Command','CommandWithArgs','EncodedCommand','EncodedArguments','File','ServerMode','SSHServerMode','SocketServerMode','NamedPipeServerMode') | Where-Object { $_.StartsWith($argument, [StringComparison]::OrdinalIgnoreCase) }
+$blueberryAutoScript = $false
+foreach ($blueberryArgument in $blueberryAutoArgs) {
+    if ($blueberryArgument.Length -lt 2 -or $blueberryArgument[0] -ne '-') { continue }
+    $blueberrySwitch = $blueberryArgument.Substring(1)
+    foreach ($blueberryName in 'NonInteractive','Command','CommandWithArgs','EncodedCommand','EncodedArguments','File','ServerMode','SSHServerMode','SocketServerMode','NamedPipeServerMode') {
+        if ($blueberryName.StartsWith($blueberrySwitch,[StringComparison]::OrdinalIgnoreCase)) { $blueberryAutoScript=$true; break }
     }
-}).Count -gt 0
+    if ($blueberryAutoScript) { break }
+}
 if ($Host.Name -eq 'ConsoleHost' -and -not $blueberryAutoScript -and
-    $env:BLUEBERRY_ACTIVE -ne '1' -and -not [Console]::IsInputRedirected -and
+    $env:BLUEBERRY_ACTIVE -ne '1' -and $env:BLUEBERRY_PROFILE_PID -ne [string]$PID -and -not [Console]::IsInputRedirected -and
     -not [Console]::IsOutputRedirected -and [IO.File]::Exists($blueberryAutoExe)) {
     try {
         $blueberryAutoShell = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
-        if ($env:BLUEBERRY_PROFILE_TRACE) {
-            $blueberryPreviousHookQpc = $env:BLUEBERRY_PROFILE_HOOK_QPC
-            try {
-                $env:BLUEBERRY_PROFILE_HOOK_QPC = [string]$blueberryAutoHookQpc
-                & $blueberryAutoExe run --shell $blueberryAutoShell --trace $env:BLUEBERRY_PROFILE_TRACE
-            } finally { $env:BLUEBERRY_PROFILE_HOOK_QPC = $blueberryPreviousHookQpc }
-        } else {
-            & $blueberryAutoExe run --shell $blueberryAutoShell
-        }
+        $blueberryEditor = Get-Module PSReadLine | Select-Object -First 1
+        if (-not $blueberryEditor) { Import-Module PSReadLine -ErrorAction Stop; $blueberryEditor = Get-Module PSReadLine | Select-Object -First 1 }
+        if (-not [Microsoft.PowerShell.PSConsoleReadLine].GetProperty('EditorIntegrationVersion')) { throw 'Expected the managed PSReadLine module. Check Get-Module PSReadLine and run blueberry startup enable.' }
+        $blueberryInfo = [Diagnostics.ProcessStartInfo]::new()
+        $blueberryInfo.FileName = $blueberryAutoExe
+        $blueberryInfo.UseShellExecute = $false
+        $blueberryInfo.CreateNoWindow = $true
+        $blueberryInfo.RedirectStandardOutput = $true
+        $blueberryInfo.Arguments = ('profile-service {0} "{1}" {2}' -f $PID,$blueberryAutoShell,$blueberryEditor.Version)
+        if ($env:BLUEBERRY_PROFILE_TRACE) { $blueberryInfo.EnvironmentVariables['BLUEBERRY_PROFILE_HOOK_QPC'] = [string]$blueberryAutoHookQpc }
+        $blueberryProcess = [Diagnostics.Process]::Start($blueberryInfo)
+        try {
+            $blueberryRead = $blueberryProcess.StandardOutput.ReadLineAsync()
+            if (-not $blueberryRead.Wait(10000)) { throw 'Timed out waiting for the Blueberry service' }
+            $blueberryHello = $blueberryRead.Result | ConvertFrom-Json -ErrorAction Stop
+            if (-not $blueberryHello.token -or -not $blueberryHello.bootstrap) { throw 'Incomplete startup handshake' }
+            $env:BLUEBERRY_PIPE_NAME = $blueberryHello.pipe
+            $env:BLUEBERRY_TOKEN = $blueberryHello.token
+            $env:BLUEBERRY_SESSION_DIR = $blueberryHello.session
+            $env:BLUEBERRY_EDITOR_DLL_SHA256 = $blueberryHello.editor_sha256
+            foreach ($blueberryKey in $blueberryHello.keys.PSObject.Properties) {
+                [Environment]::SetEnvironmentVariable($blueberryKey.Name,[string]$blueberryKey.Value,'Process')
+            }
+            . $blueberryHello.bootstrap -EditorManifest $blueberryEditor.Path
+            if (-not [Blueberry.Direct.Bridge]::AutomaticMenu) { throw 'Automatic menu unavailable' }
+            # Older managed blocks later in the profile chain use this guard.
+            $env:BLUEBERRY_ACTIVE = '1'
+            $env:BLUEBERRY_PROFILE_PID = [string]$PID
+        } catch {
+            if (-not $blueberryProcess.HasExited) { $blueberryProcess.Kill() }
+            throw
+        } finally { $blueberryProcess.Dispose(); Remove-Variable blueberryHello,blueberryRead -ErrorAction SilentlyContinue }
     } catch { Write-Warning ('Blueberry: ' + $_.Exception.Message) }
 }
 # <<< Blueberry startup <<<
@@ -56,6 +91,14 @@ if ($Host.Name -eq 'ConsoleHost' -and -not $blueberryAutoScript -and
 $block = $block.Replace('__EXECUTABLE__', $encodedExe).Replace("`r`n", "`n").Replace("`n", "`r`n") + "`r`n"
 foreach ($path in $ProfilePath) {
     $path = [IO.Path]::GetFullPath($path)
+    $mutexHash = [Security.Cryptography.SHA256]::Create()
+    try { $lockName = [BitConverter]::ToString($mutexHash.ComputeHash([Text.Encoding]::UTF8.GetBytes(([IO.Path]::GetDirectoryName($path)).ToUpperInvariant()))).Replace('-','') }
+    finally { $mutexHash.Dispose() }
+    $mutex = [Threading.Mutex]::new($false,('Local\BlueberryStartup'+$lockName))
+    $locked = $false
+    $undoNewModule = $false
+    try { try { $locked=$mutex.WaitOne(30000) } catch [Threading.AbandonedMutexException] { $locked=$true }
+    if (-not $locked) { throw 'Another startup operation is still active' }
     $exists = [IO.File]::Exists($path)
     if ($exists -and ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Profile is a link: $path" }
     $encoding = [Text.UTF8Encoding]::new($true, $true)
@@ -98,6 +141,37 @@ foreach ($path in $ProfilePath) {
             $updated = $text.Substring(0, $insert) + $prefix + $block + $text.Substring($insert)
         }
     }
+    if ($EditorPayload) {
+        $version = '2.4.5'
+        if ($Action -eq 'enable') {
+            $modulePath = $env:BLUEBERRY_TEST_PSREADLINE_MODULE
+            if ($env:BLUEBERRY_NO_HISTORY -eq '1' -and $modulePath) {
+                $observedVersion = (Import-PowerShellDataFile -LiteralPath $modulePath).ModuleVersion
+            } else {
+                $targetShell = if ((Split-Path -Leaf (Split-Path -Parent $path)) -eq 'WindowsPowerShell') { 'powershell.exe' } else { 'pwsh.exe' }
+                $observedVersion = if (Get-Command $targetShell -ErrorAction SilentlyContinue) {
+                    & $targetShell -NoProfile -NonInteractive -Command '(Get-Module -ListAvailable PSReadLine | Select-Object -First 1).Version.ToString()'
+                }
+            }
+            if ($observedVersion -in '2.0','2.0.0') { $version = '2.0.0' }
+        }
+        $marker = Join-Path $index ($lockName+'.json')
+        if ($Action -eq 'enable') {
+            [IO.Directory]::CreateDirectory($index) | Out-Null
+            if (-not [IO.File]::Exists($marker)) {
+                $pending = $marker+'.'+[guid]::NewGuid().ToString('N')
+                [IO.File]::WriteAllText($pending,(@{exe=$Executable;profile=$path} | ConvertTo-Json))
+                [IO.File]::Move($pending,$marker)
+            }
+        }
+        $newModule = $Action -eq 'enable' -and -not [IO.File]::Exists((Join-Path (Split-Path -LiteralPath $path) '.blueberry-editor/owner.json'))
+        Update-BlueberryProfileEditor $Action $path $Executable $EditorPayload $version -OwnedOnly:$OwnedOnly
+        $undoNewModule = $newModule
+    }
+    if ($updated -ceq $text -and $EditorPayload -and $Action -eq 'disable' -and [IO.File]::Exists($marker)) {
+        $entry = [IO.File]::ReadAllText($marker) | ConvertFrom-Json
+        if ($entry.exe -ieq $Executable -and $entry.profile -ieq $path) { [IO.File]::Delete($marker) }
+    }
     if ($updated -ceq $text) { Write-Output "$Action unchanged: $path"; continue }
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path)) | Out-Null
     if ($exists) { [IO.File]::Copy($path, ($path + '.blueberry-' + [Guid]::NewGuid().ToString('N') + '.bak'), $false) }
@@ -106,5 +180,15 @@ foreach ($path in $ProfilePath) {
         [IO.File]::WriteAllBytes($temporary, [byte[]]($preamble + $encoding.GetBytes($updated)))
         if ($exists) { [IO.File]::Replace($temporary, $path, [NullString]::Value) } else { [IO.File]::Move($temporary, $path) }
     } finally { if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) } }
+    if ($EditorPayload -and $Action -eq 'disable' -and [IO.File]::Exists($marker)) {
+        $entry = [IO.File]::ReadAllText($marker) | ConvertFrom-Json
+        if ($entry.exe -ieq $Executable -and $entry.profile -ieq $path) { [IO.File]::Delete($marker) }
+    }
     Write-Output "$Action`: $path"
+    } catch {
+        if ($undoNewModule) {
+            Update-BlueberryProfileEditor disable $path $Executable $EditorPayload $version -OwnedOnly
+        }
+        throw
+    } finally { if ($locked) { $mutex.ReleaseMutex() }; $mutex.Dispose() }
 }

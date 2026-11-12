@@ -6,6 +6,32 @@ use std::path::{Path, PathBuf};
 
 include!(concat!(env!("OUT_DIR"), "/private_editor.rs"));
 
+pub fn export_startup_editors(root: &Path) -> Result<()> {
+    for (version, path, bytes, _) in EDITOR_FILES {
+        install_asset(&root.join(version).join(path), bytes)?;
+    }
+    Ok(())
+}
+
+pub fn installed_dll_hash(version: PsReadLineVersion) -> Result<&'static str> {
+    let version = match version {
+        PsReadLineVersion::V200 => "2.0.0",
+        PsReadLineVersion::V245 => "2.4.5",
+        PsReadLineVersion::Auto => anyhow::bail!("attached editor must report its loaded version"),
+    };
+    EDITOR_FILES
+        .iter()
+        .find(|(v, name, _, _)| {
+            *v == version
+                && matches!(
+                    *name,
+                    "Microsoft.PowerShell.PSReadLine.dll" | "Microsoft.PowerShell.PSReadLine2.dll"
+                )
+        })
+        .map(|(_, _, _, hash)| *hash)
+        .context("missing editor DLL identity")
+}
+
 pub fn build_identity() -> serde_json::Value {
     let mut value: serde_json::Value =
         serde_json::from_str(include_str!("../vendor/psreadline/upstream.json"))

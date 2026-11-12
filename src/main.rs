@@ -212,6 +212,14 @@ enum Command {
         #[command(subcommand)]
         command: PacksCommand,
     },
+    #[cfg(windows)]
+    #[command(hide = true)]
+    ProfileService {
+        pid: u32,
+        shell: PathBuf,
+        #[arg(value_enum)]
+        editor: host::PsReadLineVersion,
+    },
     /// Enable, disable, or inspect PowerShell profile startup hooks.
     Startup {
         #[arg(value_enum)]
@@ -1153,6 +1161,30 @@ fn execute() -> Result<u32> {
                 #[cfg(not(windows))]
                 host::HostMode::Direct => anyhow::bail!("direct host is only supported on Windows"),
             }
+        }
+        #[cfg(windows)]
+        Command::ProfileService { pid, shell, editor } => {
+            let data_dir = if env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1") {
+                env::var_os("BLUEBERRY_PROFILE_PROBE_DATA").map(PathBuf::from)
+            } else {
+                None
+            }
+            .unwrap_or_else(config::cache_dir);
+            let trace_path = env::var_os("BLUEBERRY_PROFILE_TRACE")
+                .filter(|p| !p.is_empty())
+                .map(PathBuf::from);
+            host::direct::attach(
+                host::RunOptions {
+                    shell,
+                    no_profile: false,
+                    config_path: cli.config,
+                    data_dir,
+                    trace: blueberry::trace::Trace::open(trace_path.as_deref())?,
+                    transport: host::Transport::Pipe,
+                    psreadline_version: editor,
+                },
+                pid,
+            )
         }
         Command::Startup {
             action,

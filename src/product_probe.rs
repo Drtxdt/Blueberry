@@ -32,6 +32,7 @@ pub struct EntryOptions<'a> {
 struct SampleEntry<'a> {
     profile_entry: bool,
     local_appdata: Option<&'a Path>,
+    managed_editor_root: Option<&'a str>,
 }
 
 fn shell_metadata(screen: &str) -> Option<Value> {
@@ -205,6 +206,14 @@ fn measure(
         env.insert("LOCALAPPDATA".into(), path.to_string_lossy().into_owned());
     }
     if entry.profile_entry && candidate {
+        if let Some(root) = entry.managed_editor_root {
+            let mut paths = vec![std::path::PathBuf::from(root)];
+            paths.extend(crate::pty::module_search_paths(shell));
+            env.insert(
+                "PSModulePath".into(),
+                std::env::join_paths(paths)?.to_string_lossy().into_owned(),
+            );
+        }
         env.insert("BLUEBERRY_ACTIVE".into(), String::new());
         env.insert(
             "BLUEBERRY_PROFILE_PROBE_DATA".into(),
@@ -544,6 +553,9 @@ pub fn run_with_options(
     } else {
         None
     };
+    let managed_editor_root = entry_fixture
+        .as_ref()
+        .and_then(|f| f["managed_editor_root"].as_str());
     let frozen = environment(shell)?;
     // Probe setup is outside both members of every pair and reported separately.
     // Nested product setup remains inside the measured child process lifetime.
@@ -581,6 +593,7 @@ pub fn run_with_options(
             host_mode,
             None,
             &SampleEntry {
+                managed_editor_root,
                 profile_entry,
                 local_appdata: Some(&warm_local),
             },
@@ -625,6 +638,7 @@ pub fn run_with_options(
         std::fs::create_dir_all(directory.join("bb-product-probe-dir"))?;
         let cold_local = directory.join("cold-localappdata");
         let entry = SampleEntry {
+            managed_editor_root,
             profile_entry,
             local_appdata: match cache_state {
                 CacheState::Ambient => None,

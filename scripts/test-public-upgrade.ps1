@@ -63,10 +63,18 @@ try {
     }
     & $exe startup disable --profile $fixtureProfile
     if ($LASTEXITCODE -or (Get-FileHash $fixtureProfile).Hash -ne $profileOriginal) { throw 'Startup removal did not restore user profile bytes' }
+    $priorModule = Join-Path $evidence 'Modules/PSReadLine'
+    [IO.Directory]::CreateDirectory($priorModule) | Out-Null
+    $priorFile = Join-Path $priorModule 'user-module.txt'
+    [IO.File]::WriteAllText($priorFile,'original user module')
+    $priorDigest = (Get-FileHash $priorFile).Hash
+    & $exe startup enable --profile $fixtureProfile
+    if ($LASTEXITCODE -or (Test-Path $priorFile)) { throw 'Candidate did not activate its editor' }
     & $exe terminal uninstall --install-root $root
     if ($LASTEXITCODE) { throw 'Optional component uninstall failed' }
     & $manager -Action Uninstall -InstallRoot $root
     if ((Test-Path $exe) -or (Get-FileHash $config).Hash -ne $configHash) { throw 'Core uninstall did not preserve user settings' }
+    if ((Get-FileHash $priorFile).Hash -ne $priorDigest -or (Get-FileHash $fixtureProfile).Hash -ne $profileOriginal) { throw 'Uninstall did not restore original module and Profile' }
     $receipt['passed']=$true
     Write-Host "Public 0.5.3 upgrade/rollback/re-upgrade passed: $evidence"
 } catch {

@@ -41,11 +41,13 @@ $prepared=Join-Path $root 'managed-profile.ps1'
 & $Executable startup enable --profile $prepared
 if ($LASTEXITCODE -ne 0) { throw 'Measured executable could not generate its startup profile.' }
 $text=[IO.File]::ReadAllText($prepared).Replace('& $blueberryAutoExe run --shell $blueberryAutoShell','& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
-$text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n"
+$attached = $text.Contains('profile-service ')
+if (-not $attached) { $text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n" }
 [IO.File]::WriteAllText($prepared,$text,[Text.UTF8Encoding]::new($true))
 $expectedHash=(Get-FileHash -LiteralPath $prepared).Hash
 $fixture=Join-Path $root 'blueberry-profile-probe.json'
 [ordered]@{
+    managed_editor_root=if ($attached) { Join-Path $root 'Modules' } else { $null }
     schema=1
     shell=$Shell
     shell_sha256=(Get-FileHash -LiteralPath $Shell).Hash
@@ -90,5 +92,9 @@ try {
         } else { -not (Test-Path -LiteralPath $profilePath) }
         [ordered]@{schema=1;profile=$profilePath;original_existed=$existed;restored=$restored} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'restoration.json') -Encoding utf8
         if (-not $restored) { throw 'Runner profile restoration failed.' }
+    }
+    if ($attached) {
+        & $Executable startup disable --profile $prepared
+        if ($LASTEXITCODE) { throw 'Could not restore the staged module' }
     }
 }

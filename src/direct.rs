@@ -542,11 +542,24 @@ pub fn ensure_bootstrap(directory: &Path) -> Result<PathBuf> {
 }
 
 pub fn run(options: RunOptions) -> Result<u32> {
+    run_for_editor(options, None)
+}
+
+/// Serve the editor in the existing PowerShell without owning its console or job.
+pub fn attach(options: RunOptions, pid: u32) -> Result<u32> {
+    ensure!(pid != 0, "missing editor PID");
+    run_for_editor(options, Some(pid))
+}
+
+fn run_for_editor(options: RunOptions, attached: Option<u32>) -> Result<u32> {
     ensure!(
         matches!(options.transport, Transport::Pipe),
         "direct host requires pipe transport; OSC is only supported by the nested host"
     );
-    let _interrupts = ConsoleInterruptGuard::install()?;
+    let _interrupts = attached
+        .is_none()
+        .then(ConsoleInterruptGuard::install)
+        .transpose()?;
     let trace = options.trace;
     if trace.enabled() {
         trace.point("direct_start", None, None, crate::latency_layers::qpc()?);
@@ -571,7 +584,11 @@ pub fn run(options: RunOptions) -> Result<u32> {
         None,
     );
     let editor_started = Instant::now();
-    let editor = crate::editor::select(&options.shell, options.psreadline_version)?;
+    let editor = if attached.is_none() {
+        crate::editor::select(&options.shell, options.psreadline_version)?
+    } else {
+        None
+    };
     trace.event(
         "direct_editor_prepare",
         None,
@@ -606,29 +623,35 @@ pub fn run(options: RunOptions) -> Result<u32> {
             crate::latency_layers::qpc()?,
         );
     }
-    let mut child = command
-        .args(pty::direct_shell_args(
-            &bootstrap,
-            options.no_profile,
-            editor.as_ref().map(|e| e.manifest.as_path()),
-        ))
-        .env("BLUEBERRY_ACTIVE", "1")
-        .env_remove("BLUEBERRY_PROFILE_TRACE")
-        .env_remove("BLUEBERRY_PROFILE_HOOK_QPC")
-        .env("BLUEBERRY_HOST_MODE", "direct")
-        .env("BLUEBERRY_PIPE_NAME", pipe.name())
-        .env("BLUEBERRY_TOKEN", &token)
-        .env("BLUEBERRY_SESSION_DIR", &directory)
-        .env(
-            "BLUEBERRY_DIRECT_TRACE",
-            if trace.enabled() { "1" } else { "0" },
+    let mut child = if attached.is_none() {
+        Some(
+            command
+                .args(pty::direct_shell_args(
+                    &bootstrap,
+                    options.no_profile,
+                    editor.as_ref().map(|e| e.manifest.as_path()),
+                ))
+                .env("BLUEBERRY_ACTIVE", "1")
+                .env_remove("BLUEBERRY_PROFILE_TRACE")
+                .env_remove("BLUEBERRY_PROFILE_HOOK_QPC")
+                .env("BLUEBERRY_HOST_MODE", "direct")
+                .env("BLUEBERRY_PIPE_NAME", pipe.name())
+                .env("BLUEBERRY_TOKEN", &token)
+                .env("BLUEBERRY_SESSION_DIR", &directory)
+                .env(
+                    "BLUEBERRY_DIRECT_TRACE",
+                    if trace.enabled() { "1" } else { "0" },
+                )
+                .envs(pty::key_environment(&settings.keys))
+                .stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .spawn()
+                .context("start inherited-console PowerShell")?,
         )
-        .envs(pty::key_environment(&settings.keys))
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .context("start inherited-console PowerShell")?;
+    } else {
+        None
+    };
     if trace.enabled() {
         trace.point(
             "direct_spawn_return",
@@ -637,22 +660,39 @@ pub fn run(options: RunOptions) -> Result<u32> {
             crate::latency_layers::qpc()?,
         );
     }
-    let _job = crate::latency_layers::DirectChildJob::attach(&child)?;
-    pipe.set_client_pid(child.id());
+    let _job = child
+        .as_ref()
+        .map(crate::latency_layers::DirectChildJob::attach)
+        .transpose()?;
+    if let Some(pid) = attached {
+        pipe.set_client_pid(pid);
+        let hash = crate::editor::installed_dll_hash(options.psreadline_version)?;
+        // Only the launching PowerShell reads this anonymous stdout pipe.
+        println!(
+            "{}",
+            json!({"bootstrap":bootstrap,"keys":pty::key_environment(&settings.keys),
+            "editor_sha256":hash,"pipe":pipe.name(),"token":token,"session":directory})
+        );
+        std::io::stdout().flush()?;
+    } else if let Some(editor) = child.as_ref() {
+        pipe.set_client_pid(editor.id());
+    }
     let (tx, rx) = mpsc::sync_channel(256);
     // Process exit and pipe input both wake the dispatcher. No idle timeout
     // is needed merely to check whether the shell is still alive.
-    let process_wait = child.as_handle().try_clone_to_owned()?;
-    let exited = tx.clone();
-    thread::spawn(move || {
-        unsafe {
-            windows_sys::Win32::System::Threading::WaitForSingleObject(
-                process_wait.as_raw_handle(),
-                u32::MAX,
-            );
-        }
-        let _ = exited.send(HostEvent::Eof);
-    });
+    if let Some(editor) = child.as_ref() {
+        let process_wait = editor.as_handle().try_clone_to_owned()?;
+        let exited = tx.clone();
+        thread::spawn(move || {
+            unsafe {
+                windows_sys::Win32::System::Threading::WaitForSingleObject(
+                    process_wait.as_raw_handle(),
+                    u32::MAX,
+                );
+            }
+            let _ = exited.send(HostEvent::Eof);
+        });
+    }
     let worker = Worker::new(
         options.data_dir.join("commands.json"),
         config::specs_dir(&settings, options.config_path.as_deref()),
@@ -687,7 +727,9 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let mut system_discovery = None;
     let served = (|| -> Result<u32> {
         loop {
-            if let Some(status) = child.try_wait()? {
+            if let Some(editor) = child.as_mut()
+                && let Some(status) = editor.try_wait()?
+            {
                 trace.flush();
                 return Ok(status.code().unwrap_or(1) as u32);
             }
@@ -1203,7 +1245,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     adapter_status["automatic_menu"] = json!(false);
                     adapter_status["disabled_reason"] = json!("session pipe disconnected");
                     status_writer.update(adapter_status.clone());
-                    return Ok(child.wait()?.code().unwrap_or(1) as u32);
+                    return Ok(match child.as_mut() {
+                        Some(editor) => editor.wait()?.code().unwrap_or(1) as u32,
+                        None => 0,
+                    });
                 }
                 other => completion_event = other,
             }
@@ -1332,7 +1377,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
         drop(worker);
         trace.event("direct_service_disabled", None, None, None);
         trace.flush();
-        return Ok(child.wait()?.code().unwrap_or(1) as u32);
+        return Ok(match child.as_mut() {
+            Some(editor) => editor.wait()?.code().unwrap_or(1) as u32,
+            None => 0,
+        });
     }
     served
 }
