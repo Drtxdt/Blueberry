@@ -891,6 +891,7 @@ fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()>
     ensure!(cargo_version.status.success(), "Cargo fixture is available");
     let cargo_version = String::from_utf8(cargo_version.stdout)?.trim().to_owned();
     host.harness.send_text("car")?;
+    wait_for_editor_line(&mut host.harness, "car")?;
     host.harness.wait_text("⌘ cargo ", PTY_TIMEOUT)?;
     host.harness.send_text("\t --version\r")?;
     wait_for_line(

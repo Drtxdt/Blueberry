@@ -78,6 +78,8 @@ blueberry startup disable
 
 启用后，当前用户新开的 PowerShell 会优先加载 Blueberry 提供的 PSReadLine。交互式 ConsoleHost 在当前 Shell 中启动补全后台服务，用户 Profile 中的键位配置继续执行。`-NoProfile`、脚本、非交互和重定向调用会跳过服务启动。
 
+从 v0.5.3 升级会保留原来的启动配置。之前已启用自动启动的用户，运行一次 `blueberry startup enable` 并新开 PowerShell，即可切换到同会话补全。
+
 启用时，Blueberry 会在 Profile 旁的 `.blueberry-editor` 中保存原有用户模块目录。运行 `blueberry startup disable` 或卸载受管安装后，新开的 Shell 会重新使用原来的模块。若启用期间改动了 Blueberry 模块，禁用时会把改动保存在 `retired-*` 目录并显示路径。
 
 ## 本机验收

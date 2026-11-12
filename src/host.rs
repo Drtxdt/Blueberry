@@ -864,7 +864,12 @@ impl State {
                 self.trace.event("prompt_end", None, None, None);
                 self.prompt = true;
                 self.manual_completion = false;
-                self.commands_allowed = true;
+                // prompt_end is emitted from PowerShell's prompt function,
+                // before PSReadLine owns the input queue. An eager F12,c can
+                // lose its prefix to a pending console cursor query and type
+                // a literal c. The first edit or explicit refresh enables
+                // snapshot requests; PATH indexing can already run below.
+                self.commands_allowed = false;
                 self.metadata_seen.clear();
                 // ReadLine disposed the previous enumerator when execution
                 // began. Refresh the session snapshot after every new prompt.
