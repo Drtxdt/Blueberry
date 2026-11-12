@@ -1,5 +1,6 @@
 # Dot-source only in an isolated measurement PSHOME. Leave user profiles and
 # installed shells alone. Refuse stock assemblies rather than replacing keys.
+[CmdletBinding()]
 param([Parameter(Mandatory)][string]$Service,[Parameter(Mandatory)][string]$DataDirectory,
       [ValidateSet('2.4.5','2.0.0')][string]$Editor='2.4.5')
 if ($env:BLUEBERRY_NO_HISTORY -ne '1' -or -not $env:BLUEBERRY_PROFILE_PROBE_DATA -or
