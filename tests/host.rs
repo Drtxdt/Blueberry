@@ -95,7 +95,11 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
     host.harness.send_text("\r")?;
     // The fixture deliberately scrolls the previous prompt out of the viewport.
     // Visible prompt counts cannot be used as a monotonically increasing clock.
-    host.harness.event("prompt_end", PTY_TIMEOUT)?;
+    let shell_pid = u32::try_from(
+        host.harness.event("prompt_end", PTY_TIMEOUT)?["pid"]
+            .as_u64()
+            .context("missing shell PID")?,
+    )?;
     wait_until(&mut host.harness, "history fixture prompt", |screen| {
         screen.lines().last().is_some_and(|line| {
             line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
@@ -118,11 +122,8 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
     host.harness.wait_text("⌘ git ", PTY_TIMEOUT)?;
     for (rows, columns) in [(12, 40), (28, 95), (18, 60)] {
         host.harness.resize(rows, columns)?;
-        wait_until(&mut host.harness, "resized native menu", |screen| {
-            has_current_menu(screen, "⌘ git ", columns as usize - 1)
-        })?;
         let prompt = format!("PS {}:\\> gi", "p".repeat(48));
-        wait_native_screen(
+        let observed = wait_native_screen(
             &mut host,
             &format!("resize-{rows}-{columns}.json"),
             (rows.into(), columns.into()),
@@ -136,7 +137,16 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
                     && editor.matches(&prompt).count() == 1
                     && has_current_menu(screen, "⌘ git ", columns as usize - 1)
             },
+        );
+        console_snapshot::capture_pid(
+            &mut host.harness,
+            shell_pid,
+            &host
+                ._data_dir
+                .path()
+                .join(format!("shell-{rows}-{columns}.json")),
         )?;
+        observed?;
     }
     host.harness.send_text("\x1b")?;
     wait_until(&mut host.harness, "dismissed native menu", |screen| {

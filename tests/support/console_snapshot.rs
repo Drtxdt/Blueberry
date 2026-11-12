@@ -78,15 +78,14 @@ pub fn write_attached() -> Result<()> {
 }
 
 pub fn capture(harness: &mut Harness, path: &Path) -> Result<()> {
+    let pid = harness.process_id().context("missing host PID")?;
+    capture_pid(harness, pid, path)
+}
+
+pub fn capture_pid(harness: &mut Harness, pid: u32, path: &Path) -> Result<()> {
     let mut child = std::process::Command::new(std::env::current_exe()?)
         .args(["console_snapshot_helper", "--exact", "--ignored"])
-        .env(
-            "BLUEBERRY_SNAPSHOT_PID",
-            harness
-                .process_id()
-                .context("missing host PID")?
-                .to_string(),
-        )
+        .env("BLUEBERRY_SNAPSHOT_PID", pid.to_string())
         .env("BLUEBERRY_SNAPSHOT_PATH", path)
         .creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW)
         .stdout(std::process::Stdio::piped())
