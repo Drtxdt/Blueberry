@@ -1,5 +1,7 @@
 # Existing-shell startup experiment (not shipped)
 
+These instructions reproduce the original experiment in a separate checkout of `0549e16`. The current candidate uses `blueberry startup enable` and the packaged editor bridge.
+
 This prototype uses the calling PowerShell PID as the only permitted pipe peer. It sends the bootstrap handshake through redirected stdout. Run only in a disposable Windows checkout with an isolated copy of PS7; never dot-source the probe in a user profile.
 
 1. Apply the experimental dispatcher: `git apply experiments/current-profile/service.patch`.

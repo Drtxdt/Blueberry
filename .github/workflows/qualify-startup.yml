@@ -53,6 +53,8 @@ jobs:
           $env:BLUEBERRY_TEST_PSREADLINE_MODULE = "$env:RUNNER_TEMP/editor/PSReadLine/$env:EDITOR/PSReadLine.psd1"
           ./scripts/test-profile-module.ps1 -Executable $exe -Shell $env:SHELL_EXE -OriginalManifest $env:BLUEBERRY_TEST_PSREADLINE_MODULE -Destination "$env:RUNNER_TEMP/module-restoration"
           if (-not $?) { throw 'Original editor restoration failed' }
+          ./scripts/test-profile-module.ps1 -StockOutsideUserRoot -Executable $exe -Shell $env:SHELL_EXE -OriginalManifest $env:BLUEBERRY_TEST_PSREADLINE_MODULE -Destination "$env:RUNNER_TEMP/module-fallback"
+          if (-not $?) { throw 'Module search path fallback failed' }
           $failed = @()
           foreach ($batch in 1,2) {
             $entries = if ($batch -eq 1) { 'direct_executable','isolated_automatic_profile' } else { 'isolated_automatic_profile','direct_executable' }
@@ -73,4 +75,5 @@ jobs:
           path: |
             ${{ runner.temp }}/qualification
             ${{ runner.temp }}/module-restoration/receipt.json
+            ${{ runner.temp }}/module-fallback/receipt.json
           if-no-files-found: error

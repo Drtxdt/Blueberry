@@ -11,6 +11,7 @@ $beginMarker = '# >>> Blueberry startup >>>'
 $endMarker = '# <<< Blueberry startup <<<'
 $Executable = [IO.Path]::GetFullPath($Executable)
 $index = if ($EditorPayload) { Join-Path $env:LOCALAPPDATA 'Blueberry/startup-profiles' }
+$profileShells = @{}
 if (-not $ProfilePath) {
     $shells = @()
     $seven = Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -20,7 +21,9 @@ if (-not $ProfilePath) {
     $ProfilePath = @($shells | ForEach-Object {
         $path = & $_ -NoLogo -NoProfile -NonInteractive -Command '[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); $PROFILE.CurrentUserCurrentHost'
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$path)) { throw 'Cannot resolve PowerShell profile.' }
-        ([string]$path).Trim()
+        $resolved = ([string]$path).Trim()
+        $profileShells[$resolved] = $_
+        $resolved
     } | Select-Object -Unique)
     if ($index -and $Action -eq 'disable' -and [IO.Directory]::Exists($index)) {
         foreach ($record in Get-ChildItem -LiteralPath $index -Filter '*.json' -File) {
@@ -59,7 +62,7 @@ if ($Host.Name -eq 'ConsoleHost' -and -not $blueberryAutoScript -and
             $env:BLUEBERRY_PROFILE_HOOK_QPC = [string]$blueberryAutoHookQpc
             $env:BLUEBERRY_DIRECT_TRACE = '1'
         }
-        $null = [Reflection.Assembly]::LoadFrom([IO.Path]::Combine($blueberryEditor.ModuleBase,'blueberry-profile-bridge.dll'))
+        $null = [Reflection.Assembly]::LoadFrom([IO.Path]::Combine([IO.Path]::GetDirectoryName([Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location),'blueberry-profile-bridge.dll'))
         [Blueberry.Direct.Bridge]::AttachProfile($blueberryAutoExe,[Microsoft.PowerShell.PSConsoleReadLine],$PSVersionTable.PSVersion.ToString(),$blueberryEditor.Version.ToString())
     } catch { Write-Warning ('Blueberry: ' + $_.Exception.Message) }
 }
@@ -144,10 +147,23 @@ foreach ($path in $ProfilePath) {
         $newModule = $Action -eq 'enable' -and -not [IO.File]::Exists((Join-Path (Split-Path -LiteralPath $path) '.blueberry-editor/owner.json'))
         Update-BlueberryProfileEditor $Action $path $Executable $EditorPayload $version -OwnedOnly:$OwnedOnly
         $undoNewModule = $newModule
+        if ($Action -eq 'enable' -and $profileShells.ContainsKey($path)) {
+            $shellPath = $profileShells[$path]
+            $loaded = & $shellPath -NoProfile -NonInteractive -Command '[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); Import-Module PSReadLine -ErrorAction Stop; Get-PSReadLineOption -ErrorAction Stop | Out-Null; [Console]::WriteLine([Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location)'
+            $parent = Split-Path -LiteralPath $path
+            $owner = [IO.File]::ReadAllText((Join-Path $parent '.blueberry-editor/owner.json')) | ConvertFrom-Json
+            $dir = Join-Path $parent 'Modules/PSReadLine'
+            if (-not $owner.flat) { $dir = Join-Path $dir $owner.version }
+            $dll = if ($owner.version -eq '2.0.0') { 'Microsoft.PowerShell.PSReadLine2.dll' } else { 'Microsoft.PowerShell.PSReadLine.dll' }
+            $expected = [IO.Path]::GetFullPath((Join-Path (Join-Path $dir $owner.payload) $dll))
+            if ($LASTEXITCODE -or ([string]$loaded).Trim() -ine $expected) { throw "PowerShell module precedence selected a different editor: $loaded" }
+        }
     }
     if ($updated -ceq $text -and $EditorPayload -and $Action -eq 'disable' -and [IO.File]::Exists($marker)) {
         $entry = [IO.File]::ReadAllText($marker) | ConvertFrom-Json
-        if ($entry.exe -ieq $Executable -and $entry.profile -ieq $path) { [IO.File]::Delete($marker) }
+        $storePath = Join-Path (Split-Path -LiteralPath $path) '.blueberry-editor'
+        $deferred = [IO.Directory]::Exists($storePath) -and @(Get-ChildItem -LiteralPath $storePath -Filter 'retire-*.json').Count
+        if (-not $deferred -and $entry.exe -ieq $Executable -and $entry.profile -ieq $path) { [IO.File]::Delete($marker) }
     }
     if ($updated -ceq $text) { Write-Output "$Action unchanged: $path"; continue }
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path)) | Out-Null
@@ -159,7 +175,9 @@ foreach ($path in $ProfilePath) {
     } finally { if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) } }
     if ($EditorPayload -and $Action -eq 'disable' -and [IO.File]::Exists($marker)) {
         $entry = [IO.File]::ReadAllText($marker) | ConvertFrom-Json
-        if ($entry.exe -ieq $Executable -and $entry.profile -ieq $path) { [IO.File]::Delete($marker) }
+        $storePath = Join-Path (Split-Path -LiteralPath $path) '.blueberry-editor'
+        $deferred = [IO.Directory]::Exists($storePath) -and @(Get-ChildItem -LiteralPath $storePath -Filter 'retire-*.json').Count
+        if (-not $deferred -and $entry.exe -ieq $Executable -and $entry.profile -ieq $path) { [IO.File]::Delete($marker) }
     }
     Write-Output "$Action`: $path"
     } catch {

@@ -737,7 +737,8 @@ jobs:
           $component = Join-Path $env:BLUEBERRY_PUBLIC_BASELINE_DIRECTORY 'blueberry-terminal-component-v1.24.12741.0-native4-b1a2d3f-windows-x64.zip'
           Invoke-WebRequest ($base + (Split-Path -Leaf $component)) -OutFile $component
           if ((Get-FileHash $component).Hash -ine '547abc51da22682dda50eb789105109e2b51ab53e190317c1b3e08d30a7c9d58') { throw 'Public component identity changed' }
-          ./scripts/test-public-upgrade.ps1 -PreviousComponent $component -PreviousInstaller $previousInstaller -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
+          $originalEditor = Join-Path $env:RUNNER_TEMP 'package-editor-2.4.5/PSReadLine/2.4.5/PSReadLine.psd1'
+          ./scripts/test-public-upgrade.ps1 -OriginalEditorManifest $originalEditor -PreviousComponent $component -PreviousInstaller $previousInstaller -PreviousPackage $previous -PackagePath $core *> ./target/public-upgrade.log
           if (!$?) { Get-Content ./target/public-upgrade.log; throw 'Public baseline upgrade failed' }
       - name: Preserve optional Terminal component
         uses: actions/upload-artifact@v4
