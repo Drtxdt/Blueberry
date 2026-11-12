@@ -2731,6 +2731,18 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 }
                                 let before = (state.revision, state.prompt, state.dismissed);
                                 let changes_menu = value["event"] == "native_completion";
+                                #[cfg(windows)]
+                                if value["event"] == "buffer"
+                                    && value["resize_snapshot"].is_object()
+                                    && !state.overlay.is_native()
+                                {
+                                    flush_native_prefix(&mut frame, &mut output)?;
+                                    crate::overlay::retire_reflowed_edit(
+                                        &value["resize_snapshot"],
+                                        state.parser.screen(),
+                                        &mut frame,
+                                    )?;
+                                }
                                 state.message(value, &mut writer, &worker)?;
                                 ui_dirty |= changes_menu
                                     || before != (state.revision, state.prompt, state.dismissed);

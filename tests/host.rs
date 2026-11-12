@@ -183,6 +183,18 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
     clear_line_and_send(&mut host.harness, b"git st", "completion after resize")?;
     wait_for_editor_line(&mut host.harness, "git st")?;
     host.harness.wait_text("status", PTY_TIMEOUT)?;
+    wait_native_screen(&mut host, "git-st-status.json", (18, 60), |screen| {
+        current_editor_region(screen).is_some_and(|region| {
+            let edit: String = region
+                .lines()
+                .take_while(|line| !line.contains('╭'))
+                .collect();
+            edit.trim_end().ends_with("> git st")
+                && region
+                    .lines()
+                    .any(|line| line.contains('│') && line.contains("status"))
+        })
+    })?;
     host.harness.stop()?;
     Ok(())
 }

@@ -35,6 +35,10 @@ $blueberryJsonInitialization.Stop()
 # state names before reading them so a user's Set-StrictMode in their profile
 # does not make the adapter fail during bootstrap.
 $blueberryStateDefaults = [ordered]@{
+    BlueberryMenuWidth            = 0
+    BlueberryMenuHeight           = 0
+    BlueberryResizeSnapshot       = $null
+    BlueberryPromptText           = $null
     BLUEBERRY_TOKEN               = $null
     BLUEBERRY_PIPE_NAME           = $null
     BLUEBERRY_PIPE_STREAM         = $null
@@ -1076,6 +1080,66 @@ function Get-BlueberryReservedMenuRow {
     $last=$row+$tailRows
     $bounds=$null
     $api=[Microsoft.PowerShell.PSConsoleReadLine]
+    $sizeChanged = $script:BlueberryMenuWidth -and (
+        $script:BlueberryMenuWidth -ne $width -or $script:BlueberryMenuHeight -ne $height)
+    $script:BlueberryMenuWidth = $width
+    $script:BlueberryMenuHeight = $height
+    if ($sizeChanged -and $null -eq $api.GetMethod('GetEditorBufferBounds') -and $script:BlueberryPromptText) {
+        # ConPTY can reflow the characters before it updates CursorTop. Locate
+        # the displayed prompt, including physical wraps, in the child console.
+        try {
+            $promptText = $script:BlueberryPromptText
+            $raw = $Host.UI.RawUI
+            $activePrefix = $promptText + ($Line -split '[\r\n]',2)[0]
+            $needed = [Math]::Max(1,[int][Math]::Ceiling($raw.LengthInBufferCells($activePrefix) / [double]$width))
+            $end = [Math]::Min($top + $height - 1, $row + $needed)
+            for ($y = [Math]::Min($row,$end); $y -ge [Math]::Max($top,$row-$needed); $y--) {
+                $rect = [Management.Automation.Host.Rectangle]::new(0,$y,$width-1,[Math]::Min($end,$y+$needed-1))
+                $chars = $raw.GetBufferContents($rect)
+                $text = -join $(foreach ($cell in $chars) { $cell.Character })
+                $intact = $text.StartsWith($activePrefix,[StringComparison]::Ordinal)
+                # PSReadLine 2.0 can leave the entire input at its old cursor
+                # on a separate row, even when the prompt itself has reflowed.
+                $detached = $false
+                if (-not $intact -and $y -lt $row -and $Cursor -eq $Line.Length -and
+                    $Line -match '^\S+$' -and $text.TrimEnd() -ceq $promptText.TrimEnd()) {
+                    $oldCells = $raw.GetBufferContents([Management.Automation.Host.Rectangle]::new(0,$row,$width-1,$row))
+                    $oldText = -join $(foreach ($cell in $oldCells) { $cell.Character })
+                    $inputWidth = $raw.LengthInBufferCells($Line)
+                    $detached = $column -ge $inputWidth -and $oldText.TrimEnd() -ceq ((' ' * ($column-$inputWidth)) + $Line)
+                }
+                if ($intact -or $detached) {
+                    if ($detached) {
+                        [Console]::SetCursorPosition($column-$inputWidth,$row)
+                        [Console]::Write(' ' * $inputWidth)
+                    }
+                    $api::InvokePrompt($null,[int]$y)
+                    $row = [Console]::CursorTop
+                    $column = [Console]::CursorLeft
+                    $first = $y
+                    $last = $row + $tailRows
+                    if ($last -eq $y -and $last -lt $top+$height-1 -and $Line -notmatch '[\x00-\x1f]') {
+                        $below = $raw.GetBufferContents([Management.Automation.Host.Rectangle]::new(0,$last+1,$width-1,$top+$height-1))
+                        $blankRows = @(for ($i=0; $i -lt $below.GetLength(0); $i++) {
+                            $empty = $true
+                            for ($x=0; $x -lt $width; $x++) {
+                                if ([int]$below[$i,$x].Character -notin 0,32) { $empty=$false; break }
+                            }
+                            if ($empty) { $last+1-$top+$i }
+                        })
+                        $script:BlueberryResizeSnapshot = @{ width=$width; height=$height; blank=$blankRows; edit=$promptText+$Line }
+                    }
+                    break
+                }
+            }
+        } catch [System.Management.Automation.Host.HostException] {
+            # A viewport can change again between its size and cell reads.
+            # Publish the normal buffer even when this snapshot is unavailable.
+            $script:BlueberryResizeSnapshot = $null
+        } catch [System.ArgumentOutOfRangeException] {
+            $script:BlueberryResizeSnapshot = $null
+        }
+    }
     if ($null -ne $api.GetMethod('GetEditorBufferBounds')) {
         $bounds=$api::GetEditorBufferBounds()
         $first=[Math]::Min($row,$bounds[0])
@@ -1084,6 +1148,7 @@ function Get-BlueberryReservedMenuRow {
     $desired=[Math]::Min(12,[Math]::Max(0,$height-($last-$first+1)))
     $missing=[Math]::Max(0,$desired-($top+$height-1-$last))
     if ($missing -gt 0) {
+        $script:BlueberryResizeSnapshot = $null
         [Console]::SetCursorPosition(0,$top+$height-1)
         [Console]::Write(("`n"*$missing))
         $shift=$missing-([Console]::CursorTop-($top+$height-1))
@@ -1110,7 +1175,9 @@ function Send-BlueberryBuffer {
             line   = [string]$line
             cursor = [int]$cursor
         }
+        $script:BlueberryResizeSnapshot = $null
         $menuRow=Get-BlueberryReservedMenuRow -Line $line -Cursor $cursor
+        if ($script:BlueberryResizeSnapshot) { $data.resize_snapshot = $script:BlueberryResizeSnapshot }
         if ($null -ne $menuRow) { $data.menu_row=[int]$menuRow }
         if ($env:BLUEBERRY_DIRECT_PIPE -eq '1') {
             # Shared Windows performance counter for the diagnostic path.
@@ -3692,6 +3759,7 @@ function Initialize-BlueberryPrompt {
         if ($null -ne $promptState.error) {
             throw $promptState.error
         }
+        $script:BlueberryPromptText = if ($promptState.output.Count -eq 1 -and $promptState.output[0] -is [string] -and $promptState.output[0] -notmatch '[\x00-\x1f]') { $promptState.output[0] }
         return $promptState.output
     }
     $script:BLUEBERRY_PROMPT_WRAPPED = $true
