@@ -1164,6 +1164,12 @@ fn execute() -> Result<u32> {
         }
         #[cfg(windows)]
         Command::ProfileService { pid, shell, editor } => {
+            use std::io::IsTerminal;
+            anyhow::ensure!(
+                !std::io::stdout().is_terminal(),
+                "profile service requires a redirected handshake"
+            );
+            blueberry::maintenance::resume_before_run()?;
             let data_dir = if env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1") {
                 env::var_os("BLUEBERRY_PROFILE_PROBE_DATA").map(PathBuf::from)
             } else {

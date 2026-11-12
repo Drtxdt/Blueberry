@@ -120,7 +120,8 @@ pub fn run(config_path: Option<&Path>) -> Result<u32> {
     drop(screen);
     write_config(&path, &choice)?;
     if choice.startup {
-        crate::startup::run("enable", None, false).context("配置自动启动失败")?;
+        let code = crate::startup::run("enable", None, false).context("配置自动启动失败")?;
+        anyhow::ensure!(code == 0, "配置自动启动失败（退出码 {code}）");
     }
     let mut state = load();
     state.setup_hint_seen = true;
@@ -223,7 +224,7 @@ fn draw(step: usize, choice: &Choices, path: &Path, keys: &config::KeyBindings) 
             )?;
             writeln!(
                 out,
-                "{} 为当前用户启用",
+                "{} 为当前用户启用，新开的 PowerShell 优先加载 Blueberry 的 PSReadLine",
                 if choice.startup { "▶" } else { " " }
             )?
         }
