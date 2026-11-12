@@ -18,7 +18,12 @@ pub fn run(action: &str, profile: Option<&Path>, owned_only: bool) -> Result<u32
     }
     std::fs::write(&path, include_bytes!("../scripts/startup.ps1"))?;
     let result = (|| {
-        let mut command = std::process::Command::new(crate::pty::default_shell());
+        let shell = crate::pty::default_shell();
+        let mut command = std::process::Command::new(&shell);
+        command.env(
+            "PSModulePath",
+            std::env::join_paths(crate::pty::module_search_paths(&shell))?,
+        );
         command
             .args([
                 "-NoLogo",

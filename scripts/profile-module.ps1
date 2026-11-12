@@ -34,13 +34,15 @@ function Update-BlueberryProfileEditor {
     $store = Join-Path $parent '.blueberry-editor'
     $receipt = Join-Path $store 'owner.json'
     $original = Join-Path $store 'original'
-    foreach ($dir in @($parent,$modules,$active,$store,$original)) { Assert-EditorDirectory $dir }
+    if ($Action -eq 'disable' -and -not [IO.File]::Exists($receipt)) { return }
+    foreach ($dir in @($parent,$store)) { Assert-EditorDirectory $dir }
     $owner = $null
     if ([IO.File]::Exists($receipt)) { $owner = [IO.File]::ReadAllText($receipt) | ConvertFrom-Json }
     if ($owner -and ($owner.exe -ine $Executable -or $owner.profile -ine $ProfileFile)) {
         if ($OwnedOnly) { return }
         throw "Another installation manages $active"
     }
+    foreach ($dir in @($modules,$active,$original)) { Assert-EditorDirectory $dir }
     if ($Action -eq 'disable') {
         if (-not $owner) { return }
         # The receipt is durable before publication. A retry after interruption

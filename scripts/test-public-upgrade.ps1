@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory=$true)][string]$PreviousInstaller,
     [Parameter(Mandatory=$true)][string]$PreviousPackage,
     [Parameter(Mandatory=$true)][string]$PackagePath,
-    [Parameter(Mandatory=$true)][string]$PreviousComponent
+    [Parameter(Mandatory=$true)][string]$PreviousComponent,
+    [string]$OriginalEditorManifest = (Join-Path $PSHOME 'Modules/PSReadLine/PSReadLine.psd1')
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -16,6 +17,7 @@ $configRoot=Join-Path $evidence 'config'
 $manager=Join-Path $PSScriptRoot 'manage-install.ps1'
 $oldLocal=$env:LOCALAPPDATA
 $oldRoaming=$env:APPDATA
+$oldModules=$env:PSModulePath
 $oldPath=[Environment]::GetEnvironmentVariable('PATH','User')
 [IO.Directory]::CreateDirectory($evidence) | Out-Null
 $env:LOCALAPPDATA=Join-Path $evidence 'local'
@@ -65,16 +67,26 @@ try {
     if ($LASTEXITCODE -or (Get-FileHash $fixtureProfile).Hash -ne $profileOriginal) { throw 'Startup removal did not restore user profile bytes' }
     $priorModule = Join-Path $evidence 'Modules/PSReadLine'
     [IO.Directory]::CreateDirectory($priorModule) | Out-Null
-    $priorFile = Join-Path $priorModule 'user-module.txt'
-    [IO.File]::WriteAllText($priorFile,'original user module')
-    $priorDigest = (Get-FileHash $priorFile).Hash
+    $source = (Resolve-Path -LiteralPath $OriginalEditorManifest).Path
+    $v = (Import-PowerShellDataFile -LiteralPath $source).ModuleVersion
+    Copy-Item -LiteralPath (Split-Path -LiteralPath $source) -Destination (Join-Path $priorModule $v) -Recurse
+    $env:PSModulePath=(Split-Path -LiteralPath $priorModule)+';'+$oldModules
+    function Read-FreshEditor {
+        $json = & (Join-Path $PSHOME 'pwsh.exe') -NoProfile -NonInteractive -Command 'Import-Module PSReadLine -ErrorAction Stop; $t=[Microsoft.PowerShell.PSConsoleReadLine]; @{dll=$t.Assembly.Location;sha=(Get-FileHash $t.Assembly.Location).Hash;hooks=[bool]$t.GetProperty("EditorIntegrationVersion")} | ConvertTo-Json -Compress'
+        if ($LASTEXITCODE) { throw 'Cannot inspect fresh shell after module change' }
+        $json | ConvertFrom-Json
+    }
+    $prior = Read-FreshEditor
+    if ($prior.hooks -or -not $prior.dll.StartsWith($priorModule+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Original user module did not load' }
     & $exe startup enable --profile $fixtureProfile
-    if ($LASTEXITCODE -or (Test-Path $priorFile)) { throw 'Candidate did not activate its editor' }
+    if ($LASTEXITCODE -or -not (Read-FreshEditor).hooks) { throw 'Candidate did not activate its editor' }
     & $exe terminal uninstall --install-root $root
     if ($LASTEXITCODE) { throw 'Optional component uninstall failed' }
     & $manager -Action Uninstall -InstallRoot $root
     if ((Test-Path $exe) -or (Get-FileHash $config).Hash -ne $configHash) { throw 'Core uninstall did not preserve user settings' }
-    if ((Get-FileHash $priorFile).Hash -ne $priorDigest -or (Get-FileHash $fixtureProfile).Hash -ne $profileOriginal) { throw 'Uninstall did not restore original module and Profile' }
+    $after = Read-FreshEditor
+    if ($after.hooks -or $after.dll -ine $prior.dll -or $after.sha -ine $prior.sha -or (Get-FileHash $fixtureProfile).Hash -ne $profileOriginal) { throw 'Uninstall did not restore original module and Profile' }
+    $receipt['restored_editor'] = $after
     $receipt['passed']=$true
     Write-Host "Public 0.5.3 upgrade/rollback/re-upgrade passed: $evidence"
 } catch {
@@ -84,4 +96,5 @@ try {
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidence 'receipt.json') -Encoding UTF8
     $env:LOCALAPPDATA=$oldLocal
     $env:APPDATA=$oldRoaming
+    $env:PSModulePath=$oldModules
 }

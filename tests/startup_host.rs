@@ -42,7 +42,7 @@ fn repeated_direct_start_accepts_immediate_exit_and_releases_data_files() -> Res
 }
 
 #[test]
-fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()> {
+fn profile_hook_attaches_to_current_shell_preserves_first_key_and_exits_once() -> Result<()> {
     let evidence =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/startup-terminal-evidence");
     std::fs::create_dir_all(&evidence)?;
@@ -52,7 +52,10 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         .keep();
     eprintln!("startup evidence: {}", root.display());
     let profile = root.as_path().join("中文 profile.ps1");
-    std::fs::write(&profile, b"")?;
+    std::fs::write(
+        &profile,
+        "Set-PSReadLineKeyHandler -Chord g -ScriptBlock { param($key,$arg); [Microsoft.PowerShell.PSConsoleReadLine]::SelfInsert($key,$arg); [IO.File]::WriteAllText((Join-Path $env:LOCALAPPDATA 'user-g.txt'),'g') }\r\n",
+    )?;
     let executable = PathBuf::from(env!("CARGO_BIN_EXE_blueberry"));
     let shell = pty::default_shell();
     let local = root.as_path().join("local");
@@ -64,28 +67,23 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         .env("APPDATA", &roaming)
         .status()?;
     ensure!(status.success(), "Configure isolated profile");
-    let hook = std::fs::read_to_string(&profile)?;
-    let trace = root.as_path().join("startup-trace.jsonl");
-    let hook = hook.replace(
-        " run --shell $blueberryAutoShell",
-        &format!(
-            " run --trace '{}' --data-dir '{}' --shell $blueberryAutoShell",
-            trace.display().to_string().replace('\'', "''"),
-            root.as_path()
-                .join("data")
-                .display()
-                .to_string()
-                .replace('\'', "''")
-        ),
-    );
-    std::fs::write(
-        &profile,
-        format!("{hook}\nWrite-Output ('BB_PARENT_RESUMED_' + $env:BLUEBERRY_ACTIVE)\n"),
-    )?;
+    let mut module_roots = vec![root.join("Modules")];
+    module_roots.extend(pty::module_search_paths(&shell));
+    let data = root.join("data");
     let quoted = profile.display().to_string().replace('\'', "''");
     let environment = BTreeMap::from([
         ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
         ("BLUEBERRY_ACTIVE".into(), "0".into()),
+        (
+            "PSModulePath".into(),
+            std::env::join_paths(module_roots)?
+                .to_string_lossy()
+                .into_owned(),
+        ),
+        (
+            "BLUEBERRY_PROFILE_PROBE_DATA".into(),
+            data.to_string_lossy().into_owned(),
+        ),
         ("TERM".into(), "xterm-256color".into()),
         ("LOCALAPPDATA".into(), local.to_string_lossy().into_owned()),
         ("APPDATA".into(), roaming.to_string_lossy().into_owned()),
@@ -106,23 +104,39 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
     // measurement of ConsoleHost's automatic profile loading.
     terminal.wait_text(">", Duration::from_secs(20))?;
     terminal.send_text(&format!(". '{quoted}'\r"))?;
-    // A real profile may replace the prompt (Starship, Oh My Posh, etc.).
-    // Observe editor entry rather than assuming the stock "PS " prompt.
     let deadline = Instant::now() + Duration::from_secs(30);
-    while !std::fs::read_to_string(&trace).is_ok_and(|text| text.contains("direct_readline_begin"))
+    while !std::fs::read_dir(&data)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|entry| {
+            std::fs::read(entry.path().join("adapter.json"))
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+                .is_some_and(|status| status["automatic_menu"] == true)
+        })
     {
         ensure!(
             Instant::now() < deadline,
-            "profile child did not enter the editor: {}",
+            "profile service did not attach: {}",
             terminal.contents()
         );
         let _ = terminal.pump(Duration::from_millis(20));
     }
+    terminal.send_text("g")?;
+    terminal.wait_text("› ", Duration::from_secs(20))?;
+    ensure!(
+        std::fs::read_to_string(local.join("user-g.txt"))? == "g",
+        "user key handler did not run"
+    );
+    let pid = terminal.process_id().context("missing shell pid")?;
     send_editor_command(
         &mut terminal,
-        "Write-Output ('BB_ACTIVE_' + $env:BLUEBERRY_ACTIVE); Write-Output ('BB_EDITION_' + $PSVersionTable.PSEdition)",
+        "et-command Out-Null | Out-Null; Write-Output ('BB_ACTIVE_' + $env:BLUEBERRY_ACTIVE); Write-Output ('BB_PID_' + $PID); Write-Output ('BB_EDITION_' + $PSVersionTable.PSEdition)",
     )?;
     wait_line(&mut terminal, "BB_ACTIVE_1")?;
+    wait_line(&mut terminal, &format!("BB_PID_{pid}"))?;
     let edition = if shell
         .file_name()
         .unwrap()
@@ -139,13 +153,16 @@ fn profile_hook_keeps_shell_skips_recursion_and_returns_to_parent() -> Result<()
         &format!(". '{quoted}'; Write-Output BB_NESTED_SKIPPED"),
     )?;
     wait_line(&mut terminal, "BB_NESTED_SKIPPED")?;
+    ensure!(
+        std::fs::read_dir(&data)?
+            .flatten()
+            .filter(|entry| entry.path().join("adapter.json").is_file())
+            .count()
+            == 1,
+        "re-sourcing started a duplicate service"
+    );
     terminal.send_text("exit\r")?;
-    wait_line(&mut terminal, "BB_PARENT_RESUMED_0")?;
-    terminal.send_text("Write-Output ('BB_OUTER_' + $env:BLUEBERRY_ACTIVE)\r")?;
-    wait_line(&mut terminal, "BB_OUTER_0")?;
-    // The parent is now plain PowerShell: the nested Blueberry protocol has
-    // exited, so the probe's host-aware finish chord is no longer applicable.
-    terminal.stop()?;
+    terminal.wait_exit(Duration::from_secs(20))?;
     Ok(())
 }
 

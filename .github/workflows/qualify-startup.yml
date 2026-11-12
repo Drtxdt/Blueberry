@@ -51,6 +51,8 @@ jobs:
           python scripts/prepare-original-editor.py --version $env:EDITOR --root "$env:RUNNER_TEMP/editor"
           if ($LASTEXITCODE) { throw 'Editor setup failed' }
           $env:BLUEBERRY_TEST_PSREADLINE_MODULE = "$env:RUNNER_TEMP/editor/PSReadLine/$env:EDITOR/PSReadLine.psd1"
+          ./scripts/test-profile-module.ps1 -Executable $exe -Shell $env:SHELL_EXE -OriginalManifest $env:BLUEBERRY_TEST_PSREADLINE_MODULE -Destination "$env:RUNNER_TEMP/module-restoration"
+          if (-not $?) { throw 'Original editor restoration failed' }
           $failed = @()
           foreach ($batch in 1,2) {
             $entries = if ($batch -eq 1) { 'direct_executable','isolated_automatic_profile' } else { 'isolated_automatic_profile','direct_executable' }
@@ -68,5 +70,7 @@ jobs:
         if: always()
         with:
           name: frozen-startup-${{ matrix.profile }}-${{ github.sha }}
-          path: ${{ runner.temp }}/qualification
+          path: |
+            ${{ runner.temp }}/qualification
+            ${{ runner.temp }}/module-restoration/receipt.json
           if-no-files-found: error
