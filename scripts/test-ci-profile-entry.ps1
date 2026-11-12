@@ -38,8 +38,14 @@ if ($existed) { $original=@([IO.File]::ReadAllBytes($profilePath)) }
 if ($existed) { [IO.File]::WriteAllBytes((Join-Path $root 'original-profile.bin'),$original) }
 $prepared=Join-Path $root 'managed-profile.ps1'
 [IO.File]::WriteAllText($prepared,'',[Text.UTF8Encoding]::new($true))
-& $Executable startup enable --profile $prepared
-if ($LASTEXITCODE -ne 0) { throw 'Measured executable could not generate its startup profile.' }
+$savedNoHistory=$env:BLUEBERRY_NO_HISTORY
+try {
+    # Select the same pinned editor at install time as in the measured shell.
+    $env:BLUEBERRY_NO_HISTORY='1'
+    & $Executable startup enable --profile $prepared
+    $enableExit=$LASTEXITCODE
+} finally { $env:BLUEBERRY_NO_HISTORY=$savedNoHistory }
+if ($enableExit -ne 0) { throw 'Measured executable could not generate its startup profile.' }
 $text=[IO.File]::ReadAllText($prepared).Replace('& $blueberryAutoExe run --shell $blueberryAutoShell','& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
 $attached = ($text.Contains('::AttachProfile(') -or $text.Contains('profile-service '))
 if (-not $attached) { $text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n" }
@@ -55,7 +61,7 @@ $fixture=Join-Path $root 'blueberry-profile-probe.json'
     executable_sha256=(Get-FileHash -LiteralPath $Executable).Hash
     profile=$profilePath
     profile_sha256=$expectedHash
-    managed_block='scripts/startup.ps1; isolated data argument; unchanged recursion and script guards'
+    managed_block=if ($attached) { 'generated same-shell Profile and installed user module' } else { 'legacy child-shell Profile with isolated data directory' }
     observed_entry='PowerShell automatic CurrentUserCurrentHost profile on disposable GitHub-hosted account'
 } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $fixture -Encoding utf8
 $parent=Split-Path -Parent $profilePath
