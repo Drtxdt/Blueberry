@@ -413,7 +413,7 @@ try {
     [IO.Directory]::CreateDirectory($stageOutput) | Out-Null
 
     $requiredFiles = @(
-        @{ Source = (Join-Path $repoRoot 'README.md'); Destination = 'README.md' },
+        @{ Source = (Join-Path $repoRoot 'docs/package-readme.md'); Destination = 'README.md' },
         @{ Source = (Join-Path $repoRoot 'LICENSE'); Destination = 'LICENSE' },
         @{ Source = (Join-Path $repoRoot 'config.example.toml'); Destination = 'config.example.toml' },
         @{ Source = (Join-Path $repoRoot 'docs/installation.md'); Destination = 'docs/installation.md' },
