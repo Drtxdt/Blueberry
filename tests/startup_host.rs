@@ -153,6 +153,20 @@ fn profile_hook_attaches_to_current_shell_preserves_first_key_and_exits_once() -
         &format!(". '{quoted}'; Write-Output BB_NESTED_SKIPPED"),
     )?;
     wait_line(&mut terminal, "BB_NESTED_SKIPPED")?;
+    send_editor_command(
+        &mut terminal,
+        "Write-Output ('BB_INTERRUPT_' + $PID); Start-Sleep -Seconds 60",
+    )?;
+    wait_line(&mut terminal, &format!("BB_INTERRUPT_{pid}"))?;
+    terminal.send(b"\x03")?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !terminal.contents().trim_end().ends_with('>') {
+        terminal
+            .pump(deadline.saturating_duration_since(Instant::now()))
+            .context("wait for prompt after Ctrl+C")?;
+    }
+    send_editor_command(&mut terminal, "Write-Output ('BB_RESUMED_' + $PID)")?;
+    wait_line(&mut terminal, &format!("BB_RESUMED_{pid}"))?;
     ensure!(
         std::fs::read_dir(&data)?
             .flatten()
