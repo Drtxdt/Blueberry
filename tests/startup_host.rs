@@ -165,8 +165,15 @@ fn profile_hook_attaches_to_current_shell_preserves_first_key_and_exits_once() -
             .pump(deadline.saturating_duration_since(Instant::now()))
             .context("wait for prompt after Ctrl+C")?;
     }
-    send_editor_command(&mut terminal, "Write-Output ('BB_RESUMED_' + $PID)")?;
-    wait_line(&mut terminal, &format!("BB_RESUMED_{pid}"))?;
+    send_editor_command(
+        &mut terminal,
+        "[IO.File]::WriteAllText((Join-Path $env:LOCALAPPDATA 'resumed.pid'),[string]$PID); Write-Output ('BB_RESUMED_' + $PID)",
+    )?;
+    // ConPTY may put the result on the same soft-wrapped row as the echo.
+    // The expanded PID is absent from the typed command. Also verify that
+    // the original shell actually executed it after the interruption.
+    terminal.wait_text(&format!("BB_RESUMED_{pid}"), Duration::from_secs(20))?;
+    ensure!(std::fs::read_to_string(local.join("resumed.pid"))? == pid.to_string());
     ensure!(
         std::fs::read_dir(&data)?
             .flatten()
