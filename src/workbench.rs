@@ -42,6 +42,8 @@ impl Workbench {
         );
         self.templates = templates;
         Completion {
+            pending: false,
+            error: None,
             replace_start: 0,
             replace_end: line.len(),
             candidates,

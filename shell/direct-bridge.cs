@@ -280,6 +280,19 @@ namespace Blueberry.Direct {
                     var key=Console.ReadKey(true);
                     if(key.Key==ConsoleKey.Escape || (key.Key==ConsoleKey.C && (key.Modifiers & ConsoleModifiers.Control)!=0)) break;
                     if(interaction!="completion") { SendKey(key); continue; }
+                    if(displayed==null || String.IsNullOrEmpty(Json.String(displayed,"candidate_id"))) {
+                        manualActive=false; Clear(true); displayed=null; ResetNavigation();
+                        string chord=((key.Modifiers & ConsoleModifiers.Control)!=0 ? "Ctrl+" : "")
+                            + ((key.Modifiers & ConsoleModifiers.Alt)!=0 ? "Alt+" : "")
+                            + ((key.Modifiers & ConsoleModifiers.Shift)!=0 ? "Shift+" : "") + key.Key;
+                        foreach(var binding in originals) {
+                            if(String.Equals(binding.Key,chord,StringComparison.OrdinalIgnoreCase)) { binding.Action(key,null); return; }
+                        }
+                        string action=key.Key==ConsoleKey.Tab ? "Complete" : key.Key==ConsoleKey.Enter ? "AcceptLine" : key.Key==ConsoleKey.UpArrow ? "PreviousHistory" : key.Key==ConsoleKey.DownArrow ? "NextHistory" : "SelfInsert";
+                        var method=api.GetMethod(action,new Type[]{typeof(ConsoleKeyInfo?),typeof(object)});
+                        if(method!=null) method.Invoke(null,new object[]{key,null});
+                        return;
+                    }
                     if(key.Key==ConsoleKey.Tab || key.Key==ConsoleKey.Enter) { AcceptAfterNavigation(); break; }
                     if(key.Key==ConsoleKey.UpArrow || key.Key==ConsoleKey.DownArrow || key.Key==ConsoleKey.F1) { Navigate(key); continue; }
                     // Completion mode is selection-only. Text editing remains
@@ -397,6 +410,10 @@ namespace Blueberry.Direct {
                 return false;
             }
             if (!builtin) { ResetNavigation(); displayed=null; return false; }
+            if (displayed != null && String.IsNullOrEmpty(Json.String(displayed,"candidate_id"))) {
+                if(k.Key==ConsoleKey.Escape) { Query("cancel"); return true; }
+                displayed=null; ResetNavigation(); return false;
+            }
             if (displayed == null && !navigationPending) return false;
             // Compare the action resolved for this very keystroke. A user may
             // rebind to another built-in action, not only to a script block.
@@ -549,7 +566,9 @@ namespace Blueberry.Direct {
             environment["BLUEBERRY_SHELL_VERSION"] = shellVersionText;
             var argumentMode = api.GetProperty("EditorNativeArgumentPassing", BindingFlags.Public | BindingFlags.Static);
             if (EditorHooks && argumentMode != null) environment["BLUEBERRY_NATIVE_ARGUMENT_MODE"] = (string)argumentMode.GetValue(null, null);
-            Send(new Dictionary<string, object> { {"event", "begin"}, {"revision", revision}, {"cwd",cwd}, {"history_path",historyPath}, {"terminal_connected",nativeOverlay!=null && nativeOverlay.IsConnected}, {"terminal_fallback_reason",terminalFallbackReason}, {"environment",environment}, {"automatic_menu", AutomaticMenu}, {"disabled_reason", DisabledReason} });
+            var begin = new Dictionary<string, object> { {"event", "begin"}, {"revision", revision}, {"cwd",cwd}, {"history_path",historyPath}, {"terminal_connected",nativeOverlay!=null && nativeOverlay.IsConnected}, {"terminal_fallback_reason",terminalFallbackReason}, {"environment",environment}, {"automatic_menu", AutomaticMenu}, {"disabled_reason", DisabledReason} };
+            if(diagnostic) begin["snapshot_qpc"]=Stopwatch.GetTimestamp();
+            Send(begin);
             if (EditorHooks) StartCommands();
             if(diagnostic) TraceStage("direct_readline_begin",Stopwatch.GetTimestamp()-beginning,1);
         }
@@ -564,6 +583,7 @@ namespace Blueberry.Direct {
         static void Edit(Action<ConsoleKeyInfo?, object> original, ConsoleKeyInfo? key, object arg) {
             ConfirmNativeEdit();
             Clear();
+            if(displayed!=null && interaction=="completion" && String.IsNullOrEmpty(Json.String(displayed,"candidate_id"))) { displayed=null; ResetNavigation(); }
             if(editing && AutomaticMenu && interaction=="completion" && key.HasValue) {
                 string before; int cursor; buffer(out before,out cursor);
                 string action=original.Method.Name;
@@ -779,6 +799,9 @@ namespace Blueberry.Direct {
             if(diagnostic && frameReceived!=0) TraceStage("direct_frame_to_paint",Stopwatch.GetTimestamp()-frameReceived,1);
             expectedUiEditRevision=-1;
             interaction=Json.String(frame,"interaction") ?? "completion"; displayed = frame;
+            long ackStart=diagnostic ? Stopwatch.GetTimestamp() : 0;
+            Send(new Dictionary<string,object> { {"event","presented"},{"revision",revision},{"frame_id",Json.Long(frame,"frame_id")},{"candidate_id",Json.String(frame,"candidate_id")} });
+            if(diagnostic) TraceStage("direct_presented_send",Stopwatch.GetTimestamp()-ackStart,1,Json.Long(frame,"frame_id"));
             navigationPending=false;
             if (navigationKeys.Count>0) Navigate(navigationKeys.Dequeue());
             return true;
@@ -824,8 +847,11 @@ namespace Blueberry.Direct {
             try { lock (writeLock) { pipe.Write(bytes, 0, bytes.Length); pipe.Flush(); } }
             catch { connected = false; }
         }
-        static void TraceStage(string stage,long ticks,int count) {
-            if(diagnostic && negotiated) Send(new Dictionary<string,object>{{"event","trace"},{"revision",revision},{"stage",stage},{"duration_us",ticks*1000000/Stopwatch.Frequency},{"count",count}});
+        static void TraceStage(string stage,long ticks,int count,long frame=-1) {
+            if(!diagnostic || !negotiated) return;
+            var message=new Dictionary<string,object>{{"event","trace"},{"revision",revision},{"stage",stage},{"duration_us",ticks*1000000/Stopwatch.Frequency},{"count",count}};
+            if(frame>=0) message["frame_id"]=frame;
+            Send(message);
         }
         static void TracePoint(string stage,long rev,long frame,long qpc) {
             if(diagnostic && negotiated) Send(new Dictionary<string,object>{{"event","trace_point"},{"revision",rev},{"frame_id",frame},{"stage",stage},{"qpc",qpc}});

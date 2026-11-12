@@ -84,12 +84,23 @@ pub(crate) fn environment(shell: &Path) -> Result<Value> {
         .output()
         .context("read power policy")?;
     ensure!(power.status.success(), "power policy query failed");
+    let mut path_identity = Sha256::new();
+    for name in ["PATH", "PATHEXT"] {
+        let value = std::env::var_os(name);
+        path_identity.update([u8::from(value.is_some())]);
+        if let Some(value) = value {
+            let bytes = value.as_encoded_bytes();
+            path_identity.update((bytes.len() as u64).to_le_bytes());
+            path_identity.update(bytes);
+        }
+    }
     // powercfg uses the console code page. Preserve the bytes as a digest as
     // well as a readable label; code-page replacement cannot hide a change.
     Ok(
         json!({"machine_id":std::env::var("COMPUTERNAME").context("missing machine ID")?,
         "power_policy":format!("{:X}",Sha256::digest(&power.stdout)),
         "power_policy_label":String::from_utf8_lossy(&power.stdout).trim(),
+        "parent_path_pathext_sha256":format!("{:X}",path_identity.finalize()),
         "profile_sha256":format!("{:X}",hash.finalize()),"profile_inventory":inventory,
         "terminal_rows":30,"terminal_columns":120}),
     )
@@ -134,6 +145,7 @@ fn adapter(directory: &Path) -> Result<Value> {
     bail!("actual product did not publish adapter status")
 }
 struct Sample {
+    first_prompt: f64,
     first_input: f64,
     first_key: f64,
     first_static: Option<f64>,
@@ -141,6 +153,17 @@ struct Sample {
     first_visible_static: Option<f64>,
     first_visible_dynamic: Option<f64>,
     status: Value,
+    observations: Option<StartupPoints>,
+}
+
+#[derive(Default, serde::Serialize)]
+struct StartupPoints {
+    launch: Option<i64>,
+    prompt: Option<i64>,
+    key_sent: Option<i64>,
+    echo: Option<i64>,
+    visible_static: Option<i64>,
+    complete_static: Option<i64>,
 }
 
 fn first_key_echo(screen: &str, prompt: &str) -> bool {
@@ -172,6 +195,9 @@ fn measure(
         // Suppress a profile's Blueberry autostart in both paired shells.
         // Otherwise "plain" could silently contain another nested host.
         ("BLUEBERRY_ACTIVE".into(), "1".into()),
+        // An ambient profile trace must never turn a formal pair into a traced run.
+        ("BLUEBERRY_PROFILE_TRACE".into(), String::new()),
+        ("BLUEBERRY_PROFILE_HOOK_QPC".into(), String::new()),
         ("TERM".into(), "xterm-256color".into()),
     ]);
     crate::probe::inherit_native_observer_environment(&mut env);
@@ -225,8 +251,18 @@ fn measure(
             ),
         ]
     };
-    if candidate && let Some(path) = trace_path {
-        args.extend(["--trace".into(), path.to_string_lossy().into_owned()]);
+    if let Some(path) = trace_path {
+        env.insert("BLUEBERRY_PROBE_QPC".into(), "1".into());
+        if candidate {
+            if entry.profile_entry {
+                env.insert(
+                    "BLUEBERRY_PROFILE_TRACE".into(),
+                    path.to_string_lossy().into_owned(),
+                );
+            } else {
+                args.extend(["--trace".into(), path.to_string_lossy().into_owned()]);
+            }
+        }
     }
     if candidate && entry.profile_entry {
         args = vec!["-NoLogo".into()];
@@ -245,14 +281,26 @@ fn measure(
     )?;
     let start = harness.observation_start(start);
     beta_metrics::wait_for_prompt(&mut harness, TIMEOUT)?;
+    let mut observations = trace_path.map(|_| StartupPoints {
+        launch: harness.spawn_qpc,
+        prompt: harness.last_output_qpc(),
+        ..Default::default()
+    });
+    let first_prompt = elapsed(&harness, start)?;
     let before = harness.observed_viewport()?;
     let prompt = before.lines().last().unwrap_or("").trim_end().to_owned();
     let key_start = Instant::now();
+    if let Some(points) = &mut observations {
+        points.key_sent = Some(crate::latency_layers::qpc()?);
+    }
     harness.send_text("g")?;
     wait(&mut harness, "first PSReadLine-confirmed echo", |screen| {
         first_key_echo(screen, &prompt)
     })?;
     let first_input = elapsed(&harness, start)?;
+    if let Some(points) = &mut observations {
+        points.echo = harness.last_output_qpc();
+    }
     let first_key = elapsed(&harness, key_start)?;
     let mut first_visible_static = None;
     let mut first_visible_dynamic = None;
@@ -261,11 +309,17 @@ fn measure(
             screen.lines().any(|line| line.contains("› "))
         })?;
         first_visible_static = Some(elapsed(&harness, key_start)?);
+        if let Some(points) = &mut observations {
+            points.visible_static = harness.last_output_qpc();
+        }
         wait(&mut harness, "first complete static menu", |screen| {
             beta_metrics::has_complete_status(screen)
                 && screen.lines().any(|line| line.contains("› "))
         })?;
         let first_static = elapsed(&harness, key_start)?;
+        if let Some(points) = &mut observations {
+            points.complete_static = harness.last_output_qpc();
+        }
         let mut status = adapter(&directory.join("data"))?;
         ensure!(
             status["transport"] == "pipe",
@@ -379,6 +433,7 @@ fn measure(
     };
     status["native_observer"] = json!(harness.native_observer_identity());
     Ok(Sample {
+        first_prompt,
         first_input,
         first_key,
         first_static,
@@ -386,6 +441,7 @@ fn measure(
         first_visible_static,
         first_visible_dynamic,
         status,
+        observations,
     })
 }
 
@@ -455,10 +511,7 @@ pub fn run_with_options(
         "isolated metadata cache measurements require Direct"
     );
     let entry_fixture = if profile_entry {
-        ensure!(
-            host_mode == "direct" && trace_directory.is_none(),
-            "profile entry requires Direct and cannot add diagnostic trace arguments"
-        );
+        ensure!(host_mode == "direct", "profile entry requires Direct");
         let home = shell.parent().context("profile entry shell directory")?;
         let default_fixture = home.join("blueberry-profile-probe.json");
         let fixture_path = profile_fixture.unwrap_or(&default_fixture);
@@ -481,6 +534,12 @@ pub fn run_with_options(
             fixture["profile_sha256"] == metrics::executable_sha256(profile_path)?,
             "profile entry profile changed"
         );
+        if trace_directory.is_some() {
+            ensure!(
+                std::fs::read_to_string(profile_path)?.contains("BLUEBERRY_PROFILE_TRACE"),
+                "regenerate the isolated profile fixture to enable diagnostic tracing"
+            );
+        }
         Some(fixture)
     } else {
         None
@@ -543,6 +602,8 @@ pub fn run_with_options(
     let mut candidate = Vec::new();
     let mut delta = Vec::new();
     let mut keys = Vec::new();
+    let mut plain_prompts = Vec::new();
+    let mut candidate_prompts = Vec::new();
     let mut static_menus = Vec::new();
     let mut dynamic_menus = Vec::new();
     let mut visible_static_menus = Vec::new();
@@ -558,6 +619,7 @@ pub fn run_with_options(
     let mut process_trees = Vec::new();
     let mut orders = Vec::new();
     let mut cache_observations = Vec::new();
+    let mut startup_observations = Vec::new();
     for index in 0..iterations {
         let directory = root.join(format!("pair-{index}"));
         std::fs::create_dir_all(directory.join("bb-product-probe-dir"))?;
@@ -601,6 +663,15 @@ pub fn run_with_options(
         }
         let baseline = baseline.unwrap();
         let product = product.unwrap();
+        if let Some(directory) = trace_directory {
+            ensure!(
+                directory
+                    .join(format!("direct-product-{index}.jsonl"))
+                    .is_file(),
+                "host did not produce a diagnostic trace"
+            );
+            startup_observations.push(json!({"pair":index,"plain":baseline.observations,"candidate":product.observations}));
+        }
         if cache_state != CacheState::Ambient {
             let expected = if cache_state == CacheState::Warm {
                 "hit"
@@ -644,6 +715,8 @@ pub fn run_with_options(
             "paired PSReadLine versions differ"
         );
         delta.push(product.first_input - baseline.first_input);
+        plain_prompts.push(baseline.first_prompt);
+        candidate_prompts.push(product.first_prompt);
         plain.push(baseline.first_input);
         candidate.push(product.first_input);
         keys.push(product.first_key);
@@ -688,6 +761,11 @@ pub fn run_with_options(
         .unwrap()
         .extend(frozen.as_object().unwrap().clone());
     report["plain_editors"] = json!(plain_editors);
+    report["plain_first_prompt"] = stats(&plain_prompts);
+    report["candidate_first_prompt"] = stats(&candidate_prompts);
+    report["prompt_readiness_confirmation"] = json!(
+        "The observed prompt is followed by a verified PSReadLine first-key echo in the same sample"
+    );
     report["actual_entry"] = json!(if profile_entry {
         "isolated_automatic_profile"
     } else {
@@ -706,6 +784,10 @@ pub fn run_with_options(
     // Retain historical fields (which required a complete menu) for existing
     // evidence readers; expose unambiguous first/complete observations too.
     report["first_visible_static_candidate"] = stats(&visible_static_menus);
+    if trace_directory.is_some() {
+        report["qpc_frequency_hz"] = json!(crate::latency_layers::qpc_frequency()?);
+        report["startup_qpc"] = json!(startup_observations);
+    }
     report["first_visible_dynamic_candidate"] = stats(&visible_dynamic_menus);
     report["complete_static_candidates"] = stats(&static_menus);
     report["complete_dynamic_candidates"] = stats(&dynamic_menus);

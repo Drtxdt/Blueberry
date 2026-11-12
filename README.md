@@ -9,9 +9,13 @@ Blueberry 是一个使用 Rust 构建的终端 IDE 风格补全工具，可以�
 
 本项目的灵感来源来自：[microsoft/inshellisense: IDE style command line auto complete](https://github.com/microsoft/inshellisense)
 
-当前公开版本为 [v0.5.2](https://github.com/Drtxdt/Blueberry/releases/tag/v0.5.2)，`0.5.3` 正在候选验收。Windows 默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。
+当前公开版本为 [v0.5.3](https://github.com/Drtxdt/Blueberry/releases/tag/v0.5.3)，已于 2026-10-26 发布。Windows 默认使用 direct，PowerShell 直接继承终端，传输固定为 pipe；`--host-mode direct --transport osc` 会报错。兼容入口为 `--host-mode nested`，单独指定 `--transport osc` 也会选择 nested。
 
-启动增量 P50 ≤50 ms、热态完整菜单 P95 ≤20 ms 是验收目标，尚未由当前候选正式证明。按[三轮优化与发布规则](docs/performance-next.md)，完整达标且无明显回退发布 0.6.0；三轮结束、数据完整有效但仍未全部达标时发布 0.5.3。两版均须通过最终包功能、安装与本机人工验收，外部试用未执行。见 [本版验收](docs/v0.5.3-validation.md)、[安装与故障诊断](docs/installation.md) 和 [发布流程](docs/releasing.md)。
+当前分支的 v0.5.4 是未发布的开发候选；补全修复和性能归因见[第二轮复审记录](docs/review-round2.md)。
+
+启动增量 P50 ≤50 ms、热态完整菜单 P95 ≤20 ms 是后续优化目标。v0.5.3 已按单版本发布例外公开，当前数据尚未证明性能目标全部达标，两项历史间歇性交互问题仍待定位。后续开发与验收见[优化计划](docs/performance-next.md)、[本版记录](docs/v0.5.3-validation.md)和[发布流程](docs/releasing.md)。
+
+开发分支的本轮源码整改、完整功能与打包检查、60 次历史场景专项及 360 对跨版本启动比较见[整改验收记录](docs/review-hardening.md)。本轮候选尚未发布，启动 ≤50 ms 目标仍未达到，历史故障根因继续保留为未解决。
 
 ## 安装
 
@@ -25,7 +29,7 @@ Blueberry 是一个使用 Rust 构建的终端 IDE 风格补全工具，可以�
 
 也可以从 [Releases](https://github.com/Drtxdt/Blueberry/releases) 下载 Windows x64 ZIP，解压后运行 `blueberry.exe`。指定版本、升级、回滚和卸载步骤见 [安装指南](docs/installation.md)。
 
-开发中的下一版默认安装核心包，不下载 Terminal。推荐使用 `blueberry terminal-profile --install --shell pwsh.exe` 在官方 Windows Terminal 注册专用入口。修改版 Terminal 作为可选增强包，通过 `blueberry terminal install --package <增强包.zip>` 安装，再由 `blueberry-terminal` 启动；组件独立升级、回滚和卸载，核心升级保留组件设置。当前公开的 0.5.2 尚无这些管理入口。
+0.5.3 默认安装核心包，不下载 Terminal。推荐使用 `blueberry terminal-profile --install --shell pwsh.exe` 在官方 Windows Terminal 注册专用入口。修改版 Terminal 作为可选增强包，通过 `blueberry terminal install --package <增强包.zip>` 安装，再由 `blueberry-terminal` 启动；组件独立升级、回滚和卸载，核心升级保留组件设置。这些管理入口已随 0.5.3 发布。
 
 | 运行环境 | 菜单与编辑行为 |
 | --- | --- |

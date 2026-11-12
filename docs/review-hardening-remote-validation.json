@@ -1,0 +1,2788 @@
+{
+  "schema": 1,
+  "generated_at": "2026-11-03T15:28:32.317493+00:00",
+  "repository": "Drtxdt/Blueberry",
+  "branch": "codex/review-hardening",
+  "scope": "Supplement to the sealed local receipt; historical local evidence remains unchanged",
+  "local_receipt": "docs/review-hardening-validation.json",
+  "verification_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+  "all_required_checks_passed": true,
+  "single_full_workflow_run_passed": false,
+  "check_scope": "Aggregate of full functional/package/performance run and the dependency-corrected stability run against the same frozen product source; the original full workflow remains failed at its missing-resource bootstrap step",
+  "performance_sampling_completed": true,
+  "startup_target_met_in_all_groups": false,
+  "workflow": {
+    "id": 41648304986,
+    "url": "https://github.com/Drtxdt/Blueberry/actions/runs/41648304986",
+    "conclusion": "failure",
+    "jobs": [
+      {
+        "databaseId": 125959420788,
+        "name": "quick",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959420967,
+        "name": "format",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959422455,
+        "name": "stability",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125959422522,
+        "name": "startup-cache",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125959422729,
+        "name": "evidence-upload",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125959744371,
+        "name": "Windows PowerShell 5.1 / PSReadLine 2.0.0",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959744376,
+        "name": "Windows PowerShell 5.1 / PSReadLine 2.4.5",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959744378,
+        "name": "Native ConPTY mouse / windows-2025",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959744467,
+        "name": "Core / ubuntu-24.04",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959744477,
+        "name": "Core / windows-2022",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959744547,
+        "name": "PowerShell 7 / PSReadLine 2.4.5 / pipe",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959744614,
+        "name": "PowerShell 7 / PSReadLine 2.4.5 / osc",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125959744621,
+        "name": "Core / macos-15",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125963363248,
+        "name": "package",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125986203474,
+        "name": "review-profile-ab / profile (ps7-245, pwsh.exe, 2.4.5)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125986203537,
+        "name": "review-profile-ab / profile (ps51-200, powershell.exe, 2.0.0)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125986203572,
+        "name": "review-profile-ab / profile (ps51-245, powershell.exe, 2.4.5)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125986203613,
+        "name": "review-profile-ab / stability",
+        "status": "completed",
+        "conclusion": "failure"
+      }
+    ]
+  },
+  "stability_workflow": {
+    "id": 41657649158,
+    "url": "https://github.com/Drtxdt/Blueberry/actions/runs/41657649158",
+    "conclusion": "success",
+    "identity": {
+      "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+      "workflow_commit": "775731c3bb7802e76a7abaafdd56e4dd52f1d251",
+      "source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "workflow_run": "41657649158"
+    },
+    "workflow_only_delta": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/review-profile-ab.yml"
+    ],
+    "jobs": [
+      {
+        "databaseId": 125992161387,
+        "name": "review-stability / stability",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "databaseId": 125992163535,
+        "name": "format",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992164125,
+        "name": "Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992164874,
+        "name": "Native ConPTY mouse / windows-2025",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992165086,
+        "name": "Core / ${{ matrix.os }}",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992165258,
+        "name": "PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992165324,
+        "name": "evidence-upload",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992166359,
+        "name": "package",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992167984,
+        "name": "review-profile-ab",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992223313,
+        "name": "quick",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992229688,
+        "name": "review-stability / profile",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992229711,
+        "name": "startup-cache",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "databaseId": 125992242674,
+        "name": "stability",
+        "status": "completed",
+        "conclusion": "skipped"
+      }
+    ]
+  },
+  "corrected_bootstrap_failure": {
+    "job_id": 125986203613,
+    "artifact_id": 13238624624,
+    "reason": "The new clean stability runner did not prepare ConPTY/private editor resources; compilation stopped before any test repetition",
+    "resolution": "Prepare pinned resources and repeat all 60 checks on the original source commit using the corrected workflow",
+    "original_results": [
+      {
+        "repetitions": 15,
+        "passed": false,
+        "trace_disabled": "0",
+        "log": "D:\\a\\Blueberry\\Blueberry\\artifacts\\review-hardening\\stability\\ps7-osc-resize-trace-disabled-0.log",
+        "case": "ps7-osc-resize"
+      }
+    ]
+  },
+  "superseded_run": {
+    "id": 41647009767,
+    "conclusion": "cancelled",
+    "reason": "Non-Windows diagnostic example failed all-target Clippy; corrected in the verified commit. Remaining duplicate jobs were cancelled."
+  },
+  "artifacts": [
+    {
+      "id": 13243031381,
+      "name": "review-profile-ps7-245-9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "sha256": "6f4328c7ba52aa7ded18c8434706c77b76669fe3ff3b2979f0f21ecc1ddc9050",
+      "bytes": 2639613,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13242448561,
+      "name": "review-profile-ps51-245-9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "sha256": "854b116475de9d9a0fb6a43e6a99b6365f53de9750c83b83451440e9ed17f2d9",
+      "bytes": 2646963,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13242189517,
+      "name": "review-profile-ps51-200-9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "sha256": "3023711403e31dcb2be76b9d309f2762b5bddfff9b3922b4a7fd002141ed7347",
+      "bytes": 2645139,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13239461681,
+      "name": "blueberry-windows-x64",
+      "sha256": "dc09182a64de513a2cf99c2c4c7f888fb7f0ef7a027251807d451d18e220be92",
+      "bytes": 4212480,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13239391817,
+      "name": "blueberry-packaged-profile",
+      "sha256": "b444f5a37cd085e4545f65903169947ffd3621522c1d643c946c9409de4d4c65",
+      "bytes": 75675,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13239271867,
+      "name": "nested-terminal-ps51-2.0.0",
+      "sha256": "8267fd75a078461371ab5a307b21fcf0bd198438e9215cbf140369402414254d",
+      "bytes": 33276316,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13238624624,
+      "name": "review-stability-9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "sha256": "5ea254b8994fab29accd5c9350e99435773ea190f36823cebab9970fcf812e1b",
+      "bytes": 2643,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13238548561,
+      "name": "blueberry-installation-evidence",
+      "sha256": "7ddcac114828ee6a2871e72730a3c8a6251ecc4b16fa91cf02e9fce30199e90b",
+      "bytes": 207797,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13238468663,
+      "name": "nested-terminal-ps51-2.4.5",
+      "sha256": "7d2c33c0cbf140c8c818cec1a9d8399906d7f6e78fabdde2d2538d55289c5643",
+      "bytes": 33142262,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13238265579,
+      "name": "blueberry-allocation-diagnostic-windows-x64",
+      "sha256": "725d3e24a218b38657faa81c4ddc3bb7411c079f35d5244b40cccfe30517855e",
+      "bytes": 4019650,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13238254109,
+      "name": "blueberry-terminal-component-windows-x64",
+      "sha256": "fe4bc1a8eaa788bd0d7972e60c61252eb4cdbcfe34b0781715015a6276b3b3f9",
+      "bytes": 16131535,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": false
+    },
+    {
+      "id": 13238171466,
+      "name": "blueberry-packaged-interaction",
+      "sha256": "61acc23af71e2e0e6c5d54e7eeaf3b4f48900474ba91b5a9daa3489713d22473",
+      "bytes": 390130,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13237991320,
+      "name": "nested-terminal-ps7-pipe",
+      "sha256": "74ab7f81337af89a3a78b2cfaf49359a47af2e31854533f726a75eb65dc50e92",
+      "bytes": 12129629,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13237027696,
+      "name": "blueberry-benchmark-probes-windows-x64",
+      "sha256": "e78e175a090f660fdcc579e1e0986ff10ab6cafbacab75dfd60718f1fa162f74",
+      "bytes": 2504748,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13236831133,
+      "name": "psreadline-upstream-2.4.5",
+      "sha256": "e38237d4e5f0eb6a3cb1eb7ba216f74414bc601899c5b8f545ef623649582edd",
+      "bytes": 171048,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13236777042,
+      "name": "concurrent-store-windows",
+      "sha256": "af40e7ec40bfc1cee07a2ceea23ded0206f6e0f19192994c17838ffce9594875",
+      "bytes": 206539,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13236292784,
+      "name": "input-protocol-fixed-conpty",
+      "sha256": "02d73f36797e014640f8a58e006deea3b4c4be2da7b470049248b1a76b3f63f2",
+      "bytes": 286117,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13235953028,
+      "name": "psreadline-upstream-2.0.0",
+      "sha256": "36630cb4ddbcd890c4e486479ff2ad9ae987c22089225cd356baf881577a96a9",
+      "bytes": 70106,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13235799188,
+      "name": "nested-terminal-ps7-osc",
+      "sha256": "4e80850a81927f4a009f4a0aa340b11a4565c27df4ad0c0492bba8ceeaa697f5",
+      "bytes": 8235080,
+      "expires_at": "2027-02-01T13:52:49Z",
+      "download_digest_verified": true
+    },
+    {
+      "id": 13240763161,
+      "name": "review-stability-775731c3bb7802e76a7abaafdd56e4dd52f1d251",
+      "sha256": "c431200b510bf551571e3b3e07aa382135a6439444760229a082b63d09821a2d",
+      "bytes": 3871090,
+      "expires_at": "2027-02-01T14:50:24Z",
+      "download_digest_verified": true
+    }
+  ],
+  "baseline_package_sha256": "734bf7f7853178445c5e52e928a6e14cc4eaf0e58f30bf18deb875d4436d22ee",
+  "baseline_executable_sha256": "b305766edd2a3147aaabdc0f50bc642f6feda49cf2b41378e226bfa2907439f7",
+  "candidate_package": {
+    "artifact_id": 13239461681,
+    "filename": "dist/ci/blueberry-v0.5.3-windows-x64.zip",
+    "sha256": "9ece0056f76df0e3c7b39c32a3c771424f153d2134153f8f868e19eb439857e3",
+    "executable_sha256": "5e25dc8b05312408deab53eca3d60e11e34eeb7ff6b6ef06c5e0a4b2454b28b8",
+    "validated_payload_files": 28,
+    "manifest": {
+      "schema_version": 1,
+      "product": "Blueberry",
+      "name": "Blueberry",
+      "version": "0.5.3",
+      "package_kind": "core",
+      "platform": "windows-x64",
+      "architecture": "x64",
+      "executable": "blueberry.exe",
+      "signed": false,
+      "signature_status": "unsigned",
+      "release_notes": "RELEASE-NOTES.md",
+      "license_notices": "THIRD-PARTY-NOTICES.txt",
+      "license_source": "provided",
+      "performance_artifacts": [],
+      "files": [
+        {
+          "path": "blueberry-terminal.cmd",
+          "sha256": "39570841D85D5BF2784F6374FE3D01A10F367F6CEAF47A228A70E32CAA23FDBA",
+          "bytes": 607
+        },
+        {
+          "path": "blueberry.exe",
+          "sha256": "5E25DC8B05312408DEAB53ECA3D60E11E34EEB7FF6B6EF06C5E0A4B2454B28B8",
+          "bytes": 10463744
+        },
+        {
+          "path": "config.example.toml",
+          "sha256": "78CD9671999D4DF941166B990AADBEF8974F706B8904E29D61F201087E09091F",
+          "bytes": 1872
+        },
+        {
+          "path": "docs/installation.md",
+          "sha256": "970A45AEDCF7136F928FD95D0D22E9D129FFB103B017BCC5EB7F417E1D153E75",
+          "bytes": 6771
+        },
+        {
+          "path": "docs/powershell-adapter.md",
+          "sha256": "4C88F0F5483EF95621850C4133820453C08057B1CED58EE739FD348798C9C6D6",
+          "bytes": 13653
+        },
+        {
+          "path": "docs/releasing.md",
+          "sha256": "8F9B0828A50A1883E3EF6DDFC342706F5CCB262422AEB210889558645F7438AF",
+          "bytes": 17054
+        },
+        {
+          "path": "docs/specifications.md",
+          "sha256": "87F135C6B813B111E6735648DFED15F986C4057966C6EB9A79801BFEF3F05FC2",
+          "bytes": 8723
+        },
+        {
+          "path": "install-common.ps1",
+          "sha256": "4859A364BDA51721B814917C36FB42BB75C32DC49C6CABFC663A3BB297A43B52",
+          "bytes": 4467
+        },
+        {
+          "path": "install.ps1",
+          "sha256": "0DC22A9FC8CC445DE40F95E115B0E88282574FD9BE860B727BA12D71464C70B8",
+          "bytes": 17833
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "2FEB9979C41260E08EC02DFEC79AD2F0A4421E9C2531F6E6DAF461CB5E4B5DCE",
+          "bytes": 1080
+        },
+        {
+          "path": "manage-install.ps1",
+          "sha256": "34EE76BCD86B7B647DBE5DAEA6E940FC379C1F9490EA830C8A4C91D7ADC04052",
+          "bytes": 100079
+        },
+        {
+          "path": "README.md",
+          "sha256": "B182256745C0AD3CA31FF418BF86245EDF1B9EA5C290EC8849F0A1368F11C932",
+          "bytes": 13509
+        },
+        {
+          "path": "RELEASE-NOTES.md",
+          "sha256": "15BE2060DB680B7271D4F0322EF04A594B58D979BAFBB7C798E2BB0E44688627",
+          "bytes": 2307
+        },
+        {
+          "path": "specs/builtin/_catalog.toml",
+          "sha256": "ADB0EF55F71D17822B143D2544E58EB509198446AF5C06E5F3537E5981995D47",
+          "bytes": 3148
+        },
+        {
+          "path": "specs/builtin/build.toml",
+          "sha256": "7F9BC10FB679E5F32F7F2F4B4701D8B88FF6CBDC0BC7328695AC9FA7F798C34B",
+          "bytes": 6614
+        },
+        {
+          "path": "specs/builtin/cloud_database.toml",
+          "sha256": "310D9C8A9F8FC5118AF509D2FD4EB7859484DEBC13B6DCE247A68523DFF5CC84",
+          "bytes": 16778
+        },
+        {
+          "path": "specs/builtin/containers.toml",
+          "sha256": "93C755B6F95360B2657E58CB8AF85EACCAFA41D8F291CE9344BB6646013FBFF8",
+          "bytes": 63887
+        },
+        {
+          "path": "specs/builtin/core.toml",
+          "sha256": "0E68DE5264B5E850E749E2904286544FA356C5BA4D27C8F8787448CAFF755813",
+          "bytes": 41437
+        },
+        {
+          "path": "specs/builtin/devops.toml",
+          "sha256": "D2379DF2A357F0C029223695D438A4C98FD8C934CC249C99CBF3075D80258AB4",
+          "bytes": 42494
+        },
+        {
+          "path": "specs/builtin/javascript.toml",
+          "sha256": "FD52177988B4235EC9C7D497589EEF201B05186B379AD2CCF2437CF7143C4776",
+          "bytes": 32264
+        },
+        {
+          "path": "specs/builtin/python.toml",
+          "sha256": "C9EA34968CCB22323E409C2DBF872B5DE80EB2E6C7FFC5278F9A8A3AEDCDFADB",
+          "bytes": 7203
+        },
+        {
+          "path": "specs/builtin/remote.toml",
+          "sha256": "60260F280BBFDAB8C1C0F776AC66FF6EC3F039FFA378327EFB11A2C96F58D582",
+          "bytes": 1071
+        },
+        {
+          "path": "specs/builtin/rust.toml",
+          "sha256": "8FBC1BCA0CE0F66D3D39A3DC08AF114AC24DACDA9F8AC8685C322028D062701C",
+          "bytes": 34735
+        },
+        {
+          "path": "specs/builtin/vcs.toml",
+          "sha256": "0126794BE697CA16ECFC945922FBFD3EB376FE53651D13C0DFE727867E6657DD",
+          "bytes": 163593
+        },
+        {
+          "path": "specs/builtin/windows.toml",
+          "sha256": "E2FFA09B3027FD6A7507D787FF90568FD99E5A098D46EAD2E6750FD4620F477F",
+          "bytes": 27955
+        },
+        {
+          "path": "specs/tools.toml",
+          "sha256": "4782027B3251B6CD66C6C94ADF29B5B0DBEBB9F58ADBD71FD7564C9F27FB8D16",
+          "bytes": 12393
+        },
+        {
+          "path": "THIRD-PARTY-NOTICES.txt",
+          "sha256": "C373D99BCCC58FA55136584A5C97DA0E05BAC059FDFADC0A7F1F48894458545A",
+          "bytes": 954764
+        },
+        {
+          "path": "VERSION.txt",
+          "sha256": "733744B8577F69E657F39E4C0BB7A8542859FAFBD8006B8E4FA0936D58EDD80B",
+          "bytes": 58
+        }
+      ],
+      "build": {
+        "allocation_diagnostics": false,
+        "commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+        "companion_overlay_interface": 4,
+        "conpty": {
+          "architecture": "x86_64",
+          "files": [
+            {
+              "member": "runtimes/win-x64/native/conpty.dll",
+              "path": "conpty.dll",
+              "sha256": "feeef341d891643c62d30b6b07800bc70f0bc148f44cb8c3bee84aa557ae805a"
+            },
+            {
+              "member": "build/native/runtimes/x64/OpenConsole.exe",
+              "path": "OpenConsole.exe",
+              "sha256": "3d66b23d0a71bb8eed2b77edc8b9df9bf54ce6c8fb74c863a30e760997f80586"
+            }
+          ],
+          "input_wakeup_fix": "https://github.com/microsoft/terminal/pull/18816",
+          "license": "MIT",
+          "package": "Microsoft.Windows.Console.ConPTY",
+          "sha256": "02b07b349af66d801159bdf9e440d4a1ce78bb951f37fc8609731665afdae7ee",
+          "source": "https://github.com/microsoft/terminal",
+          "url": "https://api.nuget.org/v3-flatcontainer/microsoft.windows.console.conpty/1.25.260930003/microsoft.windows.console.conpty.1.25.260930003.nupkg",
+          "version": "1.25.260930003"
+        },
+        "default_host_mode": "direct",
+        "dirty": false,
+        "private_editors": {
+          "files": [
+            {
+              "path": "License.txt",
+              "sha256": "2c679724a13cec8a7589034b5725c749a304cef4a8ce4dc474f508095e627f4b",
+              "version": "2.0.0"
+            },
+            {
+              "path": "Microsoft.PowerShell.PSReadLine2.dll",
+              "sha256": "340378e696f8a295a4c97cc34391da0a73c857907e1be4dfb6d82504a1df754d",
+              "version": "2.0.0"
+            },
+            {
+              "path": "PSReadLine.format.ps1xml",
+              "sha256": "da79d15c91edd0559d70dbcda76f9b41ef1b17a141d137a485027971a08df1bb",
+              "version": "2.0.0"
+            },
+            {
+              "path": "PSReadLine.psd1",
+              "sha256": "8da4596d105078a4d6d5ae64ddf433fd7a538acea8c253df2945612bc0c98dd7",
+              "version": "2.0.0"
+            },
+            {
+              "path": "PSReadLine.psm1",
+              "sha256": "98c2733e43ffe148378f645b5626e585578fcfd04fcc2fcb443ba61d54430912",
+              "version": "2.0.0"
+            },
+            {
+              "path": "RUNTIME-LICENSE.txt",
+              "sha256": "b7d43d08f59637129c482c63dcd4811077101ac41cc763b3b58490137f741977",
+              "version": "2.0.0"
+            },
+            {
+              "path": "RUNTIME-NOTICES.txt",
+              "sha256": "fd880d29a522f238c178452b38cbf196bb5c0dab7ebfdc590b02b8e5019ebc71",
+              "version": "2.0.0"
+            },
+            {
+              "path": "System.Runtime.InteropServices.RuntimeInformation.dll",
+              "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8",
+              "version": "2.0.0"
+            },
+            {
+              "path": "License.txt",
+              "sha256": "577273b040bdddb01b02768d9ad07fcb40415479fc2e65c8287294c6abf56de6",
+              "version": "2.4.5"
+            },
+            {
+              "path": "Microsoft.PowerShell.Pager.dll",
+              "sha256": "451994c3d3e38d939b4fa5f8594d0207840f45e7a210aa75f81aef85aa17c592",
+              "version": "2.4.5"
+            },
+            {
+              "path": "Microsoft.PowerShell.PSReadLine.dll",
+              "sha256": "8b959af8a7da419876692d7257dd4bb634015ea7a947808fe5435a62d8f7b1aa",
+              "version": "2.4.5"
+            },
+            {
+              "path": "net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+              "sha256": "aac6cf159cf12f89ed13a52651e0a2748c8e9f42ecb58a1f337efe69cbf850e3",
+              "version": "2.4.5"
+            },
+            {
+              "path": "netstd/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+              "sha256": "c40a1554fb74c6a1ef03289d6d5e0f5a0b84158fbe464bbc8b3fc0e6dd6771a6",
+              "version": "2.4.5"
+            },
+            {
+              "path": "Pager-LICENSE.txt",
+              "sha256": "ac40d0ffe53b81204451b78b6772b5bb53c5c9ea7d32f694596fae5b9150c9b9",
+              "version": "2.4.5"
+            },
+            {
+              "path": "PSReadLine.format.ps1xml",
+              "sha256": "9676711e5883b8aeea5affae7868c6b651e5250a132691ec26a6e94c79702e22",
+              "version": "2.4.5"
+            },
+            {
+              "path": "PSReadLine.psd1",
+              "sha256": "243b46505e5e0ed7d313d340d9c717b2a7bdd1a9e184b99d36d921e9d48cee02",
+              "version": "2.4.5"
+            },
+            {
+              "path": "PSReadLine.psm1",
+              "sha256": "ea065fe561207681b987eee788ac24e7d58c45daca310ff53ceeff01ceb86edd",
+              "version": "2.4.5"
+            }
+          ],
+          "patch": "blueberry-editor-v1.2",
+          "repository": "https://github.com/PowerShell/PSReadLine",
+          "versions": {
+            "2.0.0": {
+              "archive_sha256": "c9aff6362ce22db35ec400130c83c5120335bbc5b299953af3f5d28e5f1bf67c",
+              "commit": "6b5e9ff4bdfe15f67b3647e0d1ecdb6cf2e3bda6"
+            },
+            "2.4.5": {
+              "archive_sha256": "8762d55b7d3c5200694b591e36c9c97fea3282e979c938f0f547c4d69df88fd0",
+              "commit": "98d5610f7210924b79f553d982e10a9bd64dd52f"
+            }
+          }
+        },
+        "profile": "release",
+        "time_unix": 1793714546
+      }
+    }
+  },
+  "installation": {
+    "artifact_id": 13238548561,
+    "history_lengths": [
+      0,
+      1,
+      5
+    ],
+    "history_passed": true,
+    "public_0_5_2_upgrade_passed": true,
+    "package_sha256": "9ece0056f76df0e3c7b39c32a3c771424f153d2134153f8f868e19eb439857e3",
+    "storage_failures": [
+      {
+        "report": "storage-failures-07c9ddd5e18949d8be2d044af6ad85dd/results.json",
+        "steps": 14,
+        "all_expected_outcomes": true,
+        "report_sha256": "7248fb2c8fa54e4980eecadffc265b6f64583f217a32ff3955b583f7e359ceb9"
+      },
+      {
+        "report": "storage-failures-1bdadbd0a1f9432ab115518a7cc22c96/results.json",
+        "steps": 14,
+        "all_expected_outcomes": true,
+        "report_sha256": "85ae6ab1151456b5df2c36e982c91a77a2dd0f52b2ecbb67e7f3f92c06b7ca9f"
+      }
+    ]
+  },
+  "packaged_interaction": {
+    "standalone_ui": "passed",
+    "package_sha256": "9ECE0056F76DF0E3C7B39C32A3C771424F153D2134153F8F868E19EB439857E3",
+    "input_protocol": [
+      {
+        "status": "passed",
+        "workflows": 12,
+        "editor": "2.0.0",
+        "executable_sha256": "5E25DC8B05312408DEAB53ECA3D60E11E34EEB7FF6B6EF06C5E0A4B2454B28B8",
+        "workflow_trace": "disabled",
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      },
+      {
+        "status": "passed",
+        "workflows": 12,
+        "editor": "2.4.5",
+        "executable_sha256": "5E25DC8B05312408DEAB53ECA3D60E11E34EEB7FF6B6EF06C5E0A4B2454B28B8",
+        "workflow_trace": "disabled",
+        "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      },
+      {
+        "status": "passed",
+        "workflows": 12,
+        "editor": "2.4.5",
+        "executable_sha256": "5E25DC8B05312408DEAB53ECA3D60E11E34EEB7FF6B6EF06C5E0A4B2454B28B8",
+        "workflow_trace": "disabled",
+        "shell": "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+      }
+    ],
+    "executable_sha256": "5E25DC8B05312408DEAB53ECA3D60E11E34EEB7FF6B6EF06C5E0A4B2454B28B8"
+  },
+  "packaged_profile": [
+    {
+      "entry": "ps51-200-cold/startup.json",
+      "report_sha256": "88b6f60ad07e034370b477ccca5fc6ec8b27080ef94851b773a72b10c4699d47",
+      "source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "source_dirty": false,
+      "cache": "cold",
+      "p50_ms": 314.4502500000001,
+      "restored": true
+    },
+    {
+      "entry": "ps51-200-warm/startup.json",
+      "report_sha256": "8819f7e8cd2b1701e7ad8ea961b961c47766c3d2828d6bdc84efb17447391e96",
+      "source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "source_dirty": false,
+      "cache": "warm",
+      "p50_ms": 308.6596000000002,
+      "restored": true
+    },
+    {
+      "entry": "ps51-245-cold/startup.json",
+      "report_sha256": "3e7ea5cb51f206e65fad2166d7f2ce7cb26d603a45c7d86382db9150684e7193",
+      "source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "source_dirty": false,
+      "cache": "cold",
+      "p50_ms": 313.27935,
+      "restored": true
+    },
+    {
+      "entry": "ps51-245-warm/startup.json",
+      "report_sha256": "ee3a8b1847e4b0dbb2cd3fbf79dea5e641d17a0a0ea6ae4e3afd7db50dc2c2fb",
+      "source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "source_dirty": false,
+      "cache": "warm",
+      "p50_ms": 314.59924999999987,
+      "restored": true
+    },
+    {
+      "entry": "ps7-245-cold/startup.json",
+      "report_sha256": "6c1d50d57c625c29d185fec1925cd8053a952d515237b14897b65690f713942c",
+      "source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "source_dirty": false,
+      "cache": "cold",
+      "p50_ms": 394.79094999999984,
+      "restored": true
+    },
+    {
+      "entry": "ps7-245-warm/startup.json",
+      "report_sha256": "aac3b2fd66a238308108e86626a78fb2667a269a9a083eb66010f0caef91cd29",
+      "source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "source_dirty": false,
+      "cache": "warm",
+      "p50_ms": 382.8604,
+      "restored": true
+    }
+  ],
+  "formal_ab_ba": [
+    {
+      "artifact_id": 13243031381,
+      "name": "review-profile-ps7-245-9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "summary_sha256": "f258bf7303cd733bcc0e47e13fb194f4a02648a3c7138823197932d2e67cdf73",
+      "environment": {
+        "machine_id": "runnervmnjgfq",
+        "power_policy": "30CA4FDAE9453887C6DCE9DDA3D4815194FE1AD185D19C3369EEAEFE62088C78",
+        "power_policy_label": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)",
+        "terminal_rows": 30,
+        "terminal_columns": 120,
+        "shell_versions": [
+          "7.6.9"
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "actual_transports": [
+          "pipe"
+        ],
+        "actual_host_modes": [
+          "direct"
+        ],
+        "plain_editor_dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+        "baseline_source_commit": "8b97ebbc02d4b4908b060a939f418e1ac9d2507c",
+        "candidate_source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba"
+      },
+      "attempts": 121,
+      "invalid_attempts": [
+        {
+          "batch": 2,
+          "cache": "warm",
+          "attempt": 9,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "error": "Automatic profile entry probe failed.",
+          "profile_restoration_verified": true,
+          "logs": [
+            {
+              "path": "batch-2-warm-attempt-9/candidate.log",
+              "sha256": "05b683750dc6491ec37c4e3267ba75dd2da3ddfd34fd6a6ed5377b9d2f2a8fdc"
+            }
+          ],
+          "observed_failures": [
+            {
+              "outer_side": "candidate",
+              "message": "blueberry: actual product did not publish adapter status"
+            }
+          ]
+        }
+      ],
+      "schema": 1,
+      "batches": [
+        {
+          "invalid_pairs": 0,
+          "startup_target_met": false,
+          "startup_target_p50_ms": 50,
+          "valid_pairs": 30,
+          "cache": "cold",
+          "batch": 1,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "baseline": {
+                "median": 28.05845,
+                "p95": 35.6766,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 13.278999999999998,
+                "p95": 26.294900000000002,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 41.597950000000004,
+                "p95": 55.5407,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_prompt": {
+              "baseline": {
+                "median": 1919.9164,
+                "p95": 1942.224,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -3.234649999999988,
+                "p95": 33.723599999999806,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1910.0158000000001,
+                "p95": 1964.0070999999998,
+                "unit": "ms"
+              }
+            },
+            "complete_dynamic_candidates": {
+              "baseline": {
+                "median": 28.1428,
+                "p95": 35.7145,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 13.259249999999996,
+                "p95": 26.271900000000002,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 41.6606,
+                "p95": 55.6043,
+                "unit": "ms"
+              }
+            },
+            "first_visible_static_candidate": {
+              "baseline": {
+                "median": 47.7284,
+                "p95": 50.864,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 2.636400000000002,
+                "p95": 9.191299999999998,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 50.49795,
+                "p95": 55.1359,
+                "unit": "ms"
+              }
+            },
+            "paired_first_input_delta": {
+              "baseline": {
+                "median": 431.9152499999999,
+                "p95": 463.76409999999987,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 0.5681500000000597,
+                "p95": 47.550799999999754,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 435.02465000000007,
+                "p95": 476.6704,
+                "unit": "ms"
+              }
+            },
+            "complete_static_candidates": {
+              "baseline": {
+                "median": 48.14685,
+                "p95": 51.1371,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 90.2775,
+                "p95": 115.53599999999999,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 138.6018,
+                "p95": 162.5083,
+                "unit": "ms"
+              }
+            },
+            "first_key_echo": {
+              "baseline": {
+                "median": 35.08795,
+                "p95": 37.4924,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 2.4600500000000025,
+                "p95": 6.851300000000002,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 38.3394,
+                "p95": 40.7065,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_input": {
+              "baseline": {
+                "median": 1956.8225,
+                "p95": 1976.5966,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 0.4455499999997983,
+                "p95": 38.23979999999983,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1947.50375,
+                "p95": 2003.0022999999999,
+                "unit": "ms"
+              }
+            }
+          }
+        },
+        {
+          "invalid_pairs": 0,
+          "startup_target_met": false,
+          "startup_target_p50_ms": 50,
+          "valid_pairs": 30,
+          "cache": "warm",
+          "batch": 1,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "baseline": {
+                "median": 31.2637,
+                "p95": 36.0202,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 3.623400000000002,
+                "p95": 13.512300000000003,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 31.69985,
+                "p95": 42.972,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_prompt": {
+              "baseline": {
+                "median": 1913.12515,
+                "p95": 1972.614,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -4.449199999999905,
+                "p95": 29.047000000000025,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1912.5013,
+                "p95": 1929.95,
+                "unit": "ms"
+              }
+            },
+            "complete_dynamic_candidates": {
+              "baseline": {
+                "median": 31.3397,
+                "p95": 36.1015,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 3.622049999999996,
+                "p95": 13.499099999999999,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 31.776850000000003,
+                "p95": 43.0517,
+                "unit": "ms"
+              }
+            },
+            "first_visible_static_candidate": {
+              "baseline": {
+                "median": 50.0248,
+                "p95": 52.5053,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 6.410150000000002,
+                "p95": 12.0826,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 55.9933,
+                "p95": 60.6032,
+                "unit": "ms"
+              }
+            },
+            "paired_first_input_delta": {
+              "baseline": {
+                "median": 427.7954500000002,
+                "p95": 457.3348000000001,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 4.230600000000095,
+                "p95": 46.76240000000007,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 429.59759999999983,
+                "p95": 455.36699999999996,
+                "unit": "ms"
+              }
+            },
+            "complete_static_candidates": {
+              "baseline": {
+                "median": 50.4169,
+                "p95": 52.8388,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 277.387,
+                "p95": 315.8691,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 328.61025,
+                "p95": 370.1764,
+                "unit": "ms"
+              }
+            },
+            "first_key_echo": {
+              "baseline": {
+                "median": 35.99905,
+                "p95": 38.5528,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 0.7779500000000041,
+                "p95": 5.657400000000003,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 37.10535,
+                "p95": 40.2336,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_input": {
+              "baseline": {
+                "median": 1950.73295,
+                "p95": 2011.8799,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -1.7952999999999975,
+                "p95": 31.72109999999998,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1951.17585,
+                "p95": 1968.3944,
+                "unit": "ms"
+              }
+            }
+          }
+        },
+        {
+          "invalid_pairs": 0,
+          "startup_target_met": false,
+          "startup_target_p50_ms": 50,
+          "valid_pairs": 30,
+          "cache": "cold",
+          "batch": 2,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "baseline": {
+                "median": 28.1124,
+                "p95": 36.171099999999996,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 12.182399999999998,
+                "p95": 23.532100000000007,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 40.864000000000004,
+                "p95": 56.5761,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_prompt": {
+              "baseline": {
+                "median": 1907.62715,
+                "p95": 1950.2896999999998,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -5.907349999999951,
+                "p95": 33.52610000000004,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1908.23235,
+                "p95": 1931.1628,
+                "unit": "ms"
+              }
+            },
+            "complete_dynamic_candidates": {
+              "baseline": {
+                "median": 28.180349999999997,
+                "p95": 36.246599999999994,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 12.1767,
+                "p95": 23.525699999999993,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 40.929300000000005,
+                "p95": 56.6693,
+                "unit": "ms"
+              }
+            },
+            "first_visible_static_candidate": {
+              "baseline": {
+                "median": 47.4797,
+                "p95": 54.5768,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 1.090799999999998,
+                "p95": 7.830900000000007,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 49.2912,
+                "p95": 53.574,
+                "unit": "ms"
+              }
+            },
+            "paired_first_input_delta": {
+              "baseline": {
+                "median": 433.1313000000001,
+                "p95": 465.63170000000014,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -7.298900000000231,
+                "p95": 36.318700000000035,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 429.90649999999994,
+                "p95": 454.84799999999996,
+                "unit": "ms"
+              }
+            },
+            "complete_static_candidates": {
+              "baseline": {
+                "median": 47.872249999999994,
+                "p95": 54.8684,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 90.29240000000001,
+                "p95": 110.4166,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 136.9854,
+                "p95": 163.34689999999998,
+                "unit": "ms"
+              }
+            },
+            "first_key_echo": {
+              "baseline": {
+                "median": 36.31505,
+                "p95": 38.968500000000006,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 0.808449999999997,
+                "p95": 6.674799999999998,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 37.53,
+                "p95": 40.2235,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_input": {
+              "baseline": {
+                "median": 1942.85105,
+                "p95": 1988.1736,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -3.3590000000000373,
+                "p95": 34.34730000000013,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1944.27615,
+                "p95": 1969.7908,
+                "unit": "ms"
+              }
+            }
+          }
+        },
+        {
+          "invalid_pairs": 1,
+          "startup_target_met": false,
+          "startup_target_p50_ms": 50,
+          "valid_pairs": 30,
+          "cache": "warm",
+          "batch": 2,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "baseline": {
+                "median": 32.417950000000005,
+                "p95": 36.0,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 3.740549999999997,
+                "p95": 15.089799999999997,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 32.536,
+                "p95": 42.7564,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_prompt": {
+              "baseline": {
+                "median": 1908.6655999999998,
+                "p95": 1931.1127,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -1.6074500000000853,
+                "p95": 36.84259999999995,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1904.03265,
+                "p95": 1928.6156,
+                "unit": "ms"
+              }
+            },
+            "complete_dynamic_candidates": {
+              "baseline": {
+                "median": 32.49635,
+                "p95": 36.07599999999999,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 3.737499999999999,
+                "p95": 15.081200000000003,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 32.60965,
+                "p95": 42.83,
+                "unit": "ms"
+              }
+            },
+            "first_visible_static_candidate": {
+              "baseline": {
+                "median": 48.49995,
+                "p95": 54.6976,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 6.351700000000001,
+                "p95": 11.764800000000001,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 54.891,
+                "p95": 59.0158,
+                "unit": "ms"
+              }
+            },
+            "paired_first_input_delta": {
+              "baseline": {
+                "median": 422.38425000000007,
+                "p95": 457.88070000000016,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -2.5366500000000087,
+                "p95": 41.82120000000009,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 421.06809999999996,
+                "p95": 449.7201,
+                "unit": "ms"
+              }
+            },
+            "complete_static_candidates": {
+              "baseline": {
+                "median": 48.88495,
+                "p95": 55.0317,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 269.60395,
+                "p95": 305.87,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 318.94475,
+                "p95": 353.39300000000003,
+                "unit": "ms"
+              }
+            },
+            "first_key_echo": {
+              "baseline": {
+                "median": 34.969449999999995,
+                "p95": 37.3091,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": 2.0155999999999956,
+                "p95": 5.746899999999997,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 36.649249999999995,
+                "p95": 39.7818,
+                "unit": "ms"
+              }
+            },
+            "candidate_first_input": {
+              "baseline": {
+                "median": 1943.9792000000002,
+                "p95": 1967.0151,
+                "unit": "ms"
+              },
+              "candidate_minus_baseline": {
+                "median": -2.191400000000158,
+                "p95": 37.446100000000115,
+                "unit": "ms"
+              },
+              "candidate": {
+                "median": 1940.1639,
+                "p95": 1967.8988,
+                "unit": "ms"
+              }
+            }
+          }
+        }
+      ],
+      "executable_sha256": {
+        "baseline": "b305766edd2a3147aaabdc0f50bc642f6feda49cf2b41378e226bfa2907439f7",
+        "candidate": "5e25dc8b05312408deab53eca3d60e11e34eeb7ff6b6ef06c5e0a4b2454b28b8"
+      },
+      "formal": true,
+      "os_cache_cleared": false,
+      "observer_sha256": "5e25dc8b05312408deab53eca3d60e11e34eeb7ff6b6ef06c5e0a4b2454b28b8"
+    },
+    {
+      "artifact_id": 13242448561,
+      "name": "review-profile-ps51-245-9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "summary_sha256": "07cadce4faa33016b1d9d5fa02a70554d997c31f0c3f35ad40d6ddf243af657a",
+      "environment": {
+        "machine_id": "runnervmnjgfq",
+        "power_policy": "30CA4FDAE9453887C6DCE9DDA3D4815194FE1AD185D19C3369EEAEFE62088C78",
+        "power_policy_label": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)",
+        "terminal_rows": 30,
+        "terminal_columns": 120,
+        "shell_versions": [
+          "5.1.20348.5756"
+        ],
+        "psreadline_versions": [
+          "2.4.5"
+        ],
+        "actual_transports": [
+          "pipe"
+        ],
+        "actual_host_modes": [
+          "direct"
+        ],
+        "plain_editor_dll_sha256": "F8E3A5B7E3E8CAD2130CE10647564A2A0EA15D98DB8A0CC8D589F80154C108E2",
+        "baseline_source_commit": "8b97ebbc02d4b4908b060a939f418e1ac9d2507c",
+        "candidate_source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba"
+      },
+      "attempts": 120,
+      "invalid_attempts": [],
+      "os_cache_cleared": false,
+      "schema": 1,
+      "batches": [
+        {
+          "cache": "cold",
+          "invalid_pairs": 0,
+          "batch": 1,
+          "startup_target_p50_ms": 50,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 15.011499999999998,
+                "unit": "ms",
+                "median": 8.5232
+              },
+              "candidate": {
+                "p95": 41.914100000000005,
+                "unit": "ms",
+                "median": 35.600449999999995
+              },
+              "baseline": {
+                "p95": 30.1552,
+                "unit": "ms",
+                "median": 27.896250000000002
+              }
+            },
+            "first_key_echo": {
+              "candidate_minus_baseline": {
+                "p95": 10.083499999999994,
+                "unit": "ms",
+                "median": 3.1910000000000025
+              },
+              "candidate": {
+                "p95": 53.547200000000004,
+                "unit": "ms",
+                "median": 46.638
+              },
+              "baseline": {
+                "p95": 47.233,
+                "unit": "ms",
+                "median": 44.35365
+              }
+            },
+            "complete_static_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 76.92940000000002,
+                "unit": "ms",
+                "median": 55.531949999999995
+              },
+              "candidate": {
+                "p95": 138.41410000000002,
+                "unit": "ms",
+                "median": 113.49924999999999
+              },
+              "baseline": {
+                "p95": 62.1472,
+                "unit": "ms",
+                "median": 59.7577
+              }
+            },
+            "paired_first_input_delta": {
+              "candidate_minus_baseline": {
+                "p95": 55.943500000000085,
+                "unit": "ms",
+                "median": 0.3622500000000173
+              },
+              "candidate": {
+                "p95": 284.32450000000017,
+                "unit": "ms",
+                "median": 268.3387500000001
+              },
+              "baseline": {
+                "p95": 297.8882000000001,
+                "unit": "ms",
+                "median": 269.63654999999983
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 15.0089,
+                "unit": "ms",
+                "median": 8.517949999999999
+              },
+              "candidate": {
+                "p95": 42.0328,
+                "unit": "ms",
+                "median": 35.6781
+              },
+              "baseline": {
+                "p95": 30.2679,
+                "unit": "ms",
+                "median": 27.942999999999998
+              }
+            },
+            "candidate_first_input": {
+              "candidate_minus_baseline": {
+                "p95": 16.572200000000066,
+                "unit": "ms",
+                "median": -0.46384999999997945
+              },
+              "candidate": {
+                "p95": 1641.8415,
+                "unit": "ms",
+                "median": 1624.20995
+              },
+              "baseline": {
+                "p95": 1665.3878,
+                "unit": "ms",
+                "median": 1623.8016
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate_minus_baseline": {
+                "p95": 13.721100000000206,
+                "unit": "ms",
+                "median": -4.674949999999853
+              },
+              "candidate": {
+                "p95": 1594.0682000000002,
+                "unit": "ms",
+                "median": 1576.42445
+              },
+              "baseline": {
+                "p95": 1619.3492,
+                "unit": "ms",
+                "median": 1580.3701999999998
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 12.516299999999994,
+                "unit": "ms",
+                "median": 6.469049999999992
+              },
+              "candidate": {
+                "p95": 70.6442,
+                "unit": "ms",
+                "median": 63.98035
+              },
+              "baseline": {
+                "p95": 61.8991,
+                "unit": "ms",
+                "median": 59.433350000000004
+              }
+            }
+          },
+          "valid_pairs": 30,
+          "startup_target_met": false
+        },
+        {
+          "cache": "warm",
+          "invalid_pairs": 0,
+          "batch": 1,
+          "startup_target_p50_ms": 50,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 8.465400000000002,
+                "unit": "ms",
+                "median": 5.555850000000001
+              },
+              "candidate": {
+                "p95": 34.9931,
+                "unit": "ms",
+                "median": 31.795650000000002
+              },
+              "baseline": {
+                "p95": 29.654,
+                "unit": "ms",
+                "median": 26.119149999999998
+              }
+            },
+            "first_key_echo": {
+              "candidate_minus_baseline": {
+                "p95": 9.936399999999992,
+                "unit": "ms",
+                "median": 2.8244000000000042
+              },
+              "candidate": {
+                "p95": 50.888000000000005,
+                "unit": "ms",
+                "median": 46.6828
+              },
+              "baseline": {
+                "p95": 49.4208,
+                "unit": "ms",
+                "median": 43.4349
+              }
+            },
+            "complete_static_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 246.61339999999998,
+                "unit": "ms",
+                "median": 118.7152
+              },
+              "candidate": {
+                "p95": 303.5177,
+                "unit": "ms",
+                "median": 184.19955
+              },
+              "baseline": {
+                "p95": 74.6436,
+                "unit": "ms",
+                "median": 64.0575
+              }
+            },
+            "paired_first_input_delta": {
+              "candidate_minus_baseline": {
+                "p95": 20.80639999999994,
+                "unit": "ms",
+                "median": -0.9738999999998441
+              },
+              "candidate": {
+                "p95": 279.9595999999999,
+                "unit": "ms",
+                "median": 265.3814
+              },
+              "baseline": {
+                "p95": 279.57220000000007,
+                "unit": "ms",
+                "median": 267.22955000000013
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 8.459499999999995,
+                "unit": "ms",
+                "median": 5.55275
+              },
+              "candidate": {
+                "p95": 35.051199999999994,
+                "unit": "ms",
+                "median": 31.85405
+              },
+              "baseline": {
+                "p95": 29.7033,
+                "unit": "ms",
+                "median": 26.17205
+              }
+            },
+            "candidate_first_input": {
+              "candidate_minus_baseline": {
+                "p95": 21.853599999999915,
+                "unit": "ms",
+                "median": -1.3933499999999412
+              },
+              "candidate": {
+                "p95": 1656.5946000000001,
+                "unit": "ms",
+                "median": 1632.90105
+              },
+              "baseline": {
+                "p95": 1658.8018,
+                "unit": "ms",
+                "median": 1635.4966
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate_minus_baseline": {
+                "p95": 20.525399999999763,
+                "unit": "ms",
+                "median": -4.010449999999992
+              },
+              "candidate": {
+                "p95": 1611.3862000000001,
+                "unit": "ms",
+                "median": 1587.3088
+              },
+              "baseline": {
+                "p95": 1611.2741,
+                "unit": "ms",
+                "median": 1590.41945
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 22.477000000000004,
+                "unit": "ms",
+                "median": 3.2811500000000002
+              },
+              "candidate": {
+                "p95": 77.3831,
+                "unit": "ms",
+                "median": 70.562
+              },
+              "baseline": {
+                "p95": 74.1464,
+                "unit": "ms",
+                "median": 63.68235
+              }
+            }
+          },
+          "valid_pairs": 30,
+          "startup_target_met": false
+        },
+        {
+          "cache": "cold",
+          "invalid_pairs": 0,
+          "batch": 2,
+          "startup_target_p50_ms": 50,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 17.626800000000003,
+                "unit": "ms",
+                "median": 5.14875
+              },
+              "candidate": {
+                "p95": 44.0392,
+                "unit": "ms",
+                "median": 32.852999999999994
+              },
+              "baseline": {
+                "p95": 30.068399999999997,
+                "unit": "ms",
+                "median": 27.992449999999998
+              }
+            },
+            "first_key_echo": {
+              "candidate_minus_baseline": {
+                "p95": 7.523600000000009,
+                "unit": "ms",
+                "median": 2.8268500000000003
+              },
+              "candidate": {
+                "p95": 50.718399999999995,
+                "unit": "ms",
+                "median": 46.79445
+              },
+              "baseline": {
+                "p95": 46.7574,
+                "unit": "ms",
+                "median": 44.030100000000004
+              }
+            },
+            "complete_static_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 65.1352,
+                "unit": "ms",
+                "median": 54.32169999999999
+              },
+              "candidate": {
+                "p95": 125.80649999999999,
+                "unit": "ms",
+                "median": 112.82114999999999
+              },
+              "baseline": {
+                "p95": 61.8771,
+                "unit": "ms",
+                "median": 59.3789
+              }
+            },
+            "paired_first_input_delta": {
+              "candidate_minus_baseline": {
+                "p95": 33.16720000000009,
+                "unit": "ms",
+                "median": -0.10815000000002328
+              },
+              "candidate": {
+                "p95": 303.09770000000026,
+                "unit": "ms",
+                "median": 271.1572000000001
+              },
+              "baseline": {
+                "p95": 287.6858,
+                "unit": "ms",
+                "median": 273.1292000000002
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 17.654099999999996,
+                "unit": "ms",
+                "median": 5.117700000000001
+              },
+              "candidate": {
+                "p95": 44.096999999999994,
+                "unit": "ms",
+                "median": 32.910399999999996
+              },
+              "baseline": {
+                "p95": 30.1553,
+                "unit": "ms",
+                "median": 28.07345
+              }
+            },
+            "candidate_first_input": {
+              "candidate_minus_baseline": {
+                "p95": 29.249799999999823,
+                "unit": "ms",
+                "median": 0.888149999999996
+              },
+              "candidate": {
+                "p95": 1667.2711,
+                "unit": "ms",
+                "median": 1634.2911
+              },
+              "baseline": {
+                "p95": 1662.7155,
+                "unit": "ms",
+                "median": 1635.2020000000002
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate_minus_baseline": {
+                "p95": 24.451700000000073,
+                "unit": "ms",
+                "median": -2.8136499999999387
+              },
+              "candidate": {
+                "p95": 1618.0727,
+                "unit": "ms",
+                "median": 1586.88305
+              },
+              "baseline": {
+                "p95": 1621.5056,
+                "unit": "ms",
+                "median": 1590.6542
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 10.714100000000002,
+                "unit": "ms",
+                "median": 5.467099999999995
+              },
+              "candidate": {
+                "p95": 68.0157,
+                "unit": "ms",
+                "median": 64.3322
+              },
+              "baseline": {
+                "p95": 61.516099999999994,
+                "unit": "ms",
+                "median": 58.921800000000005
+              }
+            }
+          },
+          "valid_pairs": 30,
+          "startup_target_met": false
+        },
+        {
+          "cache": "warm",
+          "invalid_pairs": 0,
+          "batch": 2,
+          "startup_target_p50_ms": 50,
+          "metrics": {
+            "first_visible_dynamic_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 11.0732,
+                "unit": "ms",
+                "median": 5.8187
+              },
+              "candidate": {
+                "p95": 35.7115,
+                "unit": "ms",
+                "median": 32.6383
+              },
+              "baseline": {
+                "p95": 28.1806,
+                "unit": "ms",
+                "median": 25.83275
+              }
+            },
+            "first_key_echo": {
+              "candidate_minus_baseline": {
+                "p95": 8.591299999999997,
+                "unit": "ms",
+                "median": 3.9397999999999946
+              },
+              "candidate": {
+                "p95": 51.8682,
+                "unit": "ms",
+                "median": 46.785399999999996
+              },
+              "baseline": {
+                "p95": 47.29089999999999,
+                "unit": "ms",
+                "median": 43.848749999999995
+              }
+            },
+            "complete_static_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 234.0523,
+                "unit": "ms",
+                "median": 119.404
+              },
+              "candidate": {
+                "p95": 293.3728,
+                "unit": "ms",
+                "median": 182.8911
+              },
+              "baseline": {
+                "p95": 72.38329999999999,
+                "unit": "ms",
+                "median": 62.52935
+              }
+            },
+            "paired_first_input_delta": {
+              "candidate_minus_baseline": {
+                "p95": 28.02480000000014,
+                "unit": "ms",
+                "median": 0.6824999999998909
+              },
+              "candidate": {
+                "p95": 281.6874999999998,
+                "unit": "ms",
+                "median": 266.8053500000001
+              },
+              "baseline": {
+                "p95": 287.3599999999997,
+                "unit": "ms",
+                "median": 261.60159999999996
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate_minus_baseline": {
+                "p95": 11.0702,
+                "unit": "ms",
+                "median": 5.8146499999999985
+              },
+              "candidate": {
+                "p95": 35.7697,
+                "unit": "ms",
+                "median": 32.71125000000001
+              },
+              "baseline": {
+                "p95": 28.220200000000002,
+                "unit": "ms",
+                "median": 25.907449999999997
+              }
+            },
+            "candidate_first_input": {
+              "candidate_minus_baseline": {
+                "p95": 26.38240000000019,
+                "unit": "ms",
+                "median": 2.497349999999983
+              },
+              "candidate": {
+                "p95": 1649.0240000000001,
+                "unit": "ms",
+                "median": 1630.40625
+              },
+              "baseline": {
+                "p95": 1651.3610999999999,
+                "unit": "ms",
+                "median": 1630.738
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate_minus_baseline": {
+                "p95": 22.025199999999813,
+                "unit": "ms",
+                "median": -4.796699999999987
+              },
+              "candidate": {
+                "p95": 1603.8991999999998,
+                "unit": "ms",
+                "median": 1583.7264
+              },
+              "baseline": {
+                "p95": 1605.8509999999999,
+                "unit": "ms",
+                "median": 1587.0718
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate_minus_baseline": {
+                "p95": 20.879100000000008,
+                "unit": "ms",
+                "median": 6.437299999999993
+              },
+              "candidate": {
+                "p95": 79.9364,
+                "unit": "ms",
+                "median": 70.41784999999999
+              },
+              "baseline": {
+                "p95": 71.8827,
+                "unit": "ms",
+                "median": 62.2298
+              }
+            }
+          },
+          "valid_pairs": 30,
+          "startup_target_met": false
+        }
+      ],
+      "observer_sha256": "5e25dc8b05312408deab53eca3d60e11e34eeb7ff6b6ef06c5e0a4b2454b28b8",
+      "formal": true,
+      "executable_sha256": {
+        "baseline": "b305766edd2a3147aaabdc0f50bc642f6feda49cf2b41378e226bfa2907439f7",
+        "candidate": "5e25dc8b05312408deab53eca3d60e11e34eeb7ff6b6ef06c5e0a4b2454b28b8"
+      }
+    },
+    {
+      "artifact_id": 13242189517,
+      "name": "review-profile-ps51-200-9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+      "summary_sha256": "ea29b269c9fbf6290a23ff1a1de381b923733f14b7ab52a58479abdeab07d647",
+      "environment": {
+        "machine_id": "runnervmnjgfq",
+        "power_policy": "30CA4FDAE9453887C6DCE9DDA3D4815194FE1AD185D19C3369EEAEFE62088C78",
+        "power_policy_label": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)",
+        "terminal_rows": 30,
+        "terminal_columns": 120,
+        "shell_versions": [
+          "5.1.20348.5756"
+        ],
+        "psreadline_versions": [
+          "2.0.0"
+        ],
+        "actual_transports": [
+          "pipe"
+        ],
+        "actual_host_modes": [
+          "direct"
+        ],
+        "plain_editor_dll_sha256": "567E79982AC7C2BFF8924E6DCB9EA2742B5CB0C0F667DD0DB283910195CD3973",
+        "baseline_source_commit": "8b97ebbc02d4b4908b060a939f418e1ac9d2507c",
+        "candidate_source_commit": "9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba"
+      },
+      "attempts": 121,
+      "invalid_attempts": [
+        {
+          "batch": 1,
+          "cache": "warm",
+          "attempt": 7,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "error": "Automatic profile entry probe failed.",
+          "profile_restoration_verified": true,
+          "logs": [
+            {
+              "path": "batch-1-warm-attempt-7/baseline.log",
+              "sha256": "61a02bb612318d8cdbc12e944fac9e7b2242c61ee20ed33530b037a41dac13a7"
+            }
+          ],
+          "observed_failures": [
+            {
+              "outer_side": "baseline",
+              "message": "blueberry: pair 0, candidate: actual product did not publish adapter status"
+            }
+          ]
+        }
+      ],
+      "executable_sha256": {
+        "candidate": "5e25dc8b05312408deab53eca3d60e11e34eeb7ff6b6ef06c5e0a4b2454b28b8",
+        "baseline": "b305766edd2a3147aaabdc0f50bc642f6feda49cf2b41378e226bfa2907439f7"
+      },
+      "observer_sha256": "5e25dc8b05312408deab53eca3d60e11e34eeb7ff6b6ef06c5e0a4b2454b28b8",
+      "os_cache_cleared": false,
+      "batches": [
+        {
+          "startup_target_p50_ms": 50,
+          "startup_target_met": false,
+          "valid_pairs": 30,
+          "batch": 1,
+          "invalid_pairs": 0,
+          "metrics": {
+            "paired_first_input_delta": {
+              "candidate": {
+                "median": 207.07605,
+                "unit": "ms",
+                "p95": 230.1722000000002
+              },
+              "candidate_minus_baseline": {
+                "median": -8.192149999999856,
+                "unit": "ms",
+                "p95": 18.667599999999993
+              },
+              "baseline": {
+                "median": 215.80510000000015,
+                "unit": "ms",
+                "p95": 247.12639999999988
+              }
+            },
+            "first_visible_dynamic_candidate": {
+              "candidate": {
+                "median": 26.54655,
+                "unit": "ms",
+                "p95": 33.2061
+              },
+              "candidate_minus_baseline": {
+                "median": 2.8493000000000013,
+                "unit": "ms",
+                "p95": 9.401899999999998
+              },
+              "baseline": {
+                "median": 24.19645,
+                "unit": "ms",
+                "p95": 26.233800000000002
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate": {
+                "median": 1434.5317,
+                "unit": "ms",
+                "p95": 1671.0821
+              },
+              "candidate_minus_baseline": {
+                "median": -8.648549999999886,
+                "unit": "ms",
+                "p95": 6.605499999999893
+              },
+              "baseline": {
+                "median": 1443.9800500000001,
+                "unit": "ms",
+                "p95": 1497.8041
+              }
+            },
+            "candidate_first_input": {
+              "candidate": {
+                "median": 1465.2197,
+                "unit": "ms",
+                "p95": 1701.8016
+              },
+              "candidate_minus_baseline": {
+                "median": -6.549850000000106,
+                "unit": "ms",
+                "p95": 5.44829999999979
+              },
+              "baseline": {
+                "median": 1472.4077,
+                "unit": "ms",
+                "p95": 1525.2561999999998
+              }
+            },
+            "first_key_echo": {
+              "candidate": {
+                "median": 30.621499999999997,
+                "unit": "ms",
+                "p95": 33.2844
+              },
+              "candidate_minus_baseline": {
+                "median": 1.166549999999999,
+                "unit": "ms",
+                "p95": 5.944599999999998
+              },
+              "baseline": {
+                "median": 28.6403,
+                "unit": "ms",
+                "p95": 31.611800000000002
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate": {
+                "median": 26.62355,
+                "unit": "ms",
+                "p95": 33.2428
+              },
+              "candidate_minus_baseline": {
+                "median": 2.8484,
+                "unit": "ms",
+                "p95": 9.370600000000003
+              },
+              "baseline": {
+                "median": 24.2489,
+                "unit": "ms",
+                "p95": 26.2814
+              }
+            },
+            "complete_static_candidates": {
+              "candidate": {
+                "median": 90.7695,
+                "unit": "ms",
+                "p95": 106.4421
+              },
+              "candidate_minus_baseline": {
+                "median": 49.87855,
+                "unit": "ms",
+                "p95": 67.56139999999999
+              },
+              "baseline": {
+                "median": 40.1934,
+                "unit": "ms",
+                "p95": 60.5545
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate": {
+                "median": 42.228,
+                "unit": "ms",
+                "p95": 48.3243
+              },
+              "candidate_minus_baseline": {
+                "median": 2.4858499999999992,
+                "unit": "ms",
+                "p95": 8.698900000000002
+              },
+              "baseline": {
+                "median": 39.965,
+                "unit": "ms",
+                "p95": 60.3211
+              }
+            }
+          },
+          "cache": "cold"
+        },
+        {
+          "startup_target_p50_ms": 50,
+          "startup_target_met": false,
+          "valid_pairs": 30,
+          "batch": 1,
+          "invalid_pairs": 1,
+          "metrics": {
+            "paired_first_input_delta": {
+              "candidate": {
+                "median": 216.52064999999993,
+                "unit": "ms",
+                "p95": 262.8506000000002
+              },
+              "candidate_minus_baseline": {
+                "median": -5.877850000000308,
+                "unit": "ms",
+                "p95": 43.063300000000254
+              },
+              "baseline": {
+                "median": 222.45505000000003,
+                "unit": "ms",
+                "p95": 233.52330000000006
+              }
+            },
+            "first_visible_dynamic_candidate": {
+              "candidate": {
+                "median": 24.353250000000003,
+                "unit": "ms",
+                "p95": 25.8187
+              },
+              "candidate_minus_baseline": {
+                "median": 2.963050000000001,
+                "unit": "ms",
+                "p95": 6.243400000000001
+              },
+              "baseline": {
+                "median": 21.20865,
+                "unit": "ms",
+                "p95": 23.337699999999998
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate": {
+                "median": 1438.7165,
+                "unit": "ms",
+                "p95": 1480.9102
+              },
+              "candidate_minus_baseline": {
+                "median": -5.83400000000006,
+                "unit": "ms",
+                "p95": 42.020800000000236
+              },
+              "baseline": {
+                "median": 1443.2822,
+                "unit": "ms",
+                "p95": 1462.78
+              }
+            },
+            "candidate_first_input": {
+              "candidate": {
+                "median": 1468.4977,
+                "unit": "ms",
+                "p95": 1511.4722000000002
+              },
+              "candidate_minus_baseline": {
+                "median": -2.2970500000001266,
+                "unit": "ms",
+                "p95": 45.1242000000002
+              },
+              "baseline": {
+                "median": 1471.72595,
+                "unit": "ms",
+                "p95": 1490.643
+              }
+            },
+            "first_key_echo": {
+              "candidate": {
+                "median": 31.055100000000003,
+                "unit": "ms",
+                "p95": 35.208499999999994
+              },
+              "candidate_minus_baseline": {
+                "median": 2.3950499999999977,
+                "unit": "ms",
+                "p95": 7.933399999999999
+              },
+              "baseline": {
+                "median": 28.419249999999998,
+                "unit": "ms",
+                "p95": 30.912
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate": {
+                "median": 24.39745,
+                "unit": "ms",
+                "p95": 25.865
+              },
+              "candidate_minus_baseline": {
+                "median": 2.956950000000001,
+                "unit": "ms",
+                "p95": 6.242899999999999
+              },
+              "baseline": {
+                "median": 21.25695,
+                "unit": "ms",
+                "p95": 23.3871
+              }
+            },
+            "complete_static_candidates": {
+              "candidate": {
+                "median": 162.94754999999998,
+                "unit": "ms",
+                "p95": 198.2509
+              },
+              "candidate_minus_baseline": {
+                "median": 122.9203,
+                "unit": "ms",
+                "p95": 156.9025
+              },
+              "baseline": {
+                "median": 39.7114,
+                "unit": "ms",
+                "p95": 42.9514
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate": {
+                "median": 42.53830000000001,
+                "unit": "ms",
+                "p95": 50.0351
+              },
+              "candidate_minus_baseline": {
+                "median": 2.81935,
+                "unit": "ms",
+                "p95": 11.375500000000002
+              },
+              "baseline": {
+                "median": 39.499849999999995,
+                "unit": "ms",
+                "p95": 42.738400000000006
+              }
+            }
+          },
+          "cache": "warm"
+        },
+        {
+          "startup_target_p50_ms": 50,
+          "startup_target_met": false,
+          "valid_pairs": 30,
+          "batch": 2,
+          "invalid_pairs": 0,
+          "metrics": {
+            "paired_first_input_delta": {
+              "candidate": {
+                "median": 210.07900000000006,
+                "unit": "ms",
+                "p95": 237.98140000000012
+              },
+              "candidate_minus_baseline": {
+                "median": -2.9608500000000504,
+                "unit": "ms",
+                "p95": 22.56820000000016
+              },
+              "baseline": {
+                "median": 215.25220000000002,
+                "unit": "ms",
+                "p95": 270.7709000000002
+              }
+            },
+            "first_visible_dynamic_candidate": {
+              "candidate": {
+                "median": 26.639400000000002,
+                "unit": "ms",
+                "p95": 37.7476
+              },
+              "candidate_minus_baseline": {
+                "median": 3.552900000000001,
+                "unit": "ms",
+                "p95": 13.816300000000002
+              },
+              "baseline": {
+                "median": 23.410800000000002,
+                "unit": "ms",
+                "p95": 25.2666
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate": {
+                "median": 1433.90675,
+                "unit": "ms",
+                "p95": 1469.1228
+              },
+              "candidate_minus_baseline": {
+                "median": -7.62214999999992,
+                "unit": "ms",
+                "p95": 25.936600000000226
+              },
+              "baseline": {
+                "median": 1441.649,
+                "unit": "ms",
+                "p95": 1497.8302999999999
+              }
+            },
+            "candidate_first_input": {
+              "candidate": {
+                "median": 1465.3342000000002,
+                "unit": "ms",
+                "p95": 1497.4977000000001
+              },
+              "candidate_minus_baseline": {
+                "median": -5.949999999999932,
+                "unit": "ms",
+                "p95": 22.24720000000002
+              },
+              "baseline": {
+                "median": 1471.2307,
+                "unit": "ms",
+                "p95": 1528.6081
+              }
+            },
+            "first_key_echo": {
+              "candidate": {
+                "median": 30.20015,
+                "unit": "ms",
+                "p95": 33.9061
+              },
+              "candidate_minus_baseline": {
+                "median": 2.436449999999999,
+                "unit": "ms",
+                "p95": 7.134700000000002
+              },
+              "baseline": {
+                "median": 28.39985,
+                "unit": "ms",
+                "p95": 31.8858
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate": {
+                "median": 26.6863,
+                "unit": "ms",
+                "p95": 37.8031
+              },
+              "candidate_minus_baseline": {
+                "median": 3.5648999999999997,
+                "unit": "ms",
+                "p95": 13.845799999999997
+              },
+              "baseline": {
+                "median": 23.45075,
+                "unit": "ms",
+                "p95": 25.2854
+              }
+            },
+            "complete_static_candidates": {
+              "candidate": {
+                "median": 88.8129,
+                "unit": "ms",
+                "p95": 111.3037
+              },
+              "candidate_minus_baseline": {
+                "median": 49.03294999999999,
+                "unit": "ms",
+                "p95": 67.5159
+              },
+              "baseline": {
+                "median": 39.88565,
+                "unit": "ms",
+                "p95": 48.86709999999999
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate": {
+                "median": 42.420199999999994,
+                "unit": "ms",
+                "p95": 47.0353
+              },
+              "candidate_minus_baseline": {
+                "median": 2.0382500000000086,
+                "unit": "ms",
+                "p95": 8.8658
+              },
+              "baseline": {
+                "median": 39.689750000000004,
+                "unit": "ms",
+                "p95": 48.6778
+              }
+            }
+          },
+          "cache": "cold"
+        },
+        {
+          "startup_target_p50_ms": 50,
+          "startup_target_met": false,
+          "valid_pairs": 30,
+          "batch": 2,
+          "invalid_pairs": 0,
+          "metrics": {
+            "paired_first_input_delta": {
+              "candidate": {
+                "median": 214.62279999999998,
+                "unit": "ms",
+                "p95": 236.1547999999998
+              },
+              "candidate_minus_baseline": {
+                "median": -5.872250000000008,
+                "unit": "ms",
+                "p95": 25.570200000000114
+              },
+              "baseline": {
+                "median": 223.5612000000001,
+                "unit": "ms",
+                "p95": 247.298
+              }
+            },
+            "first_visible_dynamic_candidate": {
+              "candidate": {
+                "median": 24.0704,
+                "unit": "ms",
+                "p95": 26.1558
+              },
+              "candidate_minus_baseline": {
+                "median": 3.2300499999999985,
+                "unit": "ms",
+                "p95": 5.2551999999999985
+              },
+              "baseline": {
+                "median": 20.963250000000002,
+                "unit": "ms",
+                "p95": 22.9147
+              }
+            },
+            "candidate_first_prompt": {
+              "candidate": {
+                "median": 1439.2305000000001,
+                "unit": "ms",
+                "p95": 1458.7476
+              },
+              "candidate_minus_baseline": {
+                "median": -5.7370500000000675,
+                "unit": "ms",
+                "p95": 17.082600000000184
+              },
+              "baseline": {
+                "median": 1444.6178,
+                "unit": "ms",
+                "p95": 1462.4832
+              }
+            },
+            "candidate_first_input": {
+              "candidate": {
+                "median": 1469.59265,
+                "unit": "ms",
+                "p95": 1491.7193
+              },
+              "candidate_minus_baseline": {
+                "median": -4.600550000000112,
+                "unit": "ms",
+                "p95": 17.74220000000014
+              },
+              "baseline": {
+                "median": 1474.0212,
+                "unit": "ms",
+                "p95": 1493.9882
+              }
+            },
+            "first_key_echo": {
+              "candidate": {
+                "median": 30.67755,
+                "unit": "ms",
+                "p95": 33.6175
+              },
+              "candidate_minus_baseline": {
+                "median": 1.5040999999999958,
+                "unit": "ms",
+                "p95": 6.043699999999998
+              },
+              "baseline": {
+                "median": 29.687150000000003,
+                "unit": "ms",
+                "p95": 31.366999999999997
+              }
+            },
+            "complete_dynamic_candidates": {
+              "candidate": {
+                "median": 24.115949999999998,
+                "unit": "ms",
+                "p95": 26.201900000000002
+              },
+              "candidate_minus_baseline": {
+                "median": 3.2234,
+                "unit": "ms",
+                "p95": 5.253300000000003
+              },
+              "baseline": {
+                "median": 21.00925,
+                "unit": "ms",
+                "p95": 22.959600000000002
+              }
+            },
+            "complete_static_candidates": {
+              "candidate": {
+                "median": 165.48155000000003,
+                "unit": "ms",
+                "p95": 189.9863
+              },
+              "candidate_minus_baseline": {
+                "median": 124.47525,
+                "unit": "ms",
+                "p95": 152.2861
+              },
+              "baseline": {
+                "median": 40.7217,
+                "unit": "ms",
+                "p95": 42.3442
+              }
+            },
+            "first_visible_static_candidate": {
+              "candidate": {
+                "median": 42.0717,
+                "unit": "ms",
+                "p95": 46.6423
+              },
+              "candidate_minus_baseline": {
+                "median": 2.1832499999999975,
+                "unit": "ms",
+                "p95": 6.100300000000004
+              },
+              "baseline": {
+                "median": 40.46095,
+                "unit": "ms",
+                "p95": 42.154900000000005
+              }
+            }
+          },
+          "cache": "warm"
+        }
+      ],
+      "schema": 1,
+      "formal": true
+    }
+  ],
+  "historical_stability": [
+    {
+      "case": "ps7-osc-resize",
+      "passed": true,
+      "repetitions": 15,
+      "trace_disabled": "0",
+      "verified_individual_runs": 15,
+      "log_sha256": "f9f7044022fd62f0cf153ffc256478cd08cf98bbbe3470bac10f562676a030e6"
+    },
+    {
+      "case": "ps7-osc-resize",
+      "passed": true,
+      "repetitions": 15,
+      "trace_disabled": "1",
+      "verified_individual_runs": 15,
+      "log_sha256": "953c8f7e418571335feced6d1951139755c034eb4329b0f1ffea46dbe40c87d9"
+    },
+    {
+      "case": "ps51-navigation",
+      "passed": true,
+      "repetitions": 15,
+      "trace_disabled": "0",
+      "verified_individual_runs": 15,
+      "log_sha256": "8b570fb5a39b7760de355eda7f2eb2c2c8dec732ffb671b739c82d4fcd53d1ac"
+    },
+    {
+      "case": "ps51-navigation",
+      "passed": true,
+      "repetitions": 15,
+      "trace_disabled": "1",
+      "verified_individual_runs": 15,
+      "log_sha256": "21f3563c2a6934e113cd6599f23260323135af8c2a8db44cd18ccd17bea9bc25"
+    }
+  ],
+  "observation_limits": [
+    "GitHub-hosted Windows ConPTY receive timestamps; physical screen pixels are not measured",
+    "Cold/warm refers to isolated Blueberry metadata caches; OS caches are not cleared",
+    "Timing differences are reported without claiming an optimization unless both batches support it"
+  ],
+  "remaining_risks": [
+    "Historical PS7/OSC resize and PS5.1/2.4.5 navigation root causes remain unresolved despite repeated passing checks",
+    "Earlier isolated Nested Unicode navigation timeout remains unattributed; later reruns passed",
+    "Invalid timing attempts include missing adapter status after complete-menu observation on both published baseline and candidate. Probe reads the asynchronously published status immediately; an observation race is possible but not proven. Invalid attempts were retained, excluded and rerun; detailed failure-time scratch state was not captured."
+  ],
+  "public_release_and_existing_user_installation": "unchanged",
+  "reproduce": [
+    "gh workflow run ci.yml --repo Drtxdt/Blueberry --ref codex/review-hardening -f review_profile_ab=true",
+    "gh workflow run ci.yml --repo Drtxdt/Blueberry --ref codex/review-hardening -f review_stability_only=true -f review_source_ref=9d88a9448ebda1f2c6f58e39f00c0d69e2dccdba",
+    "gh run download 41648304986 --repo Drtxdt/Blueberry --dir artifacts/review-hardening/remote-evidence",
+    "gh run download 41657649158 --repo Drtxdt/Blueberry --dir artifacts/review-hardening/remote-stability",
+    "Verify downloaded artifact archive SHA-256 against the Actions artifact digest before inspecting reports"
+  ]
+}

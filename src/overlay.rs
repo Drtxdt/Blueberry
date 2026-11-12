@@ -197,7 +197,13 @@ impl Overlay {
         config: &Config,
         state: menu::MenuState,
     ) -> io::Result<()> {
-        if candidates.is_empty() || screen.alternate_screen() {
+        let status_only = candidates.is_empty();
+        if (status_only
+            && !state.incomplete
+            && state.diagnostic.is_none()
+            && state.argument_hint.is_none_or(str::is_empty))
+            || screen.alternate_screen()
+        {
             return self.erase(screen, output);
         }
         let (rows, cols) = screen.size();
@@ -210,7 +216,7 @@ impl Overlay {
             return self.erase(screen, output);
         }
         let (cursor_row, cursor_col) = screen.cursor_position();
-        if rows < 4 || cols < 8 {
+        if rows < if status_only { 1 } else { 4 } || cols < if status_only { 2 } else { 8 } {
             return self.erase(screen, output);
         }
         let menu_row = self.menu_row.unwrap_or(cursor_row + 1).max(cursor_row + 1);
@@ -221,7 +227,7 @@ impl Overlay {
         } else {
             below
         };
-        if available < 3 {
+        if available < if status_only { 1 } else { 3 } {
             return self.erase(screen, output);
         }
         let mut config = Config {
@@ -524,6 +530,41 @@ fn owned_console_rows(painted: &Painted, size: (u16, u16), resized: bool) -> (u1
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn status_only_frame_uses_one_row_and_clears_when_complete() {
+        let mut shell = vt100::Parser::new(2, 12, 0);
+        shell.process("中文输入".as_bytes());
+        let mut overlay = Overlay::default();
+        let mut output = Vec::new();
+        overlay
+            .draw_with_state(
+                shell.screen(),
+                &mut output,
+                &[],
+                0,
+                "",
+                &Config::default(),
+                menu::MenuState {
+                    incomplete: true,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert!(overlay.frame_visible());
+        assert_eq!(overlay.painted.as_ref().unwrap().frame.lines.len(), 1);
+        overlay
+            .draw_with_state(
+                shell.screen(),
+                &mut output,
+                &[],
+                0,
+                "",
+                &Config::default(),
+                menu::MenuState::default(),
+            )
+            .unwrap();
+        assert!(!overlay.frame_visible());
+    }
     #[test]
     fn resizing_through_a_wide_character_keeps_the_parser_writable() {
         for alternate in [false, true] {

@@ -15,6 +15,19 @@ struct Inner {
     start: Instant,
     writer: Mutex<BufWriter<File>>,
 }
+
+/// Same clock used by .NET Stopwatch and the Windows terminal observer.
+pub fn qpc_now() -> Option<i64> {
+    #[cfg(windows)]
+    {
+        crate::latency_layers::qpc().ok()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
 impl Trace {
     pub fn open(path: Option<&Path>) -> Result<Self> {
         let Some(path) = path else {
@@ -36,6 +49,15 @@ impl Trace {
     pub fn enabled(&self) -> bool {
         self.0.is_some()
     }
+    pub fn mark(&self, stage: &'static str) {
+        if self.enabled() {
+            if let Some(qpc) = qpc_now() {
+                self.point(stage, None, None, qpc);
+            } else {
+                self.event(stage, None, None, None);
+            }
+        }
+    }
     pub fn event(
         &self,
         event: &'static str,
@@ -43,11 +65,24 @@ impl Trace {
         duration: Option<Duration>,
         count: Option<usize>,
     ) {
+        self.frame_event(event, revision, None, duration, count);
+    }
+    pub fn frame_event(
+        &self,
+        event: &'static str,
+        revision: Option<u64>,
+        frame: Option<u64>,
+        duration: Option<Duration>,
+        count: Option<usize>,
+    ) {
         let Some(inner) = &self.0 else {
             return;
         };
-        let data = json!({"event":event,"elapsed_ms":inner.start.elapsed().as_secs_f64()*1000.0,
+        let mut data = json!({"event":event,"elapsed_ms":inner.start.elapsed().as_secs_f64()*1000.0,
             "revision":revision,"duration_ms":duration.map(|d|d.as_secs_f64()*1000.0),"count":count});
+        if let Some(frame) = frame {
+            data["frame_id"] = frame.into();
+        }
         if let Ok(mut writer) = inner.writer.lock() {
             let _ = writeln!(writer, "{data}");
         }

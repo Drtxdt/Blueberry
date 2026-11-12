@@ -986,6 +986,12 @@ fn direct_runtime_builtin_rebinding_takes_priority_over_menu_accept() -> Result<
 #[test]
 fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<()> {
     let dir = direct_fixture()?;
+    let tools = dir.path().join("profile tools");
+    std::fs::create_dir_all(&tools)?;
+    std::fs::write(
+        tools.join("bb-profile-executable.cmd"),
+        "@echo PROFILE-TOOL\r\n",
+    )?;
     let user = dir.path().join("user profile");
     for edition in ["PowerShell", "WindowsPowerShell"] {
         let documents = user.join("Documents").join(edition);
@@ -994,6 +1000,7 @@ fn direct_file_entry_runs_profile_once_and_preserves_profile_state() -> Result<(
             documents.join("Microsoft.PowerShell_profile.ps1"),
             r#"
 $global:BlueberryProfileCount++
+$env:PATH = $env:BLUEBERRY_PROFILE_TOOL_PATH + ";" + $env:PATH
 function global:bb-profile-function { 'PROFILE-FUNCTION' }
 Set-Alias -Name bb-profile-alias -Value bb-profile-function -Scope Global
 Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock { [Microsoft.PowerShell.PSConsoleReadLine]::Insert('PROFILE_BINDING') }
@@ -1026,6 +1033,10 @@ $global:LASTEXITCODE = 37
             ("BLUEBERRY_NO_HISTORY".into(), "1".into()),
             ("USERPROFILE".into(), user.to_string_lossy().into_owned()),
             (
+                "BLUEBERRY_PROFILE_TOOL_PATH".into(),
+                tools.to_string_lossy().into_owned(),
+            ),
+            (
                 "APPDATA".into(),
                 dir.path().join("roaming").to_string_lossy().into_owned(),
             ),
@@ -1034,6 +1045,9 @@ $global:LASTEXITCODE = 37
         String::new(),
     )?;
     wait_editor_begin(&mut h, &data, 1)?;
+    h.send_text("bb-profile-executabl")?;
+    h.wait_text("bb-profile-executable", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
     h.send_text("bb-profile-functio")?;
     h.wait_text("bb-profile-function", TIMEOUT)?;
     h.send(b"\x01\x7fbb-profile-alia")?;
@@ -1745,9 +1759,36 @@ fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result
             let steps = if delay == 0 { 10 } else { 3 };
             let mut burst = b"\x1b[B".repeat(steps);
             burst.push(b'\t');
+            let begin = blueberry::trace::qpc_now().context("missing burst clock")?;
             h.send(&burst)?;
-            h.wait_text(&format!("Get-ChildItem .\\nav-{steps:02}.txt"), TIMEOUT)?;
+            let accepted = h.wait_text(&format!("Get-ChildItem .\\nav-{steps:02}.txt"), TIMEOUT);
+            let end = blueberry::trace::qpc_now().context("missing burst clock")?;
+            std::fs::write(
+                dir.path().join("burst-window.json"),
+                serde_json::to_vec(&serde_json::json!(
+                    {"begin_qpc":begin, "end_qpc":end, "down_keys":steps, "tab":true, "frame_delay_ms":delay}
+                ))?,
+            )?;
+            accepted?;
             let trace = std::fs::read_to_string(dir.path().join("trace.jsonl"))?;
+            // Join the editor's synchronous write and host queue delay by the
+            // exact acknowledged frame. No hardware-dependent time threshold.
+            let events = trace
+                .lines()
+                .map(serde_json::from_str)
+                .collect::<Result<Vec<serde_json::Value>, _>>()?;
+            ensure!(
+                events
+                    .iter()
+                    .any(|send| send["event"] == "direct_presented_send"
+                        && send["duration_ms"].is_number()
+                        && events.iter().any(|received| received["event"]
+                            == "direct_presented_queue"
+                            && received["revision"] == send["revision"]
+                            && received["frame_id"] == send["frame_id"]
+                            && received["count"].is_u64())),
+                "no correlated presented acknowledgement in navigation burst"
+            );
             ensure!(
                 trace
                     .lines()
@@ -1760,11 +1801,17 @@ fn direct_path_navigation_stays_selected_and_orders_burst_acceptance() -> Result
         })();
         if let Err(error) = result {
             let _ = h.save_evidence(dir.path());
+            let _ =
+                console_snapshot::capture(&mut h, &dir.path().join("burst-failure-screen.json"));
             let _ = h.stop();
             return Err(error).with_context(|| {
                 format!("path navigation delay {delay}: {}", dir.keep().display())
             });
         }
+        println!(
+            "navigation burst delay {delay}: {}",
+            dir.path().join("trace.jsonl").display()
+        );
     }
     Ok(())
 }
@@ -2427,6 +2474,27 @@ fn unmatched_editor_manual_completion_preserves_native_editing() -> Result<()> {
     h.send(b"\r")?;
     h.wait_line("MANUAL-EDIT-OK", TIMEOUT)
         .context("post acceptance edit")?;
+    // The inherited PATH may contain unreadable directories. Use one known
+    // readable directory so this asserts completed-empty rather than failure.
+    h.send_text("$env:PATH=(Get-Location).Path; Write-Output 'EMPTY-PATH-READY'\r")?;
+    wait_output_line(&mut h, "EMPTY-PATH-READY")?;
+    h.send_text("zzz-manual-empty")?;
+    h.send(b"\x1b[17~")?;
+    h.wait_text("没有匹配的候选", TIMEOUT)?;
+    // A status row yields text editing back to the original editor binding.
+    h.send_text("X")?;
+    h.wait_text("zzz-manual-emptyX", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
+    // Register a real native completer. Tab on a path-error status must reach
+    // PSReadLine, even though Blueberry has just painted a visible row.
+    h.send_text("function Test-BerryPath($Path) {}; Register-ArgumentCompleter -CommandName Test-BerryPath -ParameterName Path -ScriptBlock { 'NATIVE_PATH_OK' }; Write-Output 'COMPLETER-READY'\r")?;
+    wait_output_line(&mut h, "COMPLETER-READY")?;
+    h.send_text("Test-BerryPath ./missing-dir/value")?;
+    h.send(b"\x1b[17~")?;
+    h.wait_text("无法读取目录", TIMEOUT)?;
+    h.send(b"\t")?;
+    h.wait_text("Test-BerryPath NATIVE_PATH_OK", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
     h.send(b"\x1b[18~")?;
     h.wait_text("工作台", TIMEOUT)
         .context("open manual workbench")?;
@@ -2718,5 +2786,58 @@ fn exercise_builtin_workflow_cases_untraced(
     }
     h.send_text("Write-Output 'UNTRACED-WORKFLOWS-OK'\r")?;
     wait_output_line(h, "UNTRACED-WORKFLOWS-OK")?;
+    h.finish(TIMEOUT)
+}
+
+#[test]
+fn direct_path_changes_are_visible_without_manual_refresh() -> Result<()> {
+    let dir = direct_fixture()?;
+    let tools = dir.path().join("custom tools");
+    std::fs::create_dir_all(&tools)?;
+    std::fs::write(tools.join("bb-env-custom.cmd"), "@echo ENV-CUSTOM\r\n")?;
+    let mut h = start(dir.path())?;
+    let quoted = tools.display().to_string().replace('\'', "''");
+    h.send_text(&format!(
+        "$env:PATH='{};' + $env:PATH; Write-Output 'ENV-ADDED'\r",
+        quoted
+    ))?;
+    wait_output_line(&mut h, "ENV-ADDED")?;
+    h.send_text("bb-env-custo")?;
+    h.wait_text("bb-env-custom", TIMEOUT)?;
+    h.send(b"\x01\x7f")?;
+    for (extension, present) in [(".EXE", false), (".CMD", true)] {
+        h.send_text(&format!(
+            "$env:PATHEXT='{extension}'; Write-Output 'EXT-{extension}'\r"
+        ))?;
+        wait_output_line(&mut h, &format!("EXT-{extension}"))?;
+        h.send_text("bb-env-custo")?;
+        if present {
+            wait_selected_path(&mut h, "bb-env-custom")?;
+        } else {
+            let deadline = std::time::Instant::now() + Duration::from_secs(2);
+            while std::time::Instant::now() < deadline {
+                let _ = h.pump(Duration::from_millis(10));
+            }
+            ensure!(
+                !selected_path(&h, "bb-env-custom"),
+                "PATHEXT removal left command selectable"
+            );
+        }
+        h.send(b"\x01\x7f")?;
+    }
+    h.send_text(&format!("$env:PATH=($env:PATH -split ';' | Where-Object {{ $_ -ne '{}' }}) -join ';'; Write-Output 'ENV-REMOVED'\r", quoted))?;
+    wait_output_line(&mut h, "ENV-REMOVED")?;
+    h.send_text("bb-env-custo")?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while std::time::Instant::now() < deadline {
+        let _ = h.pump(Duration::from_millis(10));
+    }
+    ensure!(
+        !h.viewport_contents()
+            .lines()
+            .any(|line| line.contains('›') && line.contains("bb-env-custom")),
+        "removed PATH command remained selectable"
+    );
+    h.send(b"\x01\x7f")?;
     h.finish(TIMEOUT)
 }

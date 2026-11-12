@@ -68,6 +68,8 @@ fn command_batch_matches(
 /// Keep a query and its visible frame separate: asynchronous results must not
 /// change which candidate an acceptance request identifies.
 struct Session {
+    presented_frame: Option<u64>,
+    manual: bool,
     revision: u64,
     line: String,
     cursor: usize,
@@ -94,6 +96,8 @@ use crate::workbench::Workbench;
 impl Session {
     fn new() -> Self {
         Self {
+            presented_frame: None,
+            manual: false,
             revision: 0,
             line: String::new(),
             cursor: 0,
@@ -125,6 +129,7 @@ impl Session {
             .context("missing confirmed cursor")?;
         let cursor =
             protocol::utf16_to_byte(line, cursor16 as usize).context("invalid UTF-16 cursor")?;
+        self.manual = value["manual"] == true;
         self.revision = revision;
         self.line = line.into();
         self.cursor = cursor;
@@ -200,10 +205,21 @@ impl Session {
             self.width.saturating_sub(1),
             settings,
             crate::menu::MenuState {
-                incomplete: completion.incomplete,
+                incomplete: completion.pending,
                 details: self.details,
                 searching: false,
-                diagnostic: self.ui.as_ref().and_then(|ui| ui.error.as_deref()),
+                diagnostic: self
+                    .ui
+                    .as_ref()
+                    .and_then(|ui| ui.error.as_deref())
+                    .or(completion.error.as_deref())
+                    .or_else(|| {
+                        (self.manual
+                            && !completion.pending
+                            && completion.candidates.is_empty()
+                            && completion.argument_hint.is_empty())
+                        .then_some("没有匹配的候选")
+                    }),
                 argument_hint: Some(&completion.argument_hint),
                 ..Default::default()
             },
@@ -214,8 +230,15 @@ impl Session {
         if let Some(candidate) = candidate.cloned() {
             self.visible
                 .push_back((self.frame, id.clone(), candidate, completion.clone()));
-            while self.visible.len() > 32 {
-                self.visible.pop_front();
+            // Preserve the editor's acknowledged frame while discovery can
+            // publish many newer frames. Bound unacknowledged traffic too.
+            while self.visible.len() > 4096 {
+                let discard = usize::from(
+                    self.visible
+                        .front()
+                        .is_some_and(|f| Some(f.0) == self.presented_frame),
+                );
+                self.visible.remove(discard);
             }
         }
         self.selected_id = (!id.is_empty()).then_some(id.clone());
@@ -225,6 +248,20 @@ impl Session {
             "lines":menu.lines, "width":menu.width, "tail_rows":tail_rows, "incomplete":completion.incomplete,
             "columns":self.width,"available_rows":self.available_rows,
             "interaction":if self.ui.as_ref().is_some_and(|ui|ui.form.is_some()) {"form"} else if self.ui.is_some() {"hub"} else {"completion"}})
+    }
+    fn presented(&mut self, value: &Value) {
+        if value["revision"].as_u64() != Some(self.revision) {
+            return;
+        }
+        if let Some(id) = value["frame_id"].as_u64()
+            && self.visible.iter().any(|(frame, identity, _, _)| {
+                *frame == id && value["candidate_id"].as_str() == Some(identity)
+            })
+            && self.presented_frame.is_none_or(|previous| id >= previous)
+        {
+            self.presented_frame = Some(id);
+            self.visible.retain(|(frame, _, _, _)| *frame >= id);
+        }
     }
     fn accept(&self, value: &Value, token: &str) -> Option<Value> {
         let requested_frame = value["frame_id"].as_u64()?;
@@ -510,16 +547,37 @@ pub fn run(options: RunOptions) -> Result<u32> {
         "direct host requires pipe transport; OSC is only supported by the nested host"
     );
     let _interrupts = ConsoleInterruptGuard::install()?;
-    let settings = config::load(options.config_path.as_deref())?;
-    let trace = Trace::open(options.trace_path.as_deref())?;
+    let trace = options.trace;
     if trace.enabled() {
         trace.point("direct_start", None, None, crate::latency_layers::qpc()?);
     }
+    let configuration_started = Instant::now();
+    let settings = config::load(options.config_path.as_deref())?;
+    trace.event(
+        "direct_config_load",
+        None,
+        Some(configuration_started.elapsed()),
+        None,
+    );
     let token = uuid::Uuid::new_v4().to_string();
     let directory = options.data_dir.join(&token);
     std::fs::create_dir_all(&directory)?;
+    let resources_started = Instant::now();
     let bootstrap = ensure_bootstrap(&std::env::temp_dir().join("blueberry-runtime"))?;
+    trace.event(
+        "direct_bootstrap_prepare",
+        None,
+        Some(resources_started.elapsed()),
+        None,
+    );
+    let editor_started = Instant::now();
     let editor = crate::editor::select(&options.shell, options.psreadline_version)?;
+    trace.event(
+        "direct_editor_prepare",
+        None,
+        Some(editor_started.elapsed()),
+        None,
+    );
     if trace.enabled() {
         trace.point(
             "direct_resources_ready",
@@ -555,6 +613,8 @@ pub fn run(options: RunOptions) -> Result<u32> {
             editor.as_ref().map(|e| e.manifest.as_path()),
         ))
         .env("BLUEBERRY_ACTIVE", "1")
+        .env_remove("BLUEBERRY_PROFILE_TRACE")
+        .env_remove("BLUEBERRY_PROFILE_HOOK_QPC")
         .env("BLUEBERRY_HOST_MODE", "direct")
         .env("BLUEBERRY_PIPE_NAME", pipe.name())
         .env("BLUEBERRY_TOKEN", &token)
@@ -625,7 +685,6 @@ pub fn run(options: RunOptions) -> Result<u32> {
     let mut command_complete = false;
     let mut system_generation = 1u64;
     let mut system_discovery = None;
-    worker.update(|w| w.started = true);
     let served = (|| -> Result<u32> {
         loop {
             if let Some(status) = child.try_wait()? {
@@ -644,6 +703,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
             let mut completion_event = None;
             match event {
                 Some(HostEvent::DirectMessage(value, arrived)) => {
+                    let queue_time = arrived.elapsed();
                     ensure!(
                         value["token"].as_str() == Some(&token),
                         "invalid direct session token"
@@ -658,7 +718,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
                     trace.event(
                         "direct_pipe_queue",
                         value["revision"].as_u64(),
-                        Some(arrived.elapsed()),
+                        Some(queue_time),
                         None,
                     );
                     if trace.enabled()
@@ -676,6 +736,20 @@ pub fn run(options: RunOptions) -> Result<u32> {
                         }
                     }
                     match value["event"].as_str() {
+                        Some("presented") if ready => {
+                            if trace.enabled()
+                                && let Some(frame) = value["frame_id"].as_u64()
+                            {
+                                trace.frame_event(
+                                    "direct_presented_queue",
+                                    value["revision"].as_u64(),
+                                    Some(frame),
+                                    Some(queue_time),
+                                    Some(session.frame.saturating_sub(frame) as usize),
+                                );
+                            }
+                            session.presented(&value);
+                        }
                         Some("trace_point") if ready && trace.enabled() => {
                             let Some(stage) = diagnostic_stage(&value) else {
                                 continue;
@@ -691,9 +765,10 @@ pub fn run(options: RunOptions) -> Result<u32> {
                             let Some(stage) = diagnostic_stage(&value) else {
                                 continue;
                             };
-                            trace.event(
+                            trace.frame_event(
                                 stage,
                                 value["revision"].as_u64(),
+                                value["frame_id"].as_u64(),
                                 value["duration_us"].as_u64().map(Duration::from_micros),
                                 value["count"].as_u64().map(|count| count as usize),
                             );
@@ -854,13 +929,51 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                         value["environment"].clone(),
                                     )
                                 {
-                                    if let (Some(path), Some(pathext)) =
-                                        (snapshot.get("PATH"), snapshot.get("PATHEXT"))
-                                    {
-                                        worker.update(|w| {
-                                            w.environment = Some((path.clone(), pathext.clone()))
-                                        });
+                                    if trace.enabled() {
+                                        if let Some(qpc) = value["snapshot_qpc"].as_i64() {
+                                            trace.point(
+                                                "child_environment_published",
+                                                Some(revision),
+                                                None,
+                                                qpc,
+                                            );
+                                        }
+                                        trace.point(
+                                            "direct_environment_received",
+                                            Some(revision),
+                                            None,
+                                            crate::latency_layers::qpc()?,
+                                        );
+                                        // Compare exact effective inputs without logging PATH or its entries.
+                                        let differs = |name: &str, fallback: &str| {
+                                            let parent = std::env::var(name)
+                                                .unwrap_or_else(|_| fallback.to_owned());
+                                            snapshot.get(name).map_or(fallback, String::as_str)
+                                                != parent
+                                        };
+                                        trace.event(
+                                            "index_environment_difference",
+                                            Some(revision),
+                                            None,
+                                            Some(
+                                                usize::from(differs("PATH", ""))
+                                                    | (usize::from(differs(
+                                                        "PATHEXT",
+                                                        ".COM;.EXE;.BAT;.CMD",
+                                                    )) << 1),
+                                            ),
+                                        );
                                     }
+                                    worker.update(|w| {
+                                        w.environment = Some((
+                                            snapshot.get("PATH").cloned().unwrap_or_default(),
+                                            snapshot
+                                                .get("PATHEXT")
+                                                .cloned()
+                                                .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into()),
+                                        ));
+                                        w.started = true;
+                                    });
                                     environment = Arc::new(snapshot);
                                 }
                             } else if let Some(line) = value["line"]
@@ -1481,5 +1594,80 @@ mod tests {
             );
         }
         assert_eq!(session.revision, 5);
+    }
+}
+
+#[cfg(test)]
+mod status_frame_tests {
+    use super::*;
+    #[test]
+    fn acknowledged_frame_survives_discovery_burst_and_old_ack_is_ignored() {
+        let mut session = Session::new();
+        session
+            .query(&json!({"revision":1,"line":"gi","cursor":2}))
+            .unwrap();
+        let config = Config::default();
+        let completion = Completion {
+            replace_end: 2,
+            candidates: vec![Candidate {
+                id: "git".into(),
+                label: "git".into(),
+                insert_text: "git".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let first = session.render(completion.clone(), &config, "test");
+        let ack = json!({"revision":1,"frame_id":first["frame_id"],"candidate_id":"git"});
+        // Acknowledgement itself can queue behind an initial scan burst.
+        for _ in 0..64 {
+            session.render(completion.clone(), &config, "test");
+        }
+        session.presented(&ack);
+        for _ in 0..4100 {
+            session.render(completion.clone(), &config, "test");
+        }
+        assert!(session.visible.len() <= 4096);
+        let accept = json!({"revision":1,"frame_id":first["frame_id"],"candidate_id":"git","line":"gi","cursor":2});
+        assert!(session.accept(&accept, "test").is_some());
+        let newest = session.render(completion, &config, "test");
+        session
+            .presented(&json!({"revision":1,"frame_id":newest["frame_id"],"candidate_id":"git"}));
+        session.presented(&ack);
+        assert_eq!(session.presented_frame, newest["frame_id"].as_u64());
+        assert_eq!(session.visible.len(), 1);
+    }
+    #[test]
+    fn status_frames_have_no_edit_identity_and_manual_empty_is_visible() {
+        let mut session = Session::new();
+        session.line = "unknown".into();
+        session.cursor = 7;
+        session.revision = 1;
+        let settings = Config::default();
+        let loading = session.render(
+            Completion {
+                pending: true,
+                incomplete: true,
+                ..Default::default()
+            },
+            &settings,
+            "test",
+        );
+        assert!(!loading["lines"].as_array().unwrap().is_empty());
+        assert_eq!(loading["candidate_id"], "");
+        assert!(session.visible.is_empty());
+        let accept = json!({"revision":1,"frame_id":loading["frame_id"],"candidate_id":"","line":"unknown","cursor":7});
+        assert!(session.accept(&accept, "test").is_none());
+        let empty = session.render(Completion::default(), &settings, "test");
+        assert!(empty["lines"].as_array().unwrap().is_empty());
+        session.manual = true;
+        let empty = session.render(Completion::default(), &settings, "test");
+        assert_eq!(empty["lines"].as_array().unwrap().len(), 1);
+        assert!(session.visible.is_empty());
+        let old: Completion = serde_json::from_str(
+            r#"{"replace_start":0,"replace_end":0,"candidates":[],"incomplete":true}"#,
+        )
+        .unwrap();
+        assert!(!old.pending && old.error.is_none());
     }
 }

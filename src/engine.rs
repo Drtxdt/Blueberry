@@ -122,6 +122,7 @@ pub struct Discovery {
     directory_index: usize,
     current: Option<DirectoryScan>,
     access_error: bool,
+    diagnostics: Vec<String>,
     done: bool,
 }
 
@@ -185,6 +186,7 @@ impl Discovery {
             directory_index: 0,
             current: None,
             access_error: false,
+            diagnostics: Vec::new(),
             done: false,
         }
     }
@@ -230,7 +232,15 @@ impl Discovery {
                     match inspect_executable(&entry, &self.extensions) {
                         EntryInspection::Candidate(candidate) => scan.found.push(candidate),
                         EntryInspection::Ignore => {}
-                        EntryInspection::AccessError => self.access_error = true,
+                        EntryInspection::AccessError => {
+                            self.access_error = true;
+                            if self.diagnostics.len() < 32 {
+                                self.diagnostics.push(format!(
+                                    "{}: executable metadata access failed",
+                                    entry.path().display()
+                                ));
+                            }
+                        }
                     }
                 }
                 Some(Err(error)) => {
@@ -239,8 +249,13 @@ impl Discovery {
                     // iterator error means the directory could not be fully
                     // enumerated and therefore must make the snapshot
                     // incomplete.
-                    let _ = error;
                     self.access_error = true;
+                    if self.diagnostics.len() < 32 {
+                        self.diagnostics.push(format!(
+                            "{}: {error}",
+                            self.directories[self.directory_index - 1].display()
+                        ));
+                    }
                 }
                 None => {
                     // EOF is the boundary at which the directory's sorted
@@ -277,6 +292,11 @@ impl Discovery {
         self.done && !self.access_error
     }
 
+    /// Bounded failure details for the existing diagnostic status file.
+    pub fn diagnostics(&self) -> &[String] {
+        &self.diagnostics
+    }
+
     fn begin_next_directory(&mut self) -> DirectoryStart {
         let Some(directory) = self.directories.get(self.directory_index).cloned() else {
             self.done = true;
@@ -292,6 +312,12 @@ impl Discovery {
             LinkStatus::Remote => return DirectoryStart::Skipped,
             LinkStatus::Inaccessible => {
                 self.access_error = true;
+                if self.diagnostics.len() < 32 {
+                    self.diagnostics.push(format!(
+                        "{}: PATH target access failed",
+                        directory.display()
+                    ));
+                }
                 return DirectoryStart::Skipped;
             }
             LinkStatus::Local | LinkStatus::Dangling => {}
@@ -312,6 +338,10 @@ impl Discovery {
                 // scan and cached.
                 if is_scan_access_error(&error) {
                     self.access_error = true;
+                    if self.diagnostics.len() < 32 {
+                        self.diagnostics
+                            .push(format!("{}: {error}", directory.display()));
+                    }
                 }
                 DirectoryStart::Skipped
             }
@@ -390,6 +420,12 @@ impl CommandIndex {
         if cache.context != context {
             bail!("command cache PATH/PATHEXT context is stale");
         }
+        // Older writers expanded explicit empty PATHEXT to the defaults.
+        if parse_pathext(OsStr::new(&cache.context.pathext)).is_empty()
+            && !cache.commands.is_empty()
+        {
+            bail!("command cache contains executables for an empty PATHEXT");
+        }
 
         let mut index = Self {
             entries: Vec::new(),
@@ -411,6 +447,14 @@ impl CommandIndex {
 
     /// Save an index as a complete file and atomically publish it.
     pub fn save(&self, path: &Path) -> Result<()> {
+        self.save_with_publish(path, replace_file)
+    }
+
+    pub(crate) fn save_with_publish(
+        &self,
+        path: &Path,
+        publish: impl FnOnce(&Path, &Path) -> io::Result<()>,
+    ) -> Result<()> {
         if !self.is_complete() {
             bail!("cannot persist an incomplete command discovery");
         }
@@ -457,7 +501,7 @@ impl CommandIndex {
             file.flush()?;
             file.sync_all()?;
             drop(file);
-            replace_file(&temporary, path)
+            publish(&temporary, path)
         })();
 
         if let Err(error) = write_result {
@@ -629,6 +673,8 @@ impl CommandIndex {
             candidates: Vec::new(),
             incomplete: !self.complete,
             argument_hint: String::new(),
+            pending: false,
+            error: None,
         };
         let effective_limit = limit.min(MAX_RESULTS);
         if effective_limit == 0 || context.suppressed {
@@ -1280,11 +1326,7 @@ fn parse_pathext(value: &OsStr) -> Vec<String> {
             result.push(extension);
         }
     }
-    if result.is_empty() {
-        parse_pathext(OsStr::new(DEFAULT_PATHEXT))
-    } else {
-        result
-    }
+    result
 }
 
 fn executable_stem(name: &str, extensions: &[String]) -> Option<(String, usize)> {

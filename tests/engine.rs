@@ -655,3 +655,60 @@ fn inline_choice_replaces_the_whole_option_and_preserves_context_override() {
     assert_eq!(replaced, "git status --ignored=matching");
     assert_eq!(selected.description, "显示匹配忽略规则的项目");
 }
+#[test]
+fn ordinary_non_directory_path_entry_is_not_a_scan_failure() {
+    let root = tempfile::tempdir().unwrap();
+    let invalid = root.path().join("not-a-directory");
+    std::fs::write(&invalid, b"file").unwrap();
+    let mut scan =
+        blueberry::engine::Discovery::new(invalid.as_os_str(), std::ffi::OsStr::new(".EXE"));
+    while !scan.step() {}
+    assert!(scan.is_complete());
+    assert!(scan.diagnostics().is_empty());
+    assert!(scan.snapshot().is_complete());
+}
+
+#[cfg(windows)]
+#[test]
+fn directory_sharing_failure_keeps_diagnostic_details_and_ends_scan() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let root = tempdir().unwrap();
+    let directory = root.path().join("locked-directory");
+    fs::create_dir(&directory).unwrap();
+    let _lock = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .custom_flags(0x02000000)
+        .open(&directory)
+        .unwrap(); // FILE_FLAG_BACKUP_SEMANTICS
+    assert!(fs::read_dir(&directory).is_err());
+    let mut scan = Discovery::new(directory.as_os_str(), std::ffi::OsStr::new(".EXE"));
+    while !scan.step() {}
+    assert!(!scan.is_complete());
+    assert!(
+        scan.diagnostics()
+            .iter()
+            .any(|detail| detail.contains("locked-directory"))
+    );
+}
+#[test]
+fn explicit_empty_pathext_is_preserved_in_discovery_and_cache() {
+    let root = tempdir().unwrap();
+    let tools = root.path().join("tools");
+    fs::create_dir(&tools).unwrap();
+    fs::write(tools.join("empty-ext-tool.exe"), b"").unwrap();
+    let path = tools.as_os_str();
+    let empty = std::ffi::OsStr::new("");
+    let index = CommandIndex::discover_with_env(path, empty);
+    assert!(index.is_complete());
+    assert_eq!(index.len(), 0);
+    let cache = root.path().join("commands.json");
+    index.save(&cache).unwrap();
+    assert!(CommandIndex::load_with_env(&cache, path, empty).is_ok());
+    let old = CommandIndex::discover_with_env(path, std::ffi::OsStr::new(".EXE"));
+    old.save(&cache).unwrap();
+    let mut record: Value = serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
+    record["context"]["pathext"] = Value::from("");
+    fs::write(&cache, serde_json::to_vec(&record).unwrap()).unwrap();
+    assert!(CommandIndex::load_with_env(&cache, path, empty).is_err());
+}

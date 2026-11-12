@@ -27,6 +27,8 @@ struct Directory {
 pub struct PathResult {
     pub candidates: Vec<Candidate>,
     pub incomplete: bool,
+    /// The requested location cannot be scanned. This is a final fallback
+    /// message for the user, not an outstanding discovery batch.
     pub diagnostic: Option<String>,
     pub scan_pending: bool,
 }

@@ -39,6 +39,34 @@ pub fn render_with_state(
     state: MenuState,
     available_rows: usize,
 ) -> MenuFrame {
+    if candidates.is_empty() {
+        let text = state
+            .diagnostic
+            .or_else(|| state.incomplete.then_some("正在加载…"))
+            .or(state.argument_hint.filter(|hint| !hint.is_empty()));
+        let Some(text) = text.filter(|_| available_rows > 0 && available_width > 0) else {
+            return MenuFrame {
+                lines: Vec::new(),
+                width: 0,
+            };
+        };
+        let width = available_width.min(if config.ui.width == 0 {
+            100
+        } else {
+            config.ui.width as u16
+        });
+        let mut text = truncate_to_width(&sanitize_text(text), usize::from(width));
+        text.push_str(&" ".repeat(usize::from(width).saturating_sub(display_width(&text))));
+        return MenuFrame {
+            lines: vec![paint_span(
+                &text,
+                FragmentRole::Description,
+                false,
+                &config.ui,
+            )],
+            width,
+        };
+    }
     let footer_rows = usize::from(config.ui.status_bar)
         + usize::from(state.searching)
         + usize::from(state.argument_hint.is_some_and(|s| !s.is_empty()))
@@ -1030,5 +1058,53 @@ mod tests {
         let plain = frame.lines.join("\n");
         assert!(plain.contains("正在加载"));
         assert!(plain.contains("F1 详情"));
+    }
+}
+
+#[cfg(test)]
+mod empty_state_tests {
+    use super::*;
+    #[test]
+    fn empty_status_is_bounded_and_never_a_candidate() {
+        let config = Config::default();
+        for width in [0, 1, 8, 80] {
+            for rows in [0, 1, 3] {
+                let frame = render_with_state(
+                    &[],
+                    0,
+                    "",
+                    width,
+                    &config,
+                    MenuState {
+                        incomplete: true,
+                        ..Default::default()
+                    },
+                    rows,
+                );
+                assert!(frame.lines.len() <= rows);
+                assert!(frame.width <= width);
+                if width > 0 && rows > 0 {
+                    assert!(!frame.lines.is_empty());
+                }
+            }
+        }
+        assert!(
+            render_with_state(&[], 0, "", 80, &config, MenuState::default(), 3)
+                .lines
+                .is_empty()
+        );
+        let failed = render_with_state(
+            &[],
+            0,
+            "",
+            80,
+            &config,
+            MenuState {
+                diagnostic: Some("目录读取失败"),
+                ..Default::default()
+            },
+            1,
+        );
+        assert_eq!(failed.lines.len(), 1);
     }
 }

@@ -20,6 +20,7 @@ case "direct_original_edit": return true;
 case "direct_confirmed_query_send": return true;
 case "direct_console_menu_output": return true;
 case "direct_frame_to_paint": return true;
+case "direct_presented_send": return true;
 default: return false; } }
 case "trace_point": {
 if(!value.ContainsKey("qpc") || !(value["qpc"] is long)) return false;

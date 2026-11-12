@@ -1,0 +1,285 @@
+{
+  "schema": 1,
+  "date": "2026-11-03",
+  "repository": "Drtxdt/Blueberry",
+  "branch": "codex/review-hardening",
+  "baseline_commit": "ab847c849a07faed37d59e9f9bb80839195b1d09",
+  "verification_commit": "d6b6626a247abe91533196cd72620be6a56c2193",
+  "candidate_build": {
+    "commit": "c907970c6ecee286a68620de05c9c4f011e7ca2e",
+    "dirty": false,
+    "profile": "release"
+  },
+  "candidate_executable": {
+    "path": "target/release/blueberry.exe",
+    "sha256": "17a0655dd6890a08a57aff7c51d3be3be7a3b8346a6893d9b6d82881da2566e9",
+    "bytes": 10586112
+  },
+  "baseline_package": {
+    "path": "artifacts/review-hardening/baseline/blueberry-v0.5.3-windows-x64.zip",
+    "sha256": "734bf7f7853178445c5e52e928a6e14cc4eaf0e58f30bf18deb875d4436d22ee",
+    "bytes": 4203523
+  },
+  "candidate_package": {
+    "path": "artifacts/review-hardening/package-delivery/blueberry-v0.5.3-windows-x64.zip",
+    "sha256": "4c40dd904082d76fd25982d0fe24f2c05c985cb48e728e715e52d4084c0b2814",
+    "bytes": 4230932
+  },
+  "all_required_validation_passed": false,
+  "implemented": [
+    "Wait for authoritative child-shell environment before Direct discovery; invalidate changed PATH/PATHEXT and cancel obsolete work/cache publication",
+    "Preserve explicit empty PATHEXT and reject old incorrectly populated empty-context caches",
+    "Separate pending, completed-empty and failed completion states; noninteractive shared status rows and native editing",
+    "Acknowledge displayed frames and retain their identities during discovery bursts, with bounded history",
+    "Keep bounded scan failure details in existing data-source diagnostics",
+    "Split provider collectors by tool family; extract shared worker for state-transition regressions",
+    "Add startup phase tracing, prompt/first-input/static/dynamic observations and separate large-PATH diagnostics",
+    "Add fast CI, release-receipt documentation checks and disposable-runner formal paired AB/BA workflow"
+  ],
+  "checks": {
+    "rustfmt": "passed",
+    "clippy_all_targets_locked_deny_warnings": "passed",
+    "core": {
+      "passed": 268,
+      "failed": 0,
+      "ignored": 2,
+      "groups": [
+        {
+          "passed": 172,
+          "failed": 0,
+          "ignored": 2
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0
+        }
+      ],
+      "log": "artifacts/review-hardening/core-verified.log"
+    },
+    "python": {
+      "run": 113,
+      "skipped": 1,
+      "failed": 0,
+      "log": "artifacts/review-hardening/python-tests.log"
+    },
+    "configuration_matrix_latest_observations": [
+      {
+        "shell_sha256": "60C9B29843624DD8AF6B6A7B26147753BE6AEEF65098B9A503CC50850AFE410F",
+        "lane": "direct",
+        "exit_code": 0,
+        "product_sha256": "D4FD3E7BD6C71429F717530B9874DD98DEBD314C513BCE2112133DC4D36362D3",
+        "module_sha256": "56B02111F8C59A67AA10A06C6DED3C014FBC4C0BEE485C51AB71D2D6D81C6D26",
+        "case": "ps51-200",
+        "source_commit": "a49a2e24b5ee01773d5eac71ba50e420c47c95cb",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-corrections\\ps51-200-direct.log",
+        "passed": true
+      },
+      {
+        "lane": "pipe",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps51-200-pipe.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps51-200"
+      },
+      {
+        "lane": "osc",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps51-200-osc.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps51-200"
+      },
+      {
+        "lane": "direct",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps51-245-direct.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps51-245"
+      },
+      {
+        "lane": "pipe",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps51-245-pipe.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps51-245"
+      },
+      {
+        "lane": "osc",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps51-245-osc.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps51-245"
+      },
+      {
+        "lane": "direct",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps7-245-direct.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps7-245"
+      },
+      {
+        "lane": "pipe",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps7-245-pipe.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps7-245"
+      },
+      {
+        "lane": "osc",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\matrix-frozen\\ps7-245-osc.log",
+        "exit_code": 0,
+        "passed": true,
+        "case": "ps7-245"
+      }
+    ],
+    "matrix_scope": "Matrix observations were gathered during implementation; corrected PS5.1/2.0 Direct rerun covers final product source. Later explicit-empty PATHEXT behavior has dedicated final engine/worker regressions. These are local functional results, not formal startup timing.",
+    "historical_stability": [
+      {
+        "repetitions": 15,
+        "passed": true,
+        "trace_disabled": "0",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\stability-delivery\\ps7-osc-resize-trace-disabled-0.log",
+        "case": "ps7-osc-resize"
+      },
+      {
+        "repetitions": 15,
+        "passed": true,
+        "trace_disabled": "1",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\stability-delivery\\ps7-osc-resize-trace-disabled-1.log",
+        "case": "ps7-osc-resize"
+      },
+      {
+        "repetitions": 15,
+        "passed": true,
+        "trace_disabled": "0",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\stability-delivery\\ps51-navigation-trace-disabled-0.log",
+        "case": "ps51-navigation"
+      },
+      {
+        "repetitions": 15,
+        "passed": true,
+        "trace_disabled": "1",
+        "log": "E:\\OpenSource\\shellsense-rs\\artifacts\\review-hardening\\stability-delivery\\ps51-navigation-trace-disabled-1.log",
+        "case": "ps51-navigation"
+      }
+    ],
+    "runtime_lifecycle": {
+      "immediate_exit_and_repeated_start": "passed for all three editor combinations; three starts each",
+      "disconnect": "passed in Direct matrix",
+      "cache_writer_exit_and_file_release": "passed",
+      "ps51_245_exit_log": "artifacts/review-hardening/startup-ps51-245-final.log"
+    },
+    "packaging_and_isolated_install_upgrade_rollback_uninstall": "passed",
+    "workflow_yaml_and_powershell_syntax": "passed",
+    "release_documentation_and_oversized_artifact_gates": "passed"
+  },
+  "performance": {
+    "normal_path_diagnostic": {
+      "diagnostic_only": true,
+      "batches": 39,
+      "scan_us": 14913,
+      "snapshot_us": 3138,
+      "module_inventory_us": [
+        25449,
+        24792,
+        25038,
+        25247,
+        24925
+      ]
+    },
+    "large_path_diagnostic": {
+      "directories": 128,
+      "commands": 8192,
+      "diagnostic_only": true,
+      "batches": 33,
+      "scan_us": 13104,
+      "snapshot_us": 37066,
+      "module_inventory_us": [
+        33469,
+        34486,
+        33619,
+        33149,
+        33320
+      ]
+    },
+    "startup_p50_target_ms": 50,
+    "startup_target_proven": false,
+    "optimization_claim": "None: diagnostics do not establish a repeatable startup improvement. Resource integrity and cache validation were retained.",
+    "formal_ab_ba": {
+      "status": "not_run",
+      "reason": "Requires the existing disposable GitHub-hosted Windows automatic-profile fixture; local user Profile was not modified",
+      "workflow": ".github/workflows/review-profile-ab.yml",
+      "entry": "Dispatch ci.yml with review_profile_ab=true after pushing the reviewed branch",
+      "required": "Three editor combinations, two batches, cold and warm caches, at least 30 valid balanced baseline/candidate pairs per group; retain and rerun invalid pairs"
+    }
+  },
+  "remaining": [
+    "Run full required Linux/macOS/Windows Actions checks and upload immutable Actions evidence; these jobs were preserved but not executed remotely in this session",
+    "Execute formal cold/warm AB/BA workflow; P50 <= 50 ms remains unproven",
+    "Historical PS7/OSC resize and PS5.1/2.4.5 navigation root causes remain unresolved despite 30 passing repetitions each",
+    "One earlier Nested Unicode navigation timeout remains unattributed: isolated candidate rerun passed, baseline comparison failed earlier in adapter handshake, subsequent full matrix passed",
+    "Frozen native history-observer and Windows-2025 native mouse jobs remain CI-only validation"
+  ],
+  "invalid_or_superseded_attempts": [
+    "Sandbox named-pipe/temp-directory access errors were superseded by unsandboxed real-pipe tests",
+    "Shared original-editor search root selected the wrong version; replaced by isolated roots",
+    "Artificially long RUNNER_TEMP path invalidated a prompt-layout fixture; rerun with the normal temporary root passed",
+    "Early navigation frame eviction was reproduced, diagnosed and fixed; 4100-frame deterministic regression passes",
+    "Status renderer initially hid argument hints; corrected and full Nested matrix passed",
+    "Manual empty fixture inherited unreadable PATH directories and correctly received an error; isolated readable PATH fixture passed",
+    "Non-directory PATH component is an ordinary skip; diagnostic regression now uses a real exclusive Windows directory handle",
+    "Concurrent cargo rebuild encountered an in-use Windows product EXE; final core/matrix/stability were sequenced"
+  ],
+  "raw_evidence_manifest": {
+    "path": "artifacts/review-hardening/evidence-manifest.json",
+    "sha256": "665c8bfc5705a71ea8400deb71839bbd33d01eae916223658091efea35d3c654",
+    "bytes": 18928
+  },
+  "selected_failure_evidence": {
+    "path": "artifacts/review-hardening/selected-failure-evidence.zip",
+    "sha256": "fc019f3747a4d0e5424741696ceb87ed891a8d90cc5c96a40f6542a808d310aa",
+    "bytes": 19085
+  },
+  "actions_artifacts": "Prepared workflow uploads evidence for 90 days; no remote upload has been performed",
+  "reproduce": [
+    "cargo fmt --all -- --check",
+    "cargo clippy --all-targets --locked -- -D warnings",
+    "cargo test --locked --lib --test engine --test providers --test cli --test specs --test knowledge --test commands_store --test direct_diagnostics --quiet -- --test-threads=1",
+    "python -m unittest discover -s tests -p test_*.py",
+    "pwsh -NoProfile -File scripts/verify-review-matrix.ps1 -ContinueOnFailure",
+    "pwsh -NoProfile -File scripts/verify-review-stability.ps1",
+    "pwsh -NoProfile -File scripts/test-release.ps1 -BlueberryExecutable target/release/blueberry.exe -PreviousExePath <verified-v0.5.3-exe> -KeepTemp",
+    "pwsh -NoProfile -File scripts/test-install-51.ps1 -PackagePath <isolated-candidate-zip>"
+  ],
+  "public_release_and_existing_user_installation": "unchanged"
+}

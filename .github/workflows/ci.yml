@@ -5,6 +5,18 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      review_profile_ab:
+        description: Run two formal cold/warm profile AB BA batches after all checks pass
+        type: boolean
+        default: false
+      review_stability_only:
+        description: Run the 60 review-hardening stability repetitions with dependency preparation
+        type: boolean
+        default: false
+      review_source_ref:
+        description: Frozen source ref for the isolated review stability run; empty uses workflow SHA
+        type: string
+        default: ''
       evidence_validation_only:
         description: Run only formatting and Python evidence-validator checks
         type: boolean
@@ -79,8 +91,48 @@ jobs:
       - name: Recheck evidence after upload
         shell: pwsh
         run: python scripts/verify-evidence-upload.py
+  review-profile-ab:
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.review_profile_ab) || (github.event_name == 'pull_request' && github.head_ref == 'codex/review-hardening') }}
+    needs: [format, core, powershell-51, powershell-7, native-mouse, package]
+    uses: ./.github/workflows/review-profile-ab.yml
+  pr-gate:
+    name: PR acceptance
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: [quick, format, core, powershell-51, powershell-7, native-mouse, package, review-profile-ab]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require successful functional, package and applicable review checks
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          REVIEW_MATRIX: ${{ github.head_ref == 'codex/review-hardening' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          for job, check in json.loads(os.environ["RESULTS"]).items():
+              expected = "skipped" if job == "review-profile-ab" and os.environ["REVIEW_MATRIX"] == "false" else "success"
+              if check["result"] != expected:
+                  raise SystemExit(f"{job}: {check['result']}, expected {expected}")
+          PY
+  review-stability:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.review_stability_only }}
+    uses: ./.github/workflows/review-profile-ab.yml
+    with:
+      stability_only: true
+      source_ref: ${{ inputs.review_source_ref }}
+  quick:
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --lib --locked -- -D warnings
+      - run: cargo test --locked --lib --test engine --test providers --quiet
+      - run: python3 scripts/check-release-docs.py
   format:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -96,7 +148,8 @@ jobs:
           BENCHMARK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python3 scripts/check-benchmark-artifacts.py --base "$BENCHMARK_BASE"
   core:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    needs: [quick]
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Core / ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -171,7 +224,8 @@ jobs:
           path: target/store-evidence
           if-no-files-found: ignore
   powershell-51:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    needs: [quick]
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Windows PowerShell 5.1 / PSReadLine ${{ matrix.psreadline }}
     runs-on: windows-2022
     strategy:
@@ -304,7 +358,8 @@ jobs:
             ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   powershell-7:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    needs: [quick]
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: PowerShell 7 / PSReadLine 2.4.5 / ${{ matrix.transport }}
     runs-on: windows-2022
     strategy:
@@ -404,7 +459,8 @@ jobs:
             ${{ runner.temp }}/blueberry-cache-probe-evidence
           if-no-files-found: ignore
   native-mouse:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    needs: [quick]
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     name: Native ConPTY mouse / windows-2025
     runs-on: windows-2025
     env:
@@ -463,7 +519,7 @@ jobs:
           path: target/input-protocol-evidence
           if-no-files-found: ignore
   package:
-    if: ${{ !inputs.evidence_manifest && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
+    if: ${{ !inputs.evidence_manifest && !inputs.review_stability_only && !inputs.stability_only && !inputs.startup_cache_only && !inputs.evidence_validation_only }}
     # Exercise packaging faults while long interaction repetitions run.
     # Final evidence still requires every functional job and this job to pass.
     needs: [format, core]

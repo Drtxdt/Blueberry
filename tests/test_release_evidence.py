@@ -559,6 +559,13 @@ esac
             with self.assertRaisesRegex(ValueError, error):
                 validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
+    @unittest.skipIf(validator.VERSION in validator.PERFORMANCE_WAIVERS, "Historical waiver applies")
+    def test_unapproved_candidate_cannot_reuse_last_performance_waiver(self):
+        self.evidence["performance_waiver"] = {"version": "0.5.3", "status": "deferred_by_user", "passed": False}
+        self.save_evidence()
+        with self.assertRaisesRegex(ValueError, "No performance waiver authorized"):
+            validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+
     @unittest.skipUnless(validator.VERSION in validator.PERFORMANCE_WAIVERS, "This release has no performance fallback")
     def test_performance_deferral_preserves_functional_and_identity_gates(self):
         self.evidence["performance_waiver"] = {
@@ -690,6 +697,10 @@ esac
         manual["user_trial_waiver"] = {"status": "waived_by_user", "version": validator.VERSION,
                                       "executed": False, "reason": "User explicitly skips target user trials for beta.7."}
         self.save_evidence()
+        if validator.VERSION not in validator.USER_TRIAL_WAIVERS:
+            with self.assertRaisesRegex(ValueError, "No user trial waiver"):
+                validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
+            return
         validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
         manual["windows_terminal"]["ime"] = False
         self.save_evidence()
@@ -701,7 +712,8 @@ esac
         manual["user_trials"] = []
         manual["user_trial_waiver"] = {"status": "passed", "version": validator.VERSION, "executed": False, "reason": "skipped"}
         self.save_evidence()
-        with self.assertRaisesRegex(ValueError, "explicitly record"):
+        reason = "explicitly record" if validator.VERSION in validator.USER_TRIAL_WAIVERS else "No user trial waiver"
+        with self.assertRaisesRegex(ValueError, reason):
             validator.verify(self.evidence_path, self.package, self.commit, self.beta6_package)
 
     def test_nested_32_ms_is_reported_without_failing_direct_gate(self):

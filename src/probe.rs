@@ -53,6 +53,8 @@ pub struct Harness {
     native: Option<Arc<Mutex<crate::native_observer::NativeObserver>>>,
     #[cfg(windows)]
     started_at: Instant,
+    #[cfg(windows)]
+    pub(crate) spawn_qpc: Option<i64>,
     last_output_arrival: Option<Instant>,
     last_output_qpc: Option<i64>,
     diagnostic: bool,
@@ -159,13 +161,15 @@ impl Harness {
     ) -> Result<Self> {
         #[cfg(windows)]
         let native = crate::native_observer::NativeObserver::configured(env)?;
+        let diagnostic = args.iter().any(|arg| arg == "--trace")
+            || env.get("BLUEBERRY_PROBE_QPC").is_some_and(|v| v == "1");
+        #[cfg(windows)]
+        let spawn_qpc = diagnostic.then(crate::latency_layers::qpc).transpose()?;
         #[cfg(windows)]
         let started_at = Instant::now();
         let mut session = pty::spawn(program, args, cwd, env, 30, 120)?;
         let mut reader = std::mem::replace(&mut session.reader, Box::new(std::io::empty()));
         let (send, receive) = mpsc::channel();
-        let diagnostic = args.iter().any(|arg| arg == "--trace")
-            || env.get("BLUEBERRY_PROBE_QPC").is_some_and(|v| v == "1");
         #[cfg(windows)]
         let native_reader = native.clone();
         thread::spawn(move || {
@@ -244,6 +248,8 @@ impl Harness {
             native,
             #[cfg(windows)]
             started_at,
+            #[cfg(windows)]
+            spawn_qpc,
         })
     }
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {

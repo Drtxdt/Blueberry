@@ -27,6 +27,7 @@ struct State {
     pending: Option<CommandIndex>,
     stopping: bool,
     busy: bool,
+    generation: u64,
     #[cfg(test)]
     waiters: Vec<Sender<()>>,
 }
@@ -46,6 +47,7 @@ impl CacheWriter {
                 pending: None,
                 stopping: false,
                 busy: false,
+                generation: 0,
                 #[cfg(test)]
                 waiters: Vec::new(),
             }),
@@ -79,6 +81,14 @@ impl CacheWriter {
         }
         state.pending = Some(index);
         self.shared.wake.notify_one();
+    }
+
+    /// Invalidate queued and in-flight snapshots before a new environment scan.
+    pub fn invalidate(&self) {
+        if let Ok(mut state) = self.shared.state.lock() {
+            state.generation = state.generation.wrapping_add(1);
+            state.pending = None;
+        }
     }
 
     #[cfg(test)]
@@ -123,7 +133,7 @@ fn writer_loop(path: PathBuf, trace: Trace, shared: Arc<Shared>, done: Sender<()
             loop {
                 if let Some(index) = state.pending.take() {
                     state.busy = true;
-                    break Some(index);
+                    break Some((index, state.generation));
                 }
                 if state.stopping {
                     signal_idle(&mut state);
@@ -137,12 +147,23 @@ fn writer_loop(path: PathBuf, trace: Trace, shared: Arc<Shared>, done: Sender<()
             }
         };
 
-        let Some(index) = index else {
+        let Some((index, generation)) = index else {
             break;
         };
 
         let started = Instant::now();
-        let success = index.save(&path).is_ok();
+        let success = index
+            .save_with_publish(&path, |temporary, destination| {
+                let state = shared
+                    .state
+                    .lock()
+                    .map_err(|_| std::io::Error::other("cache writer poisoned"))?;
+                if generation != state.generation {
+                    return Err(std::io::Error::other("superseded command index"));
+                }
+                crate::engine::replace_file(temporary, destination)
+            })
+            .is_ok();
         trace.event(
             "cache_write",
             None,
@@ -190,6 +211,43 @@ mod tests {
             CommandIndex::discover_with_env(&path, pathext.as_os_str()),
             path,
         )
+    }
+
+    #[test]
+    fn immediate_drop_drains_complete_cache_and_releases_the_file() {
+        let root = tempdir().unwrap();
+        let tools = root.path().join("tools");
+        fs::create_dir(&tools).unwrap();
+        let (index, path) = completed_index(&tools, "shutdown-command");
+        let cache = root.path().join("commands.json");
+        let writer = CacheWriter::new(cache.clone(), Trace::default());
+        writer.submit(index);
+        let started = Instant::now();
+        drop(writer);
+        assert!(started.elapsed() < Duration::from_secs(2));
+        CommandIndex::load_with_env(&cache, &path, OsString::from(".EXE").as_os_str()).unwrap();
+        fs::rename(&cache, root.path().join("retired-cache.json")).unwrap();
+    }
+
+    #[test]
+    fn cancelled_publication_preserves_existing_cache_and_removes_staging_file() {
+        let root = tempdir().unwrap();
+        let tools = root.path().join("tools");
+        fs::create_dir(&tools).unwrap();
+        let (index, path) = completed_index(&tools, "stable-command");
+        let cache = root.path().join("commands.json");
+        index.save(&cache).unwrap();
+        let original = fs::read(&cache).unwrap();
+        let result = index.save_with_publish(&cache, |_, _| {
+            Err(std::io::Error::other("superseded generation"))
+        });
+        assert!(result.is_err());
+        assert_eq!(fs::read(&cache).unwrap(), original);
+        assert!(
+            CommandIndex::load_with_env(&cache, &path, OsString::from(".EXE").as_os_str()).is_ok()
+        );
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 2);
+        fs::OpenOptions::new().write(true).open(&cache).unwrap();
     }
 
     #[test]
