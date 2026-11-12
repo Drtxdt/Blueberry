@@ -1463,6 +1463,23 @@ function Invoke-Rollback {
     if ($null -eq $selected) { throw '没有内容不同的上一版完整快照，无法回滚' }
     $selectedExe = $selected.files | Where-Object { $_.path -ieq 'blueberry.exe' }
     if ($null -eq $selectedExe) { throw '上一版完整快照缺少 blueberry.exe' }
+    $fromVersion = $null
+    $toVersion = $null
+    if ([version]::TryParse(([string]$State.current.version -split '[-+]')[0],[ref]$fromVersion) -and
+        [version]::TryParse(([string]$selected.version -split '[-+]')[0],[ref]$toVersion) -and
+        $fromVersion -ge [version]'0.5.4' -and $toVersion -lt [version]'0.5.4') {
+        $index = Join-Path $env:LOCALAPPDATA 'Blueberry/startup-profiles'
+        $exe = Join-Path $Root 'blueberry.exe'
+        if ([IO.Directory]::Exists($index)) {
+            foreach ($entry in Get-ChildItem -LiteralPath $index -Filter '*.json' -File) {
+                if (([IO.File]::ReadAllText($entry.FullName) | ConvertFrom-Json).exe -ieq $exe) {
+                    & $exe startup prepare-rollback --owned-only
+                    if ($LASTEXITCODE) { throw 'Could not restore the original editor before rollback; installation preserved' }
+                    break
+                }
+            }
+        }
+    }
     $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in $State.managed_files) { [void]$allowed.Add($relative) }
     [void](Assert-PathAvailable -Root $Root -RelativePath "previous/$([Guid]::NewGuid().ToString('N'))")

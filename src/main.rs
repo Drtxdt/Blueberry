@@ -263,6 +263,8 @@ enum Command {
 
 #[derive(Clone, clap::ValueEnum)]
 enum StartupAction {
+    #[value(hide = true)]
+    PrepareRollback,
     Enable,
     Disable,
     Status,
@@ -1212,6 +1214,7 @@ fn execute() -> Result<u32> {
             owned_only,
         } => {
             let action = match action {
+                StartupAction::PrepareRollback => "prepare-rollback",
                 StartupAction::Enable => "enable",
                 StartupAction::Disable => "disable",
                 StartupAction::Status => "status",

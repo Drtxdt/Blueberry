@@ -80,6 +80,8 @@ blueberry startup disable
 
 从 v0.5.3 升级会保留原来的启动配置。之前已启用自动启动的用户，运行一次 `blueberry startup enable` 并新开 PowerShell，即可切换到同会话补全。
 
+若启用后回滚到 v0.5.3，回滚程序会恢复原模块，并保留 v0.5.3 可用的自动启动区块。再次升级到 v0.5.4 后，运行 `blueberry startup enable` 可重新启用同会话补全。
+
 启用时，Blueberry 在 Profile 旁的 `.blueberry-editor` 保存原模块清单，把私有 DLL 放入单独的目录。禁用或卸载后，新开的 Shell 会重新使用原模块。已经打开的窗口可以继续使用它加载的 DLL；若系统锁住文件，关闭这些窗口后再次运行 `blueberry startup disable` 可清理剩余私有文件。被用户修改的清单或私有文件会保留并显示位置。
 
 ## 本机验收

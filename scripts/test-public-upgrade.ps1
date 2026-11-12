@@ -80,6 +80,20 @@ try {
     if ($prior.hooks -or -not $prior.dll.StartsWith($priorModule+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Original user module did not load' }
     & $exe startup enable --profile $fixtureProfile
     if ($LASTEXITCODE -or -not (Read-FreshEditor).hooks) { throw 'Candidate did not activate its editor' }
+    # Exercise rollback after the user opted into the new module as well as
+    # the earlier rollback that preserved the untouched 0.5.3 profile.
+    & $manager -Action Rollback -InstallRoot $root
+    $fallback = [IO.File]::ReadAllText($fixtureProfile)
+    if ((Get-FileHash $exe).Hash -ine $oldHash -or (Read-FreshEditor).sha -ine $prior.sha -or
+        -not $fallback.Contains('run --shell') -or $fallback.Contains('::AttachProfile(') -or
+        -not $fallback.Contains($profileText)) { throw 'Rollback left an incompatible startup hook or editor' }
+    & $exe startup disable --profile $fixtureProfile --owned-only
+    if ($LASTEXITCODE -or (Get-FileHash $fixtureProfile).Hash -ine $profileOriginal) { throw 'Public executable could not remove the compatible hook' }
+    & $exe startup enable --profile $fixtureProfile
+    if ($LASTEXITCODE) { throw 'Public executable could not re-enable after rollback' }
+    & $manager -Action Upgrade -InstallRoot $root -PackagePath $candidate
+    & $exe startup enable --profile $fixtureProfile
+    if ($LASTEXITCODE -or -not (Read-FreshEditor).hooks -or (Get-FileHash $componentState).Hash -ine $componentHash) { throw 'Re-upgrade did not preserve the component and recover the current editor' }
     & $exe terminal uninstall --install-root $root
     if ($LASTEXITCODE) { throw 'Optional component uninstall failed' }
     & $manager -Action Uninstall -InstallRoot $root
@@ -87,6 +101,7 @@ try {
     $after = Read-FreshEditor
     if ($after.hooks -or $after.dll -ine $prior.dll -or $after.sha -ine $prior.sha -or (Get-FileHash $fixtureProfile).Hash -ne $profileOriginal) { throw 'Uninstall did not restore original module and Profile' }
     $receipt['restored_editor'] = $after
+    $receipt['active_profile_rollback'] = 'compatible hook removed and re-enabled by public 0.5.3 executable'
     $receipt['passed']=$true
     Write-Host "Public 0.5.3 upgrade/rollback/re-upgrade passed: $evidence"
 } catch {
