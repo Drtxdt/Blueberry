@@ -74,8 +74,10 @@ $body = if ($compat) {
     '        & $blueberryAutoExe run --shell ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)'
 } else {
 @'
-        $blueberryEditor = Get-Module PSReadLine | Select-Object -First 1
-        if (-not $blueberryEditor) { Import-Module PSReadLine -ErrorAction Stop; $blueberryEditor = Get-Module PSReadLine | Select-Object -First 1 }
+        # Select-Object would load Microsoft.PowerShell.Utility on the first prompt.
+        $blueberryEditor = @(Get-Module PSReadLine)[0]
+        if (-not $blueberryEditor) { Import-Module PSReadLine -ErrorAction Stop; $blueberryEditor = @(Get-Module PSReadLine)[0] }
+        if ($env:BLUEBERRY_PROFILE_TRACE) { $env:BLUEBERRY_PROFILE_EDITOR_QPC = [string][Diagnostics.Stopwatch]::GetTimestamp() }
         if (-not [Microsoft.PowerShell.PSConsoleReadLine].GetProperty('EditorIntegrationVersion')) { throw 'Expected the managed PSReadLine module. Check Get-Module PSReadLine and run blueberry startup enable.' }
         if ($env:BLUEBERRY_NO_HISTORY -eq '1') { Set-PSReadLineOption -HistorySaveStyle SaveNothing }
         if ($env:BLUEBERRY_PROFILE_TRACE) {
@@ -83,6 +85,7 @@ $body = if ($compat) {
             $env:BLUEBERRY_DIRECT_TRACE = '1'
         }
         $null = [Reflection.Assembly]::LoadFrom([IO.Path]::Combine([IO.Path]::GetDirectoryName([Microsoft.PowerShell.PSConsoleReadLine].Assembly.Location),'blueberry-profile-bridge.dll'))
+        if ($env:BLUEBERRY_PROFILE_TRACE) { $env:BLUEBERRY_PROFILE_BRIDGE_QPC = [string][Diagnostics.Stopwatch]::GetTimestamp() }
         [Blueberry.Direct.Bridge]::AttachProfile($blueberryAutoExe,[Microsoft.PowerShell.PSConsoleReadLine],$PSVersionTable.PSVersion.ToString(),$blueberryEditor.Version.ToString())
 '@
 }

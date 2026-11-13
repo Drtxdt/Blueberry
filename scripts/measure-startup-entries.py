@@ -46,6 +46,8 @@ def attribute(report, trace):
     spans = {}
     for start, end in [
         ("launch", "profile_hook_entry"), ("profile_hook_entry", "blueberry_process_entry"),
+        ("profile_hook_entry", "profile_editor_ready"), ("profile_editor_ready", "profile_bridge_loaded"),
+        ("profile_bridge_loaded", "blueberry_process_entry"),
         ("launch", "blueberry_process_entry"), ("blueberry_process_entry", "run_maintenance_begin"),
         ("run_maintenance_begin", "run_maintenance_end"), ("run_maintenance_end", "run_options_ready"),
         ("run_options_ready", "direct_start"), ("direct_start", "direct_resources_ready"),

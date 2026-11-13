@@ -1185,12 +1185,18 @@ fn execute() -> Result<u32> {
             if trace.enabled()
                 && let Some(entry) = process_entry
             {
-                if let Some(qpc) = env::var("BLUEBERRY_PROFILE_HOOK_QPC")
-                    .ok()
-                    .and_then(|value| value.parse::<i64>().ok())
-                    .filter(|qpc| (1..=entry).contains(qpc))
-                {
-                    trace.point("profile_hook_entry", None, None, qpc);
+                for (variable, stage) in [
+                    ("BLUEBERRY_PROFILE_HOOK_QPC", "profile_hook_entry"),
+                    ("BLUEBERRY_PROFILE_EDITOR_QPC", "profile_editor_ready"),
+                    ("BLUEBERRY_PROFILE_BRIDGE_QPC", "profile_bridge_loaded"),
+                ] {
+                    if let Some(qpc) = env::var(variable)
+                        .ok()
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .filter(|qpc| (1..=entry).contains(qpc))
+                    {
+                        trace.point(stage, None, None, qpc);
+                    }
                 }
                 trace.point("blueberry_process_entry", None, None, entry);
                 trace.point("attached_service_entry", None, None, entry);
