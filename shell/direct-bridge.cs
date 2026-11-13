@@ -168,6 +168,37 @@ namespace Blueberry.Direct {
             }
             return result;
         }
+        public static void AttachProfile(string executable, Type readLine, string shellVersion, string editorVersion) {
+            using (var current = Process.GetCurrentProcess()) {
+                var start = new ProcessStartInfo(executable) {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+                    Arguments = String.Format("profile-service {0} \"{1}\" {2}", current.Id, current.MainModule.FileName, editorVersion)
+                };
+                using (var service = Process.Start(start)) {
+                    try {
+                        var response = service.StandardOutput.ReadLineAsync();
+                        PrepareStartup();
+                        if (!response.Wait(10000)) throw new TimeoutException("Blueberry service startup timed out");
+                        var hello = Json.Parse(response.Result ?? "") as Dictionary<string, object>;
+                        if (hello == null || String.IsNullOrEmpty(Json.String(hello,"token"))) throw new InvalidDataException("Missing startup handshake");
+                        string name = Json.String(hello,"pipe"), sessionToken = Json.String(hello,"token");
+                        Environment.SetEnvironmentVariable("BLUEBERRY_SESSION_DIR", Json.String(hello,"session"));
+                        Environment.SetEnvironmentVariable("BLUEBERRY_EDITOR_DLL_SHA256", Json.String(hello,"editor_sha256"));
+                        foreach (var key in (Dictionary<string,object>)hello["keys"])
+                            Environment.SetEnvironmentVariable(key.Key, (string)key.Value);
+                        Initialize(readLine, name, sessionToken, shellVersion, editorVersion);
+                        if (!AutomaticMenu) throw new InvalidOperationException(DisabledReason);
+                        PublishEnvironment();
+                        Environment.SetEnvironmentVariable("BLUEBERRY_ACTIVE","1");
+                        Environment.SetEnvironmentVariable("BLUEBERRY_PROFILE_PID",current.Id.ToString());
+                    } catch {
+                        if (!service.HasExited) service.Kill();
+                        throw;
+                    }
+                }
+            }
+        }
+
         public static void Initialize(Type readLine, string pipeName, string sessionToken, string shellVersion, string loadedModuleVersion) {
             shellVersionText = shellVersion;
             long initialization=Stopwatch.GetTimestamp(), snapshotTicks=0, registrationTicks=0;

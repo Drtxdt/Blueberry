@@ -20,7 +20,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 import tomllib
 
 VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
-USER_TRIAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2", "0.5.3", "0.6.0"}  # No external testers are available; local acceptance is separate.
+USER_TRIAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2", "0.5.3", "0.5.4", "0.6.0"}  # No external testers are available; local acceptance is separate.
 PERFORMANCE_WAIVERS = {"0.5.0", "0.5.1", "0.5.2", "0.5.3"}
 PERFORMANCE_AUTHORIZATION = {"0.5.3": "三轮优化后，完整有效的测量仍未全部达标"}
 TERMINAL_WAIVERS = {"0.5.0", "0.5.1", "0.5.2"}  # User explicitly continued manual-check waivers for 0.5.2.
@@ -155,10 +155,10 @@ def check_versions(versions, expected, count, label):
     require(all(isinstance(value, str) and value.startswith(expected) for value in versions), f"{label}: version mismatch")
 
 
-def check_startup(path, executable_hash, profile, enforce_gate=True):
+def check_startup(path, executable_hash, profile, enforce_gate=True, entry="direct_executable"):
     report = read_json(path)
-    require(report.get("actual_entry", "direct_executable") == "direct_executable",
-            f"{profile}: automatic profile measurements cannot substitute for direct startup")
+    require(report.get("actual_entry", "direct_executable") == entry,
+            f"{profile}: automatic profile measurements cannot substitute for direct startup or vice versa")
     shell_major, psreadline = check_identity(report, executable_hash, profile)
     require(report.get("schema") == 3 and report.get("measurement") == "complete_product", f"{profile}: startup must measure the complete product")
     require(report.get("host_mode") == "direct" and report.get("actual_host_modes") == ["direct"] * report.get("iterations", 0)
@@ -183,6 +183,41 @@ def check_startup(path, executable_hash, profile, enforce_gate=True):
     if enforce_gate:
         require(median <= 50.0, f"{profile}: startup P50 {median:.3f} ms exceeds 50 ms")
     return median > 50.0
+
+
+def check_entry_batches(evidence, root, profile, commit, executable_hash, conpty):
+    cells = evidence.get("startup_entry_reports", {}).get(profile, {})
+    expected = {(entry, cache) for entry in ("direct_executable", "isolated_automatic_profile") for cache in ("cold", "warm")}
+    require(set(cells) == {f"{entry}/{cache}" for entry, cache in expected}, f"{profile}: startup entry matrix incomplete")
+    sessions = set()
+    anchor = None
+    for entry, cache in sorted(expected):
+        batches = cells[f"{entry}/{cache}"]
+        require(isinstance(batches, list) and len(batches) == 2, f"{profile}: need two independent batches")
+        for relative in batches:
+            path = report_path(root, relative)
+            report = read_json(path)
+            session = report.get("scratch_directory")
+            require(isinstance(session, str) and session and session not in sessions, "duplicate or missing startup batch")
+            sessions.add(session)
+            require(report.get("actual_entry") == entry and report.get("local_cache_state") == cache
+                    and report.get("local_appdata_isolated") is True and report.get("editor_eligible") is True,
+                    f"{profile}: wrong startup entry, cache or editor")
+            observations = report.get("system_metadata_observations", [])
+            require(len(observations) == report.get("iterations") and all(
+                item.get("cache") == ("hit" if cache == "warm" else "rebuild") for item in observations),
+                f"{profile}: observed cache differs")
+            environment = {key: report.get(key) for key in (
+                "machine_id", "power_policy", "profile_sha256", "terminal_rows", "terminal_columns")}
+            require(environment["machine_id"] and environment["power_policy"] and
+                    HEX64.fullmatch(environment["profile_sha256"] or "") and
+                    (environment["terminal_rows"], environment["terminal_columns"]) == (30, 120),
+                    "incomplete startup batch environment")
+            if anchor is None:
+                anchor = environment
+            check_frozen_report(report, commit, anchor, profile)
+            check_conpty(report, conpty, profile)
+            check_startup(path, executable_hash, profile, entry=entry)
 
 
 def check_hot(path, executable_hash, profile, variant, enforce_gate=True):
@@ -339,6 +374,7 @@ def check_manual_acceptance(evidence, executable_hash, commit):
         require(VERSION in USER_TRIAL_WAIVERS, "No user trial waiver is authorized for this release")
         require(isinstance(waiver, dict) and waiver.get("status") == "waived_by_user"
                 and waiver.get("version") == VERSION and waiver.get("executed") is False
+                and waiver.get("passed", False) is False
                 and isinstance(waiver.get("reason"), str) and waiver["reason"].strip(),
                 "user trial waiver must explicitly record user authorization and non-execution")
         require(trials == [], "waived user trials cannot be reported as executed or passed")
@@ -826,6 +862,9 @@ def verify(evidence_path, package_path, commit, public_beta6_package, ci_run_id=
         check_conpty(read_json(report_path(root, comparisons[profile])), conpty, f"{profile} comparison", product=False)
         if VERSION in CURRENT_RELEASES:
             check_resources(report_path(root, resources[profile]), executable_hash, commit, profile, environment, evidence["manual_acceptance"])
+    if VERSION == "0.5.4":
+        for profile in PROFILES:
+            check_entry_batches(evidence, root, profile, commit, executable_hash, conpty)
     check_manual_acceptance(evidence, executable_hash, commit)
     check_public_beta6(public_beta6_package, evidence["manual_acceptance"]["public_beta6_sha256"])
     for profile in PROFILES:
@@ -839,6 +878,9 @@ def bundle(evidence_path, output_path):
     evidence_path = evidence_path.resolve(strict=True)
     evidence = read_json(evidence_path)
     reports = set(evidence["startup_reports"].values())
+    for cells in evidence.get("startup_entry_reports", {}).values():
+        for batches in cells.values():
+            reports.update(batches)
     for artifact in evidence.get("raw_artifacts", []):
         reports.update(artifact["files"])
     if "terminal_dependency" in evidence:

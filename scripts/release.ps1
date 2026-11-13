@@ -413,7 +413,7 @@ try {
     [IO.Directory]::CreateDirectory($stageOutput) | Out-Null
 
     $requiredFiles = @(
-        @{ Source = (Join-Path $repoRoot 'README.md'); Destination = 'README.md' },
+        @{ Source = (Join-Path $repoRoot 'docs/package-readme.md'); Destination = 'README.md' },
         @{ Source = (Join-Path $repoRoot 'LICENSE'); Destination = 'LICENSE' },
         @{ Source = (Join-Path $repoRoot 'config.example.toml'); Destination = 'config.example.toml' },
         @{ Source = (Join-Path $repoRoot 'docs/installation.md'); Destination = 'docs/installation.md' },
@@ -447,7 +447,7 @@ try {
     if (-not $noticeSource) { throw '缺少完整依赖许可证原文；请先生成并通过 -LicenseNoticesPath 传入 THIRD-PARTY-NOTICES.txt' }
     Copy-ToStage -Source $noticeSource -Stage $stagePayload -RelativePath 'THIRD-PARTY-NOTICES.txt'
 
-    $notesCandidates = @((Join-Path $repoRoot 'CHANGELOG.md'), (Join-Path $repoRoot 'docs\release-notes.md'))
+    $notesCandidates = @((Join-Path $repoRoot "docs/v$Version-release-notes.md"), (Join-Path $repoRoot 'CHANGELOG.md'), (Join-Path $repoRoot 'docs\release-notes.md'))
     $notesSource = Resolve-OptionalInput -Requested $ReleaseNotesPath -Candidates $notesCandidates -Label '版本说明'
     if ($notesSource) {
         if (-not $ReleaseNotesPath -and [IO.Path]::GetFileName($notesSource) -eq 'CHANGELOG.md') {

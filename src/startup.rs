@@ -5,12 +5,25 @@ pub fn run(action: &str, profile: Option<&Path>, owned_only: bool) -> Result<u32
     if !cfg!(windows) {
         bail!("PowerShell startup integration is supported on Windows");
     }
-    let directory = crate::config::cache_dir();
-    std::fs::create_dir_all(&directory)?;
-    let path = directory.join(format!("startup-{}.ps1", uuid::Uuid::new_v4()));
+    let temporary = tempfile::tempdir()?;
+    let directory = temporary.path();
+    let path = directory.join("startup.ps1");
+    std::fs::write(
+        directory.join("profile-module.ps1"),
+        include_bytes!("../scripts/profile-module.ps1"),
+    )?;
+    #[cfg(windows)]
+    if action == "enable" {
+        crate::editor::export_startup_editors(&directory.join("editors"))?;
+    }
     std::fs::write(&path, include_bytes!("../scripts/startup.ps1"))?;
     let result = (|| {
-        let mut command = std::process::Command::new(crate::pty::default_shell());
+        let shell = crate::pty::default_shell();
+        let mut command = std::process::Command::new(&shell);
+        command.env(
+            "PSModulePath",
+            std::env::join_paths(crate::pty::module_search_paths(&shell))?,
+        );
         command
             .args([
                 "-NoLogo",
@@ -23,6 +36,7 @@ pub fn run(action: &str, profile: Option<&Path>, owned_only: bool) -> Result<u32
             .arg(&path)
             .args(["-Action", action, "-Executable"])
             .arg(std::env::current_exe()?);
+        command.arg("-EditorPayload").arg(directory.join("editors"));
         if let Some(profile) = profile {
             command.arg("-ProfilePath").arg(profile);
         }

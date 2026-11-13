@@ -86,17 +86,20 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
     std::fs::write(
         &setup,
         format!(
-            "\u{feff}$e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145m{expected}${{e}}[0m`r`n\"); 1..40 | ForEach-Object {{ 'HISTORY-SENTINEL' }}\r\n"
+            "\u{feff}$d='p'*48; $null=New-PSDrive -Name $d -PSProvider FileSystem -Root $PWD.Path; Set-Location ($d+':'); $e=[char]27; [Console]::Write(\"${{e}}[38;2;123;45;67m${{e}}[48;2;23;89;145m{expected}${{e}}[0m`r`n\"); 1..40 | ForEach-Object {{ 'HISTORY-SENTINEL' }}\r\n"
         ),
     )?;
     let mut host = start_host(cwd.path())?;
-    host.harness.send_text(&format!(
-        ". '{}'\r",
-        setup.display().to_string().replace('\'', "''")
-    ))?;
+    host.harness.send_text(". .\\history.ps1")?;
+    wait_for_editor_line(&mut host.harness, ". .\\history.ps1")?;
+    host.harness.send_text("\r")?;
     // The fixture deliberately scrolls the previous prompt out of the viewport.
     // Visible prompt counts cannot be used as a monotonically increasing clock.
-    host.harness.event("prompt_end", PTY_TIMEOUT)?;
+    let shell_pid = u32::try_from(
+        host.harness.event("prompt_end", PTY_TIMEOUT)?["pid"]
+            .as_u64()
+            .context("missing shell PID")?,
+    )?;
     wait_until(&mut host.harness, "history fixture prompt", |screen| {
         screen.lines().last().is_some_and(|line| {
             line.trim_start().starts_with("PS ") && line.trim_end().ends_with('>')
@@ -119,14 +122,40 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
     host.harness.wait_text("⌘ git ", PTY_TIMEOUT)?;
     for (rows, columns) in [(12, 40), (28, 95), (18, 60)] {
         host.harness.resize(rows, columns)?;
-        wait_until(&mut host.harness, "resized native menu", |screen| {
-            has_border_width(screen, columns as usize - 1)
-        })?;
+        let prompt = format!("PS {}:\\> gi", "p".repeat(48));
+        let observed = wait_native_screen(
+            &mut host,
+            &format!("resize-{rows}-{columns}.json"),
+            (rows.into(), columns.into()),
+            |screen| {
+                let editor: String = screen
+                    .lines()
+                    .take_while(|s| !s.contains('╭'))
+                    .map(str::trim_end)
+                    .collect();
+                editor.ends_with(&prompt)
+                    && editor.matches(&prompt).count() == 1
+                    && has_current_menu(screen, "⌘ git ", columns as usize - 1)
+            },
+        );
+        console_snapshot::capture_pid(
+            &mut host.harness,
+            shell_pid,
+            &host
+                ._data_dir
+                .path()
+                .join(format!("shell-{rows}-{columns}.json")),
+        )?;
+        observed?;
     }
     host.harness.send_text("\x1b")?;
     wait_until(&mut host.harness, "dismissed native menu", |screen| {
         !screen.contains("⌘ git ")
     })?;
+    console_snapshot::capture(
+        &mut host.harness,
+        &host._data_dir.path().join("dismissed.json"),
+    )?;
     let after = host.harness.native_history()?;
     std::fs::write(host._data_dir.path().join("history-after.txt"), &after)?;
     let row = after
@@ -152,7 +181,20 @@ fn nested_resize_preserves_native_unicode_and_truecolor_history() -> Result<()> 
         "native history Unicode or soft wrapping changed"
     );
     clear_line_and_send(&mut host.harness, b"git st", "completion after resize")?;
+    wait_for_editor_line(&mut host.harness, "git st")?;
     host.harness.wait_text("status", PTY_TIMEOUT)?;
+    wait_native_screen(&mut host, "git-st-status.json", (18, 60), |screen| {
+        current_editor_region(screen).is_some_and(|region| {
+            let edit: String = region
+                .lines()
+                .take_while(|line| !line.contains('╭'))
+                .collect();
+            edit.trim_end().ends_with("> git st")
+                && region
+                    .lines()
+                    .any(|line| line.contains('│') && line.contains("status"))
+        })
+    })?;
     host.harness.stop()?;
     Ok(())
 }
@@ -849,6 +891,7 @@ fn host_finds_real_cargo_and_merges_more_than_512_shell_commands() -> Result<()>
     ensure!(cargo_version.status.success(), "Cargo fixture is available");
     let cargo_version = String::from_utf8(cargo_version.stdout)?.trim().to_owned();
     host.harness.send_text("car")?;
+    wait_for_editor_line(&mut host.harness, "car")?;
     host.harness.wait_text("⌘ cargo ", PTY_TIMEOUT)?;
     host.harness.send_text("\t --version\r")?;
     wait_for_line(

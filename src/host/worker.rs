@@ -96,6 +96,7 @@ impl Worker {
             let mut environment: Option<(String, String)> = None;
             let mut shell_commands = Vec::new();
             let mut system_commands = Vec::new();
+            let mut last_visible_plan: Option<(u64, Instant)> = None;
             let mut latest_query: Option<Query> = None;
             let mut prepared: Option<(u64, Completion, crate::sources::SourceRequest)> = None;
             let mut published = crate::completion::PublishedCompletion::default();
@@ -168,6 +169,9 @@ impl Worker {
                 drop(work);
                 if environment_changed {
                     cache_writer.invalidate();
+                }
+                if cancel || refresh {
+                    last_visible_plan = None;
                 }
                 if cancel {
                     published.clear();
@@ -346,8 +350,15 @@ impl Worker {
                     index.replace_system_commands(system_commands.clone());
                     index.replace_shell_commands(shell_commands.clone());
                 }
-                if let Some(q) = latest_query.as_ref().filter(|_| {
-                    changed
+                if let Some(q) = latest_query.as_ref().filter(|q| {
+                    let publish_batch = finished
+                        || discovery.is_none()
+                        || last_visible_plan.is_none_or(|(rev, at)| {
+                            rev != q.revision
+                                || at.elapsed() >= std::time::Duration::from_millis(16)
+                        });
+                    commands_changed
+                        || (changed && publish_batch)
                         || help_changed
                         || entry_changed
                         || query_changed
@@ -632,6 +643,8 @@ impl Worker {
                             .get_or_insert_with(|| "部分命令目录读取失败；可使用原生补全".into());
                     }
                     let result = published.update(request.as_ref().unwrap(), result);
+                    last_visible_plan =
+                        (!result.candidates.is_empty()).then(|| (q.revision, Instant::now()));
                     trace.event(
                         "completion_merge",
                         Some(q.revision),

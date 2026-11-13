@@ -32,6 +32,7 @@ pub struct EntryOptions<'a> {
 struct SampleEntry<'a> {
     profile_entry: bool,
     local_appdata: Option<&'a Path>,
+    managed_editor_root: Option<&'a str>,
 }
 
 fn shell_metadata(screen: &str) -> Option<Value> {
@@ -137,12 +138,28 @@ fn wait(harness: &mut Harness, description: &str, predicate: impl Fn(&str) -> bo
     }
 }
 fn adapter(directory: &Path) -> Result<Value> {
-    for entry in std::fs::read_dir(directory)?.flatten() {
-        if let Ok(bytes) = std::fs::read(entry.path().join("adapter.json")) {
-            return Ok(serde_json::from_slice(&bytes)?);
+    // StatusWriter publishes asynchronously. The visible menu timestamps have
+    // already been captured; wait for its atomic rename outside timed stages.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        for entry in std::fs::read_dir(directory)? {
+            let path = entry?.path();
+            if !path.is_dir() {
+                continue;
+            }
+            match std::fs::read(path.join("adapter.json")) {
+                Ok(bytes) => return Ok(serde_json::from_slice(&bytes)?),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
         }
+        ensure!(
+            Instant::now() < deadline,
+            "actual product did not publish adapter status in {}",
+            directory.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
     }
-    bail!("actual product did not publish adapter status")
 }
 struct Sample {
     first_prompt: f64,
@@ -205,6 +222,14 @@ fn measure(
         env.insert("LOCALAPPDATA".into(), path.to_string_lossy().into_owned());
     }
     if entry.profile_entry && candidate {
+        if let Some(root) = entry.managed_editor_root {
+            let mut paths = vec![std::path::PathBuf::from(root)];
+            paths.extend(crate::pty::module_search_paths(shell));
+            env.insert(
+                "PSModulePath".into(),
+                std::env::join_paths(paths)?.to_string_lossy().into_owned(),
+            );
+        }
         env.insert("BLUEBERRY_ACTIVE".into(), String::new());
         env.insert(
             "BLUEBERRY_PROFILE_PROBE_DATA".into(),
@@ -544,6 +569,9 @@ pub fn run_with_options(
     } else {
         None
     };
+    let managed_editor_root = entry_fixture
+        .as_ref()
+        .and_then(|f| f["managed_editor_root"].as_str());
     let frozen = environment(shell)?;
     // Probe setup is outside both members of every pair and reported separately.
     // Nested product setup remains inside the measured child process lifetime.
@@ -581,6 +609,7 @@ pub fn run_with_options(
             host_mode,
             None,
             &SampleEntry {
+                managed_editor_root,
                 profile_entry,
                 local_appdata: Some(&warm_local),
             },
@@ -625,6 +654,7 @@ pub fn run_with_options(
         std::fs::create_dir_all(directory.join("bb-product-probe-dir"))?;
         let cold_local = directory.join("cold-localappdata");
         let entry = SampleEntry {
+            managed_editor_root,
             profile_entry,
             local_appdata: match cache_state {
                 CacheState::Ambient => None,
@@ -809,6 +839,21 @@ pub fn run_with_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reads_status_published_after_the_first_menu() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let session = dir.path().join("session");
+        std::fs::create_dir(&session)?;
+        let writer = std::thread::spawn(move || -> std::io::Result<()> {
+            std::fs::write(session.join("adapter.tmp"), br#"{"automatic_menu":true}"#)?;
+            std::thread::sleep(Duration::from_millis(40));
+            std::fs::rename(session.join("adapter.tmp"), session.join("adapter.json"))
+        });
+        let status = adapter(dir.path())?;
+        writer.join().unwrap()?;
+        assert_eq!(status["automatic_menu"], true);
+        Ok(())
+    }
     #[test]
     fn first_echo_can_wrap_but_must_immediately_follow_the_actual_prompt() {
         let prompt = "PS fixture-pair-10>";

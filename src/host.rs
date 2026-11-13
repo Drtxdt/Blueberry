@@ -375,9 +375,6 @@ fn plain_directory(path: &std::path::Path) -> bool {
     let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return false;
     };
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return false;
-    }
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
@@ -385,7 +382,7 @@ fn plain_directory(path: &std::path::Path) -> bool {
             return false;
         }
     }
-    true
+    metadata.is_dir() && !metadata.file_type().is_symlink()
 }
 
 struct SessionFiles(PathBuf);
@@ -551,6 +548,7 @@ struct State {
     commands_pending: bool,
     commands_inflight: bool,
     commands_allowed: bool,
+    awaiting_editor_idle: bool,
     trace: Trace,
     query_started: Option<Instant>,
     request_path: PathBuf,
@@ -864,7 +862,13 @@ impl State {
                 self.trace.event("prompt_end", None, None, None);
                 self.prompt = true;
                 self.manual_completion = false;
-                self.commands_allowed = true;
+                // prompt_end is emitted from PowerShell's prompt function,
+                // before PSReadLine owns the input queue. An eager F12,c can
+                // lose its prefix to a pending console cursor query and type
+                // a literal c. The first edit or explicit refresh enables
+                // snapshot requests; PATH indexing can already run below.
+                self.commands_allowed = false;
+                self.awaiting_editor_idle = true;
                 self.metadata_seen.clear();
                 // ReadLine disposed the previous enumerator when execution
                 // began. Refresh the session snapshot after every new prompt.
@@ -906,6 +910,10 @@ impl State {
                     self.commands_pending = true;
                     self.indexed = true;
                 }
+            }
+            "editor_idle_ready" if self.awaiting_editor_idle && self.prompt => {
+                self.awaiting_editor_idle = false;
+                self.commands_allowed = true;
             }
             "execute" => {
                 self.native_search_active = false;
@@ -1948,6 +1956,7 @@ impl State {
             return Ok(());
         }
         if matches!(event, Event::Key(_) | Event::Paste(_)) {
+            self.awaiting_editor_idle = false;
             self.notification = None;
             self.commands_allowed = query_after && !self.nested_edit;
         }
@@ -2401,6 +2410,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         }
     };
     // The screen model owns a fresh viewport. CSI 2J preserves scrollback.
+    env.insert("BLUEBERRY_NESTED_IDLE_READY".into(), "1".into());
     #[cfg(windows)]
     env.insert(
         "BLUEBERRY_RESERVED_MENU".into(),
@@ -2584,6 +2594,7 @@ pub fn run(options: RunOptions) -> Result<u32> {
         commands_pending: false,
         commands_inflight: false,
         commands_allowed: false,
+        awaiting_editor_idle: false,
         trace: trace.clone(),
         query_started: None,
         request_path,
@@ -2731,6 +2742,18 @@ pub fn run(options: RunOptions) -> Result<u32> {
                                 }
                                 let before = (state.revision, state.prompt, state.dismissed);
                                 let changes_menu = value["event"] == "native_completion";
+                                #[cfg(windows)]
+                                if value["event"] == "buffer"
+                                    && value["resize_snapshot"].is_object()
+                                    && !state.overlay.is_native()
+                                {
+                                    flush_native_prefix(&mut frame, &mut output)?;
+                                    crate::overlay::retire_reflowed_edit(
+                                        &value["resize_snapshot"],
+                                        state.parser.screen(),
+                                        &mut frame,
+                                    )?;
+                                }
                                 state.message(value, &mut writer, &worker)?;
                                 ui_dirty |= changes_menu
                                     || before != (state.revision, state.prompt, state.dismissed);

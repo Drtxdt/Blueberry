@@ -277,6 +277,7 @@ pub fn spawn(
         name.eq_ignore_ascii_case("powershell.exe") || name.eq_ignore_ascii_case("pwsh.exe")
     }) && (std::env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1")
         || env.get("BLUEBERRY_NO_HISTORY").map(String::as_str) == Some("1"))
+        && !env.contains_key("PSModulePath")
         && let Some(module) =
             std::env::var_os("BLUEBERRY_TEST_PSREADLINE_MODULE").filter(|module| !module.is_empty())
     {

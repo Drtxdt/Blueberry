@@ -212,6 +212,14 @@ enum Command {
         #[command(subcommand)]
         command: PacksCommand,
     },
+    #[cfg(windows)]
+    #[command(hide = true)]
+    ProfileService {
+        pid: u32,
+        shell: PathBuf,
+        #[arg(value_enum)]
+        editor: host::PsReadLineVersion,
+    },
     /// Enable, disable, or inspect PowerShell profile startup hooks.
     Startup {
         #[arg(value_enum)]
@@ -255,6 +263,8 @@ enum Command {
 
 #[derive(Clone, clap::ValueEnum)]
 enum StartupAction {
+    #[value(hide = true)]
+    PrepareRollback,
     Enable,
     Disable,
     Status,
@@ -1154,12 +1164,63 @@ fn execute() -> Result<u32> {
                 host::HostMode::Direct => anyhow::bail!("direct host is only supported on Windows"),
             }
         }
+        #[cfg(windows)]
+        Command::ProfileService { pid, shell, editor } => {
+            use std::io::IsTerminal;
+            anyhow::ensure!(
+                !std::io::stdout().is_terminal(),
+                "profile service requires a redirected handshake"
+            );
+            blueberry::maintenance::resume_before_run()?;
+            let data_dir = if env::var("BLUEBERRY_NO_HISTORY").as_deref() == Ok("1") {
+                env::var_os("BLUEBERRY_PROFILE_PROBE_DATA").map(PathBuf::from)
+            } else {
+                None
+            }
+            .unwrap_or_else(config::cache_dir);
+            let trace_path = env::var_os("BLUEBERRY_PROFILE_TRACE")
+                .filter(|p| !p.is_empty())
+                .map(PathBuf::from);
+            let trace = blueberry::trace::Trace::open(trace_path.as_deref())?;
+            if trace.enabled()
+                && let Some(entry) = process_entry
+            {
+                for (variable, stage) in [
+                    ("BLUEBERRY_PROFILE_HOOK_QPC", "profile_hook_entry"),
+                    ("BLUEBERRY_PROFILE_EDITOR_QPC", "profile_editor_ready"),
+                    ("BLUEBERRY_PROFILE_BRIDGE_QPC", "profile_bridge_loaded"),
+                ] {
+                    if let Some(qpc) = env::var(variable)
+                        .ok()
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .filter(|qpc| (1..=entry).contains(qpc))
+                    {
+                        trace.point(stage, None, None, qpc);
+                    }
+                }
+                trace.point("blueberry_process_entry", None, None, entry);
+                trace.point("attached_service_entry", None, None, entry);
+            }
+            host::direct::attach(
+                host::RunOptions {
+                    shell,
+                    no_profile: false,
+                    config_path: cli.config,
+                    data_dir,
+                    trace,
+                    transport: host::Transport::Pipe,
+                    psreadline_version: editor,
+                },
+                pid,
+            )
+        }
         Command::Startup {
             action,
             profile,
             owned_only,
         } => {
             let action = match action {
+                StartupAction::PrepareRollback => "prepare-rollback",
                 StartupAction::Enable => "enable",
                 StartupAction::Disable => "disable",
                 StartupAction::Status => "status",

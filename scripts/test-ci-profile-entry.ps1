@@ -7,6 +7,7 @@ param(
     [ValidateRange(1, 1000)][int]$Pairs = 2,
     [ValidateSet('ambient', 'cold', 'warm')][string]$CacheState = 'ambient',
     [switch]$Formal,
+    [switch]$Dedicated,
     [switch]$CompareEntries
 )
 $ErrorActionPreference='Stop'
@@ -37,13 +38,22 @@ if ($existed) { $original=@([IO.File]::ReadAllBytes($profilePath)) }
 if ($existed) { [IO.File]::WriteAllBytes((Join-Path $root 'original-profile.bin'),$original) }
 $prepared=Join-Path $root 'managed-profile.ps1'
 [IO.File]::WriteAllText($prepared,'',[Text.UTF8Encoding]::new($true))
-& (Join-Path $PSScriptRoot 'startup.ps1') -Action enable -Executable $Executable -ProfilePath $prepared
+$savedNoHistory=$env:BLUEBERRY_NO_HISTORY
+try {
+    # Select the same pinned editor at install time as in the measured shell.
+    $env:BLUEBERRY_NO_HISTORY='1'
+    & $Executable startup enable --profile $prepared
+    $enableExit=$LASTEXITCODE
+} finally { $env:BLUEBERRY_NO_HISTORY=$savedNoHistory }
+if ($enableExit -ne 0) { throw 'Measured executable could not generate its startup profile.' }
 $text=[IO.File]::ReadAllText($prepared).Replace('& $blueberryAutoExe run --shell $blueberryAutoShell','& $blueberryAutoExe run --data-dir $env:BLUEBERRY_PROFILE_PROBE_DATA --shell $blueberryAutoShell')
-$text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n"
+$attached = ($text.Contains('::AttachProfile(') -or $text.Contains('profile-service '))
+if (-not $attached) { $text += "`r`nif (`$env:BLUEBERRY_ACTIVE -ne '1' -and `$env:BLUEBERRY_PROFILE_PROBE_DATA) { [Environment]::Exit([int]`$LASTEXITCODE) }`r`n" }
 [IO.File]::WriteAllText($prepared,$text,[Text.UTF8Encoding]::new($true))
 $expectedHash=(Get-FileHash -LiteralPath $prepared).Hash
 $fixture=Join-Path $root 'blueberry-profile-probe.json'
 [ordered]@{
+    managed_editor_root=if ($attached) { Join-Path $root 'Modules' } else { $null }
     schema=1
     shell=$Shell
     shell_sha256=(Get-FileHash -LiteralPath $Shell).Hash
@@ -51,7 +61,7 @@ $fixture=Join-Path $root 'blueberry-profile-probe.json'
     executable_sha256=(Get-FileHash -LiteralPath $Executable).Hash
     profile=$profilePath
     profile_sha256=$expectedHash
-    managed_block='scripts/startup.ps1; isolated data argument; unchanged recursion and script guards'
+    managed_block=if ($attached) { 'generated same-shell Profile and installed user module' } else { 'legacy child-shell Profile with isolated data directory' }
     observed_entry='PowerShell automatic CurrentUserCurrentHost profile on disposable GitHub-hosted account'
 } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $fixture -Encoding utf8
 $parent=Split-Path -Parent $profilePath
@@ -64,14 +74,15 @@ try {
     if ($CompareEntries) {
         & python (Join-Path $PSScriptRoot 'measure-startup-entries.py') --shell $Shell --executable $Executable --probe $ProbeExecutable --fixture $fixture --output (Join-Path $root 'entries') --pairs $Pairs --cache $CacheState --trace
     } else {
-        & $ProbeExecutable product-probe --host-executable $Executable --shell $Shell --profile-entry --profile-fixture $fixture --iterations $Pairs --cache-state $CacheState --output $reportPath
+        $entryArguments = if ($Dedicated) { @() } else { @('--profile-entry','--profile-fixture',$fixture) }
+        & $ProbeExecutable product-probe --host-executable $Executable --shell $Shell @entryArguments --iterations $Pairs --cache-state $CacheState --output $reportPath
     }
     if ($LASTEXITCODE -ne 0) { throw 'Automatic profile entry probe failed.' }
     if ($Formal) {
         $report=Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
         if ($report.diagnostic_only -ne $false -or $report.build -ne 'release' -or
             $report.trace -ne 'disabled' -or $report.iterations -ne $Pairs -or
-            $report.actual_entry -ne 'isolated_automatic_profile' -or
+            $report.actual_entry -ne $(if ($Dedicated) { 'direct_executable' } else { 'isolated_automatic_profile' }) -or
             $report.local_cache_state -ne $CacheState -or $report.local_appdata_isolated -ne $true -or
             @($report.paired_first_input_delta.samples).Count -ne $Pairs) {
             throw 'Profile report is incomplete or not eligible for formal timing.'
@@ -87,5 +98,9 @@ try {
         } else { -not (Test-Path -LiteralPath $profilePath) }
         [ordered]@{schema=1;profile=$profilePath;original_existed=$existed;restored=$restored} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'restoration.json') -Encoding utf8
         if (-not $restored) { throw 'Runner profile restoration failed.' }
+    }
+    if ($attached) {
+        & $Executable startup disable --profile $prepared
+        if ($LASTEXITCODE) { throw 'Could not restore the staged module' }
     }
 }

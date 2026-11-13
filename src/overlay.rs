@@ -361,6 +361,62 @@ fn restore_cursor(screen: &vt100::Screen, output: &mut impl Write) -> io::Result
 }
 
 #[cfg(windows)]
+pub(crate) fn retire_reflowed_edit(
+    snapshot: &serde_json::Value,
+    screen: &vt100::Screen,
+    output: &mut impl Write,
+) -> io::Result<()> {
+    use windows_sys::Win32::System::Console::{
+        CONSOLE_SCREEN_BUFFER_INFO, COORD, GetConsoleScreenBufferInfo, GetStdHandle,
+        ReadConsoleOutputCharacterW, STD_OUTPUT_HANDLE,
+    };
+    let (height, width) = screen.size();
+    if snapshot["width"].as_u64() != Some(width.into())
+        || snapshot["height"].as_u64() != Some(height.into())
+        || console_size() != Some((height, width))
+    {
+        return Ok(());
+    }
+    let (Some(edit), Some(rows)) = (snapshot["edit"].as_str(), snapshot["blank"].as_array()) else {
+        return Ok(());
+    };
+    if edit.trim_end().is_empty() {
+        return Ok(());
+    }
+    let handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
+    let mut info = CONSOLE_SCREEN_BUFFER_INFO::default();
+    if unsafe { GetConsoleScreenBufferInfo(handle, &mut info) } == 0 {
+        return Ok(());
+    }
+    let mut cells = vec![0u16; usize::from(width)];
+    let mut erased = false;
+    for row in rows
+        .iter()
+        .filter_map(|v| v.as_u64())
+        .filter(|&r| r < u64::from(height))
+    {
+        let pos = COORD {
+            X: info.srWindow.Left,
+            Y: info.srWindow.Top + row as i16,
+        };
+        let mut read = 0;
+        if unsafe {
+            ReadConsoleOutputCharacterW(handle, cells.as_mut_ptr(), width.into(), pos, &mut read)
+        } != 0
+            && read == u32::from(width)
+            && String::from_utf16_lossy(&cells).trim_end() == edit.trim_end()
+        {
+            write!(output, "\x1b[{};1H\x1b[2K", row + 1)?;
+            erased = true;
+        }
+    }
+    if erased {
+        restore_cursor(screen, output)?;
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
 fn console_size() -> Option<(u16, u16)> {
     use windows_sys::Win32::System::Console::{
         CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo, GetStdHandle, STD_OUTPUT_HANDLE,

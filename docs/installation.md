@@ -76,7 +76,13 @@ blueberry startup disable
 
 这组命令管理 PowerShell 的当前用户 ConsoleHost profile（[Microsoft profile 说明](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_profiles)）。5.1 与 7 分别使用各自的 profile；修改前创建 `.blueberry-*.bak` 备份，重复启用保持一个区块。
 
-自动启动沿用当前 PowerShell 版本。`-NoProfile` 会跳过 profile；脚本、非交互和重定向调用也会跳过启动。关闭自动启动后，仍可手动运行 `blueberry`。
+启用后，当前用户新开的 PowerShell 会优先加载 Blueberry 提供的 PSReadLine。交互式 ConsoleHost 在当前 Shell 中启动补全后台服务，用户 Profile 中的键位配置继续执行。`-NoProfile`、脚本、非交互和重定向调用会跳过服务启动。
+
+从 v0.5.3 升级会保留原来的启动配置。之前已启用自动启动的用户，运行一次 `blueberry startup enable` 并新开 PowerShell，即可切换到同会话补全。
+
+若启用后回滚到 v0.5.3，回滚程序会恢复原模块，并保留 v0.5.3 可用的自动启动区块。再次升级到 v0.5.4 后，运行 `blueberry startup enable` 可重新启用同会话补全。
+
+启用时，Blueberry 在 Profile 旁的 `.blueberry-editor` 保存原模块清单，把私有 DLL 放入单独的目录。禁用或卸载后，新开的 Shell 会重新使用原模块。已经打开的窗口可以继续使用它加载的 DLL；若系统锁住文件，关闭这些窗口后再次运行 `blueberry startup disable` 可清理剩余私有文件。被用户修改的清单或私有文件会保留并显示位置。
 
 ## 本机验收
 

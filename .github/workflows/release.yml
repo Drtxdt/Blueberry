@@ -70,7 +70,8 @@ jobs:
           assert os.environ['RELEASE_TAG'] == 'v' + version, 'Tag must match Cargo.toml'
           section = re.search(r'^## ' + re.escape(version) + r'\s*\n(.*?)(?=^## |\Z)', Path('CHANGELOG.md').read_text(), re.M | re.S)
           assert section, 'Missing release notes'
-          Path('release-notes.md').write_text('# Blueberry ' + version + '\n\n' + section[1].strip() + '\n')
+          notes = Path(f'docs/v{version}-release-notes.md')
+          Path('release-notes.md').write_text(notes.read_text() if notes.is_file() else '# Blueberry ' + version + '\n\n' + section[1].strip() + '\n')
           PY
       - name: Resolve exact CI run from pinned version evidence
         env:
@@ -110,6 +111,15 @@ jobs:
           assert run['name'] == 'Blueberry CI' and run['event'] == 'push', 'Expected a branch CI run'
           assert run['head_branch'] == 'main' and run['conclusion'] == 'success', 'main CI did not pass'
           PY
+          if [[ "$RELEASE_TAG" == v0.5.4 ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/wt-overlay-prototype.yml/runs?branch=main&event=push&head_sha=$TAG_SHA" > native-runs.json
+            python3 - <<'PY'
+          import json, os
+          runs = json.load(open('native-runs.json'))['workflow_runs']
+          assert any(r['head_sha'] == os.environ['TAG_SHA'] and r['head_branch'] == 'main'
+                     and r['event'] == 'push' and r['conclusion'] == 'success' for r in runs), 'Native main CI did not pass'
+          PY
+          fi
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.EVIDENCE_REF }}
@@ -163,6 +173,28 @@ jobs:
               if source != destination:
                   source.rename(destination)
           PY
+      - uses: actions/download-artifact@v4
+        if: env.RELEASE_TAG == 'v0.5.4'
+        with:
+          name: blueberry-terminal-component-windows-x64
+          path: measured-component
+          run-id: ${{ env.CI_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Stage the tested installable component
+        if: env.RELEASE_TAG == 'v0.5.4'
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, shutil
+          from pathlib import Path
+          root = Path('measured-component')
+          package, = root.rglob('blueberry-terminal-component-*.zip')
+          checksum = package.with_suffix('.zip.sha256')
+          digest = hashlib.file_digest(package.open('rb'), 'sha256').hexdigest()
+          assert checksum.read_text().strip().lower().split() == [digest, package.name.lower()]
+          assert json.load(open('pinned-evidence.json'))['terminal_component_sha256'].lower() == digest
+          for path in (package, checksum):
+              shutil.copyfile(path, Path('release-assets') / path.name)
+          PY
       - name: Fetch the published beta.6 comparison asset
         shell: bash
         run: |
@@ -179,7 +211,9 @@ jobs:
           sha256sum --check "blueberry-$RELEASE_TAG-windows-x64.zip.sha256"
           cd ..
           python3 release-evidence/scripts/materialize-release-artifacts.py "release-evidence/$EVIDENCE_PATH"
-          TERMINAL_PACKAGE="$(python3 release-evidence/scripts/stage-terminal-release-asset.py "release-evidence/$EVIDENCE_PATH" --output release-assets)"
+          terminal_dir=release-assets
+          if [[ "$RELEASE_TAG" == v0.5.4 ]]; then terminal_dir=validation-dependency; fi
+          TERMINAL_PACKAGE="$(python3 release-evidence/scripts/stage-terminal-release-asset.py "release-evidence/$EVIDENCE_PATH" --output "$terminal_dir")"
           terminal_args=()
           if [[ -n "$TERMINAL_PACKAGE" ]]; then terminal_args=(--terminal-package "$TERMINAL_PACKAGE"); fi
           python3 release-evidence/scripts/verify-release-evidence.py \
