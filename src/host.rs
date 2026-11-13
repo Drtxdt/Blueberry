@@ -375,9 +375,6 @@ fn plain_directory(path: &std::path::Path) -> bool {
     let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return false;
     };
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return false;
-    }
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
@@ -385,7 +382,7 @@ fn plain_directory(path: &std::path::Path) -> bool {
             return false;
         }
     }
-    true
+    metadata.is_dir() && !metadata.file_type().is_symlink()
 }
 
 struct SessionFiles(PathBuf);
